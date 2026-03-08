@@ -172,12 +172,12 @@ def _get_columns(conn: sqlite3.Connection, table: str) -> set[str]:
 # Individual analysis DB validation
 # ------------------------------------------------------------------
 
-def validate_analysis_db(db_path: str) -> ValidationResult:
-    """Full validation of an individual analysis database.
+def validate_analysis_db(db_path: str, *, deep: bool = False) -> ValidationResult:
+    """Validate an individual analysis database.
 
     Checks:
     - File exists and is a valid SQLite database
-    - ``PRAGMA integrity_check`` passes
+    - ``PRAGMA integrity_check`` passes (only when *deep=True*)
     - Required tables (``functions``, ``file_info``) exist
     - Required columns in ``functions`` are present
     - Schema version is compatible
@@ -200,15 +200,15 @@ def validate_analysis_db(db_path: str) -> ValidationResult:
         return result
 
     try:
-        # Integrity check
-        try:
-            integrity = conn.execute("PRAGMA integrity_check").fetchone()
-            if integrity and integrity[0] != "ok":
-                result.add_error(f"Integrity check failed: {integrity[0]}")
+        if deep:
+            try:
+                integrity = conn.execute("PRAGMA integrity_check").fetchone()
+                if integrity and integrity[0] != "ok":
+                    result.add_error(f"Integrity check failed: {integrity[0]}")
+                    return result
+            except sqlite3.Error as e:
+                result.add_error(f"Integrity check error: {e}")
                 return result
-        except sqlite3.Error as e:
-            result.add_error(f"Integrity check error: {e}")
-            return result
 
         # Table existence
         tables = _get_tables(conn)

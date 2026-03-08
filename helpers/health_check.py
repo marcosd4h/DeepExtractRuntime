@@ -202,7 +202,7 @@ def check_analysis_dbs(
 
     failed: list[str] = []
     for db_path in to_validate:
-        vr = validate_analysis_db(str(db_path))
+        vr = validate_analysis_db(str(db_path), deep=full)
         if not vr.ok:
             failed.append(db_path.name)
             db_result.errors.extend(
@@ -405,6 +405,16 @@ def check_function_indexes(
     for module_dir in to_check:
         index_path = module_dir / "function_index.json"
         if not index_path.exists():
+            # OK when module has 0 functions (e.g. forwarder DLL like sfc.dll)
+            profile_path = module_dir / "module_profile.json"
+            if profile_path.exists():
+                try:
+                    profile = json.loads(profile_path.read_text(encoding="utf-8"))
+                    total_funcs = profile.get("scale", {}).get("total_functions", -1)
+                    if total_funcs == 0:
+                        continue
+                except (json.JSONDecodeError, OSError):
+                    pass
             missing.append(module_dir.name)
             continue
         vr = validate_function_index(str(index_path))
