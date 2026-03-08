@@ -2,7 +2,7 @@
 
 > **Purpose**: Complete testing reference for the DeepExtract Agent Analysis
 > Runtime, covering both the **unit test suite** (pytest, 91 test files) and the
-> **integration test plan** (347 test cases across 36 commands, 29 skills, 6
+> **integration test plan** (359 test cases across 36 commands, 29 skills, 6
 > agents, 4 pipelines, 3 hooks, and infrastructure conventions).
 >
 > **Test targets**: `windows.storage.dll`, `shell32.dll`, `appinfo.dll` --
@@ -45,17 +45,17 @@ skips the test suite for speed.
 |---|---|
 | **Location** | This document (test cases below) |
 | **Runner** | `.agent/helpers/qa_runner.py` |
-| **Typical runtime** | ~3-6 minutes (169 runnable tests) |
+| **Typical runtime** | ~3-6 minutes (181 runnable tests) |
 
 Integration tests exercise full skill scripts, agent entry points, pipeline
 validation, lifecycle hooks, and infrastructure conventions end-to-end
 against real analysis databases. Each test case specifies a concrete command,
 expected behavior, and the conventions it validates.
 
-Of the 347 test cases in this document, 166 are directly runnable by the QA
-test runner (skill scripts, agent scripts, pipelines, hooks). The remaining
-181 are slash commands and multi-step workflows that require agent-level
-orchestration.
+Of the 359 test cases in this document, 178 are directly runnable by the QA
+test runner (skill scripts, agent scripts, pipelines, hooks, infrastructure).
+The remaining 181 are slash commands and multi-step workflows that require
+agent-level orchestration.
 
 Run them:
 
@@ -71,7 +71,7 @@ python .agent/helpers/qa_runner.py
 | Isolation | Synthetic fixtures, no live DBs | Real extraction databases |
 | Runner | pytest | `.agent/helpers/qa_runner.py` |
 | Trigger | `pytest` or `/health --full` | `qa_runner.py` or manual |
-| Test count | ~91 files (hundreds of cases) | 347 cases (166 auto-runnable) |
+| Test count | ~91 files (hundreds of cases) | 359 cases (178 auto-runnable) |
 | Runtime | ~10-30s | ~3-6 min |
 
 > **Machine-parseable**: Every integration test case uses a consistent metadata
@@ -3885,6 +3885,136 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Flags-Tested**: function, --area, --detail
 - **Protocol**: none
 
+### TEST-SKILL-120: audit_com_security
+
+- **Category**: skill-script
+- **Component**: skill-script
+- **Component-Name**: com-interface-analysis/audit_com_security.py
+- **Target-Module**: appinfo.dll
+- **Target-Function**: N/A
+- **Command**: `python .agent/skills/com-interface-analysis/scripts/audit_com_security.py appinfo.dll --json`
+- **Expected**: COM security audit findings for appinfo.dll
+- **Validates**: COM security permission auditing
+- **Flags-Tested**: module, --json
+- **Protocol**: none
+
+### TEST-SKILL-121: classify_com_entrypoints
+
+- **Category**: skill-script
+- **Component**: skill-script
+- **Component-Name**: com-interface-analysis/classify_com_entrypoints.py
+- **Target-Module**: appinfo.dll
+- **Target-Function**: N/A
+- **Command**: `python .agent/skills/com-interface-analysis/scripts/classify_com_entrypoints.py appinfo.dll --json`
+- **Expected**: COM entry points classified by attack value
+- **Validates**: COM entry point classification
+- **Flags-Tested**: module, --json
+- **Protocol**: none
+
+### TEST-SKILL-122: map_class_interfaces
+
+- **Category**: skill-script
+- **Component**: skill-script
+- **Component-Name**: com-interface-reconstruction/map_class_interfaces.py
+- **Target-Module**: appinfo.dll
+- **Target-Function**: N/A
+- **Command**: `python .agent/skills/com-interface-reconstruction/scripts/map_class_interfaces.py <db:appinfo> --json`
+- **Expected**: COM class-to-interface mappings
+- **Validates**: Class interface mapping
+- **Flags-Tested**: --json
+- **Protocol**: none
+
+### TEST-SKILL-123: audit_rpc_security
+
+- **Category**: skill-script
+- **Component**: skill-script
+- **Component-Name**: rpc-interface-analysis/audit_rpc_security.py
+- **Target-Module**: appinfo.dll
+- **Target-Function**: N/A
+- **Command**: `python .agent/skills/rpc-interface-analysis/scripts/audit_rpc_security.py <db:appinfo> --json`
+- **Expected**: RPC security descriptor audit findings
+- **Validates**: RPC interface security auditing
+- **Flags-Tested**: --json
+- **Protocol**: none
+
+### TEST-SKILL-124: find_rpc_clients
+
+- **Category**: skill-script
+- **Component**: skill-script
+- **Component-Name**: rpc-interface-analysis/find_rpc_clients.py
+- **Target-Module**: N/A
+- **Target-Function**: N/A
+- **Command**: `python .agent/skills/rpc-interface-analysis/scripts/find_rpc_clients.py 0497b57d-2e66-424f-a0c6-157cd5d41700 --json`
+- **Expected**: Modules that are RPC clients for the given UUID
+- **Validates**: RPC client discovery
+- **Flags-Tested**: uuid, --json
+- **Protocol**: none
+
+### TEST-SKILL-125: trace_rpc_chain
+
+- **Category**: skill-script
+- **Component**: skill-script
+- **Component-Name**: rpc-interface-analysis/trace_rpc_chain.py
+- **Target-Module**: appinfo.dll
+- **Target-Function**: RAiLaunchAdminProcess
+- **Command**: `python .agent/skills/rpc-interface-analysis/scripts/trace_rpc_chain.py <db:appinfo> --function RAiLaunchAdminProcess --json`
+- **Expected**: RPC handler call chain trace
+- **Validates**: RPC handler chain tracing
+- **Flags-Tested**: --function, --json
+- **Protocol**: none
+
+### TEST-SKILL-126: audit_winrt_security
+
+- **Category**: skill-script
+- **Component**: skill-script
+- **Component-Name**: winrt-interface-analysis/audit_winrt_security.py
+- **Target-Module**: windows.storage.dll
+- **Target-Function**: N/A
+- **Command**: `python .agent/skills/winrt-interface-analysis/scripts/audit_winrt_security.py <db:winstorage> --json`
+- **Expected**: WinRT server security audit findings
+- **Validates**: WinRT security property auditing
+- **Flags-Tested**: --json
+- **Protocol**: none
+
+### TEST-SKILL-127: classify_winrt_entrypoints
+
+- **Category**: skill-script
+- **Component**: skill-script
+- **Component-Name**: winrt-interface-analysis/classify_winrt_entrypoints.py
+- **Target-Module**: windows.storage.dll
+- **Target-Function**: N/A
+- **Command**: `python .agent/skills/winrt-interface-analysis/scripts/classify_winrt_entrypoints.py windows.storage.dll --json`
+- **Expected**: WinRT entry points classified by attack value
+- **Validates**: WinRT entry point classification
+- **Flags-Tested**: module, --json
+- **Protocol**: none
+
+### TEST-SKILL-128: enumerate_winrt_methods
+
+- **Category**: skill-script
+- **Component**: skill-script
+- **Component-Name**: winrt-interface-analysis/enumerate_winrt_methods.py
+- **Target-Module**: windows.storage.dll
+- **Target-Function**: N/A
+- **Command**: `python .agent/skills/winrt-interface-analysis/scripts/enumerate_winrt_methods.py windows.storage.dll --json`
+- **Expected**: WinRT server methods enumerated
+- **Validates**: WinRT method enumeration
+- **Flags-Tested**: module, --json
+- **Protocol**: none
+
+### TEST-SKILL-129: map_winrt_surface
+
+- **Category**: skill-script
+- **Component**: skill-script
+- **Component-Name**: winrt-interface-analysis/map_winrt_surface.py
+- **Target-Module**: N/A
+- **Target-Function**: N/A
+- **Command**: `python .agent/skills/winrt-interface-analysis/scripts/map_winrt_surface.py --system-wide --top 10 --json`
+- **Expected**: System-wide WinRT attack surface ranking
+- **Validates**: WinRT surface mapping
+- **Flags-Tested**: --system-wide, --top, --json
+- **Protocol**: none
+
 ---
 
 ## Section 11: Agent Entry Script Tests
@@ -4828,6 +4958,32 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Flags-Tested**: N/A
 - **Protocol**: none
 
+### TEST-INFRA-021: Unified search CLI
+
+- **Category**: infrastructure
+- **Component**: infrastructure
+- **Component-Name**: unified_search.py
+- **Target-Module**: appinfo.dll
+- **Target-Function**: N/A
+- **Command**: `python .agent/helpers/unified_search.py <db:appinfo> --query "CreateProcess" --json`
+- **Expected**: JSON with status ok containing search results across dimensions
+- **Validates**: Standalone unified_search.py CLI with --json output
+- **Flags-Tested**: --query, --json
+- **Protocol**: none
+
+### TEST-INFRA-022: Health check CLI
+
+- **Category**: infrastructure
+- **Component**: infrastructure
+- **Component-Name**: health_check.py
+- **Target-Module**: N/A
+- **Target-Function**: N/A
+- **Command**: `python .agent/helpers/health_check.py --quick --json`
+- **Expected**: JSON with status ok containing workspace health summary
+- **Validates**: Standalone health_check.py CLI with --json output
+- **Flags-Tested**: --quick, --json
+- **Protocol**: none
+
 ---
 
 ## Coverage Cross-Check
@@ -4837,7 +4993,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 | Commands | 36 | 36 | 100% |
 | Command flags/subcommands | ~85 | ~85 | 100% |
 | Skills | 29 | 29 | 100% |
-| Skill scripts | ~112 | ~112 | 100% |
+| Skill scripts | ~122 | ~122 | 100% |
 | Agents | 6 | 6 | 100% |
 | Agent entry scripts | 13 | 13 | 100% |
 | Agent goals/modes | ~16 | ~16 | 100% |
@@ -4862,10 +5018,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 | TEST-VR | VR Campaigns | 8 |
 | TEST-QUAL | Code Quality | 12 |
 | TEST-OPS | Reporting and Ops | 13 |
-| TEST-SKILL | Skill Scripts | 119 |
+| TEST-SKILL | Skill Scripts | 129 |
 | TEST-AGENT | Agent Scripts | 35 |
 | TEST-FLOW | VR Workflows | 7 |
 | TEST-PIPE | Pipeline | 6 |
 | TEST-HOOK | Hooks | 3 |
-| TEST-INFRA | Infrastructure | 20 |
-| **TOTAL** | | **347** |
+| TEST-INFRA | Infrastructure | 22 |
+| **TOTAL** | | **359** |
