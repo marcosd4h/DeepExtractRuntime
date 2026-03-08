@@ -1,0 +1,770 @@
+#!/usr/bin/env python3
+"""Run a multi-phase security scan pipeline and produce a unified findings report.
+
+This is the security-auditor's main entry script. It orchestrates existing
+skill scripts to perform a comprehensive security assessment of a module.
+
+Usage:
+    python run_security_scan.py <db_path> --goal scan
+    python run_security_scan.py <db_path> --goal audit --function <name>
+    python run_security_scan.py <db_path> --goal hunt --top 15
+    python run_security_scan.py <db_path> --goal scan --json
+
+Goals:
+    scan:   full 6-phase vulnerability scan (default)
+    audit:  targeted audit on a specific function
+    hunt:   hypothesis-driven scan on top entry points
+
+Output:
+    Structured JSON with per-phase summaries, merged findings, and
+    workspace file references.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+
+_SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(_SCRIPT_DIR))
+
+from _common import (
+    WORKSPACE_ROOT,
+    Finding,
+    ProgressReporter,
+    create_run_dir,
+    deduplicate,
+    findings_summary,
+    merge_findings,
+    read_results,
+    rank,
+    resolve_db_path,
+    run_skill_script,
+    status_message,
+    to_json,
+)
+from helpers.config import get_config_value
+from helpers.errors import ErrorCode, emit_error, safe_parse_args
+from helpers.json_output import emit_json
+
+
+# ---------------------------------------------------------------------------
+# Adaptive timeout
+# ---------------------------------------------------------------------------
+def _adaptive_timeout(function_count: int) -> int:
+    base = int(get_config_value("security_auditor.step_timeout_seconds", 180))
+    per_fn = float(get_config_value("security_auditor.per_function_timeout_seconds", 0.2))
+    return max(base, int(base + function_count * per_fn))
+
+
+def _with_flag(args: list[str], flag: str, enabled: bool) -> list[str]:
+    """Return a copy of *args* with *flag* appended when enabled."""
+    if not enabled or flag in args:
+        return list(args)
+    return list(args) + [flag]
+
+
+def _phase_workers(max_workers: int | None, step_count: int, default: int) -> int:
+    """Return the worker count for a phase, capped by step count."""
+    cap = default if max_workers is None else max(1, max_workers)
+    return max(1, min(cap, step_count))
+
+
+# ---------------------------------------------------------------------------
+# Phase definitions
+# ---------------------------------------------------------------------------
+
+def _get_rpc_context(db_path: str) -> dict | None:
+    """Gather RPC index context for the module being scanned."""
+    try:
+        from helpers.rpc_index import get_rpc_index
+        from helpers import open_individual_analysis_db
+        idx = get_rpc_index()
+        if not idx.loaded:
+            return None
+        with open_individual_analysis_db(db_path) as db:
+            fi = db.get_file_info()
+            if not fi or not fi.file_name:
+                return None
+            ifaces = idx.get_interfaces_for_module(fi.file_name)
+            if not ifaces:
+                return None
+            procs = idx.get_procedures_for_module(fi.file_name)
+            return {
+                "module_name": fi.file_name,
+                "interface_count": len(ifaces),
+                "procedure_count": len(procs),
+                "procedures": procs,
+                "remote_reachable": any(i.is_remote_reachable for i in ifaces),
+                "named_pipe": any(i.is_named_pipe for i in ifaces),
+                "risk_tiers": list({i.risk_tier for i in ifaces}),
+                "interfaces": [i.to_dict() for i in ifaces],
+            }
+    except Exception:
+        return None
+
+
+def _phase_recon(
+    db_path: str,
+    workspace_dir: str,
+    timeout: int,
+    *,
+    max_workers: int | None = None,
+    no_cache: bool = False,
+) -> dict:
+    """Phase 1: Recon -- classify functions, map attack surface, gather RPC context."""
+    results: dict = {}
+
+    rpc_ctx = _get_rpc_context(db_path)
+    if rpc_ctx:
+        results["rpc_context"] = {"success": True, "json_data": rpc_ctx}
+        print(f"  [RPC] {rpc_ctx['interface_count']} interfaces, "
+              f"{rpc_ctx['procedure_count']} procedures, "
+              f"risk tiers: {rpc_ctx['risk_tiers']}", file=sys.stderr)
+
+    steps = [
+        ("classify_triage", "classify-functions", "triage_summary.py",
+         _with_flag([db_path, "--json", "--top", "20"], "--no-cache", no_cache)),
+        ("discover_entrypoints", "map-attack-surface", "discover_entrypoints.py",
+         _with_flag([db_path, "--json"], "--no-cache", no_cache)),
+        ("rank_entrypoints", "map-attack-surface", "rank_entrypoints.py",
+         [db_path, "--json", "--top", "10"]),
+    ]
+
+    with ThreadPoolExecutor(max_workers=_phase_workers(max_workers, len(steps), 3)) as pool:
+        future_map = {}
+        for step_name, skill, script, args in steps:
+            future = pool.submit(
+                run_skill_script, skill, script, args,
+                timeout=timeout, json_output=True,
+                workspace_dir=workspace_dir, workspace_step=step_name,
+            )
+            future_map[future] = step_name
+
+        for future in as_completed(future_map):
+            name = future_map[future]
+            try:
+                result = future.result()
+                results[name] = result
+            except Exception as exc:
+                print(f"  [FAIL] {name}: {exc}", file=sys.stderr)
+                results[name] = {"success": False, "error": str(exc)}
+
+    return results
+
+
+def _phase_vuln_scan(
+    db_path: str,
+    workspace_dir: str,
+    timeout: int,
+    *,
+    max_workers: int | None = None,
+    no_cache: bool = False,
+) -> dict:
+    """Phase 2: Vulnerability scanning -- memory + logic detectors."""
+    results: dict = {}
+    steps = [
+        ("scan_buffer_overflows", "memory-corruption-detector",
+         "scan_buffer_overflows.py", _with_flag([db_path, "--json"], "--no-cache", no_cache)),
+        ("scan_integer_issues", "memory-corruption-detector",
+         "scan_integer_issues.py", _with_flag([db_path, "--json"], "--no-cache", no_cache)),
+        ("scan_use_after_free", "memory-corruption-detector",
+         "scan_use_after_free.py", _with_flag([db_path, "--json"], "--no-cache", no_cache)),
+        ("scan_format_strings", "memory-corruption-detector",
+         "scan_format_strings.py", _with_flag([db_path, "--json"], "--no-cache", no_cache)),
+        ("scan_auth_bypass", "logic-vulnerability-detector",
+         "scan_auth_bypass.py", _with_flag([db_path, "--top", "20", "--json"], "--no-cache", no_cache)),
+        ("scan_state_errors", "logic-vulnerability-detector",
+         "scan_state_errors.py", _with_flag([db_path, "--json"], "--no-cache", no_cache)),
+        ("scan_logic_flaws", "logic-vulnerability-detector",
+         "scan_logic_flaws.py", _with_flag([db_path, "--top", "20", "--json"], "--no-cache", no_cache)),
+        ("scan_api_misuse", "logic-vulnerability-detector",
+         "scan_api_misuse.py", _with_flag([db_path, "--top", "20", "--json"], "--no-cache", no_cache)),
+    ]
+
+    with ThreadPoolExecutor(max_workers=_phase_workers(max_workers, len(steps), 4)) as pool:
+        future_map = {}
+        for step_name, skill, script, args in steps:
+            future = pool.submit(
+                run_skill_script, skill, script, args,
+                timeout=timeout, json_output=True,
+                workspace_dir=workspace_dir, workspace_step=step_name,
+            )
+            future_map[future] = step_name
+
+        for future in as_completed(future_map):
+            name = future_map[future]
+            try:
+                result = future.result()
+                results[name] = result
+            except Exception as exc:
+                print(f"  [FAIL] {name}: {exc}", file=sys.stderr)
+                results[name] = {"success": False, "error": str(exc)}
+
+    return results
+
+
+def _extract_top_entrypoints(recon_results: dict, workspace_dir: str, top_n: int) -> list[str]:
+    """Extract top entry point function names from recon results."""
+    ranked = None
+    rank_result = recon_results.get("rank_entrypoints")
+    if isinstance(rank_result, dict) and rank_result.get("success"):
+        ranked = rank_result.get("json_data")
+
+    if ranked is None:
+        loaded = read_results(workspace_dir, "rank_entrypoints")
+        if loaded:
+            ranked = loaded.get("stdout") if isinstance(loaded, dict) else loaded
+
+    names: list[str] = []
+    if isinstance(ranked, list):
+        for entry in ranked:
+            if isinstance(entry, dict):
+                name = entry.get("function_name", entry.get("name", ""))
+                if name:
+                    names.append(name)
+    elif isinstance(ranked, dict):
+        for key in ("ranked", "entrypoints", "top_entrypoints", "ranked_entrypoints"):
+            entries = ranked.get(key, [])
+            if isinstance(entries, list):
+                for entry in entries:
+                    if isinstance(entry, dict):
+                        name = entry.get("function_name", entry.get("name", ""))
+                        if name:
+                            names.append(name)
+                if names:
+                    break
+
+    return names[:top_n]
+
+
+def _phase_taint(
+    db_path: str, workspace_dir: str, timeout: int,
+    entrypoints: list[str], function_name: str | None = None,
+    *,
+    max_workers: int | None = None,
+    no_cache: bool = False,
+) -> dict:
+    """Phase 3: Taint analysis on top entry points (or a specific function)."""
+    results: dict = {}
+    targets = [function_name] if function_name else entrypoints[:5]
+
+    if not targets:
+        print("  [SKIP] No targets for taint analysis", file=sys.stderr)
+        return results
+
+    with ThreadPoolExecutor(max_workers=_phase_workers(max_workers, len(targets), 3)) as pool:
+        future_map = {}
+        for fname in targets:
+            step_name = f"taint_{fname}"
+            taint_args = _with_flag([db_path, fname, "--depth", "2", "--json"], "--no-cache", no_cache)
+            future = pool.submit(
+                run_skill_script,
+                "taint-analysis", "taint_function.py",
+                taint_args,
+                timeout=timeout, json_output=True,
+                workspace_dir=workspace_dir, workspace_step=step_name,
+            )
+            future_map[future] = step_name
+
+        for future in as_completed(future_map):
+            name = future_map[future]
+            try:
+                result = future.result()
+                results[name] = result
+            except Exception as exc:
+                print(f"  [FAIL] {name}: {exc}", file=sys.stderr)
+                results[name] = {"success": False, "error": str(exc)}
+
+    return results
+
+
+def _phase_verify(
+    db_path: str,
+    workspace_dir: str,
+    timeout: int,
+    *,
+    max_workers: int | None = None,
+) -> dict:
+    """Phase 4: Independent verification of scanner findings."""
+    results: dict = {}
+    steps = [
+        ("verify_memory", "memory-corruption-detector", "verify_findings.py"),
+        ("verify_logic", "logic-vulnerability-detector", "verify_findings.py"),
+    ]
+
+    memory_findings = _collect_workspace_json(workspace_dir, [
+        "scan_buffer_overflows", "scan_integer_issues",
+        "scan_use_after_free", "scan_format_strings",
+    ])
+    logic_findings = _collect_workspace_json(workspace_dir, [
+        "scan_auth_bypass", "scan_state_errors", "scan_logic_flaws",
+        "scan_api_misuse",
+    ])
+
+    with ThreadPoolExecutor(max_workers=_phase_workers(max_workers, len(steps), 2)) as pool:
+        future_map = {}
+        for step_name, skill, script in steps:
+            findings_path = _write_temp_findings(
+                workspace_dir, step_name,
+                memory_findings if "memory" in step_name else logic_findings,
+            )
+            if not findings_path:
+                continue
+            future = pool.submit(
+                run_skill_script, skill, script,
+                ["--findings", findings_path, "--db-path", db_path, "--json"],
+                timeout=timeout, json_output=True,
+                workspace_dir=workspace_dir, workspace_step=step_name,
+            )
+            future_map[future] = step_name
+
+        for future in as_completed(future_map):
+            name = future_map[future]
+            try:
+                result = future.result()
+                results[name] = result
+            except Exception as exc:
+                print(f"  [FAIL] {name}: {exc}", file=sys.stderr)
+                results[name] = {"success": False, "error": str(exc)}
+
+    return results
+
+
+def _phase_exploitability(db_path: str, workspace_dir: str, timeout: int) -> dict:
+    """Phase 5: Exploitability assessment with all finding types."""
+    results: dict = {}
+
+    taint_path = _find_step_results_path(workspace_dir, "taint_")
+    memory_path = _find_step_results_path(workspace_dir, "verify_memory")
+    logic_path = _find_step_results_path(workspace_dir, "verify_logic")
+
+    args = ["--module-db", db_path, "--json"]
+    if taint_path:
+        args.extend(["--taint-report", taint_path])
+    if memory_path:
+        args.extend(["--memory-findings", memory_path])
+    if logic_path:
+        args.extend(["--logic-findings", logic_path])
+
+    if not taint_path and not memory_path and not logic_path:
+        print("  [SKIP] No findings for exploitability assessment", file=sys.stderr)
+        return results
+
+    try:
+        result = run_skill_script(
+            "exploitability-assessment", "assess_finding.py", args,
+            timeout=timeout, json_output=True,
+            workspace_dir=workspace_dir, workspace_step="exploitability",
+        )
+        results["exploitability"] = result
+    except Exception as exc:
+        print(f"  [FAIL] exploitability: {exc}", file=sys.stderr)
+        results["exploitability"] = {"success": False, "error": str(exc)}
+
+    return results
+
+
+def _phase_report(
+    all_phase_results: dict,
+    workspace_dir: str,
+) -> dict:
+    """Phase 6: Merge, deduplicate, and rank all findings into final report."""
+    scanner_pairs: list[tuple[dict, str]] = []
+
+    for step_name, result in all_phase_results.items():
+        if not isinstance(result, dict) or not result.get("success"):
+            continue
+        data = result.get("json_data", {})
+        if not isinstance(data, dict):
+            continue
+
+        if "memory" in step_name or "buffer" in step_name or "integer" in step_name or "free" in step_name or "format" in step_name:
+            scanner_pairs.append((data, "memory_corruption"))
+        elif "auth" in step_name or "state_error" in step_name or "logic_flaw" in step_name or "api_misuse" in step_name:
+            scanner_pairs.append((data, "logic_vulnerability"))
+        elif "taint" in step_name:
+            scanner_pairs.append((data, "taint"))
+
+    merged = merge_findings(*scanner_pairs) if scanner_pairs else []
+    summary = findings_summary(merged)
+
+    report_path = Path(workspace_dir) / "ranked" / "results.json"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(
+        json.dumps({
+            "status": "ok",
+            "findings": to_json(merged),
+            "summary": summary,
+        }, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    return {
+        "findings": merged,
+        "summary": summary,
+        "report_path": str(report_path),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _collect_workspace_json(workspace_dir: str, step_names: list[str]) -> list[dict]:
+    """Collect JSON data from multiple workspace step results."""
+    collected: list[dict] = []
+    for name in step_names:
+        loaded = read_results(workspace_dir, name)
+        if isinstance(loaded, dict):
+            stdout = loaded.get("stdout")
+            if isinstance(stdout, dict):
+                collected.append(stdout)
+            elif isinstance(stdout, list):
+                collected.extend(stdout)
+    return collected
+
+
+def _write_temp_findings(workspace_dir: str, step_name: str, findings: list[dict]) -> str | None:
+    """Write collected findings to a temp JSON file for verification scripts."""
+    if not findings:
+        return None
+    out_path = Path(workspace_dir) / f"{step_name}_input.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(
+        json.dumps({"findings": findings}, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    return str(out_path)
+
+
+def _find_step_results_path(workspace_dir: str, step_prefix: str) -> str | None:
+    """Find the results.json path for a workspace step by prefix."""
+    ws = Path(workspace_dir)
+    for d in sorted(ws.iterdir()) if ws.is_dir() else []:
+        if d.is_dir() and d.name.startswith(step_prefix):
+            results_file = d / "results.json"
+            if results_file.exists():
+                return str(results_file)
+    # Also check for direct step directory match
+    exact = ws / step_prefix
+    if exact.is_dir():
+        results_file = exact / "results.json"
+        if results_file.exists():
+            return str(results_file)
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Pipeline orchestrator
+# ---------------------------------------------------------------------------
+
+def run_security_pipeline(
+    db_path: str,
+    goal: str = "scan",
+    function_name: str | None = None,
+    top_n: int = 10,
+    json_mode: bool = False,
+    timeout_override: int | None = None,
+    workspace_run_dir: str | None = None,
+    max_workers: int | None = None,
+    no_cache: bool = False,
+) -> dict:
+    """Execute the security scan pipeline.
+
+    Returns structured JSON with per-phase summaries, merged findings,
+    and workspace file references.
+    """
+    start_time = time.time()
+    module_name = Path(db_path).stem
+    workspace_dir = workspace_run_dir or create_run_dir(module_name, f"security_{goal}")
+
+    timeout = timeout_override or _adaptive_timeout(0)
+
+    progress = ProgressReporter(total=6, label="Security scan")
+    all_results: dict = {}
+    phase_log: list[dict] = []
+
+    def _log_phase(name: str, phase_start: float, result: dict, success: bool):
+        elapsed = round(time.time() - phase_start, 2)
+        entry = {"phase": name, "success": success, "elapsed_seconds": elapsed}
+        if not success and isinstance(result, dict):
+            entry["error"] = result.get("error", "Unknown error")
+        phase_log.append(entry)
+
+    # Phase 1: Recon
+    status_message("Phase 1/6: Recon -- classifying functions and mapping attack surface")
+    t0 = time.time()
+    recon = _phase_recon(
+        db_path,
+        workspace_dir,
+        timeout,
+        max_workers=max_workers,
+        no_cache=no_cache,
+    )
+    all_results.update(recon)
+    _log_phase("recon", t0, recon, any(
+        isinstance(v, dict) and v.get("success") for v in recon.values()
+    ))
+    progress.update(1)
+
+    entrypoints = _extract_top_entrypoints(recon, workspace_dir, top_n)
+
+    # Prioritize confirmed RPC procedures (especially remote-reachable)
+    rpc_ctx = recon.get("rpc_context", {}).get("json_data")
+    if rpc_ctx and rpc_ctx.get("procedures"):
+        rpc_procs = set(rpc_ctx["procedures"])
+        rpc_entries = [e for e in entrypoints if e in rpc_procs]
+        non_rpc = [e for e in entrypoints if e not in rpc_procs]
+        # Prepend RPC procs that weren't already in the list
+        extra_rpc = [p for p in rpc_ctx["procedures"][:10] if p not in set(entrypoints)]
+        entrypoints = rpc_entries + extra_rpc[:5] + non_rpc
+        entrypoints = entrypoints[:top_n]
+        if rpc_entries or extra_rpc:
+            print(f"  [RPC] Prioritized {len(rpc_entries)} RPC handlers in scan targets",
+                  file=sys.stderr)
+
+    # Phase 2: Vulnerability scan
+    status_message("Phase 2/6: Scanning for memory corruption and logic vulnerabilities")
+    t0 = time.time()
+    vuln = _phase_vuln_scan(
+        db_path,
+        workspace_dir,
+        timeout,
+        max_workers=max_workers,
+        no_cache=no_cache,
+    )
+    all_results.update(vuln)
+    _log_phase("vuln_scan", t0, vuln, any(
+        isinstance(v, dict) and v.get("success") for v in vuln.values()
+    ))
+    progress.update(2)
+
+    # Phase 3: Taint analysis
+    status_message("Phase 3/6: Taint analysis on top entry points")
+    t0 = time.time()
+    taint = _phase_taint(
+        db_path,
+        workspace_dir,
+        timeout,
+        entrypoints,
+        function_name,
+        max_workers=max_workers,
+        no_cache=no_cache,
+    )
+    all_results.update(taint)
+    _log_phase("taint", t0, taint, any(
+        isinstance(v, dict) and v.get("success") for v in taint.values()
+    ) if taint else True)
+    progress.update(3)
+
+    # Phase 4: Verification
+    status_message("Phase 4/6: Verifying scanner findings against assembly")
+    t0 = time.time()
+    verified = _phase_verify(
+        db_path,
+        workspace_dir,
+        timeout,
+        max_workers=max_workers,
+    )
+    all_results.update(verified)
+    _log_phase("verification", t0, verified, any(
+        isinstance(v, dict) and v.get("success") for v in verified.values()
+    ) if verified else True)
+    progress.update(4)
+
+    # Phase 5: Exploitability assessment
+    status_message("Phase 5/6: Scoring exploitability")
+    t0 = time.time()
+    exploit = _phase_exploitability(db_path, workspace_dir, timeout)
+    all_results.update(exploit)
+    _log_phase("exploitability", t0, exploit, any(
+        isinstance(v, dict) and v.get("success") for v in exploit.values()
+    ) if exploit else True)
+    progress.update(5)
+
+    # Phase 6: Report synthesis
+    status_message("Phase 6/6: Merging and ranking findings")
+    t0 = time.time()
+    report = _phase_report(all_results, workspace_dir)
+    _log_phase("report", t0, report, bool(report.get("findings") is not None))
+    progress.update(6)
+
+    total_elapsed = round(time.time() - start_time, 2)
+    succeeded = sum(1 for p in phase_log if p["success"])
+    failed = sum(1 for p in phase_log if not p["success"])
+
+    return {
+        "status": "ok",
+        "pipeline_complete": failed == 0,
+        "goal": goal,
+        "db_path": db_path,
+        "module": module_name,
+        "workspace_run_dir": workspace_dir,
+        "pipeline_summary": {
+            "total_phases": len(phase_log),
+            "succeeded": succeeded,
+            "failed": failed,
+        },
+        "phase_log": phase_log,
+        "findings": to_json(report.get("findings", [])),
+        "findings_summary": report.get("summary", {}),
+        "report_path": report.get("report_path"),
+        "entrypoints_analyzed": entrypoints,
+        "total_elapsed_seconds": total_elapsed,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Text output
+# ---------------------------------------------------------------------------
+
+def print_text_report(data: dict) -> None:
+    """Print a human-readable security scan report."""
+    print(f"\n{'=' * 80}")
+    print(f"  SECURITY SCAN REPORT: {data.get('module', '?')}")
+    print(f"  Goal: {data.get('goal', '?')}")
+    print(f"  Elapsed: {data.get('total_elapsed_seconds', 0)}s")
+    print(f"{'=' * 80}\n")
+
+    if data.get("workspace_run_dir"):
+        print(f"  Workspace: {data['workspace_run_dir']}")
+
+    # Pipeline summary
+    summary = data.get("pipeline_summary", {})
+    print(f"  Phases: {summary.get('succeeded', 0)} succeeded, "
+          f"{summary.get('failed', 0)} failed\n")
+
+    for phase in data.get("phase_log", []):
+        status = "OK" if phase["success"] else "FAIL"
+        print(f"    [{status:>4}] {phase['phase']:<25} -- {phase['elapsed_seconds']}s")
+        if not phase["success"] and phase.get("error"):
+            print(f"           Error: {phase['error'][:120]}")
+    print()
+
+    # Findings summary
+    fs = data.get("findings_summary", {})
+    if fs:
+        print("  FINDINGS SUMMARY:")
+        print(f"    Total: {fs.get('total', 0)}")
+        by_sev = fs.get("by_severity", {})
+        for sev in ("CRITICAL", "HIGH", "MEDIUM", "LOW"):
+            count = by_sev.get(sev, 0)
+            if count:
+                print(f"    {sev}: {count}")
+        by_src = fs.get("by_source", {})
+        for src, count in by_src.items():
+            if count:
+                print(f"    [{src}]: {count}")
+        print()
+
+    # Top findings table
+    findings = data.get("findings", [])
+    if findings:
+        print("  TOP FINDINGS:")
+        print(f"    {'#':>3}  {'Score':>6}  {'Severity':<10}  {'Source':<22}  {'Function'}")
+        print(f"    {'-' * 3}  {'-' * 6}  {'-' * 10}  {'-' * 22}  {'-' * 30}")
+        for i, f in enumerate(findings[:20], 1):
+            fname = f.get("function_name", "?")
+            if len(fname) > 30:
+                fname = fname[:27] + "..."
+            score = f.get("exploitability_score") or f.get("score", 0)
+            print(f"    {i:>3}  {score:>6.2f}  {f.get('severity', '?'):<10}  "
+                  f"{f.get('source_type', '?'):<22}  {fname}")
+        print()
+
+    if not findings:
+        print("  No vulnerabilities detected across all pipelines.\n")
+
+    # Entry points
+    eps = data.get("entrypoints_analyzed", [])
+    if eps:
+        print(f"  ENTRY POINTS ANALYZED ({len(eps)}):")
+        for ep in eps:
+            print(f"    - {ep}")
+        print()
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Run a multi-phase security scan on a DeepExtractIDA module.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Goals:
+  scan    Full 6-phase vulnerability scan (default)
+  audit   Targeted audit on a specific function
+  hunt    Hypothesis-driven scan on top entry points
+""",
+    )
+    parser.add_argument("db_path", help="Path to the module's analysis DB")
+    parser.add_argument(
+        "--goal", default="scan",
+        choices=["scan", "audit", "hunt"],
+        help="Security scan goal (default: scan)",
+    )
+    parser.add_argument(
+        "--function", dest="function_name",
+        help="Target function (used with --goal audit)",
+    )
+    parser.add_argument(
+        "--top", type=int, default=10,
+        help="Number of top entry points to analyze (default: 10)",
+    )
+    parser.add_argument(
+        "--json", action="store_true",
+        help="Output as JSON (default: human-readable text)",
+    )
+    parser.add_argument(
+        "--timeout", type=int, default=None,
+        help="Override per-phase timeout in seconds",
+    )
+    parser.add_argument(
+        "--workspace-run-dir",
+        help="Optional existing run directory under .agent/workspace/ to reuse",
+    )
+    parser.add_argument(
+        "--max-workers", type=int, default=None,
+        help="Cap phase parallelism across grouped scanner invocations",
+    )
+    parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Bypass caches for supported skill scripts",
+    )
+    args = safe_parse_args(parser)
+
+    db_path = resolve_db_path(args.db_path)
+
+    if args.goal == "audit" and not args.function_name:
+        emit_error("--function is required for audit goal", ErrorCode.INVALID_ARGS)
+
+    print(f"Starting security {args.goal} on {Path(db_path).stem}...", file=sys.stderr)
+
+    data = run_security_pipeline(
+        db_path=db_path,
+        goal=args.goal,
+        function_name=args.function_name,
+        top_n=args.top,
+        json_mode=args.json,
+        timeout_override=args.timeout,
+        workspace_run_dir=args.workspace_run_dir,
+        max_workers=args.max_workers,
+        no_cache=args.no_cache,
+    )
+
+    if args.json:
+        emit_json(data, default=str)
+    else:
+        print_text_report(data)
+
+
+if __name__ == "__main__":
+    main()

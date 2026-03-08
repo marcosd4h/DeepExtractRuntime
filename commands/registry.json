@@ -1,0 +1,336 @@
+{
+  "$schema": "DeepExtractIDA Command Registry v1",
+  "$description": "Machine-readable contracts for all slash commands. Used by inject-module-context.py to enrich AI session context and enable intelligent command routing.",
+  "commands": {
+    "triage": {
+      "purpose": "Full module triage: identity, classification, attack surface, recommendations; optional quick security scan",
+      "file": "triage-module.md",
+      "skills_used": ["decompiled-code-extractor", "generate-re-report", "classify-functions", "callgraph-tracer", "map-attack-surface", "taint-analysis"],
+      "agents_used": [],
+      "parameters": "<module> [--with-security]",
+      "grind_loop": false,
+      "workspace_protocol": true
+    },
+    "audit": {
+      "purpose": "Security audit a specific function: dossier, verification, call chain, risk assessment",
+      "file": "audit-function.md",
+      "skills_used": ["decompiled-code-extractor", "security-dossier", "map-attack-surface", "data-flow-tracer", "verify-decompiled", "callgraph-tracer", "classify-functions", "taint-analysis"],
+      "methodologies_used": ["finding-verification", "deep-context-builder"],
+      "agents_used": ["re-analyst", "verifier"],
+      "parameters": "[module] <function>",
+      "grind_loop": false,
+      "workspace_protocol": true
+    },
+    "trace-export": {
+      "purpose": "Trace an export through its full call chain with code and Mermaid diagram",
+      "file": "trace-export.md",
+      "skills_used": ["decompiled-code-extractor", "generate-re-report", "callgraph-tracer", "classify-functions", "security-dossier", "data-flow-tracer", "taint-analysis"],
+      "agents_used": [],
+      "parameters": "[module] <export_name> [--depth N]",
+      "grind_loop": false,
+      "workspace_protocol": true
+    },
+    "lift-class": {
+      "purpose": "Batch-lift all methods of a C++ class with shared struct context",
+      "file": "lift-class.md",
+      "skills_used": ["decompiled-code-extractor", "reconstruct-types", "code-lifting", "batch-lift"],
+      "agents_used": ["code-lifter", "verifier"],
+      "parameters": "[module] <class_name>",
+      "grind_loop": true,
+      "workspace_protocol": true
+    },
+    "full-report": {
+      "purpose": "End-to-end multi-phase analysis: RE report, classification, attack surface, topology, specialized",
+      "file": "full-report.md",
+      "skills_used": ["decompiled-code-extractor", "generate-re-report", "classify-functions", "map-attack-surface", "callgraph-tracer", "com-interface-reconstruction", "state-machine-extractor", "data-flow-tracer", "verify-decompiled", "taint-analysis", "reconstruct-types"],
+      "agents_used": ["triage-coordinator"],
+      "parameters": "<module> [--brief]",
+      "grind_loop": true,
+      "workspace_protocol": true
+    },
+    "compare-modules": {
+      "purpose": "Cross-module comparison: dependencies, API overlap, classification distributions",
+      "file": "compare-modules.md",
+      "skills_used": ["decompiled-code-extractor", "callgraph-tracer", "generate-re-report", "classify-functions", "import-export-resolver"],
+      "agents_used": [],
+      "parameters": "<module_A> <module_B> [module_C ...] | --all",
+      "grind_loop": false,
+      "workspace_protocol": true
+    },
+    "verify": {
+      "purpose": "Verify decompiler accuracy for a function or scan a module for issues",
+      "file": "verify-function.md",
+      "skills_used": ["decompiled-code-extractor", "verify-decompiled", "function-index"],
+      "agents_used": [],
+      "parameters": "[module] [function]",
+      "grind_loop": false,
+      "workspace_protocol": false
+    },
+    "explain": {
+      "purpose": "Quick structured explanation of what a function does",
+      "file": "explain-function.md",
+      "skills_used": ["decompiled-code-extractor", "classify-functions", "deep-research-prompt"],
+      "methodologies_used": ["deep-context-builder"],
+      "agents_used": ["re-analyst"],
+      "parameters": "[module] <function> [--depth N]",
+      "grind_loop": false,
+      "workspace_protocol": false
+    },
+    "search": {
+      "purpose": "Cross-dimensional search: function names, signatures, strings, APIs, classes, exports",
+      "file": "search.md",
+      "skills_used": ["decompiled-code-extractor"],
+      "agents_used": [],
+      "parameters": "[module] <search_term> [--dimensions dims]",
+      "grind_loop": false,
+      "workspace_protocol": false
+    },
+    "reconstruct-types": {
+      "purpose": "Reconstruct C/C++ struct and class definitions from memory access patterns",
+      "file": "reconstruct-types.md",
+      "skills_used": ["decompiled-code-extractor", "reconstruct-types", "com-interface-reconstruction"],
+      "agents_used": ["type-reconstructor"],
+      "parameters": "<module> [class_name]",
+      "grind_loop": false,
+      "workspace_protocol": true
+    },
+    "data-flow": {
+      "purpose": "Trace parameter flow, argument origins, global variable maps, string usage chains",
+      "file": "data-flow.md",
+      "skills_used": ["decompiled-code-extractor", "data-flow-tracer"],
+      "agents_used": [],
+      "parameters": "forward|backward|string|globals <module> <function>",
+      "grind_loop": false,
+      "workspace_protocol": false
+    },
+    "state-machines": {
+      "purpose": "Extract dispatch tables, state machines, and command dispatchers with diagrams",
+      "file": "state-machines.md",
+      "skills_used": ["decompiled-code-extractor", "state-machine-extractor"],
+      "agents_used": [],
+      "parameters": "<module> [function] [--diagram]",
+      "grind_loop": false,
+      "workspace_protocol": true
+    },
+    "cache-manage": {
+      "purpose": "View cache stats, clear, or refresh cached analysis results",
+      "file": "cache-manage.md",
+      "skills_used": [],
+      "agents_used": [],
+      "parameters": "stats|clear|refresh|purge-runs [module]",
+      "grind_loop": false,
+      "workspace_protocol": false
+    },
+    "runs": {
+      "purpose": "List, inspect, and reopen prior workspace runs and step summaries",
+      "file": "runs.md",
+      "skills_used": [],
+      "agents_used": [],
+      "parameters": "list [module] | show <run_id> | latest [module]",
+      "grind_loop": false,
+      "workspace_protocol": false
+    },
+    "data-flow-cross": {
+      "purpose": "Trace data flow across module boundaries (cross-DLL parameter tracking)",
+      "file": "data-flow-cross.md",
+      "skills_used": ["decompiled-code-extractor", "data-flow-tracer", "callgraph-tracer"],
+      "agents_used": [],
+      "parameters": "forward|backward <module> <function>",
+      "grind_loop": false,
+      "workspace_protocol": true
+    },
+    "verify-batch": {
+      "purpose": "Verify decompiler accuracy for a batch of functions or an entire class",
+      "file": "verify-batch.md",
+      "skills_used": ["decompiled-code-extractor", "verify-decompiled", "reconstruct-types"],
+      "agents_used": ["verifier"],
+      "parameters": "<module> <function1> [function2 ...] | <module> --class <name>",
+      "grind_loop": true,
+      "workspace_protocol": true
+    },
+    "health": {
+      "purpose": "Pre-flight workspace validation: extraction data, DBs, skills, config",
+      "file": "health.md",
+      "skills_used": [],
+      "agents_used": [],
+      "parameters": "[--quick]",
+      "grind_loop": false,
+      "workspace_protocol": false
+    },
+    "taint": {
+      "purpose": "Trace attacker-controlled inputs to dangerous sinks with guard/bypass analysis",
+      "file": "taint.md",
+      "skills_used": ["function-index", "decompiled-code-extractor", "taint-analysis"],
+      "agents_used": [],
+      "parameters": "<module> <function> [--params N] [--depth N]",
+      "grind_loop": false,
+      "workspace_protocol": false
+    },
+    "brainstorm": {
+      "purpose": "Collaboratively plan a VR campaign, analysis strategy, or tool design before implementation",
+      "file": "brainstorm.md",
+      "skills_used": [],
+      "methodologies_used": ["brainstorming"],
+      "agents_used": [],
+      "parameters": "[topic]",
+      "grind_loop": false,
+      "workspace_protocol": false
+    },
+    "hunt": {
+      "purpose": "Hypothesis-driven VR: campaign planning, attack pattern matching, variant analysis, finding validation",
+      "file": "hunt.md",
+      "skills_used": ["classify-functions", "map-attack-surface", "security-dossier", "taint-analysis"],
+      "methodologies_used": ["adversarial-reasoning"],
+      "agents_used": [],
+      "parameters": "[mode] [module] [target]",
+      "grind_loop": false,
+      "workspace_protocol": true
+    },
+    "quickstart": {
+      "purpose": "Guided first experience: auto-detect modules, run lightweight triage, suggest next steps",
+      "file": "quickstart.md",
+      "skills_used": ["decompiled-code-extractor", "classify-functions", "map-attack-surface", "callgraph-tracer"],
+      "agents_used": [],
+      "parameters": "[module]",
+      "grind_loop": false,
+      "workspace_protocol": false
+    },
+    "hunt-execute": {
+      "purpose": "Execute a /hunt research plan: run investigation commands, collect evidence, score confidence",
+      "file": "hunt-execute.md",
+      "skills_used": ["taint-analysis", "security-dossier", "map-attack-surface", "data-flow-tracer", "verify-decompiled", "callgraph-tracer", "exploitability-assessment"],
+      "methodologies_used": ["finding-verification"],
+      "agents_used": [],
+      "parameters": "[module] [--plan-file <path>]",
+      "grind_loop": true,
+      "workspace_protocol": true
+    },
+    "batch-audit": {
+      "purpose": "Audit top N entry points or privilege-boundary handlers in parallel with consolidated security and exploitability report",
+      "file": "batch-audit.md",
+      "skills_used": ["security-dossier", "taint-analysis", "exploitability-assessment", "classify-functions", "map-attack-surface", "rpc-interface-analysis", "com-interface-analysis", "winrt-interface-analysis"],
+      "agents_used": [],
+      "parameters": "<module> [func1 func2 ...] [--top N] [--min-score S] [--class ClassName] [--privilege-boundary]",
+      "grind_loop": true,
+      "workspace_protocol": true
+    },
+    "xref": {
+      "purpose": "Quick cross-reference lookup: show callers and callees in a compact table",
+      "file": "xref.md",
+      "skills_used": ["callgraph-tracer", "function-index"],
+      "agents_used": [],
+      "parameters": "[module] <function>",
+      "grind_loop": false,
+      "workspace_protocol": false
+    },
+    "memory-scan": {
+      "purpose": "Scan module for memory corruption: buffer overflows, integer issues, use-after-free, format strings",
+      "file": "memory-scan.md",
+      "skills_used": ["memory-corruption-detector", "decompiled-code-extractor"],
+      "agents_used": [],
+      "parameters": "<module> [function] [--top N]",
+      "grind_loop": false,
+      "workspace_protocol": true
+    },
+    "logic-scan": {
+      "purpose": "Scan module for logic vulnerabilities: auth bypasses, state machine errors, TOCTOU, with independent verification",
+      "file": "logic-scan.md",
+      "skills_used": ["decompiled-code-extractor", "logic-vulnerability-detector", "callgraph-tracer", "state-machine-extractor", "taint-analysis", "security-dossier", "map-attack-surface"],
+      "agents_used": [],
+      "parameters": "<module> [function] [--top N]",
+      "grind_loop": false,
+      "workspace_protocol": true
+    },
+    "callgraph": {
+      "purpose": "Build, query, and visualize call graphs: topology stats, SCCs, hubs, roots/leaves, path queries, diagrams",
+      "file": "callgraph.md",
+      "skills_used": ["decompiled-code-extractor", "callgraph-tracer"],
+      "agents_used": [],
+      "parameters": "<module> [function] [--stats] [--scc] [--roots] [--leaves] [--path A B] [--reachable F] [--diagram]",
+      "grind_loop": false,
+      "workspace_protocol": false
+    },
+    "imports": {
+      "purpose": "Query PE import/export relationships: who exports, who imports, dependency graphs, forwarder chains",
+      "file": "imports.md",
+      "skills_used": ["import-export-resolver", "decompiled-code-extractor"],
+      "agents_used": [],
+      "parameters": "[module] [--function name] [--consumers] [--forwarders] [--diagram]",
+      "grind_loop": false,
+      "workspace_protocol": false
+    },
+    "strings": {
+      "purpose": "Categorize string literals by security relevance: credentials, paths, pipes, URLs, format strings",
+      "file": "strings.md",
+      "skills_used": ["string-intelligence", "decompiled-code-extractor"],
+      "agents_used": [],
+      "parameters": "<module> [function] [--top N] [--category cat]",
+      "grind_loop": false,
+      "workspace_protocol": false
+    },
+    "diff": {
+      "purpose": "Compare two versions of a module: function deltas, classification shifts, attack surface changes, code-level diffs",
+      "file": "diff.md",
+      "skills_used": ["decompiled-code-extractor", "classify-functions", "map-attack-surface"],
+      "agents_used": [],
+      "parameters": "<module_old> <module_new>",
+      "grind_loop": false,
+      "workspace_protocol": true
+    },
+    "scan": {
+      "purpose": "Unified vulnerability scan: memory corruption + logic flaws + taint analysis with verification and exploitability scoring",
+      "file": "scan.md",
+      "skills_used": ["decompiled-code-extractor", "memory-corruption-detector", "logic-vulnerability-detector", "taint-analysis", "map-attack-surface", "exploitability-assessment", "security-dossier", "verify-decompiled"],
+      "methodologies_used": ["finding-verification", "deep-context-builder"],
+      "agents_used": [],
+      "parameters": "<module> [function] [--top N] [--memory-only] [--logic-only] [--taint-only] [--auto-audit]",
+      "grind_loop": true,
+      "workspace_protocol": true
+    },
+    "prioritize": {
+      "purpose": "Cross-module finding prioritization: load cached scan/audit results, normalize, rank by exploitability x reachability x impact",
+      "file": "prioritize.md",
+      "skills_used": ["decompiled-code-extractor", "exploitability-assessment"],
+      "agents_used": [],
+      "parameters": "[--modules A B C | --all] [--top N] [--min-score S]",
+      "grind_loop": false,
+      "workspace_protocol": true
+    },
+    "rpc": {
+      "purpose": "RPC analysis: enumerate interfaces, map attack surface, security audit, trace handler chains, find clients, build topology, blast-radius, query stubs",
+      "file": "rpc-analysis.md",
+      "skills_used": ["rpc-interface-analysis", "decompiled-code-extractor", "map-attack-surface"],
+      "agents_used": [],
+      "parameters": "<module> | surface [module] | audit <module> | trace <module> <func> | clients <uuid> | topology [module] | blast-radius <module|uuid> | stubs <uuid>",
+      "grind_loop": false,
+      "workspace_protocol": false
+    },
+    "winrt": {
+      "purpose": "WinRT analysis: enumerate server classes, map privilege-boundary attack surface, audit security, classify entry points, find EoP targets",
+      "file": "winrt-analysis.md",
+      "skills_used": ["winrt-interface-analysis", "decompiled-code-extractor", "map-attack-surface"],
+      "agents_used": [],
+      "parameters": "<module> | surface [module] | methods <module_or_class> | classify <module> | audit <module> | privesc [--top N]",
+      "grind_loop": false,
+      "workspace_protocol": false
+    },
+    "com": {
+      "purpose": "COM analysis: enumerate servers by module or CLSID, map privilege-boundary attack surface, audit security (permissions, elevation, DCOM), classify entry points, find EoP and UAC bypass targets",
+      "file": "com-analysis.md",
+      "skills_used": ["com-interface-analysis", "decompiled-code-extractor", "map-attack-surface"],
+      "agents_used": [],
+      "parameters": "<module_or_clsid> | surface [module] | methods <module_or_clsid> | classify <module> | audit <module_or_clsid> | privesc [--top N]",
+      "grind_loop": false,
+      "workspace_protocol": false
+    },
+    "pipeline": {
+      "purpose": "Run, validate, or inspect headless batch analysis pipelines from YAML definitions",
+      "file": "pipeline.md",
+      "skills_used": [],
+      "agents_used": ["triage-coordinator", "security-auditor"],
+      "parameters": "run <yaml> [--dry-run] [--modules M] [--output DIR] | validate <yaml> | list-steps",
+      "grind_loop": false,
+      "workspace_protocol": true
+    }
+  }
+}

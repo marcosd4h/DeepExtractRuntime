@@ -1,0 +1,25 @@
+{
+  "_note": "loop_limit and timeout values here are consumed by the host runtime (Cursor/Claude Code). Corresponding Python-side defaults live in config/defaults.json under hooks.*",
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "python .agent/hooks/inject-module-context.py",
+        "timeout": 15000
+      }
+    ],
+    "stop": [
+      {
+        "command": "python .agent/hooks/grind-until-done.py",
+        "loop_limit": 10,
+        "timeout": 5000
+      }
+    ],
+    "sessionEnd": [
+      {
+        "command": "python .agent/hooks/cleanup-workspace.py",
+        "timeout": 10000
+      }
+    ]
+  }
+}

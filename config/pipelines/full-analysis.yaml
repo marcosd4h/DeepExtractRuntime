@@ -1,0 +1,34 @@
+# Comprehensive module pipeline.
+# This is intentionally heavier than quick-triage/security-sweep and is meant
+# for a small set of high-priority modules.
+
+name: full-analysis
+
+modules:
+  - appinfo.dll
+  - shell32.dll
+
+steps:
+  - triage: {}
+  - full-analysis:
+      top: 15
+  - types: {}
+  - memory-scan:
+      top: 50
+  - logic-scan:
+      top: 50
+  - entrypoints:
+      top: 15
+  - callgraph:
+      stats: true
+
+settings:
+  continue_on_error: true
+  max_workers: 4
+  step_timeout: 600
+  # An integer overrides max_module_workers directly.
+  parallel_modules: 2
+  max_module_workers: 2
+  no_cache: false
+
+output: workspace/batch_{name}_{timestamp}/

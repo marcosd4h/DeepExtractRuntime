@@ -1,0 +1,95 @@
+---
+description: Protocol for the grind-until-done stop hook. Teaches the agent when and how to create the task scratchpad so iterative workflows automatically resume until completion.
+alwaysApply: true
+---
+
+# Grind Loop Protocol
+
+This workspace has a **stop hook** (`.agent/hooks/grind-until-done.py`) that re-invokes the agent when a task scratchpad has unchecked items. Use this for any workflow that processes **multiple discrete items** (functions to lift, phases to complete, modules to scan, etc.).
+
+## Session-Scoped Scratchpads
+
+Each agent session gets its own scratchpad file to prevent concurrent sessions from overwriting each other. The scratchpad path is:
+
+```
+.agent/hooks/scratchpads/{session_id}.md
+```
+
+The `{session_id}` is injected into your context by the `sessionStart` hook. Look for the **Session** section in your initial context -- it contains your Session ID and the exact scratchpad path to use.
+
+If the session ID is not available in your context, fall back to `.agent/hooks/scratchpads/default.md`.
+
+## When to Create the Scratchpad
+
+Create `.agent/hooks/scratchpads/{session_id}.md` when:
+
+- The task involves **3+ discrete items** to process sequentially (e.g., lifting N functions, running N analysis phases, verifying N functions)
+- The user says "all", "every", "each", "batch" -- anything implying iteration
+- A slash command workflow (like `/lift-class`, `/full-report`) has multiple tracked steps
+
+Do **NOT** create a scratchpad for single-item tasks or simple questions.
+
+## Scratchpad Format
+
+Write this exact format to `.agent/hooks/scratchpads/{session_id}.md`:
+
+```markdown
+# Task: <short description>
+
+## Items
+- [ ] Item 1 -- brief description
+- [ ] Item 2 -- brief description
+- [ ] Item 3 -- brief description
+
+## Status
+IN_PROGRESS
+```
+
+## Managing the Scratchpad
+
+1. **Check off items** as you complete them: change `[ ]` to `[x]`
+2. **When all items are done**, set Status to `DONE`
+3. **If you finish early** or the user cancels, set Status to `DONE` to stop the loop
+4. The hook deletes the scratchpad automatically once Status is `DONE` or all items are checked
+
+## What Happens at Stop
+
+When the agent loop ends (you run out of things to say), the stop hook:
+- Resolves the session ID from environment variables or stdin metadata (platform-agnostic: works with Cursor and Claude Code)
+- Reads the session-scoped scratchpad at `.agent/hooks/scratchpads/{session_id}.md`
+- If unchecked items remain and Status is not `DONE`, sends a **followup message** listing remaining items
+- The agent is re-invoked automatically to continue
+- This repeats up to **10 times** (configured `loop_limit` in hooks.json)
+
+## Example: Lifting a Class
+
+```markdown
+# Task: Lift CSecurityDescriptor methods (appinfo.dll)
+
+## Items
+- [x] CSecurityDescriptor::CSecurityDescriptor (constructor)
+- [x] CSecurityDescriptor::~CSecurityDescriptor (destructor)
+- [ ] CSecurityDescriptor::GetDacl
+- [ ] CSecurityDescriptor::SetDacl
+- [ ] CSecurityDescriptor::CheckAccess
+
+## Status
+IN_PROGRESS
+```
+
+## Example: Multi-Phase Report
+
+```markdown
+# Task: Full report for appinfo.dll
+
+## Items
+- [x] Phase 1: Module discovery and identity
+- [x] Phase 2: Function classification
+- [ ] Phase 3: Attack surface mapping
+- [ ] Phase 4: Topology analysis
+- [ ] Phase 5: Specialized analysis
+- [ ] Phase 6: Synthesize report
+
+## Status
+IN_PROGRESS
+```

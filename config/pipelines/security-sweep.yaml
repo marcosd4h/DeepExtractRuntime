@@ -1,0 +1,30 @@
+# Security sweep for a targeted module set.
+# This combines:
+#   1. triage (classification + attack surface)
+#   2. security (ranked entrypoints + dossiers + taint)
+#   3. scan (full multi-phase security scan)
+
+name: security-sweep
+
+modules:
+  - appinfo.dll
+  - shell32.dll
+  - windows.storage.dll
+
+steps:
+  - triage: {}
+  - security:
+      top: 10
+  - scan:
+      top: 10
+
+settings:
+  continue_on_error: true
+  max_workers: 4
+  step_timeout: 420
+  # true means "enable module parallelism using max_module_workers".
+  parallel_modules: true
+  max_module_workers: 2
+  no_cache: false
+
+output: workspace/batch_{name}_{timestamp}/

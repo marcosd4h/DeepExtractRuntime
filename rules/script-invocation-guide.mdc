@@ -1,0 +1,106 @@
+---
+description: Canonical patterns for invoking skill scripts -- DB path resolution, function lookup, and common pitfalls
+globs:
+  - ".agent/skills/*/scripts/*.py"
+  - ".agent/agents/*/scripts/*.py"
+  - ".agent/commands/*.md"
+alwaysApply: true
+---
+
+# Script Invocation Guide
+
+## DB Path Resolution (Required First Step)
+
+Most skill scripts require an **exact** analysis DB path (`<db_path>`) as
+their first positional argument. This path looks like
+`extracted_dbs/<module>_<hash>.db`. It is **never** a module name, a glob
+pattern, or a partial path.
+
+### How to obtain `<db_path>`
+
+**Option A -- From `--list` output (when you already listed modules):**
+
+```bash
+python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list --json
+```
+
+Each entry in the `modules` array has an `analysis_db_path` field. Prefix
+it with `extracted_dbs/` to form the full path.
+
+**Option B -- From a module name directly:**
+
+```bash
+python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name> --json
+# Example: find_module_db.py shell32.dll --json
+# Returns: { "status": "ok", "db_path": "extracted_dbs/shell32_dll_abc123.db", ... }
+```
+
+`<module_name>` is a positional argument (e.g. `appinfo.dll`, `cmd.exe`).
+The script does **not** support `--search` -- use the exact filename or a
+recognizable substring.
+
+### Common mistakes to avoid
+
+| Mistake | Why it fails | Correct form |
+|---------|-------------|--------------|
+| `list_functions.py --search "Foo"` | Missing required `db_path` positional arg | `list_functions.py <db_path> --search "Foo"` |
+| `list_functions.py "extracted_dbs/mod_*.db"` | Glob not expanded; script needs exact path | Resolve path first, then pass it |
+| `find_module_db.py --search "name"` | No `--search` flag exists | `find_module_db.py <module_name>` (positional) |
+| `triage_summary.py appinfo.dll` | Takes a DB path, not a module name | `triage_summary.py <db_path>` |
+| `script.py --json 2>&1 \| python -c "..."` | `2>&1` merges stderr warnings into stdout JSON, causing "Extra data" parse errors | Use `--json` output directly; never merge streams before JSON parsing |
+| `extract_function_data.py <db_path> --search "Foo"` without `--json` when piping | `--search` without `--json` outputs a human-readable table, not JSON | Always add `--json` when machine-consuming: `extract_function_data.py <db_path> --search "Foo" --json` |
+| `chain_analysis.py <db_path> --function "Foo"` before this patch | `--function` didn't exist; argparse matched `--f` to `--function-id` (int) | All scripts now accept `--function <name>` or bare positional: `chain_analysis.py <db_path> --function "Foo"` or `chain_analysis.py <db_path> Foo` |
+
+## Function Lookup When Module Is Unknown
+
+When the user names a function but not a module, do **not** guess the
+module. Search across all modules first:
+
+```bash
+python .agent/skills/function-index/scripts/lookup_function.py "<function_name_or_fragment>"
+```
+
+This returns the module and .cpp file path for every match. Use the module
+name from the result to resolve `<db_path>` via `find_module_db.py`, then
+proceed with the target script.
+
+For broader searches (strings, APIs, classes -- not just function names):
+
+```bash
+python .agent/helpers/unified_search.py --all --query "<term>" --json
+```
+
+## Canonical Script Signatures (Quick Reference)
+
+All function-targeting scripts accept **`--function <name>`** (preferred)
+or a bare positional name (backward compat). Use `--id <N>` for ID-based
+lookup. Both forms are equivalent.
+
+```
+find_module_db.py           <module_name> | --list | --ext <ext>  [--json]
+list_functions.py           <db_path> [--search "<pattern>"] [--with-signatures] [--has-decompiled] [--limit N] [--json]
+extract_function_data.py    <db_path> --function <name> | --id <N> | --search "<pattern>"  [--json]
+classify_function.py        <db_path> --function <name> | --id <N> | --search "<pattern>"  [--json]
+build_dossier.py            <db_path> --function <name> | --id <N> | --search "<pattern>"  [--json]
+verify_function.py          <db_path> --function <name> | --id <N> | --search "<pattern>"  [--json]
+chain_analysis.py           <db_path> --function <name> | --id <N>  [--depth N] [--summary] [--json]
+generate_diagram.py         <db_path> --function <name> | --id <N>  [--depth N] [--format mermaid|dot] [--json]
+forward_trace.py            <db_path> --function <name> | --id <N>  --param <N>  [--depth N] [--json]
+backward_trace.py           <db_path> --function <name> | --id <N>  --target <api>  [--json]
+taint_function.py           <db_path> --function <name> | --id <N>  [--depth N] [--json]
+triage_summary.py           <db_path> [--top N] [--app-only] [--json]
+discover_entrypoints.py     <db_path> [--json]
+build_call_graph.py         <db_path> [--stats] [--json]
+scan_buffer_overflows.py    <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
+scan_integer_issues.py      <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
+scan_use_after_free.py      <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
+scan_format_strings.py      <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
+scan_auth_bypass.py         <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
+scan_state_errors.py        <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
+scan_logic_flaws.py         <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
+scan_api_misuse.py          <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
+scan_module.py              <db_path> [--top N] [--min-severity LOW|MODERATE|MEDIUM|HIGH|CRITICAL] [--app-only] [--json] [--no-cache]
+collect_functions.py        <db_path> --class <name> | --chain <name> | --export <name> | --list-classes [--depth N] [--json]
+reconstruct_all.py          <db_path> [--class <name>] [--include-com] [--validate] [--output <file>] [--json]
+pipeline_cli.py             list-steps | validate <yaml> | run <yaml> [--dry-run] [--modules <m1> ...] [--json]
+```

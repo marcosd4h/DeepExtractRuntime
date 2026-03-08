@@ -1,0 +1,111 @@
+{
+  "classification": {
+    "weights": {
+      "W_NAME": 10.0,
+      "W_MANGLED": 12.0,
+      "W_API": 5.0,
+      "W_API_CAP": 25.0,
+      "W_STRING": 2.0,
+      "W_STRING_CAP": 10.0,
+      "W_STRUCTURAL": 4.0,
+      "W_LIBRARY": 20.0
+    },
+    "library_interest_penalty": 5,
+    "library_interest_penalty_with_dangerous_apis": 2,
+    "noise_interest_penalty": 3,
+    "noise_interest_penalty_with_dangerous_apis": 1
+  },
+  "scoring": {
+    "uncategorized_dangerous_severity": 0.65,
+    "sync_severity": 0.5,
+    "source_severity_call_result": 0.5,
+    "source_severity_global": 0.7,
+    "guard_unknown_weight": 0.18,
+    "infeasibility_penalty_factor": 0.1,
+    "scanner_default_top_n": 100
+  },
+  "callgraph": {
+    "include_vtable_edges": true
+  },
+  "triage": {
+    "com_density_threshold": 5,
+    "com_density_ratio": 0.1,
+    "rpc_density_threshold": 3,
+    "security_density_threshold": 3,
+    "max_workers": 4,
+    "step_timeout_seconds": 180,
+    "per_function_timeout_seconds": 0.2
+  },
+  "security_auditor": {
+    "step_timeout_seconds": 180,
+    "per_function_timeout_seconds": 0.2
+  },
+  "pipeline": {
+    "default_step_timeout": 300,
+    "max_workers": 4,
+    "continue_on_error": true,
+    "parallel_modules": false,
+    "max_module_workers": 2,
+    "no_cache": false
+  },
+  "verifier": {
+    "call_count_tolerance": 0.2,
+    "branch_count_tolerance": 0.3,
+    "max_alignment": 8
+  },
+  "script_runner": {
+    "default_timeout_seconds": 180,
+    "max_retries": 2
+  },
+  "explain": {
+    "max_callee_depth": 5,
+    "max_callees_per_level": 15
+  },
+  "cache": {
+    "max_age_hours": 24,
+    "max_cache_size_mb": 500
+  },
+  "ui": {
+    "show_progress": true
+  },
+  "dangerous_apis": {
+    "json_path": "config/assets/misc_data/dangerous_apis.json",
+    "auto_classify": true
+  },
+  "hooks": {
+    "_note": "grind_loop_limit must match loop_limit in hooks.json (consumed by host runtime)",
+    "session_start_timeout_seconds": 15,
+    "grind_scratchpad_stale_hours": 24,
+    "grind_loop_limit": 10,
+    "workspace_cleanup_age_hours": 48
+  },
+  "rpc": {
+    "servers_path": "config/assets/rpc_data/rpc_servers.json",
+    "client_stubs_path": "config/assets/rpc_data/rpc_clients_26200_7840",
+    "enabled": true,
+    "cache_loaded_index": true,
+    "load_stubs": true
+  },
+  "winrt": {
+    "data_root": "config/assets/winrt_data",
+    "enabled": true,
+    "cache_loaded_index": true,
+    "exclude_staterepo": false
+  },
+  "com": {
+    "data_root": "config/assets/com_data",
+    "enabled": true,
+    "cache_loaded_index": true
+  },
+  "scale": {
+    "compact_mode_threshold": 25,
+    "context_truncation_threshold": 1000,
+    "max_modules_cross_scan": 200,
+    "max_modules_compare": 200,
+    "max_modules_search_all": 200,
+    "cross_module_index_warn_threshold": 0,
+    "max_cached_connections": 50,
+    "cache_stats_sample_limit": 200,
+    "health_sample_count": 100
+  }
+}

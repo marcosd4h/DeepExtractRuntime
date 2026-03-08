@@ -1,0 +1,27 @@
+# Quick triage for every analyzed module in the workspace.
+# Use this as the lowest-cost starting point when you want a broad inventory
+# before choosing deeper security or type-reconstruction pipelines.
+
+name: quick-triage
+
+# The string "all" resolves every module with a COMPLETE analysis DB.
+modules:
+  - appinfo.dll
+  - shell32.dll
+  - windows.storage.dll
+
+steps:
+  # The "quick" flag is accepted for compatibility with the proposed schema.
+  # Triage is already the lightweight path, so this mainly documents intent.
+  - triage:
+      quick: true
+
+settings:
+  continue_on_error: true
+  max_workers: 4
+  step_timeout: 300
+  parallel_modules: false
+  no_cache: false
+
+# "workspace/" is a supported shorthand for ".agent/workspace/".
+output: workspace/batch_{name}_{timestamp}/

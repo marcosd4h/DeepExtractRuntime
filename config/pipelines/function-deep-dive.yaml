@@ -1,0 +1,30 @@
+# Deep-dive around the most attack-relevant functions in a module.
+# Despite the name, this remains module-scoped YAML: the pipeline finds the
+# top entry points first, then builds dossiers and taint traces for them.
+
+name: function-deep-dive
+
+modules:
+  - appinfo.dll
+
+steps:
+  - entrypoints:
+      top: 5
+  - dossiers:
+      top: 5
+  - taint:
+      top: 3
+      depth: 4
+  - classify:
+      top: 25
+  - callgraph:
+      stats: true
+
+settings:
+  continue_on_error: false
+  max_workers: 4
+  step_timeout: 480
+  parallel_modules: false
+  no_cache: true
+
+output: workspace/batch_{name}_{timestamp}/
