@@ -9,7 +9,7 @@ description: >-
   finding is a false positive, or needs to triage findings from
   memory-corruption-detector, logic-vulnerability-detector, or
   taint-analysis before reporting.
-depends_on: ["taint-analysis", "verify-decompiled", "data-flow-tracer", "security-dossier", "exploitability-assessment", "import-export-resolver"]
+depends_on: ["taint-analysis", "data-flow-tracer", "security-dossier", "exploitability-assessment", "import-export-resolver"]
 ---
 
 # Finding Verification
@@ -112,23 +112,12 @@ exceeds the linear checklist.
 ### Standard Verification
 
 Verification Progress:
-- [ ] Step 1: Check decompiler accuracy
-- [ ] Step 2: Verify data flow
-- [ ] Step 3: Verify attacker control
-- [ ] Step 4: Devil's advocate review
-- [ ] Step 5: Render verdict
+- [ ] Step 1: Verify data flow
+- [ ] Step 2: Verify attacker control
+- [ ] Step 3: Devil's advocate review
+- [ ] Step 4: Render verdict
 
-**Step 1**: Check decompiler accuracy for the target function.
-
-```bash
-python .agent/skills/verify-decompiled/scripts/verify_function.py <db_path> --id <func_id> --json
-```
-
-If the verification reveals decompiler artifacts affecting the finding
-(sign extension errors, missing branches, wrong types), the finding may
-be a phantom. Check assembly at the specific location.
-
-**Step 2**: Verify the data flow path exists.
+**Step 1**: Verify the data flow path exists.
 
 ```bash
 python .agent/skills/data-flow-tracer/scripts/forward_trace.py <db_path> --id <func_id> --json
@@ -137,7 +126,7 @@ python .agent/skills/data-flow-tracer/scripts/forward_trace.py <db_path> --id <f
 Trace from attacker-controlled source to the dangerous sink. Every hop
 in the chain must exist in the actual code.
 
-**Step 3**: Verify attacker control of the relevant parameter.
+**Step 2**: Verify attacker control of the relevant parameter.
 
 ```bash
 python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> --id <func_id> --depth 3 --json
@@ -146,13 +135,13 @@ python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> --id <
 Trace back to module entry points. Can the attacker actually reach this
 code path and control the relevant input?
 
-**Step 4**: Devil's advocate -- argue against the finding.
+**Step 3**: Devil's advocate -- argue against the finding.
 - What compensating controls exist along the path?
 - What guards were identified by taint analysis? Are they bypassable?
 - Could the "dangerous" operation be safe in this specific context?
 
-**Step 5**: Render verdict as TRUE POSITIVE or FALSE POSITIVE with
-evidence from Steps 1-4.
+**Step 4**: Render verdict as TRUE POSITIVE or FALSE POSITIVE with
+evidence from Steps 1-3.
 
 ### Deep Verification
 
@@ -178,7 +167,7 @@ When verifying multiple findings at once:
 
 ## Degradation Paths
 
-1. **Assembly data missing for the function**: Cannot complete Step 1. Report "decompiler accuracy unverifiable" and note the gap. Continue with Steps 2-4 at reduced confidence.
+1. **Assembly data missing for the function**: Cannot compare finding against assembly ground truth. Note the gap and continue at reduced confidence.
 2. **Cross-module tracking DB unavailable**: Cannot verify cross-DLL paths. Scope verification to single module and note the limitation.
 3. **Upstream skill output missing**: If taint/scanner JSON is unavailable, ask the user to run the relevant skill first.
 
@@ -206,7 +195,6 @@ When verifying multiple findings at once:
 | Task | Skill |
 |------|-------|
 | Generate findings to verify | taint-analysis, memory-corruption-detector, logic-vulnerability-detector |
-| Check decompiler accuracy | verify-decompiled |
 | Trace data flow paths | data-flow-tracer |
 | Trace back to entry points | callgraph-tracer |
 | Check cross-module boundaries | import-export-resolver |
@@ -218,13 +206,12 @@ When verifying multiple findings at once:
 | Operation | Typical Time | Notes |
 |-----------|-------------|-------|
 | Step 0 restatement | ~5s | Agent reasoning, no scripts |
-| Standard verification (single finding) | ~30-60s | 3-4 script calls + reasoning |
+| Standard verification (single finding) | ~20-45s | 2-3 script calls + reasoning |
 | Deep verification (single finding) | ~2-3 min | Includes verifier subagent |
 | Batch triage (10 findings) | ~5-10 min | Step 0 collapses ~30% as FPs |
 
 ## Additional Resources
 
 - [reference.md](reference.md) -- Gate review details, false positive patterns, bug-class requirements, evidence templates
-- [verify-decompiled SKILL.md](../verify-decompiled/SKILL.md) -- Assembly ground truth verification
 - [taint-analysis SKILL.md](../taint-analysis/SKILL.md) -- Taint finding format
 - [exploitability-assessment SKILL.md](../exploitability-assessment/SKILL.md) -- Post-verification scoring

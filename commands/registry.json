@@ -14,7 +14,7 @@
     "audit": {
       "purpose": "Security audit a specific function: dossier, verification, call chain, risk assessment",
       "file": "audit-function.md",
-      "skills_used": ["decompiled-code-extractor", "security-dossier", "map-attack-surface", "data-flow-tracer", "verify-decompiled", "callgraph-tracer", "classify-functions", "taint-analysis"],
+      "skills_used": ["decompiled-code-extractor", "security-dossier", "map-attack-surface", "data-flow-tracer", "callgraph-tracer", "classify-functions", "taint-analysis"],
       "methodologies_used": ["finding-verification", "deep-context-builder"],
       "agents_used": ["re-analyst", "verifier"],
       "parameters": "[module] <function>",
@@ -198,7 +198,7 @@
     "hunt-execute": {
       "purpose": "Execute a /hunt research plan: run investigation commands, collect evidence, score confidence",
       "file": "hunt-execute.md",
-      "skills_used": ["taint-analysis", "security-dossier", "map-attack-surface", "data-flow-tracer", "verify-decompiled", "callgraph-tracer", "exploitability-assessment"],
+      "skills_used": ["taint-analysis", "security-dossier", "map-attack-surface", "data-flow-tracer", "callgraph-tracer", "exploitability-assessment"],
       "methodologies_used": ["finding-verification"],
       "agents_used": [],
       "parameters": "[module] [--plan-file <path>]",
@@ -280,7 +280,7 @@
     "scan": {
       "purpose": "Unified vulnerability scan: memory corruption + logic flaws + taint analysis with verification and exploitability scoring",
       "file": "scan.md",
-      "skills_used": ["decompiled-code-extractor", "memory-corruption-detector", "logic-vulnerability-detector", "taint-analysis", "map-attack-surface", "exploitability-assessment", "security-dossier", "verify-decompiled"],
+      "skills_used": ["decompiled-code-extractor", "memory-corruption-detector", "logic-vulnerability-detector", "taint-analysis", "map-attack-surface", "exploitability-assessment", "security-dossier"],
       "methodologies_used": ["finding-verification", "deep-context-builder"],
       "agents_used": [],
       "parameters": "<module> [function] [--top N] [--memory-only] [--logic-only] [--taint-only] [--auto-audit]",

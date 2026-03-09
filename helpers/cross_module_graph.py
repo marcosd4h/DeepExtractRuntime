@@ -575,7 +575,8 @@ class CrossModuleGraph:
 
         Returns ``{module_name: {function_name: depth}}`` where depth is
         the hop count from the starting function.  Traversal follows
-        external calls into other loaded modules.
+        external calls into other loaded modules, and any injected IPC
+        edges (RPC, COM, WinRT).
         """
         mod_key = module.lower()
         start_graph = self._graphs.get(mod_key)
@@ -626,6 +627,21 @@ class CrossModuleGraph:
                     result[target_key][target_func] = depth + 1
                     queue.append((target_key, target_func, depth + 1))
 
+            # Follow injected IPC edges (RPC, COM, WinRT)
+            ipc_edges = getattr(cur_graph, "ipc_edges", {})
+            for proc_name, server_mod, _ipc_id in ipc_edges.get(cur_mod, set()):
+                target_graph = self._graphs.get(server_mod)
+                if target_graph is None:
+                    continue
+                target_func = target_graph.find_function(proc_name)
+                if target_func is None:
+                    continue
+                key = (server_mod, target_func)
+                if key not in visited:
+                    visited.add(key)
+                    result[server_mod][target_func] = depth + 1
+                    queue.append((server_mod, target_func, depth + 1))
+
         return dict(result)
 
     # NdrClientCall* API names used to identify RPC client modules
@@ -633,6 +649,22 @@ class CrossModuleGraph:
         "ndrclientcall", "ndrclientcall2", "ndrclientcall3",
         "ndrasyncclientcall",
     })
+
+    def _add_ipc_edge(
+        self,
+        client_graph: CallGraph,
+        client_key: str,
+        server_key: str,
+        proc_name: str,
+        ipc_id: str,
+    ) -> None:
+        """Register a single IPC edge on the client graph."""
+        if not hasattr(client_graph, "ipc_edges"):
+            client_graph.ipc_edges = {}
+        client_graph.ipc_edges.setdefault(client_key, set()).add(
+            (proc_name, server_key, ipc_id)
+        )
+        self._module_deps[client_key].add(server_key)
 
     def inject_rpc_edges(self) -> int:
         """Add cross-process RPC edges from the RPC index.
@@ -687,7 +719,7 @@ class CrossModuleGraph:
                         client_graph.rpc_edges.setdefault(client_key, set()).add(
                             (proc_name, server_key, uuid_key)
                         )
-                        self._module_deps[client_key].add(server_key)
+                        self._add_ipc_edge(client_graph, client_key, server_key, proc_name, f"rpc:{uuid_key}")
                         added += 1
 
         # Phase 2: fallback -- infer clients from NdrClientCall* imports
@@ -757,7 +789,7 @@ class CrossModuleGraph:
                             client_graph.rpc_edges.setdefault(
                                 client_key, set()
                             ).add((proc_name, server_key, uuid_key))
-                            self._module_deps[client_key].add(server_key)
+                            self._add_ipc_edge(client_graph, client_key, server_key, proc_name, f"rpc:{uuid_key}")
                             added += 1
 
         _log.info(
@@ -781,3 +813,142 @@ class CrossModuleGraph:
                         "interface_uuid": uuid,
                     })
         return edges
+
+    # COM activation APIs whose callers are treated as COM clients
+    _COM_ACTIVATION_APIS = frozenset({
+        "cocreateinstance", "cocreateinstanceex",
+        "cogetclassobject", "cogetobject",
+        "clsidfromprogid", "clsidfromprogidex",
+    })
+
+    def inject_com_edges(self) -> int:
+        """Add cross-process COM activation edges from the COM index.
+
+        Scans loaded module graphs for calls to CoCreateInstance-family
+        APIs.  Modules making these calls are treated as COM clients.
+        For each COM server known from the index, edges are created from
+        every client module to the server's method implementations.
+
+        Returns the number of COM edges added.
+        """
+        try:
+            from .com_index import get_com_index
+        except ImportError:
+            return 0
+
+        idx = get_com_index()
+        if not idx.loaded:
+            return 0
+
+        com_caller_modules: set[str] = set()
+        for mod_key, graph in self._graphs.items():
+            for _caller, ext_calls in graph.external_calls.items():
+                for callee_name, _target_mod in ext_calls:
+                    bare = callee_name.lstrip("_")
+                    if bare.startswith("imp_"):
+                        bare = bare[4:]
+                    if bare.lower() in self._COM_ACTIVATION_APIS:
+                        com_caller_modules.add(mod_key)
+                        break
+                if mod_key in com_caller_modules:
+                    break
+
+        if not com_caller_modules:
+            return 0
+
+        added = 0
+        for server_mod_key, graph in self._graphs.items():
+            procs = idx.get_procedures_for_module(
+                next((fn for fn, dp in self._resolver.list_modules()
+                      if dp == server_mod_key or fn.lower() == server_mod_key), server_mod_key)
+            )
+            if not procs:
+                continue
+
+            for client_key in com_caller_modules:
+                if client_key == server_mod_key:
+                    continue
+                client_graph = self._graphs.get(client_key)
+                if client_graph is None:
+                    continue
+                for proc_name in procs:
+                    self._add_ipc_edge(client_graph, client_key, server_mod_key, proc_name, f"com:{server_mod_key}")
+                    added += 1
+
+        if added:
+            _log.info("Injected %d COM cross-process edges", added)
+        return added
+
+    # WinRT activation APIs
+    _WINRT_ACTIVATION_APIS = frozenset({
+        "roactivateinstance", "rogetactivationfactory",
+    })
+
+    def inject_winrt_edges(self) -> int:
+        """Add cross-process WinRT activation edges from the WinRT index.
+
+        Scans loaded module graphs for calls to RoActivateInstance-family
+        APIs.  Modules making these calls are treated as WinRT clients.
+        For each WinRT server known from the index, edges are created from
+        every client module to the server's method implementations.
+
+        Returns the number of WinRT edges added.
+        """
+        try:
+            from .winrt_index import get_winrt_index
+        except ImportError:
+            return 0
+
+        idx = get_winrt_index()
+        if not idx.loaded:
+            return 0
+
+        winrt_caller_modules: set[str] = set()
+        for mod_key, graph in self._graphs.items():
+            for _caller, ext_calls in graph.external_calls.items():
+                for callee_name, _target_mod in ext_calls:
+                    bare = callee_name.lstrip("_")
+                    if bare.startswith("imp_"):
+                        bare = bare[4:]
+                    if bare.lower() in self._WINRT_ACTIVATION_APIS:
+                        winrt_caller_modules.add(mod_key)
+                        break
+                if mod_key in winrt_caller_modules:
+                    break
+
+        if not winrt_caller_modules:
+            return 0
+
+        added = 0
+        for server_mod_key, graph in self._graphs.items():
+            procs = idx.get_procedures_for_module(
+                next((fn for fn, dp in self._resolver.list_modules()
+                      if dp == server_mod_key or fn.lower() == server_mod_key), server_mod_key)
+            )
+            if not procs:
+                continue
+
+            for client_key in winrt_caller_modules:
+                if client_key == server_mod_key:
+                    continue
+                client_graph = self._graphs.get(client_key)
+                if client_graph is None:
+                    continue
+                for proc_name in procs:
+                    self._add_ipc_edge(client_graph, client_key, server_mod_key, proc_name, f"winrt:{server_mod_key}")
+                    added += 1
+
+        if added:
+            _log.info("Injected %d WinRT cross-process edges", added)
+        return added
+
+    def inject_all_ipc_edges(self) -> dict[str, int]:
+        """Inject RPC, COM, and WinRT edges in one call.
+
+        Returns ``{"rpc": N, "com": N, "winrt": N}`` with edge counts.
+        """
+        return {
+            "rpc": self.inject_rpc_edges(),
+            "com": self.inject_com_edges(),
+            "winrt": self.inject_winrt_edges(),
+        }

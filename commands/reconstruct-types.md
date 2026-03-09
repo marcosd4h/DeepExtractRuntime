@@ -119,7 +119,6 @@ All saved files must include a provenance header comment: generation date, modul
 **Follow-up suggestions**:
 
 - `/lift-class <module> <ClassName>` -- lift all methods of a reconstructed class
-- `/verify <module> <function>` -- verify decompiler output for functions with suspicious struct access
 
 ## Error Handling
 

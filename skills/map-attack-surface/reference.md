@@ -117,7 +117,7 @@ Number of internal functions reachable from the entry point, normalized. Entry p
 | EXCEPTION_HANDLER | 0.4 | Triggered by exceptions, harder to control |
 | EXPORT_ORDINAL_ONLY | 0.35 | Unnamed but still callable |
 | EXPORT_DLL | 0.3 | Standard export, well-known interface |
-| FORWARDED_EXPORT | 0.1 | Redirected, real target is elsewhere |
+| FORWARDED_EXPORT | 0.3 | Redirected, real target is elsewhere |
 
 ## Tainted Argument Inference
 

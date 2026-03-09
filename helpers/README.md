@@ -180,6 +180,20 @@ Query pre-computed module fingerprints (noise ratio, API surface, complexity).
 | Get technology flags | `get_technology_flags(profile)` | `module_profile` |
 | Get canary coverage | `get_canary_coverage(profile)` | `module_profile` |
 
+### param_risk
+
+Parameter-type risk scoring from C-style function signatures. Relocated from
+`map-attack-surface` skill to enable cross-skill reuse.
+
+| Symbol | Type | Description |
+|--------|------|-------------|
+| `score_parameter_risk(signature)` | function | Returns `(risk_score: float, reasons: list[str])` |
+| `HIGH_RISK_PARAM_PATTERNS` | list | 11 regex patterns with risk scores for parameter types |
+| `BUFFER_SIZE_PAIR_PATTERNS` | list | 3 compiled regexes detecting buffer+size parameter pairs |
+
+The risk score is 0.0-1.0: weighted combination of max parameter type risk and
+average across all parameters, with bonus for parameter count.
+
 ### winrt_index
 
 WinRT server index built from extraction data across four access contexts.
@@ -235,6 +249,25 @@ COM server index built from extraction data across four access contexts.
 - **ComAccessContext**(enum) -- HIGH_IL_ALL, HIGH_IL_PRIVILEGED, MEDIUM_IL_ALL, MEDIUM_IL_PRIVILEGED
 - **get_com_index**() -> ComIndex -- cached singleton
 - **invalidate_com_index**() -- clear cached index
+
+### rpc_index
+
+RPC server index loader and query engine. Loads ground-truth RPC interface data
+from `config/assets/rpc_data/rpc_servers.json`.
+
+| Symbol | Type | Description |
+|--------|------|-------------|
+| `RpcIndex` | class | Queryable index of RPC interfaces and procedures |
+| `RpcInterface` | dataclass | Single RPC interface with UUID, procedures, endpoints |
+| `get_rpc_index()` | function | Return global singleton `RpcIndex` (lazy-loaded) |
+| `invalidate_rpc_index()` | function | Clear cached singleton (for testing) |
+
+Key query methods on `RpcIndex`:
+- `get_procedures_for_module(name)` -- confirmed RPC procedure names for a binary
+- `is_rpc_procedure(module, func)` -- exact match against known procedures
+- `get_interface_for_procedure(module, func)` -- returns the owning `RpcInterface`
+- `get_interfaces_for_module(module)` -- all interfaces registered in a binary
+- `compute_blast_radius(uuid)` -- co-hosted sibling interfaces in same process
 
 ### Error Handling and Output
 

@@ -86,6 +86,7 @@ python .agent/skills/map-attack-surface/scripts/discover_entrypoints.py <db_path
 | `COM_CLASS_FACTORY`     | DllGetClassObject/DllCanUnloadNow exports                 |
 | `SCHEDULED_CALLBACK`    | Timer, APC, threadpool callback targets                   |
 | `HOOK_PROCEDURE`        | SetWindowsHookEx targets                                  |
+| `DRIVER_DISPATCH`       | DriverEntry, IRP dispatch routine name patterns           |
 | `FORWARDED_EXPORT`      | Forwarded DLL exports                                     |
 
 ### rank_entrypoints.py -- Rank by Attack Value
@@ -112,8 +113,6 @@ python .agent/skills/map-attack-surface/scripts/rank_entrypoints.py <db_path> --
 - **Entry type inherent risk** (15%): RPC/pipe/socket handlers score higher than plain exports
 
 **Output includes:** Per-entry-point tainted argument recommendations.
-
-Library-tagged functions (from function_index) are unlikely attack entry points. Use `get_library_tag_for_function()` from helpers to deprioritize WIL/CRT/STL exports.
 
 ### generate_entrypoints_json.py -- Generate CRS-Compatible Output
 

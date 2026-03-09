@@ -192,6 +192,10 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     "ExportEntry": (".import_export_index", None),
     "ImportEntry": (".import_export_index", None),
     "ImportExportIndex": (".import_export_index", None),
+    # param_risk
+    "HIGH_RISK_PARAM_PATTERNS": (".param_risk", None),
+    "BUFFER_SIZE_PAIR_PATTERNS": (".param_risk", None),
+    "score_parameter_risk": (".param_risk", None),
     # progress
     "ProgressReporter": (".progress", None),
     "progress_iter": (".progress", None),
@@ -262,6 +266,7 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     "list_runs": (".workspace", None),
     "write_results": (".workspace", None),
     "read_results": (".workspace", None),
+    "read_step_payload": (".workspace", None),
     "read_summary": (".workspace", None),
     "get_step_paths": (".workspace", None),
     "update_manifest": (".workspace", None),

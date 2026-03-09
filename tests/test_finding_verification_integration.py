@@ -27,7 +27,7 @@ class TestFindingVerificationRegistry:
     def test_depends_on_correct(self):
         registry = _load_json("skills/registry.json")
         deps = set(registry["skills"]["finding-verification"]["depends_on"])
-        expected = {"taint-analysis", "verify-decompiled", "data-flow-tracer",
+        expected = {"taint-analysis", "data-flow-tracer",
                     "security-dossier", "exploitability-assessment",
                     "import-export-resolver"}
         assert deps == expected

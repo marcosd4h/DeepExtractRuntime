@@ -10,13 +10,14 @@ description: Build comprehensive security context dossiers for functions in Deep
 One-command deep context gathering for security auditing. Before manually reviewing a decompiled function, the researcher needs to understand its security landscape. This skill builds a comprehensive dossier covering:
 
 1. **Function Identity** -- Name, signature, class membership, mangled name
-2. **Attack Reachability** -- Exported? Entry point? Reachable from exports? Shortest path from entry?
-3. **Untrusted Data Exposure** -- Which export callers can feed external data? How many hops?
-4. **Dangerous Operations** -- Direct dangerous APIs, security-relevant callees by category, callee-depth analysis
+2. **Attack Reachability** -- Exported? Entry point? Reachable from exports? Shortest path from entry? + RPC/COM/WinRT IPC entry points
+3. **Untrusted Data Exposure** -- Which export callers can feed external data? How many hops? + parameter risk scoring
+4. **Dangerous Operations** -- Direct dangerous APIs, security-relevant callees by category, callee-depth analysis + BFS transitive to configurable depth
 5. **Resource Patterns** -- Synchronization, memory operations, global variable reads/writes
 6. **Complexity Assessment** -- Instructions, branches, loops, cyclomatic complexity, stack frame
 7. **Neighboring Context** -- Class methods, direct callees/callers
 8. **Module Security Posture** -- ASLR, DEP, CFG, SEH status
+9. **Data Quality** -- Extraction-time error warnings
 
 ## Data Sources
 
@@ -65,7 +66,7 @@ python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> --searc
 python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> <function_name> --json
 
 # Deeper callee analysis (check callees' callees for dangerous APIs)
-python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> <function_name> --callee-depth 2
+python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> <function_name> --callee-depth 4
 ```
 
 Examples:
@@ -140,12 +141,6 @@ python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> <funct
 python .agent/skills/data-flow-tracer/scripts/forward_trace.py <db_path> <function> --param 1
 ```
 
-- **Decompiler verification** -- verify decompiled code accuracy:
-
-```bash
-python .agent/skills/verify-decompiled/scripts/verify_function.py <db_path> <function>
-```
-
 ## Dossier Section Reference
 
 ### 1. Function Identity
@@ -156,15 +151,15 @@ Source: `functions` table -- `function_name`, `function_signature`, `function_si
 
 ### 2. Attack Reachability
 
-Source: `file_info.exports`, `file_info.entry_point`, `simple_inbound_xrefs`. BFS upward through callers to find paths from exports/entry points. Reports whether the function is externally reachable and the shortest path from an entry point.
+Source: `file_info.exports`, `file_info.entry_point`, `simple_inbound_xrefs`. BFS upward through callers to find paths from exports/entry points. Reports whether the function is externally reachable and the shortest path from an entry point. Also includes `ipc_context` with ground-truth RPC/COM/WinRT classification from `rpc_index`, `com_index`, and `winrt_index` helper modules.
 
 ### 3. Untrusted Data Exposure
 
-Combines reachability with exports analysis. Functions reachable from exports may receive untrusted external input. Traces data paths from export callers to the target.
+Combines reachability with exports analysis. Functions reachable from exports may receive untrusted external input. Traces data paths from export callers to the target. Now includes `param_risk_score` (0.0-1.0) from signature analysis, and considers entry points and IPC handlers as data sources alongside exports.
 
 ### 4. Dangerous Operations
 
-Source: `dangerous_api_calls` (direct), `simple_outbound_xrefs` classified by security API category. With `--callee-depth >= 1`, also checks internal callees' dangerous APIs. Categories: memory_unsafe, command_execution, code_injection, privilege, file_write, registry_write, network, crypto, sync, memory_alloc.
+Source: `dangerous_api_calls` (direct), `simple_outbound_xrefs` classified by security API category. Uses BFS via CallGraph to `--callee-depth` (default 4) for transitive dangerous API discovery. Also reports `indirect_calls` from detailed `outbound_xrefs`. Categories: memory_unsafe, command_execution, code_injection, privilege, file_write, registry_write, network, crypto, sync, memory_alloc.
 
 ### 5. Resource Patterns
 
@@ -172,7 +167,7 @@ Source: `simple_outbound_xrefs` classified for sync/memory/file APIs. `global_va
 
 ### 6. Complexity Assessment
 
-Source: `assembly_code` (instruction/branch/call counts), `loop_analysis` (loop count, cyclomatic complexity), `stack_frame` (sizes, canary, exception handler).
+Source: `assembly_code` (instruction/branch/call counts), `loop_analysis` (loop count, cyclomatic complexity), `stack_frame` (sizes, canary, exception handler). Includes `has_syscall` for direct syscall detection and `string_categories` from `categorize_strings()`.
 
 ### 7. Neighboring Context
 
@@ -204,7 +199,7 @@ For programmatic use without skill scripts:
 | Operation | Typical Time | Notes |
 |-----------|-------------|-------|
 | Build single function dossier | ~5-10s | Gathers from multiple skills |
-| Build dossier (deep callee scan) | ~15-30s | With --callee-depth 2+ |
+| Build dossier (deep callee scan) | ~15-45s | With --callee-depth 4+ (BFS) |
 
 ## Additional Resources
 

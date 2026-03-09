@@ -109,7 +109,6 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 Present the explanation in chat using the structured format above. This is a lightweight retrieval command; file output is on-request only. When saving, use `extracted_code/<module_folder>/reports/explain_<function>_<timestamp>.md` and include a provenance header (generation date, module, function name, DB path).
 
 **Follow-up suggestions**:
-- `/verify <module> <function>` -- check if the decompiled output is accurate
 - `/audit <module> <function>` -- full security audit with risk assessment
 - `/trace-export <module> <function>` -- trace through the full call chain (if export)
 - `/explain <module> <callee>` -- explain a callee mentioned in the call context

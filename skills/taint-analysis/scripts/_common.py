@@ -558,6 +558,22 @@ def _refine_rpc_trust(module_name: str, fallback: str = "rpc_server") -> str:
     return fallback
 
 
+def _refine_com_trust(module_name: str, fallback: str = "com_server") -> str:
+    """Use the COM index to refine COM server trust level."""
+    try:
+        from helpers.com_index import get_com_index
+        idx = get_com_index()
+        if idx.loaded and module_name:
+            servers = idx.get_servers_for_module(module_name)
+            if servers:
+                if any(s.can_elevate for s in servers):
+                    return "com_server_elevated"
+                return "com_server"
+    except Exception:
+        pass
+    return fallback
+
+
 def classify_module_trust(db_path: str) -> str:
     """Classify a module's trust level from its exports/imports.
 
@@ -595,7 +611,7 @@ def classify_module_trust(db_path: str) -> str:
                     import_names.add(imp.lower())
 
             if {"dllgetclassobject", "dllregisterserver"} & export_names:
-                trust = "com_server"
+                trust = _refine_com_trust(fi.file_name or "", "com_server")
             elif any(n.startswith("rpcserverregisterif") for n in import_names):
                 trust = _refine_rpc_trust(fi.file_name or "", trust)
             elif {"servicemain"} & export_names or any(
@@ -638,13 +654,15 @@ def resolve_vtable_callees(
     Scans the *detailed* outbound xrefs for ``is_vtable_call`` entries,
     then attempts to resolve each via:
     1. The vtable method name embedded by IDA in the xref
-    2. Cross-referencing ``vtable_info`` with the COM class-interface map
+    2. Falling back to the COM index when IDA metadata is insufficient
 
     Returns a list of dicts with ``callee_name``, ``vtable_address``,
     ``method_offset``, ``boundary_type`` ("com_vtable").
     """
     detailed = func.get("detailed_outbound_xrefs") or []
     results: list[dict] = []
+
+    com_procedures: set[str] | None = None
 
     for xref in detailed:
         if not isinstance(xref, dict):
@@ -656,6 +674,17 @@ def resolve_vtable_callees(
         callee_name = xref.get("function_name") or xref.get("target_name", "")
         vtable_addr = vt_info.get("vtable_address")
         method_offset = vt_info.get("method_offset")
+
+        if not callee_name:
+            # COM index fallback: try to match by method name fragments
+            if com_procedures is None:
+                com_procedures = _load_com_procedures_for_db(db_path)
+            if com_procedures and vt_info.get("method_name"):
+                method_frag = vt_info["method_name"]
+                for cp in com_procedures:
+                    if method_frag in cp:
+                        callee_name = cp
+                        break
 
         if not callee_name:
             continue
@@ -670,6 +699,22 @@ def resolve_vtable_callees(
         })
 
     return results
+
+
+def _load_com_procedures_for_db(db_path: str) -> set[str]:
+    """Load COM procedure names for the module associated with *db_path*."""
+    try:
+        from helpers.com_index import get_com_index
+        idx = get_com_index()
+        if not idx.loaded:
+            return set()
+        with open_individual_analysis_db(db_path) as db:
+            fi = db.get_file_info()
+            if fi and fi.file_name:
+                return set(idx.get_procedures_for_module(fi.file_name))
+    except Exception:
+        pass
+    return set()
 
 
 # ---------------------------------------------------------------------------
@@ -688,11 +733,18 @@ _RPC_STUB_PREFIXES = (
 )
 
 
-def detect_rpc_boundaries(call_usages: list[dict]) -> list[dict]:
+def detect_rpc_boundaries(
+    call_usages: list[dict],
+    db_path: str | None = None,
+) -> list[dict]:
     """Identify RPC stub invocations in a function's call usages.
 
     Returns annotated entries for each NdrClientCall-family call found,
     which represent cross-process/cross-machine taint boundaries.
+
+    When *db_path* is provided, attempts to resolve the server-side
+    handler procedures via the RPC index so that downstream taint
+    analysis can follow across the RPC boundary.
     """
     rpc_calls: list[dict] = []
     for cu in call_usages:
@@ -701,14 +753,52 @@ def detect_rpc_boundaries(call_usages: list[dict]) -> list[dict]:
         if clean.lower() in _RPC_STUB_PREFIXES or any(
             clean.lower().startswith(p) for p in _RPC_STUB_PREFIXES
         ):
-            rpc_calls.append({
+            entry: dict = {
                 "function_name": name,
                 "boundary_type": "rpc",
                 "arg_position": cu.get("arg_position"),
                 "line_number": cu.get("line_number"),
                 "line": cu.get("line", ""),
-            })
+            }
+            rpc_calls.append(entry)
+
+    if rpc_calls and db_path:
+        server_info = _resolve_rpc_server_for_db(db_path)
+        if server_info:
+            for call in rpc_calls:
+                call["rpc_server_module"] = server_info.get("module")
+                call["rpc_server_procedures"] = server_info.get("procedures", [])
+                call["rpc_interface_id"] = server_info.get("interface_id", "")
+
     return rpc_calls
+
+
+def _resolve_rpc_server_for_db(db_path: str) -> dict | None:
+    """Use the RPC index to find the server module for an RPC client call.
+
+    Returns ``{"module": str, "procedures": list, "interface_id": str}``
+    or None when the RPC index is unavailable or finds no match.
+    """
+    try:
+        from helpers.rpc_index import get_rpc_index
+        idx = get_rpc_index()
+        if not idx.loaded:
+            return None
+        with open_individual_analysis_db(db_path) as db:
+            fi = db.get_file_info()
+            if not fi or not fi.file_name:
+                return None
+            ifaces = idx.get_interfaces_for_module(fi.file_name)
+            if not ifaces:
+                return None
+            iface = ifaces[0]
+            return {
+                "module": fi.file_name,
+                "procedures": iface.procedure_names[:20],
+                "interface_id": iface.interface_id,
+            }
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------------------------

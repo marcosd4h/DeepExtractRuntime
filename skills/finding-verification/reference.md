@@ -15,30 +15,7 @@ Every finding must pass through these gates. A failure at any gate
 downgrades the finding toward FALSE POSITIVE unless subsequent gates
 provide overriding evidence.
 
-### Gate 1: Assembly Ground Truth
-
-**Question**: Does the vulnerability exist in the actual instructions?
-
-**Tools**: `verify-decompiled` (`verify_function.py --id <id> --json`)
-
-**What to check**:
-- Compare the Hex-Rays output at the finding location against assembly
-- Look for decompiler artifacts that create phantom bugs:
-  - Sign extension handling: Hex-Rays may show signed comparison where
-    assembly uses unsigned (`JB` vs `JL`)
-  - Implicit casts: Decompiler inserts casts that don't exist in assembly
-  - Loop unrolling artifacts: Decompiler reconstructs a loop that was
-    unrolled; the "missing check" exists in each unrolled iteration
-  - Tail call optimization: Function appears to fall through when
-    assembly actually jumps to another function
-  - Optimized-away checks: Compiler proved a check was unnecessary and
-    removed it; decompiler shows the "missing" check
-
-**Verdict impact**: If the assembly contradicts the decompiled code at
-the finding location, the finding is likely a FALSE POSITIVE from
-decompiler inaccuracy.
-
-### Gate 2: Data Flow
+### Gate 1: Data Flow
 
 **Question**: Does data actually flow from attacker-controlled source
 to the dangerous sink?
@@ -55,7 +32,7 @@ to the dangerous sink?
 **Verdict impact**: If no data flow path exists between source and sink,
 the finding is a FALSE POSITIVE from incomplete taint modeling.
 
-### Gate 3: Attacker Control
+### Gate 2: Attacker Control
 
 **Question**: Can the attacker actually control the relevant parameter?
 
@@ -73,7 +50,7 @@ the finding is a FALSE POSITIVE from incomplete taint modeling.
 **Verdict impact**: If the function is unreachable from attacker-controlled
 entry points, the finding is a FALSE POSITIVE (internal-only function).
 
-### Gate 4: Cross-Module Boundary
+### Gate 3: Cross-Module Boundary
 
 **Question**: Does the vulnerability survive across DLL boundaries?
 
@@ -90,7 +67,7 @@ entry points, the finding is a FALSE POSITIVE (internal-only function).
 boundary that validates inputs, the finding may be a FALSE POSITIVE
 or reduced severity.
 
-### Gate 5: Devil's Advocate
+### Gate 4: Devil's Advocate
 
 **Question**: What would prevent exploitation?
 

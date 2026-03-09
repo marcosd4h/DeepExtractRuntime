@@ -188,13 +188,16 @@ COM_SERVER_APIS: set[str] = {
     "RoGetActivationFactory",
 }
 
-# Service control APIs
-SERVICE_APIS: set[str] = {
+# Service control APIs -- split into dispatcher vs handler for accurate classification
+SERVICE_DISPATCHER_APIS: set[str] = {
     "StartServiceCtrlDispatcherW", "StartServiceCtrlDispatcherA",
+}
+SERVICE_HANDLER_APIS: set[str] = {
     "RegisterServiceCtrlHandlerW", "RegisterServiceCtrlHandlerA",
     "RegisterServiceCtrlHandlerExW", "RegisterServiceCtrlHandlerExA",
     "SetServiceStatus",
 }
+SERVICE_APIS: set[str] = SERVICE_DISPATCHER_APIS | SERVICE_HANDLER_APIS
 
 # Dangerous APIs (sinks) for reachability analysis.
 # Derived from the centralized security taxonomy with additional entries
@@ -215,85 +218,11 @@ DANGEROUS_SINK_APIS: set[str] = get_dangerous_api_set() | {
 # Parameter Risk Analysis
 # ===========================================================================
 
-# Type patterns that indicate attacker-controllable input
-HIGH_RISK_PARAM_PATTERNS: list[tuple[str, float]] = [
-    # Buffer + size pairs (highest risk)
-    (r"(?:void|PVOID|LPVOID|char|BYTE|PBYTE|LPBYTE)\s*\*", 1.0),
-    (r"(?:wchar_t|WCHAR|LPWSTR|PWSTR|OLECHAR)\s*\*", 0.9),
-    (r"(?:LPSTR|LPCSTR|PSTR|PCSTR|char\s+const)\s*\*?", 0.9),
-    (r"(?:LPCWSTR|PCWSTR|wchar_t\s+const)\s*\*?", 0.85),
-    (r"(?:BSTR|VARIANT|SAFEARRAY)", 0.85),
-    # Size/length parameters (amplifiers when paired with buffers)
-    (r"(?:DWORD|ULONG|SIZE_T|size_t|unsigned|int)\b", 0.3),
-    # Handle parameters (moderate -- can reference attacker objects)
-    (r"(?:HANDLE|HKEY|HMODULE|HINSTANCE|SOCKET|HWND)", 0.5),
-    # Interface pointers (COM attack surface)
-    (r"(?:IUnknown|IDispatch|I[A-Z]\w+)\s*\*", 0.7),
-    (r"(?:REFIID|REFCLSID|GUID|IID)", 0.4),
-    # Struct pointers
-    (r"(?:struct|SECURITY_ATTRIBUTES|OVERLAPPED)\s*\*", 0.5),
-    # Flags (low risk alone but can change behavior)
-    (r"(?:FLAGS|ULONG|DWORD)\b.*(?:flags|options|mode)", 0.2),
-]
-
-BUFFER_SIZE_PAIR_PATTERNS: list[re.Pattern] = [
-    re.compile(r"(?:void|char|BYTE|wchar_t|WCHAR)\s*\*.*,\s*(?:DWORD|ULONG|SIZE_T|size_t|unsigned|int)\b", re.I),
-    re.compile(r"(?:LPVOID|PVOID|LPBYTE|PBYTE)\s.*,\s*(?:DWORD|ULONG|SIZE_T|size_t|unsigned)\b", re.I),
-    re.compile(r"(?:LPWSTR|LPSTR|PWSTR|PSTR)\s.*,\s*(?:DWORD|ULONG|SIZE_T|int|unsigned)\b", re.I),
-]
-
-
-def score_parameter_risk(signature: Optional[str]) -> tuple[float, list[str]]:
-    """Score parameter risk from a function signature.
-
-    Returns (risk_score 0.0-1.0, list of risk reasons).
-    """
-    if not signature:
-        return 0.0, []
-
-    risk = 0.0
-    reasons: list[str] = []
-
-    # Check for buffer+size pairs (highest risk)
-    for pat in BUFFER_SIZE_PAIR_PATTERNS:
-        if pat.search(signature):
-            risk = max(risk, 0.9)
-            reasons.append("buffer+size parameter pair")
-            break
-
-    # Score individual parameters
-    # Extract parameter list from signature
-    paren_match = re.search(r"\(([^)]*)\)", signature)
-    if not paren_match:
-        return risk, reasons
-
-    param_str = paren_match.group(1)
-    if not param_str.strip() or param_str.strip().lower() in ("void", ""):
-        return 0.1, ["no parameters (limited attack surface)"]
-
-    params = [p.strip() for p in param_str.split(",") if p.strip()]
-    param_scores: list[float] = []
-
-    for param in params:
-        best_score = 0.0
-        for pattern, score in HIGH_RISK_PARAM_PATTERNS:
-            if re.search(pattern, param, re.I):
-                best_score = max(best_score, score)
-        param_scores.append(best_score)
-
-    if param_scores:
-        max_param = max(param_scores)
-        avg_param = sum(param_scores) / len(param_scores)
-        # Weighted: max matters more but count of risky params amplifies
-        combined = max_param * 0.6 + avg_param * 0.2 + min(len(params) / 10.0, 0.2)
-        risk = max(risk, min(combined, 1.0))
-
-        if max_param >= 0.8:
-            reasons.append("high-risk pointer/buffer parameters")
-        elif max_param >= 0.5:
-            reasons.append("handle/interface pointer parameters")
-
-    return risk, reasons
+from helpers.param_risk import (
+    score_parameter_risk,
+    HIGH_RISK_PARAM_PATTERNS,
+    BUFFER_SIZE_PAIR_PATTERNS,
+)
 
 
 # ===========================================================================
@@ -374,6 +303,48 @@ ENTRY_STRING_PATTERNS: dict[str, list[re.Pattern]] = {
 
 
 # ===========================================================================
+# Name-Based Entry Point Classification
+# ===========================================================================
+
+_PATTERN_TO_ENTRY_TYPE: dict[str, "EntryPointType"] = {
+    "main_entry": EntryPointType.MAIN_ENTRY,
+    "dllmain": EntryPointType.DLLMAIN,
+    "service_main": EntryPointType.SERVICE_MAIN,
+    "window_proc": EntryPointType.WINDOW_PROC,
+    "rpc_handler": EntryPointType.RPC_HANDLER,
+    "named_pipe": EntryPointType.NAMED_PIPE_HANDLER,
+    "ipc_dispatcher": EntryPointType.IPC_DISPATCHER,
+    "socket_handler": EntryPointType.TCP_UDP_HANDLER,
+    "driver_dispatch": EntryPointType.DRIVER_DISPATCH,
+    "com_class_factory": EntryPointType.COM_CLASS_FACTORY,
+    "exception_handler": EntryPointType.EXCEPTION_HANDLER,
+}
+
+def _classify_entry_name(function_name: str) -> "EntryPointType":
+    """Classify an entry point type from its function name using pattern matching.
+
+    Iterates over ENTRY_NAME_PATTERNS in definition order and returns the
+    EntryPointType for the first matching category.
+
+    Returns EntryPointType.EXPORT_DLL as the default fallback when nothing
+    matches. RPC handlers not covered by ENTRY_NAME_PATTERNS are identified
+    by the ground-truth RPC index (``get_rpc_index().is_rpc_procedure``) in
+    the callers of this function -- name-pattern heuristics for specific
+    MIDL naming conventions are intentionally absent here because they are
+    non-generic and would produce false positives on non-Microsoft codebases.
+    """
+    for category, patterns in ENTRY_NAME_PATTERNS.items():
+        entry_type = _PATTERN_TO_ENTRY_TYPE.get(category)
+        if entry_type is None:
+            continue
+        for pattern in patterns:
+            if pattern.search(function_name):
+                return entry_type
+
+    return EntryPointType.EXPORT_DLL
+
+
+# ===========================================================================
 # Entry Point Record
 # ===========================================================================
 
@@ -410,6 +381,21 @@ class EntryPoint:
     rpc_service: str = ""
     rpc_risk_tier: str = ""
 
+    # COM enrichment (populated when COM index is available)
+    com_clsid: str = ""
+    com_interface_name: str = ""
+    com_service: str = ""
+    com_risk_tier: str = ""
+    com_can_elevate: bool = False
+    com_access_contexts: str = ""
+
+    # WinRT enrichment (populated when WinRT index is available)
+    winrt_class_name: str = ""
+    winrt_interface_name: str = ""
+    winrt_activation_type: str = ""
+    winrt_risk_tier: str = ""
+    winrt_access_contexts: str = ""
+
     # Final composite score
     attack_score: float = 0.0
     attack_rank: int = 0
@@ -439,6 +425,17 @@ class EntryPoint:
             "rpc_protocol": self.rpc_protocol,
             "rpc_service": self.rpc_service,
             "rpc_risk_tier": self.rpc_risk_tier,
+            "com_clsid": self.com_clsid,
+            "com_interface_name": self.com_interface_name,
+            "com_service": self.com_service,
+            "com_risk_tier": self.com_risk_tier,
+            "com_can_elevate": self.com_can_elevate,
+            "com_access_contexts": self.com_access_contexts,
+            "winrt_class_name": self.winrt_class_name,
+            "winrt_interface_name": self.winrt_interface_name,
+            "winrt_activation_type": self.winrt_activation_type,
+            "winrt_risk_tier": self.winrt_risk_tier,
+            "winrt_access_contexts": self.winrt_access_contexts,
             "attack_score": round(self.attack_score, 3),
             "attack_rank": self.attack_rank,
             "tainted_args": self.tainted_args,

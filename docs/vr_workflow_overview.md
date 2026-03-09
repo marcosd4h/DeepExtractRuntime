@@ -1119,17 +1119,16 @@ EOF### 3.5 Verification
 **Workflow:**
 1. **Restate the claim** -- Document function, claim, root cause, trigger, impact, bug class
 2. **Route: Standard vs Deep** -- Standard is default; Deep for cross-module, race conditions, logic, or inconclusive results
-3. **Standard verification (5 steps):**
-   1. Check decompiler accuracy (`verify_function.py`)
-   2. Verify data flow (`forward_trace.py`)
-   3. Verify attacker control (`chain_analysis.py --depth 3`)
-   4. Devil's advocate review
-   5. Render verdict (TRUE POSITIVE or FALSE POSITIVE)
+3. **Standard verification (4 steps):**
+   1. Verify data flow (`forward_trace.py`)
+   2. Verify attacker control (`chain_analysis.py --depth 3`)
+   3. Devil's advocate review
+   4. Render verdict (TRUE POSITIVE or FALSE POSITIVE)
 4. **Deep verification:** Delegate to verifier subagent for fresh-eyes assembly comparison
 
 **Mandatory language:** "does/is/will" in verdicts. NEVER "might/could/possibly/may/theoretically."
 
-**Dependencies:** taint-analysis, verify-decompiled, data-flow-tracer, security-dossier, exploitability-assessment, import-export-resolver, callgraph-tracer.
+**Dependencies:** taint-analysis, data-flow-tracer, security-dossier, exploitability-assessment, import-export-resolver, callgraph-tracer.
 
 ---
 
@@ -1282,7 +1281,7 @@ Labels: high (>=0.70), medium (>=0.40), low (<0.40).
 
 **Windows security mental models:** Trust boundary diagram, 7 privilege escalation vectors, IPC security pitfalls (RPC/ALPC, Named Pipes, COM), 5 file system attacks, 6 memory safety risks.
 
-**Dependencies:** security-dossier, taint-analysis, data-flow-tracer, map-attack-surface, classify-functions, callgraph-tracer, verify-decompiled, reconstruct-types.
+**Dependencies:** security-dossier, taint-analysis, data-flow-tracer, map-attack-surface, classify-functions, callgraph-tracer, reconstruct-types.
 
 ---
 
@@ -2377,21 +2376,20 @@ EOF## 5. Commands Reference
 | `function_name` | positional | yes | Function name |
 | `--search` | string | no | Pattern search |
 
-**Workflow (8 steps):**
+**Workflow (7 steps):**
 1. Locate function
 2. Build security dossier (`build_dossier.py`)
 3. Extract full data + attack surface ranking + backward trace (if dangerous APIs) + module profile + forward taint (conditional)
-4. Verify decompiler accuracy (`verify_function.py`)
-5. Trace call chain (`chain_analysis.py`)
-6. Classify function purpose (`classify_function.py`)
-7. Synthesize audit report (8-concern checklist C1-C8, risk rubric with 4 dimensions)
-8. Verify concerns with fresh-eyes subagent (re-analyst or verifier, readonly)
+4. Trace call chain (`chain_analysis.py`)
+5. Classify function purpose (`classify_function.py`)
+6. Synthesize audit report (8-concern checklist C1-C8, risk rubric with 4 dimensions)
+7. Verify concerns with fresh-eyes subagent (re-analyst or verifier, readonly)
 
-**Skills:** decompiled-code-extractor, security-dossier, map-attack-surface, data-flow-tracer, verify-decompiled, callgraph-tracer, classify-functions, taint-analysis, function-index.
+**Skills:** decompiled-code-extractor, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, classify-functions, taint-analysis, function-index.
 
 **Output:** `extracted_code/<module>/reports/audit_<function>_<timestamp>.md`
 
-**Parallelism:** Steps 2+3+3b parallel; Steps 4+5+6+3e parallel.
+**Parallelism:** Steps 2+3+3b parallel; Steps 4+5+3e parallel.
 
 ---
 
@@ -2472,7 +2470,7 @@ EOF## 5. Commands Reference
 4. Score exploitability for CONFIRMED/LIKELY findings
 5. Synthesize findings report
 
-**Skills:** taint-analysis, security-dossier, map-attack-surface, data-flow-tracer, verify-decompiled, callgraph-tracer, exploitability-assessment.
+**Skills:** taint-analysis, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, exploitability-assessment.
 
 **Grind loop:** Yes -- one checkbox per hypothesis.
 
@@ -2832,9 +2830,6 @@ For tracing a specific export end-to-end:
     │                                (--cross-module for DLL boundaries)
     ▼
 /audit <module> <export>             Security audit
-    │
-    ▼
-/verify <module> <export>            Verify decompiler accuracy
 ```
 
 ### 7.5 Cross-Module Analysis
@@ -2895,7 +2890,7 @@ For producing readable C++ from decompiled code:
 
 | Command | Skills Used |
 |---------|------------|
-| `/audit` | decompiled-code-extractor, security-dossier, map-attack-surface, data-flow-tracer, verify-decompiled, callgraph-tracer, classify-functions, taint-analysis, function-index |
+| `/audit` | decompiled-code-extractor, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, classify-functions, taint-analysis, function-index |
 | `/batch-audit` | security-dossier, taint-analysis, exploitability-assessment, classify-functions, map-attack-surface, rpc-interface-analysis, com-interface-analysis, winrt-interface-analysis, function-index, decompiled-code-extractor |
 | `/brainstorm` | brainstorming |
 | `/cache-manage` | classify-functions, callgraph-tracer, generate-re-report |
@@ -2909,7 +2904,7 @@ For producing readable C++ from decompiled code:
 | `/full-report` | decompiled-code-extractor, generate-re-report, classify-functions, map-attack-surface, callgraph-tracer, com-interface-reconstruction, state-machine-extractor, data-flow-tracer, taint-analysis, security-dossier, reconstruct-types, verify-decompiled, function-index |
 | `/health` | (helpers only) |
 | `/hunt` | adversarial-reasoning, classify-functions, map-attack-surface, security-dossier, taint-analysis |
-| `/hunt-execute` | taint-analysis, security-dossier, map-attack-surface, data-flow-tracer, verify-decompiled, callgraph-tracer, exploitability-assessment |
+| `/hunt-execute` | taint-analysis, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, exploitability-assessment |
 | `/imports` | import-export-resolver |
 | `/lift-class` | decompiled-code-extractor, code-lifting, batch-lift, reconstruct-types |
 | `/logic-scan` | logic-vulnerability-detector, decompiled-code-extractor |

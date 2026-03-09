@@ -229,7 +229,7 @@ __all__ = [
     "load_all_functions_slim",
     "load_exports",
     "load_function_record",
-    "load_security_features",
+    "load_security_features",  # cosmetic display-only; not used in scoring
     "matches_api_list",
     "severity_label",
     "strip_import_prefix",

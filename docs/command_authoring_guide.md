@@ -367,7 +367,7 @@ designing commands:
 Name subagents after the analysis step and target entity:
 
 - Good: `"Build security dossier for AiCheckLockdown"`
-- Good: `"Verify decompiler accuracy for AiCheckLockdown"`
+- Good: `"Trace call chain from AiCheckLockdown"`
 - Bad: `"Raw JSON content retrieval"`
 - Bad: `"File read"`
 

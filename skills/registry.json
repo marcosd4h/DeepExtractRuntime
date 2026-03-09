@@ -314,7 +314,7 @@
       "type": "security",
       "methodology_only": true,
       "entry_scripts": [],
-      "depends_on": ["taint-analysis", "verify-decompiled", "data-flow-tracer", "security-dossier", "exploitability-assessment", "import-export-resolver"],
+      "depends_on": ["taint-analysis", "data-flow-tracer", "security-dossier", "exploitability-assessment", "import-export-resolver"],
       "cacheable": false,
       "json_output": false
     },

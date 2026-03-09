@@ -2,7 +2,7 @@
 
 ## Overview
 
-Perform a focused security audit of a specific function -- building a comprehensive security dossier, verifying decompiler accuracy, tracing attack reachability, and reporting findings with risk assessment and recommendations.
+Perform a focused security audit of a specific function -- building a comprehensive security dossier, tracing attack reachability, and reporting findings with risk assessment and recommendations.
 
 The text after `/audit` specifies the **function name** and optionally the **module**:
 
@@ -29,13 +29,19 @@ Before running the multi-skill audit pipeline:
    - `<run_dir>/<step_name>/results.json`
    - `<run_dir>/<step_name>/summary.json`
 5. Use `<run_dir>/manifest.json` as the source of truth for completed steps.
+6. **Staleness check (when reusing an existing workspace):** If a workspace directory already exists and `manifest.json` shows all steps with `status: success`, check freshness before reusing results:
+   - Read `manifest.json` `created_at` timestamp.
+   - Compare against the analysis DB file modification time (`mtime` of the `.db` file resolved in Step 0).
+   - If the DB `mtime` is **newer** than `manifest.created_at`, warn the user: *"Workspace was created before the current DB was last modified. Results may be outdated. Re-run with `--no-cache` to regenerate all steps."* Then proceed with the stale results unless the user explicitly requests regeneration.
+   - If the workspace is **older than 24 hours** (regardless of DB age), emit an informational note at the start of the report: *"Note: Workspace is N hours old. Results may be stale if the extraction has been re-run since creation."*
+   - These are warnings only — do not block execution. The user decides whether to re-run.
 
 ## Conventions
 
 - **Function ID over name**: Step 1 returns a `function_id`. Use `--id <function_id>` in all subsequent script invocations -- it is unambiguous and avoids name-resolution edge cases.
 - **JSON mode**: All skill scripts support `--json` for machine-readable output. Always pass `--json` when parsing script output programmatically.
-- **Parallelism**: Steps 2 + 3 + 3b are independent and should run in parallel. Step 3c is conditional on step 2 results. Steps 4 + 5 + 6 are independent and can run in parallel after the first batch completes. Step 8 (verify concerns) runs after Step 7 (synthesis) completes.
-- **Subagent descriptions**: When delegating to subagents, use descriptions that name the audit step and target function -- e.g. "Build security dossier for RAiLaunchAdminProcess", "Verify decompiler accuracy for RAiLaunchAdminProcess", "Trace call chain from RAiLaunchAdminProcess". Never use generic descriptions like "Raw JSON content retrieval" or "File read".
+- **Parallelism**: See the inline `>` notes after Steps 3f and 5 for execution batches. Step 7 runs after Step 6.
+- **Subagent descriptions**: When delegating to subagents, use descriptions that name the audit step and target function -- e.g. "Build security dossier for RAiLaunchAdminProcess", "Trace call chain from RAiLaunchAdminProcess", "Classify RAiLaunchAdminProcess". Never use generic descriptions like "Raw JSON content retrieval" or "File read".
 
 ## Steps
 
@@ -43,10 +49,6 @@ Before running the multi-skill audit pipeline:
 
 Validate arguments using `helpers.command_validation.validate_command_args("audit", {"module": "<module>", "function": "<function>"})`.
 If validation fails, report the errors and stop. On success, use `result.resolved["db_path"]` for subsequent script calls.
-
-### 0b. Optional: Verify decompiler accuracy first
-
-If the target function has complex control flow (large switch statements, extensive inlining, or unusual calling conventions), consider running `/verify <module> <function>` before proceeding. Decompiler artifacts can cause false positive security findings. If verification reveals significant decompiler issues, note them in the final audit report as caveats.
 
 ### 1. Locate the function
 
@@ -76,11 +78,11 @@ Once located, note the **`function_id`** and **`db_path`** -- all subsequent ste
 
 ```
 python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> --id <function_id> \
-    --callee-depth 2 --json \
+    --callee-depth 4 --json \
     --workspace-dir <run_dir> --workspace-step dossier
 ```
 
-Produces: identity, attack reachability from exports, untrusted data exposure, dangerous operations (direct + transitive), resource patterns, complexity metrics, neighboring context, and module security posture.
+Produces: IPC context (RPC/COM/WinRT classification), parameter risk scoring, identity, attack reachability from exports, untrusted data exposure, dangerous operations (direct + transitive), resource patterns, complexity metrics, neighboring context, and module security posture.
 
 ### 3. Extract full function data
 
@@ -104,57 +106,147 @@ Returns entry point classification and risk scoring: `entry_type` (COM_METHOD, R
 
 ### 3c. Backward trace to dangerous APIs (conditional)
 
-Only run if dossier `dangerous_operations.dangerous_api_count > 0`:
+`backward_trace.py` searches for the `--target` API **inside the function being traced**. It cannot trace from a transitive callee's API. The target must be a direct call in the function body.
+
+**Determine which case applies before running anything:**
+
+**Case A — Target function has direct dangerous calls** (`dangerous_operations.dangerous_apis_direct` is non-empty):
+
+Run up to 3 traces in parallel from the **target function's ID**, one per distinct danger category found in `dangerous_apis_direct`:
 
 ```
 python .agent/skills/data-flow-tracer/scripts/backward_trace.py <db_path> --id <function_id> \
-    --target <first_dangerous_api> --json \
-    --workspace-dir <run_dir> --workspace-step backward_trace
+    --target <api_from_dangerous_apis_direct_category_N> --json \
+    --workspace-dir <run_dir> --workspace-step backward_trace_<category>
 ```
 
-Traces which function parameters feed into dangerous API arguments. Produces concrete parameter-to-sink paths.
+**Case B — Thin wrapper: target has no direct dangerous calls but Step 3f callee does** (`dangerous_apis_direct` is empty AND Step 3f ran):
+
+The callee's direct dangerous calls are the intersection of:
+- `dangerous_operations.callee_dangerous_apis[<callee_name>]` (dangerous APIs reachable from the callee)
+- `extract_callee.outbound_xrefs[*].function_name` (APIs the callee directly calls in its body)
+
+Run up to 3 traces in parallel from the **callee's function ID**, one per danger category:
+
+```
+python .agent/skills/data-flow-tracer/scripts/backward_trace.py <db_path> --id <callee_function_id> \
+    --target <api_in_both_callee_dangerous_apis_and_outbound_xrefs> --json \
+    --workspace-dir <run_dir> --workspace-step backward_trace_<category>
+```
+
+**Skip Step 3c entirely** if `dangerous_apis_direct` is empty AND Step 3f did not run (non-wrapper with no direct dangerous calls — rely on taint forward and callchain data instead).
+
+Each trace produces concrete parameter-to-sink argument paths for that danger category. Use results to populate the Data Flow Concerns section with confirmed call-site evidence.
 
 ### 3d. Read module profile (no script needed)
 
 Read `extracted_code/<module_folder>/module_profile.json` for module-level context:
 - `api_profile.import_surface`: `com_present`, `rpc_present`, `winrt_present`, `named_pipes_present`
-- `security_posture.canary_coverage_pct`
 
-### 3e. Forward taint analysis (conditional)
-
-Only run if dossier `data_exposure.receives_external_data == true` OR `dangerous_operations.dangerous_api_count > 0`:
+### 3e. Forward taint analysis
 
 ```
 python .agent/skills/taint-analysis/scripts/taint_function.py <db_path> --id <function_id> \
-    --depth 2 --json \
+    --depth 4 --json \
     --workspace-dir <run_dir> --workspace-step taint_forward
 ```
 
 Traces tainted parameters forward to dangerous sinks. For each finding, reports the sink name, category, severity score, the call path from source to sink, guards on the path (with attacker-controllability and bypass difficulty), and logic effects (branch steering, array indexing, size arguments). Use these results to strengthen concern C1 evidence and enrich the Data Flow Concerns section.
 
-> **Run steps 2 + 3 + 3b in parallel** -- they are independent. Step 3c depends on step 2 results (needs dangerous_api_count). Step 3d is a file read with no dependencies. Step 3e depends on step 2 results (needs data_exposure and dangerous_api_count).
+### 3f. Thin-wrapper callee extraction (conditional, depth up to 4)
 
-### 4. Verify decompiler accuracy
+If the target function's `complexity.instruction_count < 200` AND it has exactly 1-2 internal callees that account for the bulk of the dangerous operations (check `dangerous_operations.callee_dangerous_apis`), it is likely a thin wrapper. Extract the primary callee's decompiled code to enable deeper manual review:
 
 ```
-python .agent/skills/verify-decompiled/scripts/verify_function.py <db_path> --id <function_id> \
-    --json \
-    --workspace-dir <run_dir> --workspace-step verify
+python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> \
+    --id <primary_callee_id> --json \
+    --workspace-dir <run_dir> --workspace-step extract_callee
 ```
 
-Compares decompiled output against assembly ground truth. Note any inaccuracies -- wrong access sizes, missing NULL guards, collapsed operations, or return type errors could mask real bugs.
+**Recursive extraction for deep wrapper chains (up to depth 4):** After extracting the primary callee, check whether it is *also* a thin wrapper:
+- Its `loop_analysis.loop_count == 0` AND `instruction_count < 200` (from the extract result)
+- AND its `outbound_xrefs` has 1-2 internal callees that appear in `dangerous_operations.callee_dangerous_apis`
 
-### 5. Trace call chain
+If both conditions hold, extract that callee as depth-2:
+
+```
+python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> \
+    --id <depth_2_callee_id> --json \
+    --workspace-dir <run_dir> --workspace-step extract_callee_d2
+```
+
+Repeat for depth-3 and depth-4 using step names `extract_callee_d3` and `extract_callee_d4`. **Stop as soon as** the extracted function is no longer thin (has loops, > 200 instructions, or > 2 internal dangerous callees), OR depth 4 is reached. Cap at depth 4 to prevent explosion on long delegation chains.
+
+During Step 6 synthesis, use ALL extracted callee levels to evaluate concerns C2 (impersonation pairing), C4 (flag validation), and C7 (alternate paths). Note each finding with its source depth: e.g., *"(Source: depth-2 callee AiFoo)"*.
+
+### 3g. RPC interface security lookup (conditional)
+
+Only run if dossier `reachability.ipc_context.is_rpc_handler = true`:
+
+```
+python .agent/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py <module_name> --json \
+    --workspace-dir <run_dir> --workspace-step rpc_interface
+```
+
+Returns interface-level security context for all RPC interfaces in the module. Filter to the interface matching `reachability.ipc_context.rpc_interface_id`. Key fields to extract for the Attack Reachability section:
+
+| Field | Use |
+|---|---|
+| `risk_tier` | critical/high/medium/low -- pre-computed interface risk classification |
+| `is_remote_reachable` | Whether the interface is accessible over TCP/HTTP (vs. LRPC-only) |
+| `protocols` | `ncalrpc` = local-only; `ncacn_np` = named pipe; `ncacn_ip_tcp` = remote |
+| `service_name` / `service_display_name` | Which service hosts this RPC server |
+| `is_client` | If true, this module is an RPC *client*, not a server -- adjust reachability assessment |
+
+**Note:** RPC authentication level (`RPC_C_AUTHN_LEVEL_*`), security callbacks, and endpoint ACLs are set at runtime during server registration and are not present in static extraction data. Note this as a caveat in the Confidence and Caveats section: *"RPC auth level and security callback are runtime-registered and not statically detectable; assume worst-case (unauthenticated) unless a dynamic analysis confirms otherwise."*
+
+### 3h. Deep security callee extraction (conditional)
+
+Automatically triggered when the dossier shows **`dangerous_ops_reachable >= 10`** (from step 3b attack surface) OR **`is_rpc_handler: true`** (from step 2 dossier). These are the conditions under which open unknowns in the concern checklist (C1/C5 size-arg origin, C2 impersonation paths, C3 share flags) are most likely to be HIGH or CRITICAL, making deeper code reading worthwhile in a single pass rather than requiring manual follow-up `/audit` runs.
+
+**Selection algorithm (run once, after steps 2 + 3b complete):**
+
+1. Collect unique callee names from `dangerous_operations.security_relevant_callees.command_execution` and `.privilege` by splitting each `"CalleeName->API"` entry on `"->"` and taking the left side.
+2. Exclude the primary callee already extracted in Step 3f (if Step 3f ran).
+3. Assign each callee a tier: Tier 1 = appears in `command_execution`; Tier 2 = appears in `privilege` only.
+4. Within each tier, sort descending by `len(callee_dangerous_apis[callee_name])` (proxy for breadth of dangerous reach).
+5. Filter to callees where decompiled code exists: check `db.get_function_by_name(callee_name)` — skip any callee that has no decompiled code in the DB.
+6. Take the **top 4** across both tiers (Tier 1 first). If fewer than 4 qualify, extract all that qualify.
+
+Extract each selected callee in parallel, numbered sequentially:
+
+```
+python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> \
+    --function <callee_name_N> --json \
+    --workspace-dir <run_dir> --workspace-step extract_deep_<N>
+```
+
+(e.g. `extract_deep_1`, `extract_deep_2`, `extract_deep_3`, `extract_deep_4`)
+
+**What each extraction resolves during synthesis:**
+
+| Callee type | Concern addressed |
+|---|---|
+| Tier 1 `command_execution` callee (e.g. `AiLaunchProcess`) | C1/C5: confirm size args, path checks, and input validation before `CreateProcessAsUserW` |
+| Tier 2 `privilege` callee that does impersonation (e.g. `AiGetClientInformation`) | C2: verify `RpcImpersonateClient` / `RpcRevertToSelf` are paired on all error paths |
+| Tier 2 callee that modifies tokens (e.g. `AipBuildConsentToken`) | C4: confirm flag validation before `NtSetInformationToken` |
+| Tier 3 `file_write` callee (e.g. `AiCheckSecureApplicationDirectory`) | C3: confirm `CreateFileW` share flags and handle-based path resolution |
+
+During Step 6 synthesis, read all `extract_deep_*` payloads and reference them by callee name. Prefix findings sourced from deep callees: e.g., *"(Source: deep callee `AiLaunchProcess`, manual review)"*.
+
+> **Run steps 2 + 3 + 3b + 3e in parallel** -- they are independent. Step 3c depends on steps 2 + 3f (needs `dangerous_apis_direct` from dossier and, for thin wrappers, the callee ID + `outbound_xrefs` from extract_callee). Step 3d is a file read with no dependencies. Step 3f (and its depth-2/3/4 extensions) depends on steps 2 + 3; each deeper level depends on the previous level's extract result. **Step 3h runs in parallel with 3c/3d/3e/3f** once steps 2 + 3b complete. Step 3g depends on step 2 (needs `is_rpc_handler` from dossier).
+
+### 4. Trace call chain
 
 ```
 python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> --id <function_id> \
-    --depth 2 --summary --json \
+    --depth 4 --summary --json \
     --workspace-dir <run_dir> --workspace-step callchain
 ```
 
-Shows the compact call tree. For functions with dangerous API callees, follow those paths with `--depth 3` and full code output.
+Shows the compact call tree (depth 4). For specific paths of interest, extract full code output from the callchain results.
 
-### 6. Classify function purpose
+### 5. Classify function purpose
 
 ```
 python .agent/skills/classify-functions/scripts/classify_function.py <db_path> --id <function_id> \
@@ -164,22 +256,31 @@ python .agent/skills/classify-functions/scripts/classify_function.py <db_path> -
 
 Returns the function's role, category, interest score, and classification signals.
 
-> **Run steps 4 + 5 + 6 + 3e in parallel** -- they are independent of each other. Steps 4-6 only depend on steps 2 + 3 for context during synthesis. Step 3e depends on step 2 (dossier) for its trigger condition.
+> **Run steps 4 + 5 in parallel** -- they are independent of each other. Steps 4-5 only depend on steps 2 + 3 for context during synthesis.
 
-### 7. Synthesize audit report
+### 6. Synthesize audit report
 
-Read the workspace results from all steps (2, 3, 3b, 3c, 3d, 3e, 4, 5, 6) and combine all findings into a structured report.
+Read the workspace results from all steps (2, 3, 3b, 3c, 3d, 3e, 3f + depth-2/3/4 extractions if run, 3g, 3h `extract_deep_*` if run, 4, 5) and combine all findings into a structured report.
+
+**IMPORTANT -- workspace results.json envelope structure**: Every `results.json` file written by the workspace bootstrap has this shape:
+```json
+{ "output_type": "json", "captured_at": "...", "stdout_char_count": N, "stdout": { ...actual skill output... } }
+```
+The actual skill payload is always under the `"stdout"` key. Never access fields directly at the top level of `results.json` -- they will silently return empty. Always use one of:
+- Python: `data = json.load(f); payload = data["stdout"]` then `payload.get("decompiled_code", "")`
+- Helper: `from helpers.workspace import read_step_payload; payload = read_step_payload(run_dir, "extract")`
+
+Read the full decompiled code from the extract step (`<run_dir>/extract/results.json` at `stdout.decompiled_code`) for manual code review -- the Code-Level Observations section requires referencing specific lines, variables, and code patterns.
 
 #### Data Interpretation Rules
 
 Several numeric fields use different scales. Always apply these rules when citing values:
 
-- `canary_coverage_pct`: **0-100 scale** (percentage). `0.2` = 0.2%, `78.5` = 78.5%. Do NOT interpret as a 0-1 fraction.
 - `param_risk_score`: **0.0-1.0 scale** (fraction). `0.7` = 70th percentile risk.
 - `noise_ratio`: **0.0-1.0 scale** (fraction). `0.48` = 48% of functions are library boilerplate.
 - `attack_score`: **0.0-1.0 scale** (fraction). Higher = more attractive attack target.
 
-When citing any of these values in the report, always include the percentage or human-readable interpretation alongside the raw number.
+When citing any of these values in the report, always include the human-readable interpretation alongside the raw number.
 
 #### Report Template
 
@@ -209,7 +310,7 @@ Use this exact section structure and formatting. Do not rearrange sections or ch
 | **Signature** | `<raw IDA signature from DB -- do not reconstruct param names>` |
 | **Classification** | Primary: `<category>` / Secondary: `<categories>` |
 | **Interest Score** | <N>/10 |
-| **Metrics** | <instruction_count> instructions, <branch_count> branches, <loop_count> loops, complexity <cyclomatic>, <local_vars_size>-byte stack frame, canary: <yes/no> |
+| **Metrics** | <instruction_count> instructions, <branch_count> branches, <loop_count> loops, complexity <cyclomatic>, <local_vars_size>-byte stack frame |
 
 <1-2 paragraph description of the function's purpose, based on dossier identity, classification, and decompiled code.>
 
@@ -224,6 +325,10 @@ Use this exact section structure and formatting. Do not rearrange sections or ch
 | Entry type | <from step 3b or fallback heuristic> |
 | Shortest path from entry | <hop count or "IS the entry"> |
 | Receives external data | <yes/no -- which parameters> |
+| RPC protocol (if handler) | <ncalrpc / ncacn_np / ncacn_ip_tcp -- from step 3g, or omit if not RPC> |
+| RPC remote reachable | <yes/no -- ncalrpc = local sessions only; omit if not RPC> |
+| RPC risk tier | <critical/high/medium/low -- from step 3g; omit if not RPC> |
+| Hosting service | <service name + privilege level, if available from step 3g; omit if not RPC> |
 
 ## Security-Relevant Operations
 
@@ -233,7 +338,7 @@ Use this exact section structure and formatting. Do not rearrange sections or ch
 |---|---|---|
 | <api_name> | <category> | <brief context from decompiled code> |
 
-### Transitive (via callees, depth 1-2)
+### Transitive (via callees)
 
 | Callee | Dangerous APIs | Risk |
 |---|---|---|
@@ -247,11 +352,6 @@ Use this exact section structure and formatting. Do not rearrange sections or ch
 - Global reads/writes: <global_reads> reads, <global_writes> writes
 - Sync operations: <present or none>
 - Module security: ASLR <check> DEP <check> CFG <check> SEH <check>
-- Module canary coverage: <canary_coverage_pct>% (<interpretation>)
-
-## Decompiler Accuracy
-
-<State the verification verdict: HIGH/MEDIUM/LOW confidence with issue counts. Explain impact on audit confidence.>
 
 ## Data Flow Concerns
 
@@ -279,7 +379,6 @@ Use this exact section structure and formatting. Do not rearrange sections or ch
 | **Attack Surface Exposure** | <SCORE> | <cite specific field values that drove this score> |
 | **Dangerous Operation Density** | <SCORE> | <cite specific field values> |
 | **Complexity and Error Surface** | <SCORE> | <cite specific field values> |
-| **Decompiler Confidence** | <SCORE> | <cite issue counts> |
 
 ### Overall Risk: <LEVEL>
 
@@ -293,7 +392,6 @@ Use this exact section structure and formatting. Do not rearrange sections or ch
 
 ### Confidence and Caveats
 
-- Decompiler confidence: <level> (<issue summary>)
 - <Any data gaps, static analysis limitations, tool false negatives>
 
 ### Code-Level Observations (optional)
@@ -321,6 +419,7 @@ Inputs:
 - `reachability.shortest_path_from_entry` (path length = hop count)
 - `data_exposure.receives_external_data`
 - From step 3b: `entry_type` (COM_METHOD / RPC_HANDLER / NAMED_PIPE_HANDLER / IPC_DISPATCHER / WINRT_METHOD / EXPORT_DLL / etc.), `param_risk_score` (0.0-1.0), `tainted_args`
+- From dossier: `reachability.ipc_context` fields (`is_rpc_handler`, `is_com_method`, `is_winrt_method`, `reachable_from_rpc/com/winrt`). This field may be absent in cached results -- use `--no-cache` if missing, or fall back to name-pattern heuristics.
 - From step 3d: `module_profile.api_profile.import_surface` flags (`rpc_present`, `com_present`, `winrt_present`, `named_pipes_present`)
 - Fallback if step 3b returns no entry point: name-pattern heuristics (`RA` = RPC Async, `s_` = RPC stub, `::Invoke` = COM vtable)
 
@@ -355,34 +454,19 @@ Scoring:
 
 **Dimension 3 -- Complexity and Error Surface**
 
-Data sources: dossier `complexity` + `resource_patterns` + `module_security` + step 3d `module_profile`.
+Data sources: dossier `complexity` + `resource_patterns` + `module_security`.
 
 Inputs:
 - `complexity.instruction_count`, `complexity.branch_count`, `complexity.loop_count`
-- `complexity.max_cyclomatic_complexity`, `complexity.has_canary`
+- `complexity.max_cyclomatic_complexity`
 - `resource_patterns.has_global_writes`, `resource_patterns.sync_operations`
 - `module_security.cfg`
-- From step 3d: `module_profile.security_posture.canary_coverage_pct` -- **0-100 percentage scale** (a value of `0.2` means 0.2% of functions have canaries, NOT 20%; a value of `78.5` means 78.5%). If low, the module has weak stack protection overall.
-- Note: if `asm_metrics.has_syscall` is true (direct syscall / `int 2Eh`), flag as HIGH risk signal (potential evasion of security hooks)
+- Note: if `complexity.has_syscall` is true (direct syscall / `int 2Eh`), flag as HIGH risk signal (potential evasion of security hooks)
 
 Scoring:
-- HIGH: `instruction_count >= 500` OR (`loop_count >= 5` AND `max_cyclomatic_complexity >= 5`) OR (`has_canary == false` AND `instruction_count >= 100`) OR (sync ops present AND global writes) OR `has_syscall == true` OR (`canary_coverage_pct < 30` AND `has_canary == false`)
+- HIGH: `instruction_count >= 500` OR (`loop_count >= 5` AND `max_cyclomatic_complexity >= 5`) OR (sync ops present AND global writes) OR `has_syscall == true`
 - MEDIUM: `instruction_count` 100-499 OR `loop_count` 2-4 OR `branch_count >= 20`
-- LOW: `instruction_count < 100` AND `loop_count <= 1` AND `has_canary == true`
-
-**Dimension 4 -- Decompiler Confidence**
-
-Data sources: verify results.
-
-Inputs:
-- `verify.total_issues`, `verify.critical`, `verify.high`, `verify.moderate`, `verify.low`
-- `verify.max_severity`
-- `verify.issues[].category` and `verify.issues[].summary`
-
-Scoring:
-- LOW confidence: `critical > 0` OR `high >= 2` -- decompiler bugs may hide real vulnerabilities
-- MEDIUM confidence: `high == 1` OR `moderate >= 2`
-- HIGH confidence: only `low` severity issues or none
+- LOW: `instruction_count < 100` AND `loop_count <= 1`
 
 #### Mandatory Concern Checklist
 
@@ -397,16 +481,16 @@ Every audit must evaluate these eight concern categories against the function's 
 | C5 | **String/buffer bounds** | Are all string parameters length-validated before use? Are fixed-size stack buffers (WCHAR arrays) bounded correctly at all call sites? |
 | C6 | **Handle/resource cleanup** | Are all handles (token, file, process) closed on every exit path including error paths? Check for leaked handles across `goto` labels. |
 | C7 | **Alternate code paths** | Do fallback/alias/error paths apply the same security checks as the primary path? List which gates are present on the primary path and which are **confirmed skipped** on the alternate path. Severity guide: **HIGH** if one or more security gates are confirmed skipped on an active alternate path that reaches a dangerous sink (this is a "confirmed missing security check" per the severity rubric). Upgrade to **CRITICAL** only if the skipped gate is the **sole** barrier to the dangerous sink AND the alternate path's trigger condition requires no preconditions beyond attacker-controlled input. Rate **MEDIUM** if the alternate callee's internal checks are unaudited (unknown compensating controls). Do NOT speculate about self-stageability or exploitability beyond what the decompiled code and dossier data confirm. |
-| C8 | **Module-wide stack protection** | What is `canary_coverage_pct` (see Data Interpretation Rules)? Does this function have a canary? Do its critical callees? |
 
 In the Specific Concerns section of the report, prefix each concern with its checklist ID: e.g., `[CRITICAL -- C1]`, `[HIGH -- C3]`. Concerns that don't map to a checklist item use `[SEVERITY -- Cx]` where x = "extra".
+
+**Merging overlapping checklist items:** When two checklist items (e.g. C1 and C5) identify the same underlying sink, root cause, and remediation — meaning C5 evidence is entirely subsumed by C1's taint path evidence — merge them into a single finding and cite both IDs: `[HIGH — C1, C5]`. Do NOT create two separate findings that inflate the apparent finding count for one underlying vulnerability. Merging is appropriate only when the code pattern, the attacker-controlled input, the dangerous sink, and the required fix are all identical.
 
 **Overall Risk Calculation**
 
 1. Start with the highest individual dimension score as baseline
 2. Escalate by one level if 3+ dimensions score HIGH or above
-3. Escalate by one level if Decompiler Confidence is LOW
-4. Cap at CRITICAL
+3. Cap at CRITICAL
 
 **Required Output Format for Risk Assessment**
 
@@ -417,17 +501,17 @@ The Risk Assessment section of the report must contain these parts in order:
 3. **Specific concerns**: ranked list where each concern cites its checklist ID and the dossier/verify/classify field it comes from. Assign severity using these rules:
    - **CRITICAL**: Directly achieves code execution, privilege escalation, or authentication bypass with attacker-controlled input. Must have a confirmed data flow from untrusted source to dangerous sink (cite the backward_trace or dossier field).
    - **HIGH**: Could achieve the above with one additional precondition (bypass of an intermediate check, TOCTOU race win, etc.), OR a confirmed missing security check in an active code path.
-   - **MEDIUM**: Theoretical weakness requiring multiple preconditions, OR a defense-in-depth gap (e.g., missing canary on callees when the function itself has one). A concern about untested flag combinations without a confirmed path to dangerous behavior is MEDIUM at most.
+   - **MEDIUM**: Theoretical weakness requiring multiple preconditions, OR a defense-in-depth gap (e.g., missing CFG coverage, missing SEH on a function that handles user data). A concern about untested flag combinations without a confirmed path to dangerous behavior is MEDIUM at most.
    - **LOW**: Code quality concern, untested path, or cosmetic issue that does not directly affect security posture.
 
    Every concern must cite its source field (e.g., `Source: dossier.dangerous_operations.security_relevant_callees`) and its checklist ID (e.g., `C1`).
-4. **Confidence and caveats**: decompiler confidence level + any data gaps (e.g., "static reachability does not capture RPC dispatch")
+4. **Confidence and caveats**: any data gaps (e.g., "static reachability does not capture RPC dispatch")
 5. **Code-level observations** (optional, max 3): Observations from reading the decompiled code that are NOT already covered by the checklist concerns above. Rules:
    - Maximum **3** observations. Do not pad with low-value items.
    - Each must reference a **specific line, variable, or code pattern** in the decompiled output.
    - Each must be labeled: `"Manual review -- not from automated dossier data"`.
    - These do **not** contribute to or alter the risk dimension scores.
-   - Severity follows the same CRITICAL/HIGH/MEDIUM/LOW criteria as other specific concerns.
+   - **Use final assessed severity only.** If analysis reveals an observation is not a live issue, omit it entirely rather than labeling it HIGH and then walking it back within the same entry. A self-refuting finding that starts with a high severity label misleads readers who skim labels. The label must reflect the conclusion, not the initial hypothesis.
    - If no noteworthy observations beyond the checklist items exist, omit this section entirely.
 6. **Recommended Next Steps**: ranked table of functions to audit next (see ranking formula below)
 
@@ -441,13 +525,16 @@ The Recommended Next Steps table must be populated using this deterministic rank
    - Tier 2: `privilege` (e.g., `ImpersonateLoggedOnUser`, `NtSetInformationToken`)
    - Tier 3: `file_write` or `registry_write`
    - Tier 4: all other categories (`memory_unsafe`, `network`, `crypto`, `handle`, `sync`, etc.)
-3. Within the same tier, sort by `dangerous_ops_reachable` count from the callchain step (descending). If callchain data is unavailable for a callee, use the count of dangerous APIs listed in `callee_dangerous_apis` as a proxy.
-4. Output the top 5-7 functions in the table. Include the danger tier, `dangerous_ops_reachable` count, and a brief reason.
+3. Within the same tier, sort by `dangerous_ops_reachable` count (descending). Use the following lookup order — do NOT leave the cell blank:
+   - **Primary**: callchain step results — look up the callee node in the callchain tree and use its `dangerous_ops_reachable` count if present.
+   - **Proxy (when callchain has no reachability count for the callee)**: use `len(callee_dangerous_apis[callee_name])` — the number of dangerous API names listed for that callee in the dossier. Write this as `N*` (asterisk distinguishes it from a BFS-derived count). Example: `AiBuildAxISParams` has `["wcscpy_s"]` → write `1*`. `AiGetClientInformation` has `["NtOpenProcess", "NtDuplicateToken"]` → write `2*`.
+   - The `dangerous_ops_reachable` column must never be "—". If both primary and proxy are zero, write `0*`.
+4. Output the top 5-7 functions in the table. Include the danger tier, reachability count (or proxy `N*`), and a brief reason.
 5. After the table, optionally add one line suggesting a `/callgraph`, `/data-flow`, or `/taint` command for deeper investigation.
 
-### 8. Verify concerns with fresh eyes
+### 7. Verify concerns with fresh eyes
 
-After Step 7 produces the draft report, launch a **separate subagent** to independently validate the specific concerns and their severity assignments. This step eliminates confirmation bias by ensuring the verifier has never seen the synthesis reasoning -- only the raw data and the claims.
+After Step 6 produces the draft report, launch a **separate subagent** to independently validate the specific concerns and their severity assignments. This step eliminates confirmation bias by ensuring the verifier has never seen the synthesis reasoning -- only the raw data and the claims.
 
 **Subagent call:**
 
@@ -457,10 +544,14 @@ Use `subagent_type="re-analyst"` (or `"verifier"`) with `readonly: true`. Pass i
 2. The **raw dossier summary JSON** (from `<run_dir>/dossier/summary.json`)
 3. The **raw attack surface summary** (from `<run_dir>/attack_surface/summary.json`, if available)
 4. The **raw backward trace summary** (from `<run_dir>/backward_trace/summary.json`, if available)
-5. The **module profile `security_posture` section** (canary_coverage_pct, ASLR/DEP/CFG/SEH)
-6. The **Data Interpretation Rules** (canary_coverage_pct is 0-100 scale, param_risk_score is 0-1, etc.)
-7. The **draft specific concerns list** with their assigned severities, checklist IDs, and cited source fields
-8. The **draft dimension scores** with their key data points
+5. The **raw taint_forward summary** (from `<run_dir>/taint_forward/summary.json`, if available)
+6. The **function's decompiled code** (from `<run_dir>/extract/results.json` `stdout.decompiled_code` field)
+7. The **function's assembly code** (from `<run_dir>/extract/results.json` `stdout.assembly_code` field) -- required for ground-truth checks such as confirming hardcoded argument values, bit-test instructions, and calling conventions
+8. The **primary callee's decompiled code** (from `<run_dir>/extract_callee/results.json` `stdout.decompiled_code`, if Step 3f ran) -- required for verifying concerns about callee-level alternate paths and flag gating
+9. The **module profile `security_posture` section** (ASLR/DEP/CFG/SEH flags only)
+10. The **Data Interpretation Rules** (param_risk_score is 0-1, noise_ratio is 0-1, attack_score is 0-1)
+11. The **draft specific concerns list** with their assigned severities, checklist IDs, and cited source fields
+12. The **draft dimension scores** with their key data points
 
 **Subagent prompt template:**
 
@@ -468,7 +559,7 @@ Use `subagent_type="re-analyst"` (or `"verifier"`) with `readonly: true`. Pass i
 You are an independent reviewer of a security audit report. You have NOT
 participated in writing this report. Your job is to verify that each
 specific concern's severity is correctly assigned according to the rubric,
-and that each dimension score follows the scoring thresholds.
+and that each dimension score (D1-D3 only) follows the scoring thresholds.
 
 SEVERITY CRITERIA:
 - CRITICAL: Directly achieves code execution, privilege escalation, or
@@ -482,7 +573,6 @@ SEVERITY CRITERIA:
 - LOW: Code quality concern, untested path, or cosmetic issue.
 
 DATA INTERPRETATION:
-- canary_coverage_pct: 0-100 scale (0.2 = 0.2%, NOT 20%)
 - param_risk_score: 0.0-1.0 scale
 - noise_ratio: 0.0-1.0 scale (0.48 = 48%)
 
@@ -490,10 +580,20 @@ RAW DATA:
 <paste dossier summary JSON>
 <paste attack surface summary JSON>
 <paste backward trace summary JSON>
+<paste taint_forward summary JSON, if available>
 <paste module profile security_posture>
 
-DRAFT DIMENSION SCORES:
-<paste dimension table rows>
+DECOMPILED CODE (target function):
+<paste decompiled code for the target function>
+
+DECOMPILED CODE (primary callee, if available from extract_callee step):
+<paste decompiled code for the primary callee>
+
+ASSEMBLY CODE (target function, if needed for ground-truth checks):
+<paste assembly code for the target function>
+
+DRAFT DIMENSION SCORES (D1-D3):
+<paste dimension table rows for Attack Surface Exposure, Dangerous Operation Density, Complexity and Error Surface>
 
 DRAFT SPECIFIC CONCERNS:
 <paste numbered concern list with severities>
@@ -501,16 +601,19 @@ DRAFT SPECIFIC CONCERNS:
 For each concern, return a JSON object:
 {
   "concern_number": N,
+  "checklist_id": "C1"-"C7",
   "original_severity": "LEVEL",
   "verified_severity": "LEVEL",
   "change": "none" | "upgraded" | "downgraded",
   "reason": "brief explanation citing the rubric rule and data field"
 }
 
-Also verify each dimension score against the thresholds. If a dimension
-score is wrong, return the correction.
+Also verify each of the three dimension scores (D1, D2, D3) against the
+thresholds. If a score is wrong, return the correction with the specific
+threshold rule that was violated.
 
-Return the complete list as a JSON array.
+Return the complete list as a JSON array, followed by dimension corrections
+(if any).
 ```
 
 **Handling the verifier response:**
@@ -522,7 +625,7 @@ Return the complete list as a JSON array.
 
 **Subagent description:** Use a description like `"Verify audit concerns for <function_name>"`.
 
-> **Execution note**: Step 8 runs after Step 7 completes. It adds one subagent round-trip but catches severity inflation/deflation and data misinterpretation before the user sees the report.
+> **Execution note**: Step 7 runs after Step 6 completes. It adds one subagent round-trip but catches severity inflation/deflation and data misinterpretation before the user sees the report.
 
 ## Output
 

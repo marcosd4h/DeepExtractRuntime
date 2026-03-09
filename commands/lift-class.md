@@ -89,7 +89,6 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 
 **Follow-up suggestions**:
 
-- `/verify-batch <module> <class>` -- verify decompiler accuracy for all lifted methods
 - `/reconstruct-types <module> <class>` -- refine struct/class definitions with full module context
 - `/explain <module> <method>` -- understand a specific method's behavior in detail
 - `/trace-export <module> <export>` -- trace the call chain if any lifted methods are exports

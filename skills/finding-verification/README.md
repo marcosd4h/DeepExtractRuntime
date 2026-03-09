@@ -18,8 +18,8 @@ The skill provides a gate-based verification workflow:
 1. **Restate** the finding in precise terms (collapses ~30% of FPs)
 2. **Route** to Standard (single function, clear bug class) or Deep
    (cross-module, race conditions, inconclusive)
-3. **Verify** through 5 mandatory gates: assembly truth, data flow,
-   attacker control, cross-module boundary, devil's advocate
+3. **Verify** through 4 mandatory gates: data flow, attacker control,
+   cross-module boundary, devil's advocate
 4. **Verdict**: TRUE POSITIVE or FALSE POSITIVE with evidence
 
 ## Integration
@@ -29,7 +29,6 @@ use existing skills:
 
 | Gate | Primary Skill |
 |------|---------------|
-| Assembly ground truth | verify-decompiled |
 | Data flow | data-flow-tracer |
 | Attacker control | callgraph-tracer |
 | Cross-module boundary | import-export-resolver |
@@ -51,6 +50,5 @@ security assessment workflows.
 ## Related Skills
 
 - [taint-analysis](../taint-analysis/) -- produces findings to verify
-- [verify-decompiled](../verify-decompiled/) -- assembly ground truth
-- [exploitability-assessment](../exploitability-assessment/) -- scores confirmed findings
+- [exploitability-assessment](../exploitability-assessment/) -- scores confirmed findings (includes decompiler confidence via --verify-report)
 - [adversarial-reasoning](../adversarial-reasoning/) -- hypothesis-driven research planning

@@ -87,7 +87,6 @@ Each module has:
 /triage appinfo.dll          # Step 1: understand the module
 /triage appinfo.dll --goal security   # Step 2: rank attack surface
 /audit appinfo.dll <top-function>     # Step 3: deep audit top entries
-/verify appinfo.dll <function>        # Step 4: check decompiler accuracy
 ```
 
 ### Code Understanding Workflow

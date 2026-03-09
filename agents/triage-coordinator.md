@@ -90,7 +90,7 @@ module_dir = resolve_module_dir("appinfo.dll")  # -> extracted_code/appinfo_dll/
 1. Everything from triage, plus:
 2. `map-attack-surface/rank_entrypoints.py --json --top 10` -- ranked by attack value
 3. `callgraph-tracer/build_call_graph.py --stats --json` -- graph topology
-4. `security-dossier/build_dossier.py <func> --callee-depth 2 --json` -- per top-5 entry points
+4. `security-dossier/build_dossier.py <func> --callee-depth 4 --json` -- per top-5 entry points
 5. `taint-analysis/taint_function.py <func> --depth 2 --json` -- per top-3 ranked entry points. Traces tainted parameters forward to dangerous sinks with guard/bypass analysis and severity scoring.
 
 **Output:** Risk-prioritized entry points, security dossiers, taint sink reachability with guard bypass analysis, dangerous operation paths, recommended audit targets.
@@ -119,7 +119,7 @@ module_dir = resolve_module_dir("appinfo.dll")  # -> extracted_code/appinfo_dll/
 2. `decompiled-code-extractor/extract_function_data.py <func> --json` -- full data (decompiled + assembly + xrefs)
 3. `callgraph-tracer/build_call_graph.py --function <func> --depth 2 --json` -- call chain
 4. `data-flow-tracer/forward_trace.py <func> --json` -- parameter flow
-5. `security-dossier/build_dossier.py <func> --callee-depth 2 --json` -- security context
+5. `security-dossier/build_dossier.py <func> --callee-depth 4 --json` -- security context
 6. _Conditional:_ `taint-analysis/taint_function.py <func> --depth 2 --json` -- taint to dangerous sinks (run when function has dangerous callees or is security-classified)
 
 **Output:** Complete function understanding: purpose, data flow, call chain, security implications, taint sink reachability (when applicable).

@@ -111,6 +111,32 @@ class TestExtractBasicBlocks:
             all_targets.extend(b.call_targets)
         assert all(not t.startswith("0x") for t in all_targets)
 
+    def test_layered_prefix_stripped(self):
+        """cs:__imp_Foo must resolve to Foo, not __imp_Foo."""
+        asm = "call cs:__imp_CreateFileW\nret"
+        blocks = extract_basic_blocks(asm)
+        all_targets = []
+        for b in blocks:
+            all_targets.extend(b.call_targets)
+        assert "CreateFileW" in all_targets
+        assert "cs:__imp_CreateFileW" not in all_targets
+        assert "__imp_CreateFileW" not in all_targets
+
+    def test_mangled_call_target_normalized(self):
+        """MSVC-mangled ?Func@@... must resolve to Func."""
+        asm = (
+            "call ?AiBuildAxISParams@@YAKPEBG0PEAPEAU_CONSENTUI_PARAM_HEADER@@@Z\n"
+            "call ?AiLogPerfTrackEvent@@YAKPEBU_EVENT_DESCRIPTOR@@@Z\n"
+            "ret"
+        )
+        blocks = extract_basic_blocks(asm)
+        all_targets = []
+        for b in blocks:
+            all_targets.extend(b.call_targets)
+        assert "AiBuildAxISParams" in all_targets
+        assert "AiLogPerfTrackEvent" in all_targets
+        assert not any(t.startswith("?") for t in all_targets)
+
 
 # ===================================================================
 # check_semantic_block_mismatch
@@ -196,6 +222,31 @@ class TestCheckSemanticBlockMismatch:
             "  if ( !CreateFileW(a1) )\n"
             "    return -1;\n"
             "  return 0;\n"
+            "}\n"
+        )
+        _, asm_stats = parse_assembly(asm)
+        decomp_stats = parse_decompiled(decomp)
+        issues = check_semantic_block_mismatch(asm_stats, decomp_stats, asm, decomp)
+        missing_call_issues = [
+            i for i in issues
+            if i.category == "missing_operation" and "call target" in i.summary.lower()
+        ]
+        assert len(missing_call_issues) == 0
+
+    def test_no_false_positive_for_mangled_calls(self):
+        """Mangled asm targets matching demangled decompiled names must not flag."""
+        asm = (
+            "call ?AiBuildAxISParams@@YAKPEBG0PEAPEAU_CONSENTUI_PARAM_HEADER@@@Z\n"
+            "call cs:__imp_LocalFree\n"
+            "call cs:__imp_RpcAsyncCompleteCall\n"
+            "ret"
+        )
+        decomp = (
+            "void __fastcall Func(void)\n"
+            "{\n"
+            "  AiBuildAxISParams(a1, a2, &hMem);\n"
+            "  LocalFree(hMem);\n"
+            "  RpcAsyncCompleteCall(pAsync, &Reply);\n"
             "}\n"
         )
         _, asm_stats = parse_assembly(asm)

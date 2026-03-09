@@ -29,7 +29,6 @@ For exhaustive mapping of specific exported interfaces:
 - **Execution Path Mapping**: Executes trace-export command to construct a call tree, retrieve decompiled syntax, and generate a topological diagram.
 - **Data Flow Analysis**: Executes taint command with cross-module parameters to map parameter propagation across trust boundaries.
 - **Security Assessment**: Executes audit command for localized vulnerability assessment.
-- **Verification**: Executes verify command to confirm decompiler accuracy along the execution path.
 
 ## Cross-Boundary Impact Analysis
 For evaluating inter-module dependencies and data propagation:
@@ -311,7 +310,7 @@ This capability cross-references decompiled C++ output against the assembly inst
 
 ### finding-verification
 This capability formalizes the verification protocol, requiring systematic confirmation of vulnerability findings against the assembly layer before accepting or rejecting a hypothesis.
-- The capability dictates a standardized workflow: restate the hypothesis, verify accuracy via verify-decompiled, trace data flow, verify attacker control parameters, execute a contradiction review, and assign a deterministic TRUE POSITIVE or FALSE POSITIVE verdict.
+- The capability dictates a standardized workflow: restate the hypothesis, trace data flow, verify attacker control parameters, execute a contradiction review, and assign a deterministic TRUE POSITIVE or FALSE POSITIVE verdict.
 
 ## Code Reconstruction
 
@@ -689,7 +688,7 @@ Executes context aggregation and independent verification for a localized functi
   - Conditionally executes a forward taint track based on API parameter consumption.
   - Formats output against the standardized criteria checklist.
   - Executes the verification subagent, establishing a strict boundary between initial analysis and subsequent validation.
-- **Composed Elements**: decompiled-code-extractor, security-dossier, map-attack-surface, data-flow-tracer, verify-decompiled, callgraph-tracer, classify-functions, taint-analysis, function-index.
+- **Composed Elements**: decompiled-code-extractor, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, classify-functions, taint-analysis, function-index.
 
 ### batch-audit
 Executes parallel initialization of multiple audit processes.
@@ -720,7 +719,7 @@ Executes the operations specified within a structured task definition file.
   - Orchestrates the defined command executions.
   - Appends confidence thresholds to findings arrays.
   - Renders the resulting payload to an output file.
-- **Composed Elements**: taint-analysis, security-dossier, map-attack-surface, data-flow-tracer, verify-decompiled, callgraph-tracer, exploitability-assessment.
+- **Composed Elements**: taint-analysis, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, exploitability-assessment.
 
 ### brainstorm
 Executes interactive scope definition logic prior to implementation.
@@ -878,7 +877,7 @@ The shared Python library operates at the foundational tier, exposing core progr
 
 ## Command to Skill Matrix
 
-- **audit**: decompiled-code-extractor, security-dossier, map-attack-surface, data-flow-tracer, verify-decompiled, callgraph-tracer, classify-functions, taint-analysis, function-index
+- **audit**: decompiled-code-extractor, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, classify-functions, taint-analysis, function-index
 - **batch-audit**: security-dossier, taint-analysis, exploitability-assessment, classify-functions, map-attack-surface, rpc-interface-analysis, com-interface-analysis, winrt-interface-analysis, function-index, decompiled-code-extractor
 - **brainstorm**: brainstorming
 - **cache-manage**: classify-functions, callgraph-tracer, generate-re-report
@@ -891,7 +890,7 @@ The shared Python library operates at the foundational tier, exposing core progr
 - **explain**: function-index, decompiled-code-extractor, classify-functions, deep-research-prompt
 - **full-report**: decompiled-code-extractor, generate-re-report, classify-functions, map-attack-surface, callgraph-tracer, com-interface-reconstruction, state-machine-extractor, data-flow-tracer, taint-analysis, security-dossier, reconstruct-types, verify-decompiled, function-index
 - **hunt**: adversarial-reasoning, classify-functions, map-attack-surface, security-dossier, taint-analysis
-- **hunt-execute**: taint-analysis, security-dossier, map-attack-surface, data-flow-tracer, verify-decompiled, callgraph-tracer, exploitability-assessment
+- **hunt-execute**: taint-analysis, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, exploitability-assessment
 - **imports**: import-export-resolver
 - **lift-class**: decompiled-code-extractor, code-lifting, batch-lift, reconstruct-types
 - **logic-scan**: logic-vulnerability-detector, decompiled-code-extractor

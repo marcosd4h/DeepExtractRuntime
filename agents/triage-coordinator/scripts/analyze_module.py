@@ -894,14 +894,6 @@ def _generate_next_steps(
                         "command": f"/audit <module> {name}",
                         "priority": "HIGH",
                     })
-                    steps.append({
-                        "action": "verify_function",
-                        "description": (
-                            f"Verify decompiler accuracy for {name}"
-                        ),
-                        "command": f"/verify <module> {name}",
-                        "priority": "MEDIUM",
-                    })
 
         steps.append({
             "action": "full_analysis",
@@ -930,12 +922,6 @@ def _generate_next_steps(
             "description": "Get a quick structured explanation of this function",
             "command": "/explain <module> <function>",
             "priority": "HIGH",
-        })
-        steps.append({
-            "action": "verify_function",
-            "description": "Verify decompiler accuracy before deeper analysis",
-            "command": "/verify <module> <function>",
-            "priority": "MEDIUM",
         })
         steps.append({
             "action": "lift_function",

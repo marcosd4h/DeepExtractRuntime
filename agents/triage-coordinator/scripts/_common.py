@@ -131,6 +131,13 @@ class ModuleCharacteristics:
     rpc_remote_reachable: bool = False
     rpc_service_name: str = ""
     rpc_risk_tier: str = ""
+    com_server_count: int = 0
+    com_method_count: int = 0
+    com_can_elevate: bool = False
+    com_risk_tier: str = ""
+    winrt_server_count: int = 0
+    winrt_method_count: int = 0
+    winrt_risk_tier: str = ""
     has_aslr: bool = False
     has_dep: bool = False
     has_cfg: bool = False
@@ -140,6 +147,8 @@ class ModuleCharacteristics:
 
     @property
     def is_com_heavy(self) -> bool:
+        if self.com_server_count > 0 or self.com_method_count > 0:
+            return True
         if self.total_functions == 0:
             return False
         return self.com_density > 5 or (self.com_density / self.total_functions > 0.1)
@@ -149,6 +158,10 @@ class ModuleCharacteristics:
         if self.rpc_interface_count > 0:
             return True
         return self.rpc_density > 3
+
+    @property
+    def is_winrt_heavy(self) -> bool:
+        return self.winrt_server_count > 0 or self.winrt_method_count > 0
 
     @property
     def is_security_relevant(self) -> bool:
@@ -162,6 +175,13 @@ class ModuleCharacteristics:
     @property
     def is_class_heavy(self) -> bool:
         return self.class_count > 3
+
+    @property
+    def has_ipc_surface(self) -> bool:
+        """True when any IPC index (RPC/COM/WinRT) confirms entry points."""
+        return (self.rpc_interface_count > 0
+                or self.com_server_count > 0
+                or self.winrt_server_count > 0)
 
     def to_dict(self) -> dict:
         return {
@@ -186,8 +206,17 @@ class ModuleCharacteristics:
             "rpc_remote_reachable": self.rpc_remote_reachable,
             "rpc_service_name": self.rpc_service_name,
             "rpc_risk_tier": self.rpc_risk_tier,
+            "com_server_count": self.com_server_count,
+            "com_method_count": self.com_method_count,
+            "com_can_elevate": self.com_can_elevate,
+            "com_risk_tier": self.com_risk_tier,
+            "winrt_server_count": self.winrt_server_count,
+            "winrt_method_count": self.winrt_method_count,
+            "winrt_risk_tier": self.winrt_risk_tier,
             "is_com_heavy": self.is_com_heavy,
             "is_rpc_heavy": self.is_rpc_heavy,
+            "is_winrt_heavy": self.is_winrt_heavy,
+            "has_ipc_surface": self.has_ipc_surface,
             "is_security_relevant": self.is_security_relevant,
             "is_dispatch_heavy": self.is_dispatch_heavy,
             "is_class_heavy": self.is_class_heavy,
@@ -201,12 +230,27 @@ def get_module_characteristics(db_path: str) -> ModuleCharacteristics:
     """
     chars = ModuleCharacteristics()
 
-    # Query RPC index for ground-truth interface data
+    # Query IPC indexes for ground-truth interface data
+    rpc_idx = None
+    com_idx = None
+    winrt_idx = None
     try:
         from helpers.rpc_index import get_rpc_index
         rpc_idx = get_rpc_index()
     except Exception:
-        rpc_idx = None
+        pass
+    try:
+        from helpers.com_index import get_com_index
+        com_idx = get_com_index()
+    except Exception:
+        pass
+    try:
+        from helpers.winrt_index import get_winrt_index
+        winrt_idx = get_winrt_index()
+    except Exception:
+        pass
+
+    _tier_priority = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 
     with db_error_handler(db_path, "loading module characteristics"):
         with open_individual_analysis_db(db_path) as db:
@@ -232,8 +276,34 @@ def get_module_characteristics(db_path: str) -> ModuleCharacteristics:
                         svcs = [i.service_name for i in ifaces if i.service_name]
                         chars.rpc_service_name = svcs[0] if svcs else ""
                         tiers = [i.risk_tier for i in ifaces]
-                        tier_priority = {"critical": 0, "high": 1, "medium": 2, "low": 3}
-                        chars.rpc_risk_tier = min(tiers, key=lambda t: tier_priority.get(t, 99))
+                        chars.rpc_risk_tier = min(tiers, key=lambda t: _tier_priority.get(t, 99))
+
+                # COM index enrichment
+                if com_idx and com_idx.loaded and chars.file_name:
+                    try:
+                        com_servers = com_idx.get_servers_for_module(chars.file_name)
+                        if com_servers:
+                            chars.com_server_count = len(com_servers)
+                            chars.com_method_count = len(com_idx.get_procedures_for_module(chars.file_name))
+                            chars.com_can_elevate = any(s.can_elevate for s in com_servers)
+                            com_tiers = [s.risk_tier for s in com_servers if hasattr(s, "risk_tier") and s.risk_tier]
+                            if com_tiers:
+                                chars.com_risk_tier = min(com_tiers, key=lambda t: _tier_priority.get(t, 99))
+                    except Exception:
+                        pass
+
+                # WinRT index enrichment
+                if winrt_idx and winrt_idx.loaded and chars.file_name:
+                    try:
+                        winrt_servers = winrt_idx.get_servers_for_module(chars.file_name)
+                        if winrt_servers:
+                            chars.winrt_server_count = len(winrt_servers)
+                            chars.winrt_method_count = len(winrt_idx.get_procedures_for_module(chars.file_name))
+                            winrt_tiers = [s.risk_tier for s in winrt_servers if hasattr(s, "risk_tier") and s.risk_tier]
+                            if winrt_tiers:
+                                chars.winrt_risk_tier = min(winrt_tiers, key=lambda t: _tier_priority.get(t, 99))
+                    except Exception:
+                        pass
 
                 # Import/export counts
                 imports = parse_json_safe(fi.imports) or []

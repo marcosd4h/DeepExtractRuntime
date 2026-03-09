@@ -129,7 +129,6 @@ All saved files must include a provenance header: generation date, workspace run
 - `/explain <module> <function>` -- understand what a specific callee in the chain does
 - `/data-flow forward <module> <export> --param N` -- trace where a specific parameter flows
 - `/lift-class <module> <class>` -- lift classes whose methods appear in the call chain
-- `/verify <module> <function>` -- verify decompiler accuracy for suspicious functions in the trace
 
 ## Error Handling
 

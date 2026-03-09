@@ -1000,9 +1000,19 @@ def extract_basic_blocks(assembly_code: str) -> list[BasicBlock]:
             target = ""
             if inst.operands:
                 target = inst.operands.strip()
-                for pfx in ("__imp_", "_imp_", "j_", "cs:"):
-                    if target.startswith(pfx):
-                        target = target[len(pfx):]
+                # Strip layered prefixes iteratively (e.g. cs:__imp_Foo -> Foo)
+                _CALL_PREFIXES = ("__imp_", "_imp_", "j_", "cs:")
+                changed = True
+                while changed:
+                    changed = False
+                    for pfx in _CALL_PREFIXES:
+                        if target.startswith(pfx):
+                            target = target[len(pfx):]
+                            changed = True
+                            break
+                # Demangle C++ mangled names: ?FuncName@@... -> FuncName
+                if target.startswith("?") and "@" in target:
+                    target = target[1:target.index("@")]
             if target and not target.startswith("0x") and not target.isdigit():
                 current.call_targets.append(target)
 
@@ -1046,6 +1056,44 @@ class SemanticDiffResult:
     details: str = ""
 
 
+# Pre-compiled patterns for assembly call-target name normalisation.
+_MSVC_MANGLED_RE = re.compile(r"^\?([^@?]+)@@")  # ?FuncName@@... -> FuncName
+_MSVC_TEMPLATE_MANGLED_RE = re.compile(r"^\?\?_\w")  # ??_Gfoo@@ (dtor/scalar)
+_IMP_PREFIX_RE = re.compile(r"^__imp_")
+_GUARD_DISPATCH_RE = re.compile(r"^_guard_dispatch_icall")
+
+
+def _normalize_asm_call_name(name: str) -> str:
+    """Normalise a raw assembly call target to a demangled base name.
+
+    Strips the ``__imp_`` import-table prefix and demangles MSVC C++ mangled
+    names so that assembly call targets can be compared directly against the
+    regex-extracted function names from decompiled code.
+
+    Examples::
+
+        "__imp_LocalFree"                              -> "LocalFree"
+        "?AiBuildAxISParams@@YAKPEBG0PEAPEAU...@Z"    -> "AiBuildAxISParams"
+        "__imp_?SomeMethod@@UAEXXZ"                   -> "SomeMethod"
+        "_guard_dispatch_icall$thunk$..."              -> "_guard_dispatch_icall"
+        "AiLaunchProcess"                              -> "AiLaunchProcess"
+    """
+    # Strip __imp_ prefix first (may precede a mangled name)
+    n = _IMP_PREFIX_RE.sub("", name)
+
+    # Demangle MSVC C++ names: ?Name@@... -> Name
+    m = _MSVC_MANGLED_RE.match(n)
+    if m:
+        return m.group(1)
+
+    # Guard dispatch thunks: normalise to the base symbol
+    gd = _GUARD_DISPATCH_RE.match(n)
+    if gd:
+        return "_guard_dispatch_icall"
+
+    return n
+
+
 def check_semantic_block_mismatch(
     asm_stats: AsmStats,
     decomp_stats: DecompStats,
@@ -1071,7 +1119,7 @@ def check_semantic_block_mismatch(
 
     asm_call_set: set[str] = set()
     for block in blocks:
-        asm_call_set.update(block.call_targets)
+        asm_call_set.update(_normalize_asm_call_name(t) for t in block.call_targets)
 
     decomp_call_set = set(decomp_stats.called_functions)
 

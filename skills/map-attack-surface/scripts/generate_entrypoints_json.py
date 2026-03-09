@@ -47,6 +47,8 @@ def generate_entrypoints_json(
     max_depth: int = 10,
     top_n: int = 0,
     min_score: float = 0.0,
+    *,
+    no_cache: bool = False,
 ) -> dict:
     """Generate complete CRS-compatible entrypoints document.
 
@@ -62,7 +64,7 @@ def generate_entrypoints_json(
     }
     """
     # Rank all entry points
-    entries = rank_entrypoints(db_path, max_depth=max_depth)
+    entries = rank_entrypoints(db_path, max_depth=max_depth, no_cache=no_cache)
 
     # Filter
     if min_score > 0:
@@ -106,6 +108,36 @@ def generate_entrypoints_json(
         for api in ep.dangerous_ops_list:
             danger_hotspot_counts[api] += 1
 
+    # Interface summary: aggregate IPC interface statistics
+    rpc_entries = [ep for ep in entries if ep.rpc_interface_id]
+    com_entries = [ep for ep in entries if ep.com_clsid]
+    winrt_entries = [ep for ep in entries if ep.winrt_class_name]
+
+    rpc_protocols = Counter(ep.rpc_protocol for ep in rpc_entries if ep.rpc_protocol)
+    com_elevatable = sum(1 for ep in com_entries if ep.com_can_elevate)
+
+    interface_summary: dict = {}
+    if rpc_entries:
+        interface_summary["rpc"] = {
+            "entry_count": len(rpc_entries),
+            "unique_interfaces": len({ep.rpc_interface_id for ep in rpc_entries}),
+            "protocol_distribution": dict(rpc_protocols.most_common()),
+            "risk_tiers": dict(Counter(ep.rpc_risk_tier for ep in rpc_entries if ep.rpc_risk_tier).most_common()),
+        }
+    if com_entries:
+        interface_summary["com"] = {
+            "entry_count": len(com_entries),
+            "unique_clsids": len({ep.com_clsid for ep in com_entries}),
+            "can_elevate_count": com_elevatable,
+            "risk_tiers": dict(Counter(ep.com_risk_tier for ep in com_entries if ep.com_risk_tier).most_common()),
+        }
+    if winrt_entries:
+        interface_summary["winrt"] = {
+            "entry_count": len(winrt_entries),
+            "unique_classes": len({ep.winrt_class_name for ep in winrt_entries}),
+            "risk_tiers": dict(Counter(ep.winrt_risk_tier for ep in winrt_entries if ep.winrt_risk_tier).most_common()),
+        }
+
     # Build output document
     doc = {
         "version": "1.0",
@@ -125,6 +157,7 @@ def generate_entrypoints_json(
             ),
             "total_unique_danger_apis": len(danger_hotspot_counts),
             "max_reachable_depth": max_depth,
+            "interface_summary": interface_summary,
         },
         "type_distribution": dict(type_dist.most_common()),
         "entry_points": [_entry_to_crs(ep) for ep in entries],
@@ -161,6 +194,36 @@ def _entry_to_crs(ep: EntryPoint) -> dict:
         "tainted_arguments": ep.tainted_args,
         "notes": ep.notes,
     }
+
+    ipc_ctx: dict = {}
+    if ep.rpc_interface_id:
+        ipc_ctx["rpc"] = {
+            "interface_id": ep.rpc_interface_id,
+            "opnum": ep.rpc_opnum,
+            "protocol": ep.rpc_protocol,
+            "service": ep.rpc_service,
+            "risk_tier": ep.rpc_risk_tier,
+        }
+    if ep.com_clsid:
+        ipc_ctx["com"] = {
+            "clsid": ep.com_clsid,
+            "interface_name": ep.com_interface_name,
+            "service": ep.com_service,
+            "risk_tier": ep.com_risk_tier,
+            "can_elevate": ep.com_can_elevate,
+            "access_contexts": ep.com_access_contexts,
+        }
+    if ep.winrt_class_name:
+        ipc_ctx["winrt"] = {
+            "class_name": ep.winrt_class_name,
+            "interface_name": ep.winrt_interface_name,
+            "activation_type": ep.winrt_activation_type,
+            "risk_tier": ep.winrt_risk_tier,
+            "access_contexts": ep.winrt_access_contexts,
+        }
+    if ipc_ctx:
+        rec["ipc_context"] = ipc_ctx
+
     return rec
 
 
@@ -180,6 +243,7 @@ def main() -> None:
     parser.add_argument("--min-score", type=float, default=0.0, help="Minimum attack score threshold")
     parser.add_argument("--pretty", action="store_true", default=True, help="Pretty-print JSON (default)")
     parser.add_argument("--compact", action="store_true", help="Compact JSON output")
+    parser.add_argument("--no-cache", action="store_true", help="Bypass result cache")
     args = safe_parse_args(parser)
 
     with db_error_handler(args.db_path, "entrypoints JSON generation"):
@@ -188,6 +252,7 @@ def main() -> None:
             max_depth=args.depth,
             top_n=args.top,
             min_score=args.min_score,
+            no_cache=args.no_cache,
         )
 
     indent = None if args.compact else 2

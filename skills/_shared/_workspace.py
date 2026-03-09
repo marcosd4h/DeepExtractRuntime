@@ -35,6 +35,7 @@ from helpers.workspace import (  # noqa: F401  -- re-exported
     json_load as _json_load,
     normalize_run_dir as _normalize_run_dir,
     read_results,
+    read_step_payload,
     read_summary,
     safe_name as _safe_name,
     step_dir as _step_dir,

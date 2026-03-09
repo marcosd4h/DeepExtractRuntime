@@ -53,15 +53,33 @@ Complete dossier as a JSON object:
     "reachable_from_exports": ["ExportA"],
     "reachable_from_entry_points": ["DllMain"],
     "shortest_path_from_entry": ["DllMain", "FuncA", "FuncName"],
-    "externally_reachable": true
+    "externally_reachable": true,
+    "ipc_context": {
+      "is_rpc_handler": false,
+      "is_com_method": false,
+      "is_winrt_method": false,
+      "reachable_from_rpc": [],
+      "reachable_from_com": [],
+      "reachable_from_winrt": [],
+      "rpc_interface_id": "uuid or null",
+      "rpc_endpoints": [],
+      "com_clsid": "guid or null",
+      "com_can_elevate": false,
+      "winrt_class_name": "string or null",
+      "winrt_activation_type": "string or null"
+    }
   },
   "data_exposure": {
     "export_callers_count": 1,
     "export_callers": ["ExportA"],
     "data_paths": [
-      { "source_export": "ExportA", "path": ["ExportA", "FuncName"], "hops": 1 }
+      { "source": "ExportA", "source_export": "ExportA", "entry_type": "export", "path": ["ExportA", "FuncName"], "hops": 1 }
     ],
     "parameter_count": 3,
+    "param_risk_score": 0.0,
+    "param_risk_reasons": [],
+    "external_callers_count": 1,
+    "external_callers": ["ExportA"],
     "receives_external_data": true
   },
   "dangerous_operations": {
@@ -69,7 +87,11 @@ Complete dossier as a JSON object:
     "dangerous_api_count": 1,
     "security_relevant_callees": { "command_execution": ["CreateProcessW"] },
     "callee_dangerous_apis": { "HelperFunc": ["memcpy"] },
-    "total_callees": 12
+    "total_callees": 12,
+    "indirect_calls": [
+      { "target": "vfunc_name", "is_indirect": true, "is_vtable": false, "vtable_info": null, "confidence": 80 }
+    ],
+    "indirect_call_count": 1
   },
   "resource_patterns": {
     "sync_operations": ["EnterCriticalSection", "LeaveCriticalSection"],
@@ -90,6 +112,7 @@ Complete dossier as a JSON object:
     "call_count": 12,
     "branch_count": 34,
     "ret_count": 1,
+    "has_syscall": false,
     "loop_count": 3,
     "max_cyclomatic_complexity": 7,
     "total_loop_instructions": 80,
@@ -101,7 +124,8 @@ Complete dossier as a JSON object:
     "has_exception_handler": false,
     "frame_pointer_present": false,
     "string_count": 5,
-    "strings_sample": ["Error: %s", "\\Registry\\Machine\\SOFTWARE\\..."]
+    "strings_sample": ["Error: %s", "\\Registry\\Machine\\SOFTWARE\\..."],
+    "string_categories": { "url": ["http://..."], "registry_key": ["HKLM\\..."] }
   },
   "neighboring_context": {
     "class_name": "ClassName",
@@ -109,6 +133,7 @@ Complete dossier as a JSON object:
       { "name": "ClassName::Method1", "id": 43, "has_decompiled": true }
     ],
     "class_method_count": 5,
+    "vtable_classes": ["ClassName"],
     "direct_callees": [
       {
         "name": "CreateProcessW",
@@ -127,7 +152,14 @@ Complete dossier as a JSON object:
     "aslr": true,
     "dep": true,
     "cfg": true,
-    "seh": true
+    "seh": true,
+    "cet": null,
+    "xfg": null
+  },
+  "data_quality": {
+    "has_issues": false,
+    "analysis_errors": [],
+    "error_count": 0
   }
 }
 ```
@@ -148,6 +180,12 @@ Complete dossier as a JSON object:
 | No canary + large stack frame         | Stack buffer overflow risk                                | Medium   |
 | High cyclomatic complexity (>10)      | Complex control flow, higher bug probability              | Medium   |
 | Sync operations                       | Potential deadlock or race conditions                     | Medium   |
+| `has_syscall = true`                  | Direct syscall detected -- potential security hook evasion | High     |
+| `param_risk_score >= 0.8`             | High-risk parameters (buffers, strings)                   | High     |
+| `ipc_context.is_rpc_handler = YES`    | Confirmed RPC handler from ground-truth data              | Critical |
+| `ipc_context.is_com_method = YES`     | Confirmed COM vtable method from ground-truth data        | High     |
+| `indirect_call_count > 0`             | Unresolved indirect/vtable calls present                  | Medium   |
+| `data_quality.has_issues = true`      | Extraction-time errors may affect analysis accuracy       | Medium   |
 
 ### Reachability Triage
 

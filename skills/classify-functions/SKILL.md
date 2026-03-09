@@ -116,14 +116,16 @@ Output includes: primary/secondary categories, all category scores, signal evide
 
 | Category              | Description                        | Key Signals                                           |
 | --------------------- | ---------------------------------- | ----------------------------------------------------- |
-| `initialization`      | Entry points, constructors, setup  | DllMain, ServiceMain, `??0` ctors, Init\* names       |
+| `initialization`      | Entry points, constructors, setup  | DllMain, ServiceMain, `Foo::Foo` ctors, Init\* names  |
 | `error_handling`      | Error checking, exception handling | GetLastError, FormatMessage, error strings            |
 | `data_parsing`        | Parsing, serialization, conversion | Parse*, Convert*, format strings, high loop count     |
-| `com_rpc`             | COM, RPC, named pipes              | CoCreateInstance, NdrClientCall, RPC protocol strings |
-| `ui`                  | Window management, dialogs         | CreateWindow, MessageBox, dialog APIs                 |
+| `com_ole`             | COM, OLE, DCOM                     | CoCreateInstance, COM index match, RPC protocol strings|
+| `rpc`                 | RPC interfaces, named pipes        | NdrClientCall, RPC index match, s\_\* stub names      |
+| `winrt`               | WinRT activation servers           | WinRT index match, WinRT activation APIs              |
+| `ui_shell`            | Window management, dialogs         | CreateWindow, MessageBox, dialog APIs                 |
 | `telemetry`           | WPP, ETW, TraceLogging, WIL        | Wpp*, \_tlg*, wil\_\*, ETW provider strings           |
 | `crypto`              | Encryption, hashing, certificates  | BCrypt*, NCrypt*, Cert*, Crypt* APIs                  |
-| `resource_management` | Allocation, cleanup, RAII          | Destructors (`??1`), Free*, Release*, Close\*         |
+| `resource_management` | Allocation, cleanup, RAII          | `::~` destructors, Free*, Release*, Close\*           |
 | `dispatch_routing`    | Message pumps, dispatchers         | Dispatch*, *Handler, \*Callback, branchy assembly     |
 | `file_io`             | File and directory operations      | CreateFile, ReadFile, WriteFile, FindFirstFile        |
 | `registry`            | Registry read/write                | RegOpenKey, RegQueryValue, registry path strings      |
@@ -133,7 +135,7 @@ Output includes: primary/secondary categories, all category scores, signal evide
 | `sync`                | Synchronization primitives         | Critical sections, events, mutexes, SRW locks         |
 | `memory`              | Memory allocation/management       | VirtualAlloc, HeapAlloc, MapViewOfFile                |
 | `service`             | Windows service management         | StartServiceCtrlDispatcher, OpenSCManager             |
-| `compiler_generated`  | CRT startup, security cookies      | **security*, *guard**, **scrt\_\*, memcpy             |
+| `compiler_generated`  | CRT startup, security cookies, vftables | \_\_security\*, \_guard\*, `vftable'`, memcpy    |
 | `utility`             | Small helpers, wrappers            | Tiny functions, leaf functions, no strong signals     |
 | `unknown`             | Unable to classify                 | No signals, unnamed `sub_*` functions                 |
 

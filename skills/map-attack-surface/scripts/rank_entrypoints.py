@@ -27,8 +27,8 @@ Output:
 from __future__ import annotations
 
 import argparse
+import re
 from collections import Counter
-import json
 import sys
 from pathlib import Path
 
@@ -36,7 +36,6 @@ _SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(_SCRIPT_DIR))
 
 from _common import (
-    CallGraph,
     DANGEROUS_SINK_APIS,
     EntryPoint,
     EntryPointType,
@@ -46,53 +45,108 @@ from _common import (
     find_dangerous_ops_reachable,
     parse_json_safe,
     score_parameter_risk,
+    _classify_entry_name,
 )
 from discover_entrypoints import discover_all
 from helpers import open_individual_analysis_db
-from helpers.api_taxonomy import classify_api_fingerprint
 from helpers.cache import get_cached
+from helpers.com_index import get_com_index
 from helpers.cross_module_graph import CrossModuleGraph
 from helpers.db_paths import resolve_tracking_db_auto
-from helpers.errors import db_error_handler, safe_parse_args
+from helpers.errors import db_error_handler, log_warning, safe_parse_args
 from helpers.json_output import emit_json_list
+from helpers.rpc_index import get_rpc_index
+from helpers.winrt_index import get_winrt_index
 
 
 # ===========================================================================
 # Ranking Engine
 # ===========================================================================
 
-_ENTRY_TYPE_FINGERPRINT: dict[EntryPointType, str] = {
-    EntryPointType.COM_METHOD: "com",
-    EntryPointType.COM_CLASS_FACTORY: "com",
-    EntryPointType.WINRT_METHOD: "com",
-    EntryPointType.RPC_HANDLER: "rpc",
+_ROLE_TO_ENTRY_TYPES: dict[str, set[EntryPointType]] = {
+    "rpc_server": {EntryPointType.RPC_HANDLER},
+    "com_server": {EntryPointType.COM_METHOD, EntryPointType.COM_CLASS_FACTORY},
+    "winrt_server": {EntryPointType.WINRT_METHOD},
+    "service": {EntryPointType.SERVICE_MAIN, EntryPointType.SERVICE_CTRL_HANDLER},
+    "pipe_server": {EntryPointType.NAMED_PIPE_HANDLER},
+    "network_server": {EntryPointType.TCP_UDP_HANDLER},
+    "ipc_server": {EntryPointType.IPC_DISPATCHER},
+    "driver": {EntryPointType.DRIVER_DISPATCH},
 }
+
+
+def _detect_module_roles(
+    entries: list[EntryPoint],
+    module_name: str,
+) -> set[str]:
+    """Detect all roles a module serves using ground-truth indices and entry points."""
+    roles: set[str] = set()
+
+    rpc_idx = get_rpc_index()
+    if rpc_idx.loaded and rpc_idx.get_procedures_for_module(module_name):
+        roles.add("rpc_server")
+
+    com_idx = get_com_index()
+    if com_idx.loaded and com_idx.get_servers_for_module(module_name):
+        roles.add("com_server")
+
+    winrt_idx = get_winrt_index()
+    if winrt_idx.loaded and winrt_idx.get_servers_for_module(module_name):
+        roles.add("winrt_server")
+
+    types = {ep.entry_type for ep in entries}
+    if EntryPointType.SERVICE_MAIN in types or EntryPointType.SERVICE_CTRL_HANDLER in types:
+        roles.add("service")
+    if EntryPointType.NAMED_PIPE_HANDLER in types:
+        roles.add("pipe_server")
+    if EntryPointType.TCP_UDP_HANDLER in types:
+        roles.add("network_server")
+    if EntryPointType.IPC_DISPATCHER in types:
+        roles.add("ipc_server")
+    if EntryPointType.DRIVER_DISPATCH in types:
+        roles.add("driver")
+
+    return roles
+
+
+def _infer_module_trust(entries: list[EntryPoint]) -> str:
+    """Infer module privilege context from discovered entry point types."""
+    types = {ep.entry_type for ep in entries}
+    if EntryPointType.SERVICE_MAIN in types or EntryPointType.SERVICE_CTRL_HANDLER in types:
+        return "system_service"
+    if EntryPointType.RPC_HANDLER in types:
+        return "rpc_server"
+    if EntryPointType.DRIVER_DISPATCH in types:
+        return "kernel_adjacent"
+    if any(ep.com_can_elevate for ep in entries):
+        return "system_service"
+    return ""
 
 
 def rank_entrypoints(
     db_path: str,
     max_depth: int = 10,
+    *,
+    no_cache: bool = False,
 ) -> list[EntryPoint]:
     """Discover and rank all entry points for a module.
 
     Steps:
     1. Run full discovery scan
-    2. Build callgraph adjacency from DB, compute module API fingerprint
+    2. Build callgraph adjacency from DB
     3. For each entry point, compute reachability via BFS
     4. Count dangerous operations reachable
     5. Score parameters
-    6. Count cross-module callers (if tracking DB available)
-    7. Compute composite attack score (with fingerprint + cross-module boosts)
-    8. Enrich with upstream classification data
-    9. Sort and assign ranks
+    6. Detect module roles and trust level
+    7. Count cross-module callers (if tracking DB available)
+    8. Compute composite attack score (with role + cross-module boosts)
+    9. Enrich with upstream classification data
+    10. Sort and assign ranks
     """
-    # Step 1: Discover
-    entries = discover_all(db_path)
+    entries = discover_all(db_path, no_cache=no_cache)
     if not entries:
         return []
 
-    # Steps 2-3: Build callgraph, dangerous API map, and module API fingerprint
-    # Try to leverage cached classification data from classify-functions skill
     cached_classification = get_cached(db_path, "classify_module")
 
     with db_error_handler(db_path, "ranking entry points"):
@@ -101,35 +155,19 @@ def rank_entrypoints(
             dangerous_map = collect_dangerous_apis_map(db)
 
             func_by_name: dict[str, int] = {}
-            fingerprint_counts: Counter[str] = Counter()
             for func in db.get_all_functions():
                 if func.function_name:
                     func_by_name[func.function_name] = func.function_id
-                xrefs = parse_json_safe(func.simple_outbound_xrefs)
-                if xrefs and isinstance(xrefs, list):
-                    for xref in xrefs:
-                        if isinstance(xref, dict) and xref.get("module_name"):
-                            callee = xref.get("function_name", "")
-                            if callee:
-                                fp = classify_api_fingerprint(callee)
-                                if fp:
-                                    fingerprint_counts[fp] += 1
 
-            dominant_fingerprint: str | None = (
-                fingerprint_counts.most_common(1)[0][0] if fingerprint_counts else None
-            )
             module_name = ""
             file_info = db.get_file_info()
             if file_info:
                 module_name = file_info.file_name or ""
 
-    # Steps 3-5: Score each entry point
     for ep in entries:
-        # Reachability from this entry point
         reachable = compute_reachability(adjacency, ep.function_name, max_depth=max_depth)
-        ep.reachable_count = len(reachable) - 1  # Exclude self
+        ep.reachable_count = len(reachable) - 1
 
-        # Dangerous operations reachable
         danger_count, danger_apis, min_depth = find_dangerous_ops_reachable(
             adjacency, reachable, dangerous_map
         )
@@ -137,29 +175,28 @@ def rank_entrypoints(
         ep.dangerous_ops_list = danger_apis
         ep.depth_to_first_danger = min_depth
 
-        # Reachable function names (top 50 for output)
         ep.reachable_functions = sorted(
             [name for name, depth in reachable.items() if name != ep.function_name],
             key=lambda n: reachable[n],
         )[:50]
 
-        # Tainted argument inference
         ep.tainted_args = _infer_tainted_args(ep)
 
-    # Step 6: Cross-module caller counts (graceful degradation if unavailable)
+    module_trust = _infer_module_trust(entries)
+    module_roles = _detect_module_roles(entries, module_name) if module_name else set()
+
     cross_module_callers = (
         _count_cross_module_callers(module_name, {ep.function_name for ep in entries})
         if module_name else {}
     )
 
-    # Step 7: Compute composite score
     _compute_composite_scores(
         entries,
-        dominant_fingerprint=dominant_fingerprint,
+        module_trust=module_trust,
+        module_roles=module_roles,
         cross_module_callers=cross_module_callers,
     )
 
-    # Step 8: Enrich with classification data from upstream cache (if available)
     if cached_classification and isinstance(cached_classification, dict):
         by_name = {}
         for func_data in cached_classification.get("functions", []):
@@ -173,7 +210,6 @@ def rank_entrypoints(
                 if cat:
                     ep.notes.append(f"classified: {cat} (interest {interest}/10)")
 
-    # Step 9: Sort and rank
     entries.sort(key=lambda ep: ep.attack_score, reverse=True)
     for i, ep in enumerate(entries, 1):
         ep.attack_rank = i
@@ -184,7 +220,8 @@ def rank_entrypoints(
 def _compute_composite_scores(
     entries: list[EntryPoint],
     *,
-    dominant_fingerprint: str | None = None,
+    module_trust: str = "",
+    module_roles: set[str] | None = None,
     cross_module_callers: dict[str, int] | None = None,
 ) -> None:
     """Compute composite attack score for all entries.
@@ -196,39 +233,32 @@ def _compute_composite_scores(
       - reach_breadth (0.15): How many functions are reachable (normalized)
       - type_bonus (0.15): Entry point type inherent risk
 
-    Additive boosts (applied on top of base score):
-      - fingerprint_match (0.08): Entry type matches module's dominant API fingerprint
+    Additive boosts (clamped to [0, 1.0] total):
+      - role_match (0.08): Entry type matches one of the module's detected roles
       - cross_module (0-0.15): Called by other modules (0.05 per caller, capped)
     """
     if not entries:
         return
 
-    # Normalize across all entries
     max_danger = max((ep.dangerous_ops_reachable for ep in entries), default=1) or 1
     max_reach = max((ep.reachable_count for ep in entries), default=1) or 1
 
     for ep in entries:
-        # Component 1: Parameter risk (already 0-1)
         param_score = ep.param_risk_score
-
-        # Component 2: Dangerous operations reachable (normalized)
         danger_score = min(ep.dangerous_ops_reachable / max_danger, 1.0)
 
-        # Component 3: Proximity to first danger (inverse depth)
         if ep.depth_to_first_danger is not None:
             proximity = 1.0 / (1.0 + ep.depth_to_first_danger)
         else:
             proximity = 0.0
 
-        # Component 4: Reachability breadth (normalized, capped)
         reach_score = min(ep.reachable_count / max_reach, 1.0)
 
-        # Component 5: Entry type inherent risk bonus
-        # For RPC handlers with index data, use protocol-aware scoring
         rpc_bonus = _rpc_protocol_bonus(ep)
-        type_bonus = rpc_bonus if rpc_bonus > 0 else _type_risk_bonus(ep.entry_type)
+        com_bonus = _com_privilege_bonus(ep)
+        winrt_bonus = _winrt_privilege_bonus(ep)
+        type_bonus = max(rpc_bonus, com_bonus, winrt_bonus) or _type_risk_bonus(ep.entry_type, module_trust)
 
-        # Weighted composite
         ep.attack_score = (
             param_score * 0.25 +
             danger_score * 0.30 +
@@ -237,11 +267,14 @@ def _compute_composite_scores(
             type_bonus * 0.15
         )
 
-        if dominant_fingerprint:
-            ep_fp = _ENTRY_TYPE_FINGERPRINT.get(ep.entry_type)
-            if ep_fp == dominant_fingerprint:
+        if module_roles:
+            role_match = any(
+                ep.entry_type in _ROLE_TO_ENTRY_TYPES.get(role, set())
+                for role in module_roles
+            )
+            if role_match:
                 ep.attack_score += 0.08
-                ep.notes.append(f"fingerprint boost: module is {dominant_fingerprint}-heavy")
+                ep.notes.append(f"role boost: module serves as {', '.join(sorted(module_roles))}")
 
         if cross_module_callers:
             caller_count = cross_module_callers.get(ep.function_name, 0)
@@ -249,6 +282,8 @@ def _compute_composite_scores(
                 xmod_boost = min(caller_count * 0.05, 0.15)
                 ep.attack_score += xmod_boost
                 ep.notes.append(f"cross-module: called by {caller_count} other module(s)")
+
+        ep.attack_score = min(ep.attack_score, 1.0)
 
 
 _RPC_PROTOCOL_RISK: dict[str, float] = {
@@ -288,6 +323,38 @@ def _rpc_protocol_bonus(ep: EntryPoint) -> float:
         best = max(best, 0.95)
 
     return best
+
+
+def _com_privilege_bonus(ep: EntryPoint) -> float:
+    """Privilege-aware risk bonus for COM entry points."""
+    if ep.entry_type not in (EntryPointType.COM_METHOD, EntryPointType.COM_CLASS_FACTORY):
+        return 0.0
+
+    if not ep.com_clsid:
+        return 0.0
+
+    if ep.com_risk_tier == "critical":
+        return 0.95
+    if ep.com_can_elevate:
+        return 0.90
+    if ep.com_risk_tier == "high" or ep.com_service:
+        return 0.80
+    return 0.75
+
+
+def _winrt_privilege_bonus(ep: EntryPoint) -> float:
+    """Privilege-aware risk bonus for WinRT entry points."""
+    if ep.entry_type != EntryPointType.WINRT_METHOD:
+        return 0.0
+
+    if not ep.winrt_class_name:
+        return 0.0
+
+    if ep.winrt_risk_tier == "critical":
+        return 0.90
+    if ep.winrt_risk_tier == "high":
+        return 0.80
+    return 0.70
 
 
 def _type_risk_bonus(etype: EntryPointType, module_trust: str = "") -> float:
@@ -366,7 +433,8 @@ def _count_cross_module_callers(
                             callers[callee_name] = callers.get(callee_name, 0) + 1
 
             return callers
-    except Exception:
+    except Exception as exc:
+        log_warning(f"Cross-module caller analysis failed: {exc}", "DB_ERROR")
         return {}
 
 
@@ -376,7 +444,6 @@ def _infer_tainted_args(ep: EntryPoint) -> list[str]:
     if not ep.signature:
         return tainted
 
-    import re
     paren_match = re.search(r"\(([^)]*)\)", ep.signature)
     if not paren_match:
         return tainted
@@ -387,9 +454,10 @@ def _infer_tainted_args(ep: EntryPoint) -> list[str]:
 
     params = [p.strip() for p in param_str.split(",") if p.strip()]
     for i, param in enumerate(params):
-        # High-risk parameter types
-        if re.search(r"(?:void|char|BYTE|wchar_t|WCHAR|BSTR)\s*\*", param, re.I):
+        if re.search(r"(?:void|char|BYTE|wchar_t|WCHAR)\s*\*", param, re.I):
             tainted.append(f"arg{i} ({param[:40]}): buffer pointer - TAINT")
+        elif re.search(r"\bBSTR\b", param, re.I):
+            tainted.append(f"arg{i} ({param[:40]}): BSTR (OLECHAR*) - TAINT")
         elif re.search(r"(?:LPWSTR|LPSTR|PWSTR|PSTR|LPCWSTR|LPCSTR|PCWSTR|PCSTR)", param, re.I):
             tainted.append(f"arg{i} ({param[:40]}): string pointer - TAINT")
         elif re.search(r"(?:LPVOID|PVOID|LPBYTE|PBYTE)", param, re.I):
@@ -398,12 +466,17 @@ def _infer_tainted_args(ep: EntryPoint) -> list[str]:
             tainted.append(f"arg{i} ({param[:40]}): COM interface - TAINT")
         elif re.search(r"(?:VARIANT|SAFEARRAY)", param, re.I):
             tainted.append(f"arg{i} ({param[:40]}): variant/array - TAINT")
-        elif re.search(r"(?:HANDLE|SOCKET)", param, re.I):
+        elif re.search(r"(?:REFIID|REFCLSID|GUID|IID)\b", param, re.I):
+            tainted.append(f"arg{i} ({param[:40]}): GUID/IID - PARTIAL_TAINT")
+        elif re.search(r"(?:SECURITY_ATTRIBUTES|OVERLAPPED|struct)\s*\*", param, re.I):
+            tainted.append(f"arg{i} ({param[:40]}): struct pointer - PARTIAL_TAINT")
+        elif re.search(r"(?:HANDLE|HKEY|HMODULE|HINSTANCE|HWND|SOCKET)\b", param, re.I):
             tainted.append(f"arg{i} ({param[:40]}): handle - PARTIAL_TAINT")
         elif re.search(r"(?:DWORD|ULONG|SIZE_T|size_t|unsigned)\b", param, re.I):
-            # Only taint size params when they appear after a buffer
-            if i > 0 and any("buffer" in t or "string" in t or "raw buffer" in t for t in tainted):
+            if i > 0 and any("buffer" in t or "string" in t or "raw buffer" in t or "BSTR" in t for t in tainted):
                 tainted.append(f"arg{i} ({param[:40]}): size/length - TAINT (controls buffer bounds)")
+            elif re.search(r"(?:size|len|count|cb[A-Z]|cch[A-Z]|dw(?:Size|Length|Count|Bytes))\b", param, re.I):
+                tainted.append(f"arg{i} ({param[:40]}): size/length - TAINT (name suggests size)")
 
     return tainted
 
@@ -489,6 +562,8 @@ def rank_single_function(
     db_path: str,
     function_name: str,
     max_depth: int = 10,
+    *,
+    no_cache: bool = False,
 ) -> list[EntryPoint]:
     """Analyze a specific function as if it were an entry point.
 
@@ -507,11 +582,21 @@ def rank_single_function(
             func = funcs[0]
             sig = func.function_signature_extended or func.function_signature or ""
 
+            etype = _classify_entry_name(function_name)
+            # If name-pattern matching fell back to EXPORT_DLL, consult the
+            # RPC ground-truth index before giving up.
+            file_info = db.get_file_info()
+            module_name = (file_info.file_name if file_info else "") or ""
+            rpc_idx = get_rpc_index()
+            if etype == EntryPointType.EXPORT_DLL:
+                if rpc_idx.loaded and module_name and rpc_idx.is_rpc_procedure(module_name, function_name):
+                    etype = EntryPointType.RPC_HANDLER
+
             ep = EntryPoint(
                 function_name=function_name,
                 function_id=func.function_id,
-                entry_type=EntryPointType.EXPORT_DLL,
-                type_label="INTERNAL_FUNCTION",
+                entry_type=etype,
+                type_label=etype.name if etype != EntryPointType.EXPORT_DLL else "INTERNAL_FUNCTION",
                 category="user_specified",
                 detection_source="--function flag (user-specified)",
                 signature=sig,
@@ -519,6 +604,18 @@ def rank_single_function(
             )
             ep.param_risk_score, ep.param_risk_reasons = score_parameter_risk(sig)
             ep.notes.append("User-specified function (not auto-discovered as entry point)")
+
+            # Enrich RPC fields from the index for any confirmed RPC handler.
+            if etype == EntryPointType.RPC_HANDLER and rpc_idx.loaded and module_name:
+                iface = rpc_idx.get_interface_for_procedure(module_name, function_name)
+                if iface:
+                    ep.rpc_interface_id = iface.interface_id or ""
+                    ep.rpc_opnum = rpc_idx.procedure_to_opnum(module_name, function_name)
+                    ep.rpc_service = getattr(iface, "service_name", "") or ""
+                    ep.rpc_risk_tier = getattr(iface, "risk_tier", "") or ""
+                    endpoints = getattr(iface, "endpoints", [])
+                    if endpoints:
+                        ep.rpc_protocol = endpoints[0]
 
             adjacency = build_adjacency(db)
             dangerous_map = collect_dangerous_apis_map(db)
@@ -560,13 +657,14 @@ def main() -> None:
         "--function", metavar="FUNCTION_NAME",
         help="Analyze a specific function by name (bypasses discovery; works for any internal function)",
     )
+    parser.add_argument("--no-cache", action="store_true", help="Bypass result cache")
     args = safe_parse_args(parser)
 
     if args.function:
-        entries = rank_single_function(args.db_path, args.function, max_depth=args.depth)
+        entries = rank_single_function(args.db_path, args.function, max_depth=args.depth, no_cache=args.no_cache)
     else:
         with db_error_handler(args.db_path, "entry point ranking"):
-            entries = rank_entrypoints(args.db_path, max_depth=args.depth)
+            entries = rank_entrypoints(args.db_path, max_depth=args.depth, no_cache=args.no_cache)
         if args.min_score > 0:
             entries = [ep for ep in entries if ep.attack_score >= args.min_score]
 

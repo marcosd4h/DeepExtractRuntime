@@ -78,34 +78,78 @@ def _phase_workers(max_workers: int | None, step_count: int, default: int) -> in
 # Phase definitions
 # ---------------------------------------------------------------------------
 
-def _get_rpc_context(db_path: str) -> dict | None:
-    """Gather RPC index context for the module being scanned."""
+def _get_ipc_context(db_path: str) -> dict | None:
+    """Gather RPC, COM, and WinRT index context for the module being scanned."""
+    from helpers import open_individual_analysis_db
     try:
-        from helpers.rpc_index import get_rpc_index
-        from helpers import open_individual_analysis_db
-        idx = get_rpc_index()
-        if not idx.loaded:
-            return None
         with open_individual_analysis_db(db_path) as db:
             fi = db.get_file_info()
             if not fi or not fi.file_name:
                 return None
-            ifaces = idx.get_interfaces_for_module(fi.file_name)
-            if not ifaces:
-                return None
-            procs = idx.get_procedures_for_module(fi.file_name)
-            return {
-                "module_name": fi.file_name,
-                "interface_count": len(ifaces),
-                "procedure_count": len(procs),
-                "procedures": procs,
-                "remote_reachable": any(i.is_remote_reachable for i in ifaces),
-                "named_pipe": any(i.is_named_pipe for i in ifaces),
-                "risk_tiers": list({i.risk_tier for i in ifaces}),
-                "interfaces": [i.to_dict() for i in ifaces],
-            }
     except Exception:
         return None
+
+    module_name = fi.file_name
+    result: dict = {"module_name": module_name}
+
+    # RPC
+    try:
+        from helpers.rpc_index import get_rpc_index
+        idx = get_rpc_index()
+        if idx.loaded:
+            ifaces = idx.get_interfaces_for_module(module_name)
+            if ifaces:
+                procs = idx.get_procedures_for_module(module_name)
+                result["rpc"] = {
+                    "interface_count": len(ifaces),
+                    "procedure_count": len(procs),
+                    "procedures": procs,
+                    "remote_reachable": any(i.is_remote_reachable for i in ifaces),
+                    "named_pipe": any(i.is_named_pipe for i in ifaces),
+                    "risk_tiers": list({i.risk_tier for i in ifaces}),
+                    "interfaces": [i.to_dict() for i in ifaces],
+                }
+    except Exception:
+        pass
+
+    # COM
+    try:
+        from helpers.com_index import get_com_index
+        cidx = get_com_index()
+        if cidx.loaded:
+            servers = cidx.get_servers_for_module(module_name)
+            if servers:
+                procs = cidx.get_procedures_for_module(module_name)
+                result["com"] = {
+                    "server_count": len(servers),
+                    "procedure_count": len(procs),
+                    "procedures": procs,
+                    "can_elevate": any(s.can_elevate for s in servers),
+                    "risk_tiers": list({s.risk_tier for s in servers if hasattr(s, "risk_tier") and s.risk_tier}),
+                }
+    except Exception:
+        pass
+
+    # WinRT
+    try:
+        from helpers.winrt_index import get_winrt_index
+        widx = get_winrt_index()
+        if widx.loaded:
+            servers = widx.get_servers_for_module(module_name)
+            if servers:
+                procs = widx.get_procedures_for_module(module_name)
+                result["winrt"] = {
+                    "server_count": len(servers),
+                    "procedure_count": len(procs),
+                    "procedures": procs,
+                    "risk_tiers": list({s.risk_tier for s in servers if hasattr(s, "risk_tier") and s.risk_tier}),
+                }
+    except Exception:
+        pass
+
+    if len(result) <= 1:
+        return None
+    return result
 
 
 def _phase_recon(
@@ -119,12 +163,25 @@ def _phase_recon(
     """Phase 1: Recon -- classify functions, map attack surface, gather RPC context."""
     results: dict = {}
 
-    rpc_ctx = _get_rpc_context(db_path)
-    if rpc_ctx:
-        results["rpc_context"] = {"success": True, "json_data": rpc_ctx}
-        print(f"  [RPC] {rpc_ctx['interface_count']} interfaces, "
-              f"{rpc_ctx['procedure_count']} procedures, "
-              f"risk tiers: {rpc_ctx['risk_tiers']}", file=sys.stderr)
+    ipc_ctx = _get_ipc_context(db_path)
+    if ipc_ctx:
+        results["ipc_context"] = {"success": True, "json_data": ipc_ctx}
+        rpc_ctx = ipc_ctx.get("rpc")
+        if rpc_ctx:
+            print(f"  [RPC] {rpc_ctx['interface_count']} interfaces, "
+                  f"{rpc_ctx['procedure_count']} procedures, "
+                  f"risk tiers: {rpc_ctx['risk_tiers']}", file=sys.stderr)
+        com_ctx = ipc_ctx.get("com")
+        if com_ctx:
+            print(f"  [COM] {com_ctx['server_count']} servers, "
+                  f"{com_ctx['procedure_count']} procedures"
+                  f"{', can elevate' if com_ctx.get('can_elevate') else ''}",
+                  file=sys.stderr)
+        winrt_ctx = ipc_ctx.get("winrt")
+        if winrt_ctx:
+            print(f"  [WinRT] {winrt_ctx['server_count']} servers, "
+                  f"{winrt_ctx['procedure_count']} procedures",
+                  file=sys.stderr)
 
     steps = [
         ("classify_triage", "classify-functions", "triage_summary.py",
@@ -514,19 +571,26 @@ def run_security_pipeline(
 
     entrypoints = _extract_top_entrypoints(recon, workspace_dir, top_n)
 
-    # Prioritize confirmed RPC procedures (especially remote-reachable)
-    rpc_ctx = recon.get("rpc_context", {}).get("json_data")
-    if rpc_ctx and rpc_ctx.get("procedures"):
-        rpc_procs = set(rpc_ctx["procedures"])
-        rpc_entries = [e for e in entrypoints if e in rpc_procs]
-        non_rpc = [e for e in entrypoints if e not in rpc_procs]
-        # Prepend RPC procs that weren't already in the list
-        extra_rpc = [p for p in rpc_ctx["procedures"][:10] if p not in set(entrypoints)]
-        entrypoints = rpc_entries + extra_rpc[:5] + non_rpc
+    # Prioritize confirmed IPC handlers (RPC, COM, WinRT)
+    ipc_data = recon.get("ipc_context", {}).get("json_data", {})
+    ipc_procs: set[str] = set()
+    ipc_priority_list: list[str] = []
+
+    for ipc_key in ("rpc", "com", "winrt"):
+        sub = ipc_data.get(ipc_key, {})
+        procs = sub.get("procedures", [])
+        ipc_procs.update(procs)
+        ipc_priority_list.extend(procs[:10])
+
+    if ipc_procs:
+        ipc_entries = [e for e in entrypoints if e in ipc_procs]
+        non_ipc = [e for e in entrypoints if e not in ipc_procs]
+        extra_ipc = [p for p in ipc_priority_list if p not in set(entrypoints)]
+        entrypoints = ipc_entries + extra_ipc[:5] + non_ipc
         entrypoints = entrypoints[:top_n]
-        if rpc_entries or extra_rpc:
-            print(f"  [RPC] Prioritized {len(rpc_entries)} RPC handlers in scan targets",
-                  file=sys.stderr)
+        if ipc_entries or extra_ipc:
+            print(f"  [IPC] Prioritized {len(ipc_entries)} IPC handlers in scan targets "
+                  f"(RPC/COM/WinRT)", file=sys.stderr)
 
     # Phase 2: Vulnerability scan
     status_message("Phase 2/6: Scanning for memory corruption and logic vulnerabilities")

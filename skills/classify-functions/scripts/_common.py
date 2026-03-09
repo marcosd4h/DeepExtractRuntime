@@ -82,13 +82,6 @@ NAME_RULES: list[tuple[re.Pattern, str, str]] = [
     (re.compile(r"^Ndr(?:Client|Server|Async)"), "rpc", "NDR marshaling"),
 ]
 
-MANGLED_RULES: list[tuple[str, str, str]] = [
-    ("??0", "initialization", "Constructor"),
-    ("??1", "resource_management", "Destructor"),
-    ("??_G", "resource_management", "Scalar deleting destructor"),
-    ("??_7", "compiler_generated", "VFTable data"),
-]
-
 STRING_RULES: list[tuple[re.Pattern, str, str]] = [
     (pat, TAXONOMY_TO_CLASSIFICATION.get(cat, cat), desc)
     for pat, cat, desc in STRING_TAXONOMY
@@ -101,10 +94,10 @@ STRING_RULES: list[tuple[re.Pattern, str, str]] = [
 # ---------------------------------------------------------------------------
 CATEGORIES = [
     "initialization", "error_handling", "data_parsing", "com_ole", "rpc",
-    "ui_shell", "telemetry", "crypto", "resource_management", "dispatch_routing",
-    "file_io", "registry", "network", "process_thread", "security",
-    "sync", "memory", "service", "string_manipulation", "debug_diagnostics",
-    "compiler_generated", "utility", "unknown",
+    "winrt", "ui_shell", "telemetry", "crypto", "resource_management",
+    "dispatch_routing", "file_io", "registry", "network", "process_thread",
+    "security", "sync", "memory", "service", "string_manipulation",
+    "debug_diagnostics", "compiler_generated", "utility", "unknown",
 ]
 
 # Categories considered low-interest (infrastructure noise)
@@ -155,7 +148,6 @@ def _load_weights() -> dict[str, float]:
     from helpers.config import get_config_value
     defaults = {
         "W_NAME": 10.0,
-        "W_MANGLED": 12.0,
         "W_API": 5.0,
         "W_API_CAP": 25.0,
         "W_STRING": 2.0,
@@ -168,7 +160,6 @@ def _load_weights() -> dict[str, float]:
 
 _weights = _load_weights()
 W_NAME = _weights["W_NAME"]
-W_MANGLED = _weights["W_MANGLED"]
 W_API = _weights["W_API"]
 W_API_CAP = _weights["W_API_CAP"]
 W_STRING = _weights["W_STRING"]
@@ -208,13 +199,13 @@ def classify_function(func, function_index: Optional[dict] = None) -> Classifica
     signals: dict[str, list[str]] = defaultdict(list)
 
     fname = func.function_name or ""
-    mangled = func.mangled_name or ""
     decompiled_from_db = bool(func.decompiled_code and func.decompiled_code.strip())
 
     # --- 0. Function index library tag (applied after dangerous API check) ---
     _library_tag: Optional[str] = None
     _index_entry: Optional[dict] = None
     if function_index is not None:
+        mangled = func.mangled_name or ""
         _index_entry = function_index.get(fname) or function_index.get(mangled)
         if _index_entry and _index_entry.get("library"):
             _library_tag = _index_entry["library"]
@@ -244,12 +235,49 @@ def classify_function(func, function_index: Optional[dict] = None) -> Classifica
     except Exception:
         pass
 
-    # --- 2. Mangled name classification ---
-    for prefix, category, desc in MANGLED_RULES:
-        if mangled.startswith(prefix):
-            scores[category] += W_MANGLED
-            signals[category].append(f"mangled:{desc}")
-            break
+    # --- 1c. COM index ground-truth classification ---
+    try:
+        from helpers.com_index import get_com_index as _get_com_idx
+        _com_idx = _get_com_idx()
+        if _com_idx.loaded and _com_idx._procedures_by_module:
+            for _mod_procs in _com_idx._procedures_by_module.values():
+                if fname in _mod_procs:
+                    scores["com_ole"] += W_NAME * 2
+                    signals["com_ole"].append("com_index:confirmed_method")
+                    break
+    except Exception:
+        pass
+
+    # --- 1d. WinRT index ground-truth classification ---
+    try:
+        from helpers.winrt_index import get_winrt_index as _get_winrt_idx
+        _winrt_idx = _get_winrt_idx()
+        if _winrt_idx.loaded and _winrt_idx._procedures_by_module:
+            for _mod_procs in _winrt_idx._procedures_by_module.values():
+                if fname in _mod_procs:
+                    scores["winrt"] += W_NAME * 2
+                    signals["winrt"].append("winrt_index:confirmed_method")
+                    break
+    except Exception:
+        pass
+
+    # --- 2. Definitive structural identity (demangled name) ---
+    forced_category: Optional[str] = None
+    if fname:
+        if "::`vftable'" in fname:
+            forced_category = "compiler_generated"
+            signals["compiler_generated"].append("demangled:VFTable")
+        elif "::`scalar deleting destructor'" in fname:
+            forced_category = "resource_management"
+            signals["resource_management"].append("demangled:Scalar deleting destructor")
+        elif "::~" in fname:
+            forced_category = "resource_management"
+            signals["resource_management"].append("demangled:Destructor")
+        elif "::" in fname:
+            parts = fname.rsplit("::", 1)
+            if len(parts) == 2 and parts[1] and parts[0].endswith(parts[1]):
+                forced_category = "initialization"
+                signals["initialization"].append("demangled:Constructor")
 
     # --- 3. API-based classification (from outbound xrefs) ---
     outbound = parse_json_safe(func.simple_outbound_xrefs) or []
@@ -347,12 +375,15 @@ def classify_function(func, function_index: Optional[dict] = None) -> Classifica
         scores[cat] += weight
 
     # --- 7. Select primary category ---
-    if scores:
+    if forced_category:
+        primary = forced_category
+        sorted_cats = sorted(scores.items(), key=lambda x: -x[1])
+        secondary = [c for c, s in sorted_cats[:2] if s > 0 and c != primary]
+    elif scores:
         sorted_cats = sorted(scores.items(), key=lambda x: -x[1])
         primary = sorted_cats[0][0]
         secondary = [c for c, s in sorted_cats[1:3] if s > 0]
     else:
-        # No signals at all -- check if it's a sub_ function
         if fname.startswith("sub_"):
             primary = "unknown"
             signals["unknown"].append("unnamed function (sub_)")
@@ -362,11 +393,19 @@ def classify_function(func, function_index: Optional[dict] = None) -> Classifica
         secondary = []
 
     # --- 8. Interest score ---
+    # A function is a confirmed IPC entry point if the RPC/COM/WinRT index
+    # explicitly identifies it as a handler or method.
+    _is_ipc_entry = (
+        "rpc_index:confirmed_handler" in signals.get("rpc", [])
+        or "com_index:confirmed_method" in signals.get("com_ole", [])
+        or "winrt_index:confirmed_method" in signals.get("winrt", [])
+    )
     interest = _compute_interest(
         primary, dangerous_count, loop_count, max_complexity,
         asm_metrics, string_count, api_count,
         has_decompiled,
         is_library_tagged=_library_tag is not None,
+        is_ipc_entry=_is_ipc_entry,
     )
 
     return ClassificationResult(
@@ -396,6 +435,7 @@ def _compute_interest(
     api_count: int,
     has_decompiled: bool,
     is_library_tagged: bool = False,
+    is_ipc_entry: bool = False,
 ) -> int:
     """Compute an interest score (0-10) to help researchers prioritize."""
     score = 0
@@ -433,7 +473,16 @@ def _compute_interest(
     if primary == "utility" and asm.is_tiny and dangerous_count == 0:
         score = max(score - 2, 0)
 
-    return min(score, 10)
+    score = min(score, 10)
+
+    # IPC entry points (RPC handlers, COM methods, WinRT methods) are
+    # always high-priority audit targets regardless of function complexity.
+    # A thin wrapper that IS an RPC entry point is more important than a
+    # complex internal function with no external reachability.
+    if is_ipc_entry:
+        score = max(score, 6)
+
+    return score
 
 
 __all__ = [
@@ -446,7 +495,6 @@ __all__ = [
     "emit_error",
     "get_asm_metrics",
     "LOW_INTEREST_CATEGORIES",
-    "MANGLED_RULES",
     "NAME_RULES",
     "parse_json_safe",
     "resolve_db_path",
@@ -457,7 +505,6 @@ __all__ = [
     "W_API",
     "W_API_CAP",
     "W_LIBRARY",
-    "W_MANGLED",
     "W_NAME",
     "W_STRING",
     "W_STRING_CAP",

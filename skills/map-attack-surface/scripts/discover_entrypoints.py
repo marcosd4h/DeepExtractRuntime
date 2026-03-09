@@ -24,10 +24,10 @@ Output:
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 # Resolve workspace root
 _SCRIPT_DIR = Path(__file__).resolve().parent
@@ -40,6 +40,8 @@ from _common import (
     NAMED_PIPE_APIS,
     RPC_SERVER_APIS,
     SERVICE_APIS,
+    SERVICE_DISPATCHER_APIS,
+    SERVICE_HANDLER_APIS,
     SOCKET_APIS,
     ENTRY_NAME_PATTERNS,
     ENTRY_STRING_PATTERNS,
@@ -54,6 +56,8 @@ from helpers.cache import get_cached, cache_result
 from helpers.errors import db_error_handler, safe_parse_args
 from helpers.json_output import emit_json_list
 from helpers.rpc_index import get_rpc_index
+from helpers.com_index import get_com_index
+from helpers.winrt_index import get_winrt_index
 
 
 # ===========================================================================
@@ -91,6 +95,23 @@ def _entrypoints_from_cached(data: list[dict]) -> list[EntryPoint]:
             dangerous_ops_reachable=d.get("dangerous_ops_reachable", 0),
             dangerous_ops_list=d.get("dangerous_ops_list", []),
             depth_to_first_danger=d.get("depth_to_first_danger"),
+            reachable_functions=d.get("reachable_functions", []),
+            rpc_interface_id=d.get("rpc_interface_id", ""),
+            rpc_opnum=d.get("rpc_opnum"),
+            rpc_protocol=d.get("rpc_protocol", ""),
+            rpc_service=d.get("rpc_service", ""),
+            rpc_risk_tier=d.get("rpc_risk_tier", ""),
+            com_clsid=d.get("com_clsid", ""),
+            com_interface_name=d.get("com_interface_name", ""),
+            com_service=d.get("com_service", ""),
+            com_risk_tier=d.get("com_risk_tier", ""),
+            com_can_elevate=d.get("com_can_elevate", False),
+            com_access_contexts=d.get("com_access_contexts", ""),
+            winrt_class_name=d.get("winrt_class_name", ""),
+            winrt_interface_name=d.get("winrt_interface_name", ""),
+            winrt_activation_type=d.get("winrt_activation_type", ""),
+            winrt_risk_tier=d.get("winrt_risk_tier", ""),
+            winrt_access_contexts=d.get("winrt_access_contexts", ""),
             attack_score=d.get("attack_score", 0.0),
             attack_rank=d.get("attack_rank", 0),
             tainted_args=d.get("tainted_args", []),
@@ -610,17 +631,35 @@ def discover_by_api_usage(db, all_funcs: list | None = None) -> list[EntryPoint]
             results.append(entry)
             continue
 
-        # Check for service control patterns
-        svc_matches = called_apis & SERVICE_APIS
-        if svc_matches:
+        # Check for service dispatcher APIs (-> SERVICE_MAIN)
+        svc_disp_matches = called_apis & SERVICE_DISPATCHER_APIS
+        if svc_disp_matches:
             seen_names.add(name)
             entry = EntryPoint(
                 function_name=name,
                 function_id=func.function_id,
                 entry_type=EntryPointType.SERVICE_MAIN,
                 type_label="SERVICE_MAIN",
-                category="service_control_function",
-                detection_source=f"calls service APIs: {', '.join(sorted(svc_matches)[:5])}",
+                category="service_dispatcher",
+                detection_source=f"calls service dispatcher APIs: {', '.join(sorted(svc_disp_matches)[:5])}",
+                signature=func.function_signature_extended or func.function_signature or "",
+                mangled_name=func.mangled_name or "",
+            )
+            entry.param_risk_score, entry.param_risk_reasons = score_parameter_risk(entry.signature)
+            results.append(entry)
+            continue
+
+        # Check for service handler registration APIs (-> SERVICE_CTRL_HANDLER)
+        svc_handler_matches = called_apis & SERVICE_HANDLER_APIS
+        if svc_handler_matches:
+            seen_names.add(name)
+            entry = EntryPoint(
+                function_name=name,
+                function_id=func.function_id,
+                entry_type=EntryPointType.SERVICE_CTRL_HANDLER,
+                type_label="SERVICE_CTRL_HANDLER",
+                category="service_handler_registration",
+                detection_source=f"calls service handler APIs: {', '.join(sorted(svc_handler_matches)[:5])}",
                 signature=func.function_signature_extended or func.function_signature or "",
                 mangled_name=func.mangled_name or "",
             )
@@ -791,6 +830,251 @@ def _enrich_existing_with_rpc_index(
 
 
 # ===========================================================================
+# COM Index-Based Discovery
+# ===========================================================================
+
+def discover_from_com_index(
+    db, module_name: str, function_index: dict | None = None,
+) -> list[EntryPoint]:
+    """Discover COM entry points using the ground-truth COM index."""
+    results: list[EntryPoint] = []
+    idx = get_com_index()
+    if not idx.loaded or not module_name:
+        return results
+
+    procedures = idx.get_procedures_for_module(module_name)
+    if not procedures:
+        return results
+
+    servers = idx.get_servers_for_module(module_name)
+    server_map: dict[str, Any] = {}
+    for srv in servers:
+        for m in srv.methods_flat:
+            server_map[m.name] = srv
+            server_map[m.short_name] = srv
+
+    for func_name in procedures:
+        sig = ""
+        func_id = None
+        if function_index:
+            idx_entry = function_index.get(func_name)
+            if idx_entry:
+                func_id = get_function_id(idx_entry)
+        if func_id is None:
+            funcs = db.get_function_by_name(func_name)
+            if funcs:
+                func_id = funcs[0].function_id
+                sig = funcs[0].function_signature_extended or funcs[0].function_signature or ""
+
+        if func_id is not None and not sig:
+            resolved = db.get_function_by_id(func_id)
+            if resolved:
+                sig = resolved.function_signature_extended or resolved.function_signature or ""
+
+        srv = server_map.get(func_name)
+        com_clsid = srv.clsid if srv else ""
+        com_service = (srv.service_name or "") if srv else ""
+        com_risk_tier = srv.best_risk_tier if srv else ""
+        com_can_elevate = bool(srv and (getattr(srv, "can_elevate", False) or getattr(srv, "auto_elevate", False)))
+        com_access_ctxs = ",".join(sorted(str(c) for c in srv.access_contexts)) if srv else ""
+        com_iface = ""
+        if srv:
+            for m in srv.methods_flat:
+                if m.name == func_name or m.short_name == func_name:
+                    com_iface = getattr(m, "interface_name", "") or ""
+                    break
+
+        ep = EntryPoint(
+            function_name=func_name,
+            function_id=func_id,
+            entry_type=EntryPointType.COM_METHOD,
+            type_label="COM_METHOD",
+            category="com_index_confirmed",
+            detection_source=f"com_index (CLSID {com_clsid})",
+            signature=sig,
+            com_clsid=com_clsid,
+            com_interface_name=com_iface,
+            com_service=com_service,
+            com_risk_tier=com_risk_tier,
+            com_can_elevate=com_can_elevate,
+            com_access_contexts=com_access_ctxs,
+        )
+        ep.param_risk_score, ep.param_risk_reasons = score_parameter_risk(sig)
+        if com_service:
+            ep.notes.append(f"Windows service: {com_service}")
+        if com_can_elevate:
+            ep.notes.append("COM server supports elevation (UAC bypass surface)")
+        results.append(ep)
+
+    return results
+
+
+def _enrich_existing_with_com_index(
+    entries: list[EntryPoint], module_name: str,
+) -> None:
+    """Use is_com_procedure() to identify and enrich COM handlers."""
+    idx = get_com_index()
+    if not idx.loaded or not module_name:
+        return
+
+    confirmed_procs = set(idx.get_procedures_for_module(module_name))
+    if not confirmed_procs:
+        return
+
+    servers = idx.get_servers_for_module(module_name)
+    server_map: dict[str, Any] = {}
+    for srv in servers:
+        for m in srv.methods_flat:
+            server_map[m.name] = srv
+            server_map[m.short_name] = srv
+
+    for ep in entries:
+        if ep.com_clsid:
+            continue
+
+        if ep.function_name in confirmed_procs or idx.is_com_procedure(module_name, ep.function_name):
+            srv = server_map.get(ep.function_name)
+            if srv:
+                ep.com_clsid = srv.clsid
+                ep.com_service = srv.service_name or ""
+                ep.com_risk_tier = srv.best_risk_tier
+                ep.com_can_elevate = bool(getattr(srv, "can_elevate", False) or getattr(srv, "auto_elevate", False))
+                ep.com_access_contexts = ",".join(sorted(str(c) for c in srv.access_contexts))
+                for m in srv.methods_flat:
+                    if m.name == ep.function_name or m.short_name == ep.function_name:
+                        ep.com_interface_name = getattr(m, "interface_name", "") or ""
+                        break
+
+            if ep.entry_type in (EntryPointType.COM_METHOD, EntryPointType.COM_CLASS_FACTORY):
+                ep.notes.append("Confirmed by COM index")
+            else:
+                ep.entry_type = EntryPointType.COM_METHOD
+                ep.type_label = "COM_METHOD"
+                ep.notes.append("Identified as COM handler by COM index")
+        elif ep.entry_type in (EntryPointType.COM_METHOD, EntryPointType.COM_CLASS_FACTORY):
+            ep.notes.append("Heuristic COM detection (not confirmed by COM index)")
+
+
+# ===========================================================================
+# WinRT Index-Based Discovery
+# ===========================================================================
+
+def discover_from_winrt_index(
+    db, module_name: str, function_index: dict | None = None,
+) -> list[EntryPoint]:
+    """Discover WinRT entry points using the ground-truth WinRT index."""
+    results: list[EntryPoint] = []
+    idx = get_winrt_index()
+    if not idx.loaded or not module_name:
+        return results
+
+    procedures = idx.get_procedures_for_module(module_name)
+    if not procedures:
+        return results
+
+    servers = idx.get_servers_for_module(module_name)
+    server_map: dict[str, Any] = {}
+    for srv in servers:
+        for m in srv.methods_flat:
+            server_map[m.name] = srv
+            server_map[m.short_name] = srv
+
+    for func_name in procedures:
+        sig = ""
+        func_id = None
+        if function_index:
+            idx_entry = function_index.get(func_name)
+            if idx_entry:
+                func_id = get_function_id(idx_entry)
+        if func_id is None:
+            funcs = db.get_function_by_name(func_name)
+            if funcs:
+                func_id = funcs[0].function_id
+                sig = funcs[0].function_signature_extended or funcs[0].function_signature or ""
+
+        if func_id is not None and not sig:
+            resolved = db.get_function_by_id(func_id)
+            if resolved:
+                sig = resolved.function_signature_extended or resolved.function_signature or ""
+
+        srv = server_map.get(func_name)
+        winrt_class = srv.name if srv else ""
+        winrt_activation = (getattr(srv, "activation_type", "") or "") if srv else ""
+        winrt_risk_tier = srv.best_risk_tier if srv else ""
+        winrt_access_ctxs = ",".join(sorted(str(c) for c in srv.access_contexts)) if srv else ""
+        winrt_iface = ""
+        if srv:
+            for m in srv.methods_flat:
+                if m.name == func_name or m.short_name == func_name:
+                    winrt_iface = getattr(m, "interface_name", "") or ""
+                    break
+
+        ep = EntryPoint(
+            function_name=func_name,
+            function_id=func_id,
+            entry_type=EntryPointType.WINRT_METHOD,
+            type_label="WINRT_METHOD",
+            category="winrt_index_confirmed",
+            detection_source=f"winrt_index (class {winrt_class})",
+            signature=sig,
+            winrt_class_name=winrt_class,
+            winrt_interface_name=winrt_iface,
+            winrt_activation_type=winrt_activation,
+            winrt_risk_tier=winrt_risk_tier,
+            winrt_access_contexts=winrt_access_ctxs,
+        )
+        ep.param_risk_score, ep.param_risk_reasons = score_parameter_risk(sig)
+        results.append(ep)
+
+    return results
+
+
+def _enrich_existing_with_winrt_index(
+    entries: list[EntryPoint], module_name: str,
+) -> None:
+    """Use is_winrt_procedure() to identify and enrich WinRT handlers."""
+    idx = get_winrt_index()
+    if not idx.loaded or not module_name:
+        return
+
+    confirmed_procs = set(idx.get_procedures_for_module(module_name))
+    if not confirmed_procs:
+        return
+
+    servers = idx.get_servers_for_module(module_name)
+    server_map: dict[str, Any] = {}
+    for srv in servers:
+        for m in srv.methods_flat:
+            server_map[m.name] = srv
+            server_map[m.short_name] = srv
+
+    for ep in entries:
+        if ep.winrt_class_name:
+            continue
+
+        if ep.function_name in confirmed_procs or idx.is_winrt_procedure(module_name, ep.function_name):
+            srv = server_map.get(ep.function_name)
+            if srv:
+                ep.winrt_class_name = srv.name
+                ep.winrt_activation_type = getattr(srv, "activation_type", "") or ""
+                ep.winrt_risk_tier = srv.best_risk_tier
+                ep.winrt_access_contexts = ",".join(sorted(str(c) for c in srv.access_contexts))
+                for m in srv.methods_flat:
+                    if m.name == ep.function_name or m.short_name == ep.function_name:
+                        ep.winrt_interface_name = getattr(m, "interface_name", "") or ""
+                        break
+
+            if ep.entry_type == EntryPointType.WINRT_METHOD:
+                ep.notes.append("Confirmed by WinRT index")
+            else:
+                ep.entry_type = EntryPointType.WINRT_METHOD
+                ep.type_label = "WINRT_METHOD"
+                ep.notes.append("Identified as WinRT handler by WinRT index")
+        elif ep.entry_type == EntryPointType.WINRT_METHOD:
+            ep.notes.append("Heuristic WinRT detection (not confirmed by WinRT index)")
+
+
+# ===========================================================================
 # Discovery Orchestrator
 # ===========================================================================
 
@@ -821,6 +1105,16 @@ def discover_all(db_path: str, *, no_cache: bool = False) -> list[EntryPoint]:
                 db, module_name, function_index=function_index,
             )
 
+            # Phase 0b: Ground-truth COM handlers from COM index
+            com_index_entries = discover_from_com_index(
+                db, module_name, function_index=function_index,
+            )
+
+            # Phase 0c: Ground-truth WinRT handlers from WinRT index
+            winrt_index_entries = discover_from_winrt_index(
+                db, module_name, function_index=function_index,
+            )
+
             # Phase 1: Explicit sources (highest confidence)
             explicit = discover_explicit_entry_points(db, function_index=function_index)
             exports = discover_exports(db, function_index=function_index)
@@ -835,13 +1129,16 @@ def discover_all(db_path: str, *, no_cache: bool = False) -> list[EntryPoint]:
 
     # Merge with deduplication -- RPC index entries come first (highest priority)
     all_entries = (
-        rpc_index_entries + explicit + exports + tls + com_vtable +
+        rpc_index_entries + com_index_entries + winrt_index_entries +
+        explicit + exports + tls + com_vtable +
         callbacks + name_patterns + api_usage + string_patterns
     )
     deduped = _deduplicate(all_entries)
 
-    # Enrich any heuristic RPC entries with index metadata
+    # Enrich any heuristic entries with index metadata
     _enrich_existing_with_rpc_index(deduped, module_name)
+    _enrich_existing_with_com_index(deduped, module_name)
+    _enrich_existing_with_winrt_index(deduped, module_name)
 
     cache_result(db_path, "discover_entrypoints", _entrypoints_to_cacheable(deduped))
     return deduped

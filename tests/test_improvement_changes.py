@@ -138,13 +138,12 @@ class TestClassificationWeightsFromConfig:
 
         config_weights = get_config_value("classification.weights", {})
         assert classify_mod.W_NAME == config_weights.get("W_NAME", 10.0)
-        assert classify_mod.W_MANGLED == config_weights.get("W_MANGLED", 12.0)
         assert classify_mod.W_API == config_weights.get("W_API", 5.0)
 
     def test_weights_are_positive(self):
         from helpers.script_runner import load_skill_module
         classify_mod = load_skill_module("classify-functions", "_common")
-        for attr in ("W_NAME", "W_MANGLED", "W_API", "W_API_CAP", "W_STRING",
+        for attr in ("W_NAME", "W_API", "W_API_CAP", "W_STRING",
                      "W_STRING_CAP", "W_STRUCTURAL", "W_LIBRARY"):
             val = getattr(classify_mod, attr)
             assert isinstance(val, (int, float)) and val > 0, f"{attr} should be positive, got {val}"

@@ -426,9 +426,45 @@ def get_step_paths(run_dir: str | Path, step_name: str) -> dict[str, str]:
 
 
 def read_results(run_dir: str | Path, step_name: str) -> Any:
-    """Read and return full results JSON for a step (or None)."""
+    """Read and return full results JSON for a step (or None).
+
+    The returned dict has the workspace envelope shape::
+
+        {
+            "output_type": "json" | "text" | "empty",
+            "captured_at": "<iso timestamp>",
+            "stdout": { ... },          # actual skill output (JSON output_type)
+            "stdout_text": "...",       # raw text (text output_type)
+            "stdout_char_count": N,
+        }
+
+    Use :func:`read_step_payload` to access the skill output directly without
+    dealing with the envelope structure.
+    """
     path = step_dir(run_dir, step_name) / RESULTS_FILE
     return json_load(path, default=None)
+
+
+def read_step_payload(run_dir: str | Path, step_name: str) -> Any:
+    """Read and return the unwrapped skill output payload for a step.
+
+    Transparently unwraps the workspace envelope so callers receive the
+    parsed JSON dict that the skill script emitted to stdout -- the same
+    object you would get from ``json.loads(script_stdout)``.
+
+    Returns ``None`` if the step has not run, errored, or produced no output.
+
+    Example::
+
+        payload = read_step_payload(run_dir, "extract")
+        decompiled = payload.get("decompiled_code", "") if payload else ""
+    """
+    data = read_results(run_dir, step_name)
+    if not isinstance(data, dict):
+        return None
+    if data.get("output_type") == "json":
+        return data.get("stdout")
+    return None
 
 
 def read_summary(run_dir: str | Path, step_name: str) -> Any:

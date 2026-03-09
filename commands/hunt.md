@@ -106,10 +106,9 @@ Read the adversarial-reasoning SKILL.md and apply the framework for the detected
 4. Produce a variant search plan with specific commands
 
 **Validate mode:**
-1. Recommend `/verify` first to check decompiler accuracy
-2. Apply the validation strategy matrix for the suspected vulnerability class
-3. Determine: static confirmation possible? dynamic testing needed?
-4. Produce: confirmation checklist, PoC skeleton guidance, severity assessment
+1. Apply the validation strategy matrix for the suspected vulnerability class
+2. Determine: static confirmation possible? dynamic testing needed?
+3. Produce: confirmation checklist, PoC skeleton guidance, severity assessment
 
 **Surface mode:**
 1. Enumerate trust boundaries from the module profile and entry point data

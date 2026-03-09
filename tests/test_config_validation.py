@@ -31,7 +31,6 @@ def valid_config():
         "classification": {
             "weights": {
                 "W_NAME": 10.0,
-                "W_MANGLED": 12.0,
                 "W_API": 5.0,
                 "W_API_CAP": 25.0,
                 "W_STRING": 2.0,
