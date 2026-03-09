@@ -213,6 +213,18 @@ Automatically triggered when the dossier shows **`dangerous_ops_reachable >= 10`
 5. Filter to callees where decompiled code exists: check `db.get_function_by_name(callee_name)` — skip any callee that has no decompiled code in the DB.
 6. Take the **top 4** across both tiers (Tier 1 first). If fewer than 4 qualify, extract all that qualify.
 
+**Mandatory enumeration before extraction:** Before running any extractions, produce the full numbered selection list (callee name, tier, API count, assigned step name). This list is the contract -- every item on it MUST be extracted. Example:
+
+```
+Step 3h selection (4 callees):
+  extract_deep_1: AiLaunchProcess       [Tier 1, 11 APIs]
+  extract_deep_2: AiLaunchConsentUI     [Tier 1,  3 APIs]
+  extract_deep_3: AiGetClientInformation [Tier 2,  2 APIs]
+  extract_deep_4: AipBuildConsentToken   [Tier 2,  2 APIs]
+```
+
+**Completeness rule:** ALL callees on the enumeration list must be extracted. Do not extract a partial subset and move on. After all extractions complete, verify that every `extract_deep_<N>` step appears in the workspace `manifest.json` with `status: success`. If any extraction failed, retry it once with `--function` instead of `--id`; if it fails again, note the specific gap in the Confidence and Caveats section (e.g., *"`AipBuildConsentToken` extraction failed -- C4 flag-validation concern could not be resolved from callee code"*).
+
 Extract each selected callee in parallel, numbered sequentially:
 
 ```
@@ -234,7 +246,43 @@ python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py 
 
 During Step 6 synthesis, read all `extract_deep_*` payloads and reference them by callee name. Prefix findings sourced from deep callees: e.g., *"(Source: deep callee `AiLaunchProcess`, manual review)"*.
 
-> **Run steps 2 + 3 + 3b + 3e in parallel** -- they are independent. Step 3c depends on steps 2 + 3f (needs `dangerous_apis_direct` from dossier and, for thin wrappers, the callee ID + `outbound_xrefs` from extract_callee). Step 3d is a file read with no dependencies. Step 3f (and its depth-2/3/4 extensions) depends on steps 2 + 3; each deeper level depends on the previous level's extract result. **Step 3h runs in parallel with 3c/3d/3e/3f** once steps 2 + 3b complete. Step 3g depends on step 2 (needs `is_rpc_handler` from dossier).
+### 3i. Taint-path callee extraction (conditional)
+
+Automatically triggered when Step 3e (taint forward) produces one or more findings where **`path_hops > 1`** AND **`guards` is empty (`[]`)**. These are unguarded multi-hop taint paths where an intermediate callee stands between the tainted RPC parameter and the dangerous sink. Without reading that callee's code, the severity assessment defaults to the taint tool's score -- which may overestimate (the callee may contain implicit bounds checks, safe allocation patterns, or transport-layer constraints the taint engine cannot model) or underestimate (the callee may have additional vulnerabilities the tool missed).
+
+**Why this step exists:** Taint analysis reports reachability -- "parameter X reaches sink Y through callee Z" -- but cannot evaluate semantic correctness of Z's handling. The audit severity rubric requires distinguishing "theoretical weakness requiring multiple preconditions" (MEDIUM) from "confirmed data flow to dangerous sink" (HIGH/CRITICAL). That distinction depends on reading Z's code. Step 3h does not cover this case because it selects callees by `command_execution`/`privilege` category from the dossier, not by taint-path membership; a `memory_unsafe` intermediate callee (like an allocation+copy helper) would never be selected by 3h.
+
+**Selection algorithm (run once, after Step 3e completes):**
+
+1. For each finding in `taint_forward.forward_findings` where `path_hops > 1` AND `guards == []`:
+   a. Parse the `path` array. Each intermediate element (not the first source and not the last sink) has the format `"FunctionName.paramOrLocal"`.
+   b. Extract the function name by splitting on `"."` and taking the left side.
+   c. Collect the finding's `severity` and `score` for prioritization.
+2. Deduplicate callee names across all qualifying findings. If a callee appears on multiple taint paths, keep the highest `score` as its priority.
+3. Exclude any callee already extracted by Step 3f (`extract_callee`, `extract_callee_d2`, etc.) or Step 3h (`extract_deep_*`).
+4. Exclude import-only functions (those with no decompiled code in the DB) -- these are typically the sink itself (e.g. `wcscpy_s`), not an analyzable intermediate.
+5. Cap at **3 callees**. Sort by taint finding score descending.
+
+Extract each selected callee with a tracked workspace step:
+
+```
+python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> \
+    --function <callee_name> --json \
+    --workspace-dir <run_dir> --workspace-step extract_taint_<N>
+```
+
+(e.g. `extract_taint_1`, `extract_taint_2`, `extract_taint_3`)
+
+**What each extraction resolves during synthesis:**
+
+The extracted callee's code enables the synthesizer to:
+- Confirm or refute the taint tool's severity score by reading the actual allocation, copy, and validation logic
+- Identify implicit guards the taint engine missed (e.g., `_s`-suffix functions with counted sizes, allocation size that tracks string length)
+- Detect latent issues the taint engine cannot model (e.g., 32-bit arithmetic truncation before allocation, unbounded manual `wcslen` loops, missing `maxcount` IDL attributes)
+
+During Step 6 synthesis, read all `extract_taint_*` payloads when assessing concerns C1 and C5. Reference findings with their source: e.g., *"(Source: taint-path callee `AiBuildAxISParams`, manual review of allocation arithmetic)"*. If the manual review changes the effective severity from the taint tool's reported level, state the adjustment and evidence in the concern entry (e.g., *"Taint tool reported HIGH (0.636); downgraded to MEDIUM after confirming LRPC transport caps prevent the 32-bit overflow precondition"*).
+
+> **Run steps 2 + 3 + 3b + 3e in parallel** -- they are independent. Step 3c depends on steps 2 + 3f (needs `dangerous_apis_direct` from dossier and, for thin wrappers, the callee ID + `outbound_xrefs` from extract_callee). Step 3d is a file read with no dependencies. Step 3f (and its depth-2/3/4 extensions) depends on steps 2 + 3; each deeper level depends on the previous level's extract result. **Step 3h runs in parallel with 3c/3d/3e/3f** once steps 2 + 3b complete. Step 3g depends on step 2 (needs `is_rpc_handler` from dossier). **Step 3i runs after Step 3e completes** (needs taint forward findings to select callees); it can run in parallel with 3c/3d/3f/3g/3h since it has no dependency on them.
 
 ### 4. Trace call chain
 
@@ -260,7 +308,7 @@ Returns the function's role, category, interest score, and classification signal
 
 ### 6. Synthesize audit report
 
-Read the workspace results from all steps (2, 3, 3b, 3c, 3d, 3e, 3f + depth-2/3/4 extractions if run, 3g, 3h `extract_deep_*` if run, 4, 5) and combine all findings into a structured report.
+Read the workspace results from all steps (2, 3, 3b, 3c, 3d, 3e, 3f + depth-2/3/4 extractions if run, 3g, 3h `extract_deep_*` if run, 3i `extract_taint_*` if run, 4, 5) and combine all findings into a structured report.
 
 **IMPORTANT -- workspace results.json envelope structure**: Every `results.json` file written by the workspace bootstrap has this shape:
 ```json
@@ -548,10 +596,11 @@ Use `subagent_type="re-analyst"` (or `"verifier"`) with `readonly: true`. Pass i
 6. The **function's decompiled code** (from `<run_dir>/extract/results.json` `stdout.decompiled_code` field)
 7. The **function's assembly code** (from `<run_dir>/extract/results.json` `stdout.assembly_code` field) -- required for ground-truth checks such as confirming hardcoded argument values, bit-test instructions, and calling conventions
 8. The **primary callee's decompiled code** (from `<run_dir>/extract_callee/results.json` `stdout.decompiled_code`, if Step 3f ran) -- required for verifying concerns about callee-level alternate paths and flag gating
-9. The **module profile `security_posture` section** (ASLR/DEP/CFG/SEH flags only)
-10. The **Data Interpretation Rules** (param_risk_score is 0-1, noise_ratio is 0-1, attack_score is 0-1)
-11. The **draft specific concerns list** with their assigned severities, checklist IDs, and cited source fields
-12. The **draft dimension scores** with their key data points
+9. The **taint-path callee decompiled code** (from `<run_dir>/extract_taint_*/results.json` `stdout.decompiled_code`, if Step 3i ran) -- required for verifying severity adjustments where the synthesizer upgraded or downgraded a taint finding's severity based on reading the intermediate callee's allocation, copy, or validation logic
+10. The **module profile `security_posture` section** (ASLR/DEP/CFG/SEH flags only)
+11. The **Data Interpretation Rules** (param_risk_score is 0-1, noise_ratio is 0-1, attack_score is 0-1)
+12. The **draft specific concerns list** with their assigned severities, checklist IDs, and cited source fields
+13. The **draft dimension scores** with their key data points
 
 **Subagent prompt template:**
 
@@ -588,6 +637,9 @@ DECOMPILED CODE (target function):
 
 DECOMPILED CODE (primary callee, if available from extract_callee step):
 <paste decompiled code for the primary callee>
+
+DECOMPILED CODE (taint-path callee(s), if available from extract_taint_* steps):
+<paste decompiled code for each taint-path callee, labeled by function name>
 
 ASSEMBLY CODE (target function, if needed for ground-truth checks):
 <paste assembly code for the target function>

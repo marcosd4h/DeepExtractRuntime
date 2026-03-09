@@ -12,11 +12,11 @@
       "json_output": false
     },
     "brainstorming": {
-      "purpose": "Collaborate on VR research strategy and design before implementation via structured dialogue",
-      "type": "documentation",
+      "purpose": "Strategic VR planning: campaign strategy, cross-module campaigns, post-analysis re-planning, tool/skill design via structured dialogue",
+      "type": "methodology",
       "methodology_only": true,
       "entry_scripts": [],
-      "depends_on": [],
+      "depends_on": ["adversarial-reasoning"],
       "cacheable": false,
       "json_output": false
     },

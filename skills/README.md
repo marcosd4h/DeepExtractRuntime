@@ -35,7 +35,7 @@ arguments, dependencies, and caching contracts for each skill.
 | [state-machine-extractor](#state-machine-extractor) | analysis | Extract dispatch tables and state machines | 4 | Yes | decompiled-code-extractor |
 | [verify-decompiled](#verify-decompiled) | verification | Verify decompiler accuracy against assembly | 2 | Yes | decompiled-code-extractor |
 | [taint-analysis](#taint-analysis) | security | Trace tainted params to dangerous sinks with guard/bypass analysis | 5 | Yes | data-flow-tracer, callgraph-tracer, decompiled-code-extractor, com-interface-reconstruction |
-| [brainstorming](#brainstorming) | documentation | Collaborate on VR research strategy and design before implementation | -- | No | -- |
+| [brainstorming](#brainstorming) | methodology | Strategic VR planning: campaign strategy, cross-module campaigns, re-planning, tool design | -- | No | adversarial-reasoning |
 | [deep-context-builder](#deep-context-builder) | documentation | Build deep block-by-block understanding of decompiled functions | -- | No | decompiled-code-extractor, classify-functions, callgraph-tracer, data-flow-tracer, map-attack-surface |
 | [adversarial-reasoning](#adversarial-reasoning) | methodology | Hypothesis-driven VR methodology with Windows attack pattern playbooks | -- | No | classify-functions, map-attack-surface, security-dossier, taint-analysis, data-flow-tracer, callgraph-tracer |
 | [import-export-resolver](#import-export-resolver) | analysis | Resolve PE import/export relationships across modules | 4 | Yes | decompiled-code-extractor |
@@ -103,8 +103,8 @@ flowchart BT
 
     subgraph documentation [Documentation]
         analyzeIdaDecompiled["analyze-ida-decompiled"]
-        brainstorming["brainstorming"]
         deepContextBuilder["deep-context-builder"]
+        brainstorming["brainstorming"]
     end
 
     callgraphTracer --> decompiledCodeExtractor
@@ -142,6 +142,7 @@ flowchart BT
     taintAnalysis --> dataFlowTracer
     taintAnalysis --> callgraphTracer
     taintAnalysis --> decompiledCodeExtractor
+    brainstorming --> adversarialReasoning
     adversarialReasoning --> classifyFunctions
     adversarialReasoning --> mapAttackSurface
     adversarialReasoning --> securityDossier
@@ -705,18 +706,21 @@ before diving into decompiled code.
 
 #### brainstorming
 
-A documentation skill for collaborative VR research planning. Guides the
-agent through a structured dialogue workflow: gather context from
-available modules and prior analysis, ask focused questions about target,
-vulnerability hypothesis, threat model, and scope, propose 2-3 analysis
-approaches mapped to available skills and commands, present a design for
-approval, and transition to an implementation plan via CreatePlan. Has no
-dependencies and no scripts -- it teaches the agent how to plan before
-acting.
+A methodology skill for strategic VR research planning. Operates in four
+modes: **campaign** (single-module strategic planning with workflow
+selection), **cross-module** (coordinated multi-module campaigns),
+**replan** (post-analysis re-planning from prior results and cached data),
+and **design** (structured tool/skill/agent/command design following
+authoring guides). Includes end-to-end pipeline templates for common VR
+scenarios, a research phase reference mapping needs to all 29 skills, and
+a 10-point design checklist. Reads **adversarial-reasoning** on demand
+for Windows security mental models and the research prioritization rubric
+when composing VR campaign pipelines.
 
-**Typical use:** Invoked via the `/brainstorm` command or when a user
-requests help planning a vulnerability research campaign, analysis
-strategy, or new tool/skill design.
+**Typical use:** Invoked via the `/brainstorm` command. Use for strategic
+decisions ("which workflow should I use?", "what should I investigate
+next?", "how should this new skill be designed?"). For single-module
+hypothesis-driven VR, recommend `/hunt` instead.
 
 ---
 

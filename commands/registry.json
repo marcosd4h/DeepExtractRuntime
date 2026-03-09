@@ -167,12 +167,12 @@
       "workspace_protocol": false
     },
     "brainstorm": {
-      "purpose": "Collaboratively plan a VR campaign, analysis strategy, or tool design before implementation",
+      "purpose": "Strategic VR planning: campaign strategy, cross-module campaigns, post-analysis re-planning, tool/skill design",
       "file": "brainstorm.md",
       "skills_used": [],
-      "methodologies_used": ["brainstorming"],
+      "methodologies_used": ["brainstorming", "adversarial-reasoning"],
       "agents_used": [],
-      "parameters": "[topic]",
+      "parameters": "[module] | cross <mod1> <mod2> | replan | design <topic>",
       "grind_loop": false,
       "workspace_protocol": false
     },

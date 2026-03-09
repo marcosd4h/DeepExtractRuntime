@@ -31,7 +31,7 @@ Documentation: https://cursor.com/docs/context/commands
 | `/verify-batch`      | `verify-batch.md`      | Verify decompiler accuracy for a batch of functions or an entire class                             |
 | `/health`            | `health.md`            | Pre-flight workspace validation: check extraction data, DBs, skills, and config                   |
 | `/taint`             | `taint.md`             | Trace attacker-controlled inputs to dangerous sinks with guard/bypass analysis                     |
-| `/brainstorm`        | `brainstorm.md`        | Collaboratively plan a VR campaign, analysis strategy, or tool design before implementation        |
+| `/brainstorm`        | `brainstorm.md`        | Strategic VR planning: campaign strategy, cross-module campaigns, post-analysis re-planning, tool/skill design |
 | `/hunt`              | `hunt.md`              | Hypothesis-driven VR: campaign planning, attack pattern matching, variant analysis, validation     |
 | `/hunt-execute`      | `hunt-execute.md`      | Execute a `/hunt` research plan: run investigation commands, collect evidence, score confidence    |
 | `/batch-audit`       | `batch-audit.md`       | Audit top N entry points or privilege-boundary handlers in parallel with consolidated security and exploitability report |
@@ -95,7 +95,7 @@ flowchart TD
     Code --> LiftClass["/lift-class module class"]
     Code --> ReconstructTypes["/reconstruct-types module"]
 
-    Plan --> Brainstorm["/brainstorm topic"]
+    Plan --> Brainstorm["/brainstorm module | cross | replan | design"]
 
     Start --> Utils["Utilities"]
     Utils --> Health["/health -- diagnose workspace issues"]
@@ -120,7 +120,10 @@ Type `/` in the Cursor chat input to see all available commands, then select one
 /search CreateProcess
 /runs latest appinfo.dll
 /reconstruct-types appinfo.dll CSecurityDescriptor
-/brainstorm privilege escalation in appinfo.dll
+/brainstorm appinfo.dll
+/brainstorm cross appinfo.dll consent.exe
+/brainstorm replan
+/brainstorm design new-detection-skill
 /hunt appinfo.dll
 /hunt hypothesis TOCTOU appinfo.dll
 /hunt variant junction appinfo.dll
@@ -572,7 +575,7 @@ Some commands reference **methodology skills** -- documentation-only skills that
 | `/hunt`          | adversarial-reasoning    | Hypothesis generation, attack pattern matching, and variant analysis guide research planning |
 | `/hunt-execute`  | finding-verification     | Each hypothesis is validated against evidence with confidence scoring                       |
 | `/scan`          | finding-verification     | Detected vulnerabilities are verified to eliminate false positives before reporting          |
-| `/brainstorm`    | brainstorming            | Structured dialogue framework for collaborative VR research planning                        |
+| `/brainstorm`    | brainstorming, adversarial-reasoning | Strategic planning with pipeline templates; reads adversarial-reasoning on demand for VR campaigns |
 
 ## Vulnerability Scanning: `/scan` vs Focused Commands
 
