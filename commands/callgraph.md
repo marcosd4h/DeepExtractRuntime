@@ -75,6 +75,14 @@ python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --le
 python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --neighbors <function_name> --json
 ```
 
+When a specific function is queried, also enrich with classification metadata from the **re-analyst** agent:
+
+```bash
+python .agent/agents/re-analyst/scripts/re_query.py <db_path> --function <function_name> --context --json
+```
+
+Extract **only classification metadata** (category, interest) to annotate the target function and hub neighbors in the diagram and neighborhood table. Do NOT display decompiled code.
+
 **Path between two functions** (`--path`):
 
 ```bash

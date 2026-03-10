@@ -54,135 +54,35 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name> --json
 ```
 
-2. **Create grind-loop scratchpad**
+### Run scan via security-auditor
 
-```markdown
-# Task: Vulnerability Scan -- <module>
+2. **Execute the full scan pipeline**
+   Use the **security-auditor** agent's `run_security_scan.py` to run the complete 6-phase pipeline in one call:
 
-## Items
-- [ ] Phase 1: Detection (memory + logic + taint)
-- [ ] Phase 2: Merge and deduplicate
-- [ ] Phase 3: Verify findings
-- [ ] Phase 4: Score exploitability
-- [ ] Phase 5: Synthesize report
+   ```bash
+   # Full module scan
+   python .agent/agents/security-auditor/scripts/run_security_scan.py <db_path> --goal scan --json
 
-## Status
-IN_PROGRESS
-```
+   # Function-specific scan
+   python .agent/agents/security-auditor/scripts/run_security_scan.py <db_path> --goal audit --function <name> --json
 
-### Phase 1: Detection (Parallel)
+   # Limit top findings
+   python .agent/agents/security-auditor/scripts/run_security_scan.py <db_path> --goal scan --top 15 --json
+   ```
 
-Run all three detection pipelines concurrently. For `--memory-only`, `--logic-only`, or `--taint-only` modes, run only the specified pipeline.
+   The script handles all phases internally with parallel execution and deduplication:
+   - **Phase 1 (Recon)**: Classify functions, discover entry points, rank by attack value, gather IPC context (RPC/COM/WinRT)
+   - **Phase 2 (Vulnerability Scanning)**: Memory corruption (4 scanners) + logic vulnerability (4 scanners) in parallel
+   - **Phase 3 (Taint Analysis)**: Taint analysis on top ranked entry points
+   - **Phase 4 (Verification)**: `verify_findings.py` for both memory and logic findings
+   - **Phase 5 (Exploitability)**: `assess_finding.py` / `batch_assess.py` with mitigation, guard bypass, and primitive quality scoring
+   - **Phase 6 (Synthesis)**: Merged, deduplicated, severity-ranked findings report
 
-**a. Memory corruption detection** (4 scanners in parallel):
+   **Cache bypass:** When the user specifies `--no-cache`, pass `--no-cache` to `run_security_scan.py`.
 
-```bash
-python .agent/skills/memory-corruption-detector/scripts/scan_buffer_overflows.py <db_path> --json
-python .agent/skills/memory-corruption-detector/scripts/scan_integer_issues.py <db_path> --json
-python .agent/skills/memory-corruption-detector/scripts/scan_use_after_free.py <db_path> --json
-python .agent/skills/memory-corruption-detector/scripts/scan_format_strings.py <db_path> --json
-```
+   **Mode mapping:** `--memory-only`, `--logic-only`, and `--taint-only` modes are not directly supported by `run_security_scan.py`. For these, fall back to running the individual skill scripts directly (as documented in the memory-corruption-detector, logic-vulnerability-detector, and taint-analysis skills respectively).
 
-**b. Logic vulnerability detection** (4 scanners in parallel):
-
-```bash
-python .agent/skills/logic-vulnerability-detector/scripts/scan_auth_bypass.py <db_path> --top 20 --json
-python .agent/skills/logic-vulnerability-detector/scripts/scan_state_errors.py <db_path> --json
-python .agent/skills/logic-vulnerability-detector/scripts/scan_logic_flaws.py <db_path> --top 20 --json
-python .agent/skills/logic-vulnerability-detector/scripts/scan_api_misuse.py <db_path> --top 20 --json
-```
-
-**c. Taint analysis on top entry points:**
-
-First discover entry points:
-
-```bash
-python .agent/skills/map-attack-surface/scripts/discover_entrypoints.py <db_path> --json
-python .agent/skills/map-attack-surface/scripts/rank_entrypoints.py <db_path> --json --top 5
-```
-
-Then run taint analysis on the top 5 ranked entry points:
-
-```bash
-python .agent/skills/taint-analysis/scripts/taint_function.py <db_path> --id <fid> --depth 2 --json
-```
-
-**Cache bypass:** When `--no-cache` is specified, append `--no-cache` to each scanner invocation above.
-
-**Single-function mode:** If a function is specified, run all scanners with `--id <fid>` and taint analysis on that specific function. Skip entry point discovery.
-
-Check off Phase 1.
-
-### Phase 2: Merge and Deduplicate
-
-Combine findings from all three pipelines into a unified findings list:
-
-1. Normalize each finding to a common schema: `{function_name, function_id, category, subcategory, severity, score, evidence, source_pipeline}`
-2. Deduplicate by `(function_id, category)` -- keep the higher-scoring finding when duplicates exist
-3. Cross-reference: if a taint analysis finding and a memory corruption finding target the same function, boost the combined score (intersection of attacker-reachable + vulnerable = higher risk)
-4. Sort by score descending
-
-Write merged findings to `<run_dir>/merged/results.json`.
-
-Check off Phase 2.
-
-### Phase 3: Verify Findings
-
-Run independent verification for each pipeline's findings:
-
-```bash
-python .agent/skills/memory-corruption-detector/scripts/verify_findings.py \
-    --findings <memory_findings.json> --db-path <db_path> --json
-
-python .agent/skills/logic-vulnerability-detector/scripts/verify_findings.py \
-    --findings <logic_findings.json> --db-path <db_path> --json
-```
-
-Apply verification adjustments:
-- FALSE_POSITIVE findings are removed
-- UNCERTAIN findings get a 50% score reduction
-- CONFIRMED findings retain full score
-
-Write verified findings to `<run_dir>/verified/results.json`.
-
-Check off Phase 3.
-
-### Phase 4: Score Exploitability
-
-For all CRITICAL and HIGH severity verified findings, run exploitability assessment.
-The assessor now accepts findings from **all scanner types** (taint, memory-corruption, and logic-vulnerability):
-
-```bash
-# Combined assessment of all finding types
-python .agent/skills/exploitability-assessment/scripts/assess_finding.py \
-    --taint-report <taint_results.json> \
-    --memory-findings <memory_results.json> \
-    --logic-findings <logic_results.json> \
-    --module-db <db_path> \
-    [--dossier <dossier.json>] \
-    [--verify-report <verify.json>] \
-    --json
-```
-
-Optional enrichment: `--dossier` (from `build_dossier.py`) and `--verify-report` (from `verify_function.py`) provide additional context for more accurate exploitability scoring. Include them when Phase 3 verification or a prior `/audit` run produced these artifacts.
-
-For batch processing of entry points:
-
-```bash
-python .agent/skills/exploitability-assessment/scripts/batch_assess.py <db_path> --json
-```
-
-The assessment considers:
-- Mitigations (ASLR/DEP/CFG/CET) and their effectiveness against the finding category
-- Guard bypass difficulty (including constraint feasibility analysis)
-- Primitive quality (arbitrary read/write, code execution, DoS)
-- Reachability from entry points
-
-Write scored findings to `<run_dir>/exploitability/results.json`.
-
-Check off Phase 4.
-
-### Phase 5: Synthesize Report
+### Synthesize Report
 
 **Executive Summary:**
 - Module identity and security posture

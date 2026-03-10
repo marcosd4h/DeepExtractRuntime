@@ -47,6 +47,9 @@ from helpers.errors import safe_parse_args
 
 RE_VAR = re.compile(r"\b(a\d+|v\d+)\b")
 RE_NULL_ASSIGN = re.compile(r"\b(a\d+|v\d+)\s*=\s*(?:0|NULL|nullptr|0LL|0i64)\s*;")
+RE_STRUCT_FIELD_NULL = re.compile(
+    r"(?:this|self|\w+)\s*->\s*\w+\s*=\s*(?:0|NULL|nullptr|0LL|0i64)\s*;",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -84,13 +87,26 @@ def _extract_freed_var(call: dict) -> str | None:
 
 
 def _is_null_after_free(lines: list[str], free_line: int, freed_var: str) -> bool:
-    """Check if the freed variable is set to NULL shortly after the free call."""
-    search_end = min(free_line + 5, len(lines))
+    """Check if the freed variable is nulled or safely reassigned after free.
+
+    Searches up to 50 lines after the free call for:
+    - Direct null assignment: ``var = NULL;``
+    - Struct-field null assignment when *freed_var* appears in the LHS
+    - Re-assignment via any allocator API (HeapAlloc, malloc, etc.)
+    """
+    search_end = min(free_line + 50, len(lines))
     for i in range(free_line, search_end):
         stripped = lines[i].strip()
         m = RE_NULL_ASSIGN.match(stripped)
         if m and m.group(1) == freed_var:
             return True
+        if RE_STRUCT_FIELD_NULL.match(stripped) and freed_var in stripped:
+            return True
+        assign_match = re.match(rf"\s*{re.escape(freed_var)}\s*=", stripped)
+        if assign_match:
+            for alloc in ALLOC_APIS:
+                if alloc in stripped:
+                    return True
     return False
 
 

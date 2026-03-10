@@ -35,16 +35,13 @@ from typing import Any, Optional
 from .config import get_config_value
 from .db_paths import module_name_from_path
 from .errors import log_warning
+from .sddl_parser import is_permissive_sddl as _sddl_is_permissive
 
 _log = logging.getLogger(__name__)
 
 _WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 
 _GUID_RE = re.compile(r'\[Guid\("([0-9a-fA-F-]+)"\)\]')
-_PERMISSIVE_SDDL_SIDS = {"WD", "AC", "AU", "IU", "S-1-1-0", "S-1-15-2-1"}
-_ALLOW_ACE_RE = re.compile(r"\(A[^)]*;;;(" + "|".join(
-    re.escape(s) for s in _PERMISSIVE_SDDL_SIDS
-) + r")\)", re.IGNORECASE)
 
 _SYSTEM_USERNAMES = {"localsystem", "nt authority\\system", "system"}
 
@@ -71,6 +68,15 @@ class ComAccessContext(enum.Enum):
 
     def __str__(self) -> str:
         return self.name.lower()
+
+
+# Priority order for caller integrity levels (lower = more dangerous)
+_CALLER_IL_PRIORITY = {
+    "appcontainer": 0,
+    "low": 1,
+    "medium": 2,
+    "high": 3,
+}
 
 
 # ---------------------------------------------------------------------------
@@ -227,28 +233,41 @@ class ComServer:
     def method_count(self) -> int:
         return len(self.methods_flat)
 
-    def risk_tier(self, context: Optional[ComAccessContext] = None) -> str:
+    def risk_tier(
+        self,
+        context: Optional[ComAccessContext] = None,
+        *,
+        caller_il_override: Optional[str] = None,
+    ) -> str:
         """Compute risk tier based on server properties and access context.
 
-        The risk model centers on privilege-boundary crossing:
-        a medium-IL caller reaching a SYSTEM server is the highest risk.
+        The risk model centers on privilege-boundary crossing.
+        ``caller_il_override`` can be set to ``"low"`` or ``"appcontainer"``
+        to assess risk for lower-privilege callers (which represent a
+        *larger* privilege gap when targeting SYSTEM services).
         """
-        is_medium_il = False
+        caller_il: Optional[str] = caller_il_override
         is_privileged = False
 
-        if context is not None:
-            is_medium_il = context.caller_il == "medium"
+        if caller_il is None and context is not None:
+            caller_il = context.caller_il
             is_privileged = context.is_privileged_server
-        else:
+        elif caller_il is None:
             for ctx in self.access_contexts:
-                if ctx.caller_il == "medium":
-                    is_medium_il = True
+                ctx_il = ctx.caller_il
+                if caller_il is None or _CALLER_IL_PRIORITY.get(ctx_il, 99) < _CALLER_IL_PRIORITY.get(caller_il, 99):
+                    caller_il = ctx_il
                 if ctx.is_privileged_server:
                     is_privileged = True
 
-        if is_medium_il and is_privileged and self.is_out_of_process and self.runs_as_system:
+        if context is not None and not is_privileged:
+            is_privileged = context.is_privileged_server
+
+        is_low_trust = caller_il in ("low", "appcontainer", "medium")
+
+        if is_low_trust and is_privileged and self.is_out_of_process and self.runs_as_system:
             return "critical"
-        if is_medium_il and self.is_out_of_process and (self.has_permissive_launch or self.can_elevate):
+        if is_low_trust and self.is_out_of_process and (self.has_permissive_launch or self.can_elevate):
             return "high"
         if is_privileged and self.is_out_of_process and self.runs_as_system:
             return "medium"
@@ -314,10 +333,13 @@ def _parse_guid_from_pseudo_idl(lines: list[str]) -> str:
 
 
 def _is_permissive_sddl(sddl: str) -> bool:
-    """Check if an SDDL string grants wide access via an Allow ACE."""
-    if not sddl:
-        return False
-    return bool(_ALLOW_ACE_RE.search(sddl))
+    """Check if an SDDL string grants wide access (Deny-aware).
+
+    Delegates to ``sddl_parser.is_permissive_sddl`` which evaluates
+    Deny ACEs before Allow ACEs, so a Deny for WD/AC correctly
+    overrides a subsequent Allow.
+    """
+    return _sddl_is_permissive(sddl)
 
 
 def _parse_server_detail(clsid: str, raw: dict, hosting_binary: str = "") -> ComServer:

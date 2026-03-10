@@ -44,31 +44,25 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 
 > **Tip:** All skill scripts support `--json` for machine-readable output. Use `--json` when parsing script output programmatically.
 
-2. **Binary identity and security posture**
-   The session context "Module Profiles" section already contains library noise ratio, dangerous API categories, technology surface flags, complexity metrics, and canary coverage from `module_profile.json`. Use these for initial orientation.
-   Use the **generate-re-report** skill (`generate_report.py --summary`) for the full report covering: name, architecture, hashes, PDB path, compiler info (Rich header), security features (ASLR/DEP/CFG), and import/export counts.
-   Alternatively, read `file_info.json` or `module_profile.json` from `extracted_code/<module_folder>/` for programmatic lookups.
+2. **Run triage via triage-coordinator**
+   Use the **triage-coordinator** agent's `analyze_module.py` to run the full triage pipeline in one call:
 
-3. **Classify all functions**
-   The noise ratio (app vs library breakdown) is already available from `module_profile.json` in session context -- check the "Module Profiles" section first. Only run `python .agent/skills/function-index/scripts/index_functions.py <module> --stats` if the profile is missing. Use `--app-only` flag on `triage_summary.py` to exclude boilerplate.
-   The index now includes `function_id`, `has_decompiled`, and `has_assembly`; use these directly for filtering and metadata, and fetch full records via `db.get_function_by_id(function_id)` when needed.
-   Use the **classify-functions** skill (`triage_summary.py --top 15`) to categorize every function by purpose (file I/O, registry, network, crypto, security, telemetry, dispatch, etc.).
-   Expected output: category distribution, noise ratio, top interesting functions ranked by interest score.
+   ```bash
+   python .agent/agents/triage-coordinator/scripts/analyze_module.py <db_path> --goal triage --json
+   ```
 
-4. **Call graph topology**
-   Use the **callgraph-tracer** skill (`build_call_graph.py --stats`) to compute graph statistics: node/edge counts, hub functions, connectivity, leaves, and roots.
+   This returns structured JSON covering: binary identity, security posture, function classification (category distribution, noise ratio, top interesting functions), call graph topology (node/edge counts, hubs, connectivity), attack surface discovery (entry point types, ranked by attack value), and module fingerprinting (COM-heavy, RPC-heavy, dispatch-heavy trait detection). The coordinator handles adaptive routing based on detected module characteristics.
 
-5. **Attack surface discovery**
-   Use the **map-attack-surface** skill to discover all entry points (`discover_entrypoints.py`) and rank them by attack value (`rank_entrypoints.py --top 10`). This finds exports, COM methods, RPC handlers, callbacks, TLS callbacks, and more.
+   The session context "Module Profiles" section already contains pre-computed library noise ratio, dangerous API categories, technology surface flags, complexity metrics, and canary coverage from `module_profile.json`. Use these for additional orientation alongside the coordinator output.
 
-6. **Quick security scan** (conditional -- only when `--with-security` is specified)
-   Run `taint_function.py` from the **taint-analysis** skill on the top 3-5 ranked entry points from Step 5:
+3. **Quick security scan** (conditional -- only when `--with-security` is specified)
+   Run `taint_function.py` from the **taint-analysis** skill on the top 3-5 ranked entry points from Step 2:
    ```bash
    python .agent/skills/taint-analysis/scripts/taint_function.py <db_path> --id <fid> --depth 2 --json
    ```
    Collect any CRITICAL or HIGH severity findings. This is intentionally lightweight -- a quick signal of exploitable issues, not a comprehensive scan. For full vulnerability scanning, use `/scan`.
 
-7. **Synthesize triage report**
+4. **Synthesize triage report**
    Combine all findings into a structured report:
 
    - **Binary Identity**: name, size, hashes, compiler, PDB, security posture
@@ -81,10 +75,9 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 
 ## Step Dependencies
 
-- Steps 1 -> 2 are sequential (resolve then identify).
-- Steps 3 + 4 + 5 all depend on Step 1 only and are independent of each other -- run them concurrently.
-- Step 6 (when `--with-security`) depends on Step 5.
-- Step 7 depends on all previous steps.
+- Steps 1 -> 2 are sequential (resolve DB then run coordinator).
+- Step 3 (when `--with-security`) depends on Step 2 (needs ranked entry points from coordinator output).
+- Step 4 depends on all previous steps.
 
 ## Output
 

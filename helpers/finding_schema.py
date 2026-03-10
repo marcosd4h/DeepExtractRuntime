@@ -8,6 +8,8 @@ deduplication, and ranking via :mod:`helpers.finding_merge`.
 
 from __future__ import annotations
 
+import hashlib
+import math
 from dataclasses import asdict, dataclass, field
 from typing import Any, Optional
 
@@ -42,6 +44,34 @@ class Finding:
         """Key for deduplication: same function + same sink = one finding."""
         fid = self.function_id if self.function_id is not None else self.function_name
         return f"{fid}::{self.sink}::{self.source_category}"
+
+    @property
+    def path_signature(self) -> str:
+        """Hash of the sorted path elements, for path-aware dedup."""
+        canon = "|".join(sorted(self.path)) if self.path else ""
+        return hashlib.sha256(canon.encode()).hexdigest()[:16]
+
+
+def graduated_reachability_score(entry_type: str | None, hops: int) -> float:
+    """Compute a graduated reachability score based on entry type and hop distance.
+
+    Closer to the entry point = higher score.  Different entry types
+    start with different base values reflecting their typical attack
+    accessibility.
+
+    Returns a float in ``[0.0, 1.0]``.
+    """
+    base_map = {
+        "rpc_handler": 1.0,
+        "com_method": 0.9,
+        "export": 0.75,
+        "entry_point": 0.8,
+    }
+    base = base_map.get(entry_type or "", 0.4)
+    hop_factor = 1.0 / math.sqrt(max(hops, 1) + 1)
+    if entry_type in (None, "internal"):
+        base = min(base, 0.6)
+    return min(base * hop_factor, 1.0)
 
 
 def from_taint_finding(finding: dict, func_info: dict | None = None) -> Finding:

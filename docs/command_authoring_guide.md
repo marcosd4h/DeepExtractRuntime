@@ -375,9 +375,19 @@ Descriptive names make logs readable and debugging straightforward.
 
 ### 9.2 Match subagent type to the task
 
-Use the most appropriate `subagent_type` for the work: `re-analyst` for
-explanation tasks, `verifier` for verification, `code-lifter` for lifting.
-Don't route everything through `generalPurpose` when a specialized agent exists.
+Use the most appropriate `subagent_type` for the work:
+
+- `re-analyst` for explanation tasks and classification enrichment
+- `security-auditor` for security finding verification and severity validation
+- `verifier` for lifted-code verification against assembly
+- `code-lifter` for batch lifting with shared context
+- `triage-coordinator` scripts for triage and multi-skill orchestration
+- `type-reconstructor` scripts for struct/class reconstruction
+
+Don't route everything through `generalPurpose` when a specialized agent
+exists. In particular, use `security-auditor` (not `re-analyst`) for
+skeptical verification of security findings -- it has adversarial reasoning
+guidance, severity criteria, and a "rationalizations to reject" table.
 
 ### 9.3 Use readonly mode for validation subagents
 

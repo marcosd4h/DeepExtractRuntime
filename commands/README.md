@@ -168,7 +168,9 @@ When module is optional and omitted, commands should:
 
 **Output**: Structured triage report in chat. With `--with-security`, adds a quick security findings section based on lightweight taint results. Suggests `/explain` or `/verify` for quick follow-ups, and `/audit`, `/lift-class`, `/scan`, or `/full-report` for deeper analysis.
 
-**Skills used**: decompiled-code-extractor, generate-re-report, classify-functions, callgraph-tracer, map-attack-surface, taint-analysis (optional)
+**Agents used**: triage-coordinator (`analyze_module.py --goal triage` script)
+
+**Skills used**: decompiled-code-extractor, taint-analysis (optional, for `--with-security`)
 
 ---
 
@@ -187,6 +189,8 @@ When module is optional and omitted, commands should:
 7. Synthesizes an audit report with risk assessment (LOW/MEDIUM/HIGH/CRITICAL)
 
 **Output**: Security audit report with attack reachability, dangerous operations, decompiler accuracy, data flow concerns, and recommended next steps.
+
+**Agents used**: security-auditor (verification subagent)
 
 **Skills used**: decompiled-code-extractor, security-dossier, map-attack-surface, data-flow-tracer, verify-decompiled, callgraph-tracer, classify-functions, taint-analysis
 
@@ -232,7 +236,9 @@ When module is optional and omitted, commands should:
 
 **Uses grind loop**: Yes -- creates `.agent/hooks/scratchpads/{session_id}.md` with one checkbox per phase. The stop hook automatically re-invokes the agent until all phases are complete.
 
-**Skills used**: decompiled-code-extractor, generate-re-report, classify-functions, map-attack-surface, callgraph-tracer, com-interface-reconstruction, state-machine-extractor, data-flow-tracer, taint-analysis
+**Agents used**: triage-coordinator (`generate_analysis_plan.py` for adaptive routing), re-analyst (`explain_function.py` for entry point explanations)
+
+**Skills used**: decompiled-code-extractor, generate-re-report, classify-functions, map-attack-surface, callgraph-tracer, com-interface-reconstruction, state-machine-extractor, data-flow-tracer, taint-analysis, security-dossier
 
 ---
 
@@ -347,6 +353,8 @@ Examples:
 
 **Uses grind loop**: Yes -- one checkbox per hypothesis.
 
+**Agents used**: security-auditor (verification subagent)
+
 **Skills used**: taint-analysis, security-dossier, map-attack-surface, data-flow-tracer, verify-decompiled, callgraph-tracer, exploitability-assessment
 
 ---
@@ -416,11 +424,107 @@ Examples:
 **What it does**:
 
 1. Locates the function across analyzed modules
-2. Extracts inbound xrefs (callers) and outbound xrefs (callees)
-3. Classifies external callees by security API category
-4. Presents results as compact tables
+2. Enriches with classification metadata via re-analyst `re_query.py` (category, interest score)
+3. Extracts inbound xrefs (callers) and outbound xrefs (callees)
+4. Classifies external callees by security API category
+5. Presents results as compact tables annotated with category and interest
 
-**Output**: Callers table, callees table, summary line with counts and dangerous callee flags. Lightweight and fast.
+**Output**: Callers table, callees table (with category/interest columns for internal functions), summary line with counts and dangerous callee flags. Lightweight and fast.
+
+**Agents used**: re-analyst (`re_query.py` for classification metadata)
+
+**Skills used**: callgraph-tracer, function-index
+
+---
+
+### `/reconstruct-types` -- Type Reconstruction
+
+**Input**: `/reconstruct-types <module> [class] [--include-com] [--validate]` (e.g., `/reconstruct-types appinfo.dll CSecurityDescriptor`)
+
+**What it does**:
+
+1. Resolves the module DB
+2. Runs the full reconstruction pipeline via `reconstruct_all.py` (discover -> hierarchy -> scan -> merge -> COM -> header)
+3. Optionally validates against assembly via `validate_layout.py`
+
+**Output**: C++ header with struct/class definitions, per-field confidence annotations, and optional validation results.
+
+**Agents used**: type-reconstructor (`reconstruct_all.py` script, `validate_layout.py` for `--validate`)
+
+**Skills used**: reconstruct-types (underlying skill scripts called internally by `reconstruct_all.py`)
+
+---
+
+### `/scan` -- Unified Vulnerability Scan
+
+**Input**: `/scan <module> [function] [--top N] [--no-cache] [--auto-audit]` (e.g., `/scan appinfo.dll`)
+
+**What it does**:
+
+1. Resolves the module DB
+2. Runs the full 6-phase scan pipeline via `run_security_scan.py` (recon, scanning, taint, verification, exploitability, synthesis)
+
+**Output**: Consolidated, severity-ranked findings report with exploitability scores.
+
+**Agents used**: security-auditor (`run_security_scan.py` script)
+
+---
+
+### `/memory-scan` -- Memory Corruption Scan
+
+**Input**: `/memory-scan <module> [function] [--depth N]` (e.g., `/memory-scan appinfo.dll`)
+
+**What it does**: Scans for buffer overflows, integer overflow/truncation, use-after-free, double-free, and format string vulnerabilities. Includes chain scanning, taint cross-referencing, heuristic verification, and skeptical subagent verification.
+
+**Agents used**: security-auditor (Phase D2 verification subagent)
+
+**Skills used**: memory-corruption-detector, taint-analysis, batch-lift, decompiled-code-extractor, security-dossier, classify-functions
+
+---
+
+### `/logic-scan` -- Logic Vulnerability Scan
+
+**Input**: `/logic-scan <module> [function] [--depth N]` (e.g., `/logic-scan appinfo.dll`)
+
+**What it does**: Scans for authentication bypasses, state machine errors, TOCTOU, confused deputy, missing security checks, and API misuse. Includes chain scanning, taint cross-referencing, heuristic verification, and skeptical subagent verification.
+
+**Agents used**: security-auditor (Phase D2 verification subagent)
+
+**Skills used**: logic-vulnerability-detector, taint-analysis, batch-lift, decompiled-code-extractor, security-dossier, classify-functions
+
+---
+
+### `/taint` -- Taint Analysis
+
+**Input**: `/taint <module> <function> [--depth N] [--cross-module]` (e.g., `/taint appinfo.dll AiLaunchProcess`)
+
+**What it does**: Traces attacker-controlled inputs forward to dangerous sinks, identifies guards and bypass difficulty, and verifies findings with a skeptical subagent.
+
+**Agents used**: security-auditor (Step 4 verification subagent)
+
+**Skills used**: taint-analysis, security-dossier, map-attack-surface, data-flow-tracer, verify-decompiled, callgraph-tracer, exploitability-assessment
+
+---
+
+### `/data-flow` -- Data Flow Trace
+
+**Input**: `/data-flow forward|backward|string|globals <module> <function> [--param N] [--depth N]`
+
+**What it does**: Traces parameter flow, argument origins, global variable maps, and string usage chains. Enriches source/sink functions with classification metadata.
+
+**Agents used**: re-analyst (`re_query.py` for classification metadata on source/sink functions)
+
+**Skills used**: data-flow-tracer, decompiled-code-extractor, function-index
+
+---
+
+### `/callgraph` -- Call Graph Analysis
+
+**Input**: `/callgraph <module> [function] [--stats] [--scc] [--roots] [--leaves] [--diagram] [--path A B]`
+
+**What it does**: Builds, queries, and visualizes call graphs. In function neighborhood mode, enriches hub nodes with classification metadata.
+
+**Agents used**: re-analyst (`re_query.py` for classification metadata in `--neighbors` mode)
 
 **Skills used**: callgraph-tracer, function-index
 

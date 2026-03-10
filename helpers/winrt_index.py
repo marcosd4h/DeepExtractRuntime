@@ -35,16 +35,13 @@ from typing import Any, Optional
 from .config import get_config_value
 from .db_paths import module_name_from_path
 from .errors import log_warning
+from .sddl_parser import is_permissive_sddl as _sddl_is_permissive
 
 _log = logging.getLogger(__name__)
 
 _WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 
 _GUID_RE = re.compile(r'\[Guid\("([0-9a-fA-F-]+)"\)\]')
-_PERMISSIVE_SDDL_SIDS = {"WD", "AC", "AU", "IU", "S-1-1-0", "S-1-15-2-1"}
-_ALLOW_ACE_RE = re.compile(r"\(A[^)]*;;;(" + "|".join(
-    re.escape(s) for s in _PERMISSIVE_SDDL_SIDS
-) + r")\)", re.IGNORECASE)
 _STATEREPO_DLL = "windows.staterepository.dll"
 
 
@@ -182,9 +179,7 @@ class WinrtServer:
     @property
     def has_permissive_sddl(self) -> bool:
         sddl = self.server_permissions or self.default_access_permission or ""
-        if not sddl:
-            return False
-        return bool(_ALLOW_ACE_RE.search(sddl))
+        return _is_permissive_sddl(sddl)
 
     @property
     def is_remote_activatable(self) -> bool:
@@ -283,10 +278,13 @@ def _parse_guid_from_pseudo_idl(lines: list[str]) -> str:
 
 
 def _is_permissive_sddl(sddl: str) -> bool:
-    """Check if an SDDL string grants wide access via an Allow ACE."""
-    if not sddl:
-        return False
-    return bool(_ALLOW_ACE_RE.search(sddl))
+    """Check if an SDDL string grants wide access (Deny-aware).
+
+    Delegates to ``sddl_parser.is_permissive_sddl`` which evaluates
+    Deny ACEs before Allow ACEs, so a Deny for WD/AC correctly
+    overrides a subsequent Allow.
+    """
+    return _sddl_is_permissive(sddl)
 
 
 def _parse_server_detail(raw: dict, hosting_binary: str = "") -> WinrtServer:

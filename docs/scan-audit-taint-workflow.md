@@ -10,6 +10,8 @@ This document describes the `/scan` command, how researchers drill down on findi
 
 The `/scan` command is a **unified vulnerability scan** that orchestrates multiple detection pipelines, verification, and exploitability scoring. It is the comprehensive alternative to running `/memory-scan`, `/logic-scan`, and `/taint` separately.
 
+**Primary mechanism:** The **security-auditor** agent's `run_security_scan.py` script handles the full 6-phase pipeline (recon, scanning, taint, verification, exploitability, synthesis) with parallel execution and deduplication. The individual skill scripts listed below are called internally by `run_security_scan.py`.
+
 | Pipeline | Scripts / Components |
 |----------|----------------------|
 | **Memory corruption** | `scan_buffer_overflows.py`, `scan_integer_issues.py`, `scan_use_after_free.py`, `scan_format_strings.py` |

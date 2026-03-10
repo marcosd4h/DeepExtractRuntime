@@ -38,6 +38,30 @@ _UUID_RE = re.compile(
     r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 )
 
+# RPC authentication level detection patterns for decompiled code
+RPC_AUTHN_LEVEL_RE = re.compile(
+    r"RPC_C_AUTHN_LEVEL_(DEFAULT|NONE|CONNECT|CALL|PKT|PKT_INTEGRITY|PKT_PRIVACY)"
+    r"|(?<!\w)(?:0x[0-6]|[0-6])(?=\s*[,;)\]])"  # numeric constants 0-6
+    r"|\bRpcServerRegisterAuthInfo\w*",
+    re.IGNORECASE,
+)
+
+RPC_SECURITY_CALLBACK_RE = re.compile(
+    r"RpcServerRegisterIfEx|RpcServerRegisterIf[23]Ex",
+    re.IGNORECASE,
+)
+
+# Named constants -> numeric values
+RPC_AUTHN_LEVEL_MAP = {
+    "RPC_C_AUTHN_LEVEL_DEFAULT": 0,
+    "RPC_C_AUTHN_LEVEL_NONE": 1,
+    "RPC_C_AUTHN_LEVEL_CONNECT": 2,
+    "RPC_C_AUTHN_LEVEL_CALL": 3,
+    "RPC_C_AUTHN_LEVEL_PKT": 4,
+    "RPC_C_AUTHN_LEVEL_PKT_INTEGRITY": 5,
+    "RPC_C_AUTHN_LEVEL_PKT_PRIVACY": 6,
+}
+
 
 # ---------------------------------------------------------------------------
 # Data model
@@ -71,6 +95,9 @@ class RpcInterface:
     file_version: str = ""
     company_name: str = ""
     product_version: str = ""
+
+    authn_level: Optional[str] = None
+    has_security_callback: bool = False
 
     @property
     def is_remote_reachable(self) -> bool:
@@ -133,6 +160,9 @@ class RpcInterface:
             d["file_version"] = self.file_version
         if self.company_name:
             d["company_name"] = self.company_name
+        if self.authn_level is not None:
+            d["authn_level"] = self.authn_level
+        d["has_security_callback"] = self.has_security_callback
         return d
 
 
@@ -677,6 +707,26 @@ def _load_json_file(path: Path) -> Any:
     except (json.JSONDecodeError, OSError) as exc:
         log_warning(f"Failed to parse RPC data {path}: {exc}", "PARSE_ERROR")
         return None
+
+
+def detect_rpc_authn_level(code: str) -> Optional[str]:
+    """Detect RPC_C_AUTHN_LEVEL_* constants in decompiled code.
+
+    Returns the named constant (e.g. ``"RPC_C_AUTHN_LEVEL_NONE"``)
+    if found, or None.
+    """
+    for name in RPC_AUTHN_LEVEL_MAP:
+        if name in code:
+            return name
+    return None
+
+
+def detect_rpc_security_callback(code: str) -> bool:
+    """Return True if the code registers a security callback via
+    ``RpcServerRegisterIfEx`` or ``RpcServerRegisterIf2Ex`` /
+    ``RpcServerRegisterIf3Ex``.
+    """
+    return bool(RPC_SECURITY_CALLBACK_RE.search(code))
 
 
 

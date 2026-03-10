@@ -17,11 +17,11 @@ The text after `/reconstruct-types` specifies a **module** and optionally a **cl
 
 ## Workspace Protocol
 
-This command invokes multiple scripts (list_types, extract_class_hierarchy, scan_struct_fields, generate_header, optionally COM + validate):
+This command uses the **type-reconstructor** agent's `reconstruct_all.py` pipeline, plus optional validation:
 
 1. Create `.agent/workspace/<module>_reconstruct_types_<timestamp>/`.
-2. Pass `--workspace-dir <run_dir>` and `--workspace-step <step_name>` to each skill invocation.
-3. Keep only summary output in context; read full intermediate data from `<run_dir>/<step_name>/results.json` when generating the final header.
+2. Pass `--workspace-dir <run_dir>` and `--workspace-step reconstruct` to the `reconstruct_all.py` invocation.
+3. Keep only summary output in context; read full intermediate data from `<run_dir>/reconstruct/results.json` when presenting results.
 4. Use `<run_dir>/manifest.json` to track completed/failed steps.
 
 ## Execution Context
@@ -43,51 +43,26 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 
 > **Tip:** All skill scripts support `--json` for machine-readable output. Use `--json` when parsing script output programmatically.
 
-2. **Discover types**
-   Use the **reconstruct-types** skill (`list_types.py`) to list all classes and struct candidates in the module:
+2. **Reconstruct types via type-reconstructor**
+   Use the **type-reconstructor** agent's `reconstruct_all.py` to run the full reconstruction pipeline in one call. This covers: type discovery, class hierarchy extraction, struct field scanning, evidence merging (conflict resolution, padding inference, confidence scoring), and header generation.
 
    ```bash
-   python .agent/skills/reconstruct-types/scripts/list_types.py <db_path>
-   python .agent/skills/reconstruct-types/scripts/list_types.py <db_path> --json
+   # Single class
+   python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --class <ClassName> --json
+
+   # Full module
+   python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --json
+
+   # With COM interface reconstruction
+   python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --include-com --json
+
+   # With output file
+   python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --output <path> --json
    ```
 
-   If a specific class is requested, confirm it exists in the output.
+   If the user requests `--include-com`, pass `--include-com` to `reconstruct_all.py`. If the user requests `--output`, pass `--output <path>`.
 
-3. **Extract class hierarchy**
-   Use the **reconstruct-types** skill (`extract_class_hierarchy.py`) to find inheritance relationships:
-
-   ```bash
-   python .agent/skills/reconstruct-types/scripts/extract_class_hierarchy.py <db_path>
-   python .agent/skills/reconstruct-types/scripts/extract_class_hierarchy.py <db_path> --class <ClassName>
-   ```
-
-4. **Scan struct fields**
-   Use the **reconstruct-types** skill (`scan_struct_fields.py`) to scan all functions for memory access patterns:
-
-   ```bash
-   python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> --all-classes
-   python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> --class <ClassName>
-   python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> --all-classes --app-only
-   ```
-
-   For a single class, use `--class`. For the whole module, use `--all-classes`. Add `--app-only` to skip library functions.
-
-5. **Generate header**
-   Use the **reconstruct-types** skill (`generate_header.py`) to produce a compilable C++ header:
-
-   ```bash
-   python .agent/skills/reconstruct-types/scripts/generate_header.py <db_path> --all-classes
-   python .agent/skills/reconstruct-types/scripts/generate_header.py <db_path> --class <ClassName> --output <path>
-   ```
-
-6. **Optional: COM interface reconstruction**
-   If the user requests `--include-com` or the module has COM/WRL interfaces:
-
-   ```bash
-   python .agent/skills/com-interface-reconstruction/scripts/scan_com_interfaces.py <db_path>
-   ```
-
-7. **Optional: Validate against assembly**
+3. **Optional: Validate against assembly**
    If the user requests `--validate`, use the **type-reconstructor** agent's `validate_layout.py`:
 
    ```bash
@@ -97,13 +72,11 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 ### Step Dependencies
 
 - Step 1 is the starting point.
-- Steps 2 + 3 are independent and can run concurrently (type listing + hierarchy extraction).
-- Step 4 depends on Step 1 (needs DB path; does not depend on Steps 2-3).
-- Step 5 depends on Step 4 (needs scanned field data).
-- Step 6 is optional and depends on Step 1 (needs DB path; operates on the DB directly, not the generated header). Step 7 is optional and depends on Step 5 (needs the generated header to validate). Steps 6 + 7 are independent of each other.
-- Step 8 depends on all previous steps.
+- Step 2 depends on Step 1 (needs DB path). It runs the full pipeline internally (discover -> hierarchy -> scan -> merge -> COM -> header).
+- Step 3 is optional and depends on Step 2 (needs the generated header to validate).
+- Step 4 depends on all previous steps.
 
-8. **Present results**
+4. **Present results**
    - **Type Summary**: total classes/structs found, inheritance graph
    - **Struct Definitions**: C++ header with field names, types, offsets, and confidence per field
    - **Confidence Overview**: high/medium/low confidence field counts

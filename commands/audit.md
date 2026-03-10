@@ -558,7 +558,7 @@ After Step 6 produces the draft report, launch a **separate subagent** to indepe
 
 **Subagent call:**
 
-Use `subagent_type="re-analyst"` (or `"verifier"`) with `readonly: true`. Pass it a self-contained prompt containing:
+Use `subagent_type="security-auditor"` with `readonly: true`. Pass it a self-contained prompt containing:
 
 1. The **severity criteria** (the CRITICAL/HIGH/MEDIUM/LOW rules from the Required Output Format above)
 2. The **raw dossier summary JSON** (from `<run_dir>/dossier/summary.json`)

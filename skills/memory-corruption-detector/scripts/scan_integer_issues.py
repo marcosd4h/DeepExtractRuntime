@@ -61,6 +61,14 @@ RE_SHIFT_LEFT = re.compile(
     r"\b(a\d+|v\d+)\s*<<\s*(\d+|a\d+|v\d+)",
 )
 
+RE_CMP_OVERFLOW = re.compile(
+    r"\bcmp\s+(?:eax|rax|ecx|rcx|edx|rdx|r8d?|r9d?)\s*,\s*"
+    r"(?:0x[fF]{4,}|\d{5,}|SIZE_MAX|MAXDWORD|UINT_MAX)\b",
+    re.IGNORECASE,
+)
+
+RE_ABOVE_JUMP = re.compile(r"\bj(?:a|ae|b|be)\b", re.IGNORECASE)
+
 RE_OVERFLOW_CHECK = re.compile(
     r"""
     \bif\s*\(
@@ -219,6 +227,14 @@ def _check_asm_mul_before_alloc(asm: str) -> list[dict[str, Any]]:
             if re.search(r"\bj[onc]\b", subsequent, re.IGNORECASE):
                 has_overflow_check = True
                 break
+            if RE_CMP_OVERFLOW.search(subsequent):
+                lookahead_end = min(j + 4, len(lines))
+                for k in range(j + 1, lookahead_end):
+                    if RE_ABOVE_JUMP.search(lines[k].strip()):
+                        has_overflow_check = True
+                        break
+                if has_overflow_check:
+                    break
             call_match = re.search(r"\bcall\s+.*?(\w+)", subsequent, re.IGNORECASE)
             if call_match:
                 target = call_match.group(1)

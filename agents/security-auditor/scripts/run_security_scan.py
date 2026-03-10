@@ -61,6 +61,31 @@ def _adaptive_timeout(function_count: int) -> int:
     return max(base, int(base + function_count * per_fn))
 
 
+def _adaptive_top_n(function_count: int, entry_count: int = 0) -> int:
+    """Compute adaptive top-N based on module size and entry point count.
+
+    Uses config keys under ``security_auditor``:
+    - ``top_n_base``            (default 5)
+    - ``top_n_per_100_functions`` (default 1)
+    - ``top_n_max``             (default 25)
+    - ``top_n_min``             (default 3)
+
+    The formula adds ``top_n_per_100_functions`` for every 100 functions
+    in the module, then clamps to ``[top_n_min, top_n_max]``.  If
+    *entry_count* exceeds the computed N, the result is raised to cover
+    at least 50% of discovered entry points (still capped by max).
+    """
+    base = int(get_config_value("security_auditor.top_n_base", 5))
+    per_100 = int(get_config_value("security_auditor.top_n_per_100_functions", 1))
+    top_max = int(get_config_value("security_auditor.top_n_max", 25))
+    top_min = int(get_config_value("security_auditor.top_n_min", 3))
+
+    n = base + (function_count // 100) * per_100
+    if entry_count > 0:
+        n = max(n, (entry_count + 1) // 2)
+    return max(top_min, min(n, top_max))
+
+
 def _with_flag(args: list[str], flag: str, enabled: bool) -> list[str]:
     """Return a copy of *args* with *flag* appended when enabled."""
     if not enabled or flag in args:
@@ -72,6 +97,22 @@ def _phase_workers(max_workers: int | None, step_count: int, default: int) -> in
     """Return the worker count for a phase, capped by step count."""
     cap = default if max_workers is None else max(1, max_workers)
     return max(1, min(cap, step_count))
+
+
+def _should_deepen_scan(findings: list[Finding]) -> bool:
+    """Return True if findings warrant deeper re-scan.
+
+    Triggers when:
+    - 2+ CRITICAL-severity findings
+    - 5+ HIGH-severity findings
+    - Top finding score >= 0.75
+    """
+    if not findings:
+        return False
+    critical = sum(1 for f in findings if f.severity == "CRITICAL")
+    high = sum(1 for f in findings if f.severity == "HIGH")
+    top_score = max(f.score for f in findings) if findings else 0.0
+    return critical >= 2 or high >= 5 or top_score >= 0.75
 
 
 # ---------------------------------------------------------------------------
@@ -305,6 +346,7 @@ def _phase_taint(
     *,
     max_workers: int | None = None,
     no_cache: bool = False,
+    depth: int = 2,
 ) -> dict:
     """Phase 3: Taint analysis on top entry points (or a specific function)."""
     results: dict = {}
@@ -318,7 +360,7 @@ def _phase_taint(
         future_map = {}
         for fname in targets:
             step_name = f"taint_{fname}"
-            taint_args = _with_flag([db_path, fname, "--depth", "2", "--json"], "--no-cache", no_cache)
+            taint_args = _with_flag([db_path, fname, "--depth", str(depth), "--json"], "--no-cache", no_cache)
             future = pool.submit(
                 run_skill_script,
                 "taint-analysis", "taint_function.py",
@@ -542,6 +584,9 @@ def run_security_pipeline(
 
     timeout = timeout_override or _adaptive_timeout(0)
 
+    if top_n <= 0:
+        top_n = _adaptive_top_n(0)
+
     progress = ProgressReporter(total=6, label="Security scan")
     all_results: dict = {}
     phase_log: list[dict] = []
@@ -640,6 +685,34 @@ def run_security_pipeline(
         isinstance(v, dict) and v.get("success") for v in verified.values()
     ) if verified else True)
     progress.update(4)
+
+    # Phase 4b: Feedback loop -- deeper taint when initial findings are severe
+    interim_report = _phase_report(all_results, workspace_dir)
+    interim_findings = interim_report.get("findings", [])
+    if _should_deepen_scan(interim_findings):
+        status_message("Phase 4b: High-severity findings detected -- re-scanning top functions at depth 4")
+        t0 = time.time()
+        deep_targets = []
+        seen_funcs: set[str] = set()
+        for f in interim_findings:
+            if f.function_name not in seen_funcs:
+                deep_targets.append(f.function_name)
+                seen_funcs.add(f.function_name)
+            if len(deep_targets) >= 3:
+                break
+
+        if deep_targets:
+            deep_taint = _phase_taint(
+                db_path, workspace_dir, timeout,
+                deep_targets, None,
+                max_workers=max_workers,
+                no_cache=no_cache,
+                depth=4,
+            )
+            all_results.update(deep_taint)
+            _log_phase("feedback_taint", t0, deep_taint, any(
+                isinstance(v, dict) and v.get("success") for v in deep_taint.values()
+            ) if deep_taint else True)
 
     # Phase 5: Exploitability assessment
     status_message("Phase 5/6: Scoring exploitability")

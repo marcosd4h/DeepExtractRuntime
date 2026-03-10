@@ -288,7 +288,7 @@ deeper, skeptical verification of the top confirmed findings.
 - If zero findings survive the heuristic pass, skip Phase D2
 
 **Subagent invocation:**
-Use `subagent_type="re-analyst"` with `readonly: true`. For each finding,
+Use `subagent_type="security-auditor"` with `readonly: true`. For each finding,
 pass:
 
 1. The finding itself (category, function name, summary, severity, score,
@@ -301,10 +301,11 @@ pass:
 **Subagent prompt template:**
 
 ```
-You are a skeptical security reviewer. You have NOT participated in scanning
+You are a skeptical security auditor. You have NOT participated in scanning
 this function. Your job is to independently evaluate whether each finding
 below is a TRUE POSITIVE or FALSE POSITIVE by reading the decompiled code
-and assembly with fresh eyes.
+and assembly with fresh eyes. Apply the security-auditor's severity criteria
+and reject common rationalizations (see your "Rationalizations to Reject" table).
 
 RULES:
 - Use "does / is / will" in verdicts. NEVER use "might / could / possibly".

@@ -295,6 +295,10 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     # constraint_solver
     "FeasibilityResult": (".constraint_solver", None),
     "check_feasibility": (".constraint_solver", None),
+    # sddl_parser
+    "ParsedACE": (".sddl_parser", None),
+    "parse_sddl_aces": (".sddl_parser", None),
+    "effective_permissions_for_sid": (".sddl_parser", None),
     # command_validation
     "CommandValidationResult": (".command_validation", None),
     "command_preflight": (".command_validation", None),

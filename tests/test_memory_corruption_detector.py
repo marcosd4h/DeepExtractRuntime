@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -131,5 +132,317 @@ class TestCommonImports:
             "FORMAT_APIS",
             "compute_memcorrupt_score",
             "load_all_functions_slim",
+            "SAFE_BOUNDED_COPY_APIS",
+            "RE_SIZE_CAP_MIN",
+            "_is_size_capped",
+            "is_safe_bounded_copy_api",
         ]:
             assert symbol in source, f"_common.py missing symbol: {symbol}"
+
+
+# ---------------------------------------------------------------------------
+# Import detection functions (add scripts dir to path)
+# ---------------------------------------------------------------------------
+
+sys.path.insert(0, str(SCRIPTS_DIR))
+
+# Ensure we import the memory-corruption-detector _common, not another
+# skill's _common that might be cached from a prior test collection.
+if "_common" in sys.modules:
+    _prev_common = sys.modules.pop("_common")
+else:
+    _prev_common = None
+
+import importlib  # noqa: E402
+import _common  # noqa: E402
+importlib.reload(_common)
+
+from _common import (  # noqa: E402
+    SAFE_BOUNDED_COPY_APIS,
+    RE_SIZE_CAP_MIN,
+    _is_size_capped,
+    is_safe_bounded_copy_api,
+)
+from scan_buffer_overflows import detect_buffer_overflows  # noqa: E402
+from scan_integer_issues import _check_asm_mul_before_alloc, RE_CMP_OVERFLOW, RE_ABOVE_JUMP  # noqa: E402
+from scan_use_after_free import detect_use_after_free, _is_null_after_free  # noqa: E402
+
+
+def _make_func(code: str, asm: str = "", sig: str = "__int64 __fastcall test_func(__int64 a1, __int64 a2)",
+               name: str = "test_func", fid: int = 1) -> dict:
+    """Build a minimal function record for scanner testing."""
+    return {
+        "function_name": name,
+        "function_id": fid,
+        "decompiled_code": code,
+        "assembly_code": asm,
+        "function_signature": sig,
+        "outbound_xrefs": [],
+    }
+
+
+class TestSafeBoundedCopyAPIs:
+    """Verify SAFE_BOUNDED_COPY_APIS and is_safe_bounded_copy_api()."""
+
+    def test_stringcchcopy_is_safe(self):
+        assert is_safe_bounded_copy_api("StringCchCopyW")
+
+    def test_stringcbprintf_is_safe(self):
+        assert is_safe_bounded_copy_api("StringCbPrintfA")
+
+    def test_memcpy_is_not_safe(self):
+        assert not is_safe_bounded_copy_api("memcpy")
+
+    def test_import_prefix_stripped(self):
+        assert is_safe_bounded_copy_api("__imp_StringCchCopy")
+
+    def test_safe_api_suppresses_finding(self):
+        code = (
+            "__int64 __fastcall test_func(__int64 a1, __int64 a2) {\n"
+            "  char buf[260];\n"
+            "  StringCchCopyW(buf, 260, a1);\n"
+            "  return 0;\n"
+            "}\n"
+        )
+        func = _make_func(code)
+        findings = detect_buffer_overflows(func)
+        assert len(findings) == 0, "StringCchCopyW should be suppressed as a safe bounded copy API"
+
+
+class TestSizeCapRecognition:
+    """Verify RE_SIZE_CAP_MIN and _is_size_capped()."""
+
+    def test_regex_matches_min_sizeof(self):
+        assert RE_SIZE_CAP_MIN.search("min(cbData, sizeof(buf))")
+
+    def test_regex_matches_min_constant(self):
+        assert RE_SIZE_CAP_MIN.search("min(a2, 1024)")
+
+    def test_regex_no_match_plain_var(self):
+        assert not RE_SIZE_CAP_MIN.search("a2")
+
+    def test_is_size_capped_direct_min(self):
+        code = "v1 = min(a2, sizeof(buf));\nmemcpy(dst, src, v1);\n"
+        assert _is_size_capped("min(a2, sizeof(buf))", code, 2)
+
+    def test_is_size_capped_assigned_var(self):
+        code = (
+            "v10 = min(a2, 512);\n"
+            "some_other_stuff();\n"
+            "memcpy(dst, src, v10);\n"
+        )
+        assert _is_size_capped("v10", code, 3)
+
+    def test_is_size_capped_not_capped(self):
+        code = "v10 = a2;\nmemcpy(dst, src, v10);\n"
+        assert not _is_size_capped("v10", code, 2)
+
+    def test_size_capped_suppresses_finding(self):
+        code = (
+            "__int64 __fastcall test_func(__int64 a1, __int64 a2) {\n"
+            "  char dst[256];\n"
+            "  __int64 v3 = min(a2, sizeof(dst));\n"
+            "  memcpy(dst, a1, v3);\n"
+            "  return 0;\n"
+            "}\n"
+        )
+        func = _make_func(code)
+        findings = detect_buffer_overflows(func)
+        assert len(findings) == 0, "Size-capped memcpy should not produce a finding"
+
+    def test_uncapped_memcpy_still_detected(self):
+        code = (
+            "__int64 __fastcall test_func(__int64 a1, __int64 a2) {\n"
+            "  char dst[256];\n"
+            "  memcpy(dst, a1, a2);\n"
+            "  return 0;\n"
+            "}\n"
+        )
+        func = _make_func(code)
+        findings = detect_buffer_overflows(func)
+        assert len(findings) > 0, "Uncapped memcpy with tainted size should still be detected"
+
+
+class TestComparisonOverflowPatterns:
+    """Verify RE_CMP_OVERFLOW and RE_ABOVE_JUMP patterns."""
+
+    def test_cmp_eax_hex_max(self):
+        assert RE_CMP_OVERFLOW.search("cmp eax, 0xFFFFFFFF")
+
+    def test_cmp_rax_uint_max(self):
+        assert RE_CMP_OVERFLOW.search("cmp rax, UINT_MAX")
+
+    def test_cmp_r8d_maxdword(self):
+        assert RE_CMP_OVERFLOW.search("cmp r8d, MAXDWORD")
+
+    def test_cmp_ecx_size_max(self):
+        assert RE_CMP_OVERFLOW.search("cmp ecx, SIZE_MAX")
+
+    def test_cmp_large_decimal(self):
+        assert RE_CMP_OVERFLOW.search("cmp edx, 65535")
+
+    def test_cmp_no_match_small_value(self):
+        assert not RE_CMP_OVERFLOW.search("cmp eax, 42")
+
+    def test_above_jump_ja(self):
+        assert RE_ABOVE_JUMP.search("ja loc_140001234")
+
+    def test_above_jump_jae(self):
+        assert RE_ABOVE_JUMP.search("jae short loc_ABCD")
+
+    def test_above_jump_jb(self):
+        assert RE_ABOVE_JUMP.search("jb loc_1400055AA")
+
+    def test_above_jump_jbe(self):
+        assert RE_ABOVE_JUMP.search("jbe loc_1400055AA")
+
+    def test_no_match_je(self):
+        assert not RE_ABOVE_JUMP.search("je loc_140001234")
+
+
+class TestAsmMulOverflowCheckSuppression:
+    """Verify _check_asm_mul_before_alloc suppresses with cmp+ja patterns."""
+
+    def test_mul_with_jo_suppressed(self):
+        asm = (
+            "imul eax, ecx\n"
+            "jo overflow_handler\n"
+            "call HeapAlloc\n"
+        )
+        hits = _check_asm_mul_before_alloc(asm)
+        assert len(hits) == 0, "mul followed by jo should be suppressed"
+
+    def test_mul_with_cmp_ja_suppressed(self):
+        asm = (
+            "imul eax, ecx\n"
+            "cmp eax, 0xFFFFFFFF\n"
+            "ja overflow_handler\n"
+            "call HeapAlloc\n"
+        )
+        hits = _check_asm_mul_before_alloc(asm)
+        assert len(hits) == 0, "mul followed by cmp+ja should be suppressed"
+
+    def test_mul_with_cmp_jae_suppressed(self):
+        asm = (
+            "imul rax, rdx\n"
+            "cmp rax, UINT_MAX\n"
+            "jae error_path\n"
+            "call malloc\n"
+        )
+        hits = _check_asm_mul_before_alloc(asm)
+        assert len(hits) == 0, "mul followed by cmp+jae should be suppressed"
+
+    def test_mul_without_check_detected(self):
+        asm = (
+            "imul eax, ecx\n"
+            "mov edx, eax\n"
+            "call HeapAlloc\n"
+        )
+        hits = _check_asm_mul_before_alloc(asm)
+        assert len(hits) == 1, "mul without overflow check should be detected"
+
+    def test_cmp_ja_with_gap_still_suppressed(self):
+        asm = (
+            "imul eax, ecx\n"
+            "cmp eax, 0xFFFF\n"
+            "nop\n"
+            "ja overflow_handler\n"
+            "call HeapAlloc\n"
+        )
+        hits = _check_asm_mul_before_alloc(asm)
+        assert len(hits) == 0, "cmp+ja within 3-line lookahead should suppress"
+
+
+class TestExtendedNullAfterFreeWindow:
+    """Verify _is_null_after_free uses 50-line window and recognizes new patterns."""
+
+    def test_null_at_line_6_detected(self):
+        lines = ["free(v1);"] + ["nop();"] * 5 + ["v1 = NULL;"]
+        assert _is_null_after_free(lines, 0, "v1"), \
+            "Null at line 6 (within 50-line window) should be detected"
+
+    def test_null_at_line_45_detected(self):
+        lines = ["free(v1);"] + ["nop();"] * 44 + ["v1 = NULL;"]
+        assert _is_null_after_free(lines, 0, "v1"), \
+            "Null at line 45 (within 50-line window) should be detected"
+
+    def test_null_beyond_50_not_detected(self):
+        lines = ["free(v1);"] + ["nop();"] * 55 + ["v1 = NULL;"]
+        assert not _is_null_after_free(lines, 0, "v1"), \
+            "Null beyond 50-line window should not be detected"
+
+    def test_struct_field_null_detected(self):
+        lines = [
+            "HeapFree(hHeap, 0, v1);",
+            "some_cleanup();",
+            "this->ptr = NULL;  // v1",
+        ]
+        assert _is_null_after_free(lines, 0, "v1"), \
+            "Struct-field null assignment mentioning freed var should be detected"
+
+    def test_struct_field_null_different_var_not_matched(self):
+        lines = [
+            "HeapFree(hHeap, 0, v1);",
+            "this->ptr = NULL;  // v2",
+        ]
+        assert not _is_null_after_free(lines, 0, "v1"), \
+            "Struct-field null not mentioning freed var should not match"
+
+    def test_realloc_reassignment_detected(self):
+        lines = [
+            "free(v1);",
+            "do_something();",
+            "v1 = malloc(new_size);",
+        ]
+        assert _is_null_after_free(lines, 0, "v1"), \
+            "Re-assignment via malloc should be detected as safe"
+
+    def test_heapalloc_reassignment_detected(self):
+        lines = [
+            "HeapFree(hHeap, 0, v1);",
+            "do_something();",
+            "v1 = HeapAlloc(hHeap, 0, 256);",
+        ]
+        assert _is_null_after_free(lines, 0, "v1"), \
+            "Re-assignment via HeapAlloc should be detected as safe"
+
+
+class TestUAFWithExtendedWindow:
+    """Integration tests: verify detect_use_after_free respects the extended window."""
+
+    def test_null_far_after_free_suppresses_uaf(self):
+        free_line = "  free(v1);"
+        nop_lines = ["  nop();"] * 10
+        null_line = "  v1 = 0;"
+        use_line = "  memcpy(dst, v1, 100);"
+        code_lines = [
+            "__int64 __fastcall test_func(__int64 a1) {",
+            free_line,
+            *nop_lines,
+            null_line,
+            use_line,
+            "  return 0;",
+            "}",
+        ]
+        code = "\n".join(code_lines) + "\n"
+        func = _make_func(code)
+        findings = detect_use_after_free(func)
+        uaf_findings = [f for f in findings if f.category == "use_after_free"]
+        assert len(uaf_findings) == 0, \
+            "UAF should be suppressed when null assignment is within extended window"
+
+    def test_realloc_after_free_suppresses_uaf(self):
+        code = (
+            "__int64 __fastcall test_func(__int64 a1) {\n"
+            "  __int64 v1 = a1;\n"
+            "  free(v1);\n"
+            "  v1 = malloc(256);\n"
+            "  memcpy(dst, v1, 100);\n"
+            "  return 0;\n"
+            "}\n"
+        )
+        func = _make_func(code)
+        findings = detect_use_after_free(func)
+        uaf_findings = [f for f in findings if f.category == "use_after_free"]
+        assert len(uaf_findings) == 0, \
+            "UAF should be suppressed when variable is reallocated after free"

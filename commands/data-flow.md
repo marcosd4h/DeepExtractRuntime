@@ -75,7 +75,16 @@ If validation fails, report the errors and stop. On success, use `result.resolve
    python .agent/skills/data-flow-tracer/scripts/global_state_map.py <db_path> --address <hex_addr>
    ```
 
-3. **Present results**
+3. **Enrich with classification context**
+   After running the trace, use the **re-analyst** agent's `re_query.py` to annotate the source function and key sink functions with classification metadata:
+
+   ```bash
+   python .agent/agents/re-analyst/scripts/re_query.py <db_path> --function <function_name> --context --json
+   ```
+
+   Extract **only classification metadata** (category, interest score, dangerous APIs) to annotate trace steps with semantic meaning (e.g., "parameter 1 flows into `CheckTokenMembership` (security, 7/10)"). Do NOT display decompiled code.
+
+4. **Present results**
 
    **For forward traces**, present:
    - **Parameter Identity**: parameter name, type, register (x64 convention)

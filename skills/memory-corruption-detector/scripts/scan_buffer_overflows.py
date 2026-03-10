@@ -22,6 +22,7 @@ from _common import (
     RE_STACK_BUFFER,
     SCANNER_DEFAULT_TOP_N,
     UNBOUNDED_COPY_APIS,
+    _is_size_capped,
     analyze_taint,
     build_export_names,
     build_meta,
@@ -34,6 +35,7 @@ from _common import (
     extract_param_names,
     get_cached,
     is_copy_api,
+    is_safe_bounded_copy_api,
     is_unbounded_copy_api,
     load_all_functions_slim,
     load_function_record,
@@ -70,6 +72,9 @@ def _check_bounded_copy(
     tainted_size_vars = size_vars & tainted_vars
 
     if not tainted_size_vars:
+        return None
+
+    if _is_size_capped(size_arg, code, call.get("line_number", 0)):
         return None
 
     dst_arg = args[0].strip()
@@ -181,6 +186,9 @@ def detect_buffer_overflows(func: dict[str, Any]) -> list[MemCorruptionFinding]:
 
     for call in calls:
         api = call["function_name"]
+
+        if is_safe_bounded_copy_api(api):
+            continue
 
         if is_copy_api(api):
             finding = _check_bounded_copy(call, code, params, fname, fid, asm)

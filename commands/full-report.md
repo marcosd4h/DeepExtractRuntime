@@ -108,7 +108,14 @@ If validation fails, report the errors and stop. On success, use `result.resolve
    ```
    Feed results into the Attack Surface section of the final report.
 
-9b. **Taint analysis for top entry points**
+9b. **Behavioral explanations for top entry points**
+   Use the **re-analyst** agent's `explain_function.py` on the top 3 ranked entry points from Step 7 to generate brief behavioral explanations:
+   ```bash
+   python .agent/agents/re-analyst/scripts/explain_function.py <db_path> <entry_point_name> --depth 1 --no-assembly --output-file <run_dir>/explain_<entry_point_name>.json
+   ```
+   Include brief behavioral explanations in the Attack Surface section: what the entry point does at a business level, its key API calls, and its risk profile.
+
+9c. **Taint analysis for top entry points**
    Use the **taint-analysis** skill (`taint_function.py`) on the top 3 ranked entry points from Step 7 to trace tainted parameters forward to dangerous sinks:
    ```bash
    python .agent/skills/taint-analysis/scripts/taint_function.py <db_path> <entry_point_name> --depth 2 --json \

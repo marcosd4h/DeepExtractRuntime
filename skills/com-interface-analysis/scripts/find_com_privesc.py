@@ -29,9 +29,30 @@ _HIGH_VALUE_PATTERNS = re.compile(
     r"impersonat|token|credential|elevat)"
 )
 
+_IUnknown_TRIVIAL = frozenset({
+    "QueryInterface", "AddRef", "Release",
+    "QI", "AddReference", "ReleaseReference",
+})
+
+
+def _has_attack_useful_methods(srv: ComServer) -> bool:
+    """Return True if the server exposes at least one non-trivial method.
+
+    A server that only exposes QI/AddRef/Release (the IUnknown trio)
+    cannot be used for privilege escalation regardless of its other
+    properties.
+    """
+    for m in srv.methods_flat:
+        if m.short_name not in _IUnknown_TRIVIAL:
+            return True
+    return False
+
 
 def _score_server(srv: ComServer) -> float:
     """Heuristic score for EoP attractiveness (0.0--1.0)."""
+    if not _has_attack_useful_methods(srv):
+        return 0.0
+
     score = 0.0
     if srv.runs_as_system:
         score += 0.30
@@ -88,6 +109,7 @@ def main() -> None:
         for score, srv in scored:
             d = srv.to_dict()
             d["privesc_score"] = round(score, 3)
+            d["has_attack_useful_methods"] = _has_attack_useful_methods(srv)
             d["high_value_methods"] = [
                 m.to_dict() for m in srv.methods_flat
                 if _HIGH_VALUE_PATTERNS.search(m.short_name)

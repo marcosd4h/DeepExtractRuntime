@@ -44,6 +44,7 @@ class ConstraintSet:
     """A set of constraints that must hold simultaneously on a path."""
 
     constraints: list[Constraint] = field(default_factory=list)
+    disjuncts: list["ConstraintSet"] = field(default_factory=list)
     source_guards: int = 0
     unparsed_guards: int = 0
 
@@ -53,6 +54,7 @@ class ConstraintSet:
     def to_dict(self) -> dict:
         return {
             "constraints": [c.to_dict() for c in self.constraints],
+            "disjuncts": [d.to_dict() for d in self.disjuncts],
             "total_constraints": len(self.constraints),
             "source_guards": self.source_guards,
             "unparsed_guards": self.unparsed_guards,
@@ -78,6 +80,33 @@ _NULL_CHECK_RE = re.compile(
 _NEGATION_RE = re.compile(r"^\s*!\s*\((.+)\)\s*$")
 _LOGICAL_AND_RE = re.compile(r"\s*&&\s*")
 _LOGICAL_OR_RE = re.compile(r"\s*\|\|\s*")
+
+
+def _split_on_or(condition: str) -> list[str]:
+    """Split a condition string on top-level ``||``, respecting parentheses.
+
+    Only splits on ``||`` operators that are not nested inside parentheses.
+    Returns a list of stripped branch strings.  If there is no top-level
+    ``||``, returns a single-element list containing the original condition.
+    """
+    parts: list[str] = []
+    depth = 0
+    start = 0
+    i = 0
+    while i < len(condition):
+        ch = condition[i]
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+        elif ch == "|" and i + 1 < len(condition) and condition[i + 1] == "|" and depth == 0:
+            parts.append(condition[start:i].strip())
+            i += 2
+            start = i
+            continue
+        i += 1
+    parts.append(condition[start:].strip())
+    return parts
 
 
 def _parse_int(s: str) -> Optional[int]:
@@ -186,12 +215,33 @@ def collect_constraints(
             cs.unparsed_guards += 1
             continue
 
-        # Disjunctions (||) cannot be represented as conjunctive constraints.
-        # A condition like "v5 == 1 || v5 == 2" requires only ONE branch to
-        # hold, but our model requires ALL constraints to hold simultaneously.
-        # Extracting both sides would produce false infeasibility.
         if _LOGICAL_OR_RE.search(condition):
-            cs.unparsed_guards += 1
+            branches = _split_on_or(condition)
+            branch_sets: list[ConstraintSet] = []
+            for branch in branches:
+                branch_cs = ConstraintSet()
+                parsed_branch = False
+
+                null_cs = _extract_null_constraints(branch, line)
+                if null_cs:
+                    parsed_branch = True
+                    for c in null_cs:
+                        branch_cs.add(c)
+
+                cmp_cs = _extract_comparison_constraints(branch, line)
+                if cmp_cs:
+                    parsed_branch = True
+                    for c in cmp_cs:
+                        branch_cs.add(c)
+
+                if parsed_branch:
+                    branch_sets.append(branch_cs)
+
+            if branch_sets:
+                disjunct_cs = ConstraintSet(disjuncts=branch_sets)
+                cs.disjuncts.append(disjunct_cs)
+            else:
+                cs.unparsed_guards += 1
             continue
 
         parsed_any = False

@@ -153,7 +153,7 @@ def _load_weights() -> dict[str, float]:
         "W_STRING": 2.0,
         "W_STRING_CAP": 10.0,
         "W_STRUCTURAL": 4.0,
-        "W_LIBRARY": 20.0,
+        "W_LIBRARY": 12.0,
     }
     configured = get_config_value("classification.weights", {})
     return {k: configured.get(k, v) for k, v in defaults.items()}
@@ -166,6 +166,27 @@ W_STRING = _weights["W_STRING"]
 W_STRING_CAP = _weights["W_STRING_CAP"]
 W_STRUCTURAL = _weights["W_STRUCTURAL"]
 W_LIBRARY = _weights["W_LIBRARY"]
+
+
+def _load_structural_thresholds() -> dict[str, int]:
+    from helpers.config import get_config_value
+    defaults = {
+        "dispatch_min_branches": 15,
+        "dispatch_min_calls": 5,
+        "dispatch_max_loops": 1,
+        "parsing_min_loops": 3,
+        "parsing_min_complexity": 5,
+        "utility_max_asm_instructions": 10,
+        "utility_max_calls": 2,
+        "leaf_max_instructions": 20,
+    }
+    return {
+        k: get_config_value(f"classification.structural_thresholds.{k}", v)
+        for k, v in defaults.items()
+    }
+
+
+_structural = _load_structural_thresholds()
 
 # Library tag -> classification category mapping
 _LIBRARY_TAG_CATEGORY: dict[str, str] = {
@@ -220,7 +241,6 @@ def classify_function(func, function_index: Optional[dict] = None) -> Classifica
         if pattern.search(fname):
             scores[category] += W_NAME
             signals[category].append(f"name:{desc}")
-            break  # only first match (most specific)
 
     # --- 1b. RPC index ground-truth classification ---
     try:
@@ -337,22 +357,22 @@ def classify_function(func, function_index: Optional[dict] = None) -> Classifica
     asm_metrics = get_asm_metrics(func.assembly_code)
 
     # Algorithmic: many loops + high complexity
-    if loop_count >= 3 and max_complexity >= 5:
+    if loop_count >= _structural["parsing_min_loops"] and max_complexity >= _structural["parsing_min_complexity"]:
         scores["data_parsing"] += W_STRUCTURAL
         signals["data_parsing"].append(f"structural:algorithmic ({loop_count} loops, complexity {max_complexity})")
 
     # Dispatch: many branches, many calls, few loops
-    if asm_metrics.branch_count > 15 and asm_metrics.call_count > 5 and loop_count <= 1:
+    if asm_metrics.branch_count > _structural["dispatch_min_branches"] and asm_metrics.call_count > _structural["dispatch_min_calls"] and loop_count <= _structural["dispatch_max_loops"]:
         scores["dispatch_routing"] += W_STRUCTURAL
         signals["dispatch_routing"].append(f"structural:branchy dispatch ({asm_metrics.branch_count} branches, {asm_metrics.call_count} calls)")
 
-    # Glue/utility: tiny functions with 0-2 calls
-    if asm_metrics.is_tiny and asm_metrics.call_count <= 2:
+    # Glue/utility: tiny functions with few calls
+    if asm_metrics.is_tiny and asm_metrics.call_count <= _structural["utility_max_calls"]:
         scores["utility"] += W_STRUCTURAL
         signals["utility"].append("structural:tiny function")
 
     # Leaf + tiny = likely utility/wrapper
-    if asm_metrics.is_leaf and asm_metrics.instruction_count < 20 and not any(scores.get(c, 0) > 0 for c in ("telemetry", "compiler_generated")):
+    if asm_metrics.is_leaf and asm_metrics.instruction_count < _structural["leaf_max_instructions"] and not any(scores.get(c, 0) > 0 for c in ("telemetry", "compiler_generated")):
         scores["utility"] += W_STRUCTURAL * 0.5
         signals["utility"].append("structural:leaf function")
 
@@ -366,7 +386,10 @@ def classify_function(func, function_index: Optional[dict] = None) -> Classifica
     # allowing API-based signals to compete for primary category.
     if _library_tag is not None:
         cat = _LIBRARY_TAG_CATEGORY.get(_library_tag, "utility")
-        if _library_tag in _SECURITY_RELEVANT_LIBRARY_TAGS and dangerous_count > 0:
+        if dangerous_count >= 3:
+            weight = W_LIBRARY * 0.25
+            signals[cat].append(f"function_index:library={_library_tag} (reduced: has dangerous APIs)")
+        elif _library_tag in _SECURITY_RELEVANT_LIBRARY_TAGS and dangerous_count > 0:
             weight = W_LIBRARY * 0.25
             signals[cat].append(f"function_index:library={_library_tag} (reduced: has dangerous APIs)")
         else:

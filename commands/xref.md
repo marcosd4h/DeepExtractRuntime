@@ -47,7 +47,17 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module
 
 Once located, note `function_id` and `db_path`. Use `--id <function_id>` in all subsequent calls.
 
-### 2. Extract cross-references
+### 2. Enrich with classification context
+
+Use the **re-analyst** agent's `re_query.py` to get classification metadata for the target function:
+
+```bash
+python .agent/agents/re-analyst/scripts/re_query.py <db_path> --function <function_name> --context --json
+```
+
+Extract **only the classification metadata** from the JSON output: `category`, `interest` score, and `dangerous_apis`. Do NOT display the decompiled code. Use this data to annotate the caller/callee tables with category and interest score columns.
+
+### 3. Extract cross-references
 
 Use the **callgraph-tracer** skill to get detailed xref data:
 
@@ -67,7 +77,9 @@ For cross-module xref resolution:
 python .agent/skills/callgraph-tracer/scripts/cross_module_resolve.py <function_name> --json
 ```
 
-### 3. Present results
+### 4. Present results
+
+Use the classification data from Step 2 to annotate the target function and internal callers/callees with category and interest score columns.
 
 **Inbound Cross-References (Callers):**
 
@@ -84,7 +96,7 @@ python .agent/skills/callgraph-tracer/scripts/cross_module_resolve.py <function_
 | 2 | HeapAlloc | ntdll.dll | memory_alloc |
 | 3 | InternalHelper | (internal) | -- |
 
-For internal callees, note if they are application code or library boilerplate.
+For internal callers/callees, include category and interest from classification data (Step 2).
 For external callees, classify using `classify_api_security()` categories when applicable.
 
 **Summary line:**

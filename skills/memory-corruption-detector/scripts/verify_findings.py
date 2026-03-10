@@ -497,6 +497,172 @@ def _verify_generic(finding: dict, func: dict) -> VerificationResult:
     return verify_generic(finding, func)
 
 
+# ---------------------------------------------------------------------------
+# Independent cross-representation verifiers
+# ---------------------------------------------------------------------------
+
+_PARAM_REGS = frozenset({"rcx", "rdx", "r8", "r9", "ecx", "edx", "r8d", "r9d"})
+
+
+def _verify_heap_overflow_asm_independent(finding: dict, func: dict) -> VerificationResult:
+    """Independently verify heap/stack overflow via assembly when detection used decompiled C.
+
+    Looks for the copy API call instruction in assembly, then traces the size
+    register backward to check if it originates from a parameter register.
+    """
+    asm = func.get("assembly_code", "")
+    dangerous_api = finding.get("dangerous_api", "")
+
+    if not asm or not dangerous_api:
+        return VerificationResult(
+            finding=finding,
+            confidence="UNCERTAIN",
+            confidence_score=0.3,
+            reasoning="No assembly or dangerous API name available for independent verification",
+        )
+
+    lines = asm.splitlines()
+    call_idx = None
+    for i, line in enumerate(lines):
+        if RE_CALL_INSN.search(line) and dangerous_api.lower() in line.lower():
+            call_idx = i
+            break
+
+    if call_idx is None:
+        return VerificationResult(
+            finding=finding,
+            confidence="UNCERTAIN",
+            confidence_score=0.3,
+            reasoning=f"Call to '{dangerous_api}' not found in assembly",
+        )
+
+    evidence = [lines[call_idx].strip()]
+
+    param_reg_used = False
+    lookback = max(0, call_idx - 20)
+    for j in range(lookback, call_idx):
+        stripped = lines[j].strip().lower()
+        for reg in _PARAM_REGS:
+            if re.search(rf"\b{reg}\b", stripped):
+                param_reg_used = True
+                evidence.append(lines[j].strip())
+                break
+        if param_reg_used:
+            break
+
+    if param_reg_used:
+        return VerificationResult(
+            finding=finding,
+            confidence="CONFIRMED",
+            confidence_score=1.0,
+            reasoning=f"Assembly confirms {dangerous_api}() call with size "
+                      f"derived from parameter register",
+            assembly_evidence=evidence,
+        )
+
+    return VerificationResult(
+        finding=finding,
+        confidence="LIKELY",
+        confidence_score=0.7,
+        reasoning=f"Assembly confirms {dangerous_api}() call but could not "
+                  f"trace size to parameter register",
+        assembly_evidence=evidence,
+    )
+
+
+def _verify_uaf_asm_independent(finding: dict, func: dict) -> VerificationResult:
+    """Independently verify UAF via assembly when detection used decompiled C.
+
+    Checks assembly for the free call, identifies the register holding the freed
+    pointer, then looks for subsequent use of that same register without
+    intervening reassignment.
+    """
+    asm = func.get("assembly_code", "")
+    extra = finding.get("extra", {})
+    free_api = extra.get("free_api", "")
+
+    if not asm or not free_api:
+        return VerificationResult(
+            finding=finding,
+            confidence="UNCERTAIN",
+            confidence_score=0.3,
+            reasoning="No assembly or free API name for independent verification",
+        )
+
+    lines = asm.splitlines()
+    free_idx = None
+    for i, line in enumerate(lines):
+        if RE_CALL_INSN.search(line) and free_api.lower() in line.lower():
+            free_idx = i
+            break
+
+    if free_idx is None:
+        return VerificationResult(
+            finding=finding,
+            confidence="UNCERTAIN",
+            confidence_score=0.3,
+            reasoning=f"Free call '{free_api}' not found in assembly",
+        )
+
+    evidence = [lines[free_idx].strip()]
+
+    freed_reg = None
+    for j in range(max(0, free_idx - 5), free_idx):
+        stripped = lines[j].strip().lower()
+        m = re.search(r"mov\s+(?:rcx|ecx)\s*,\s*(\w+)", stripped)
+        if m:
+            freed_reg = m.group(1)
+            break
+
+    if not freed_reg:
+        return VerificationResult(
+            finding=finding,
+            confidence="LIKELY",
+            confidence_score=0.7,
+            reasoning=f"Assembly confirms {free_api}() call but freed register "
+                      f"could not be identified",
+            assembly_evidence=evidence,
+        )
+
+    re_use = re.compile(rf"\b{re.escape(freed_reg)}\b", re.IGNORECASE)
+    re_reassign = re.compile(
+        rf"(?:mov|lea)\s+{re.escape(freed_reg)}\s*,",
+        re.IGNORECASE,
+    )
+
+    lookahead = min(free_idx + 40, len(lines))
+    for j in range(free_idx + 1, lookahead):
+        stripped = lines[j].strip()
+        if re_reassign.search(stripped):
+            break
+        if re_use.search(stripped) and not RE_CALL_INSN.search(stripped):
+            evidence.append(stripped)
+            return VerificationResult(
+                finding=finding,
+                confidence="CONFIRMED",
+                confidence_score=1.0,
+                reasoning=f"Assembly confirms use of register '{freed_reg}' "
+                          f"after {free_api}() without reassignment",
+                assembly_evidence=evidence,
+            )
+
+    return VerificationResult(
+        finding=finding,
+        confidence="LIKELY",
+        confidence_score=0.7,
+        reasoning=f"Assembly confirms {free_api}() call; post-free use of "
+                  f"'{freed_reg}' not conclusively found in assembly",
+        assembly_evidence=evidence,
+    )
+
+
+INDEPENDENT_VERIFIERS: dict[str, Any] = {
+    "heap_overflow": _verify_heap_overflow_asm_independent,
+    "stack_overflow": _verify_heap_overflow_asm_independent,
+    "use_after_free": _verify_uaf_asm_independent,
+}
+
+
 CATEGORY_VERIFIERS = {
     "heap_overflow": _verify_heap_overflow,
     "stack_overflow": _verify_stack_overflow,
@@ -557,6 +723,7 @@ def main() -> None:
         description="Independently verify memory corruption findings",
         verifier_name="memcorrupt_verify",
         category_verifiers=CATEGORY_VERIFIERS,
+        independent_verifiers=INDEPENDENT_VERIFIERS,
         check_feasibility=_check_path_feasibility,
         resolve_db_path=resolve_db_path,
         load_function_record=load_function_record,

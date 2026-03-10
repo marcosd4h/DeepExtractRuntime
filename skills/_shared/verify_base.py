@@ -46,6 +46,8 @@ def verify_findings(
     *,
     load_function_record: Callable,
     status_message: Callable,
+    independent_verifiers: dict[str, Callable] | None = None,
+    verification_mode: str = "independent",
 ) -> list[VerificationResult]:
     """Run the verification loop over *findings*.
 
@@ -60,7 +62,19 @@ def verify_findings(
         Callable that loads a function record dict from the DB.
     status_message:
         Callable that emits progress messages to stderr.
+    independent_verifiers:
+        ``{category_name: independent_fn(finding, func) -> VerificationResult}``
+        Cross-representation verifiers that use a *different* representation
+        than the detector (e.g. assembly when detection used decompiled C).
+        Used when *verification_mode* is ``"independent"``.
+    verification_mode:
+        ``"independent"`` (default) uses cross-representation verifiers where
+        available, falling back to same-representation verifiers.
+        ``"replicate"`` uses only the original same-representation verifiers.
     """
+    if independent_verifiers is None:
+        independent_verifiers = {}
+
     results: list[VerificationResult] = []
     func_cache: dict[int, dict] = {}
     func_errors: dict[int, ScriptError] = {}
@@ -107,7 +121,11 @@ def verify_findings(
 
         func = func_cache.get(fid, {})
         category = finding.get("category", "")
-        verifier = category_verifiers.get(category, verify_generic)
+
+        if verification_mode == "independent" and category in independent_verifiers:
+            verifier = independent_verifiers[category]
+        else:
+            verifier = category_verifiers.get(category, verify_generic)
 
         status_message(f"Verifying finding {i + 1}/{len(findings)}: "
                        f"{category} in {finding.get('function_name', '?')}")
@@ -166,6 +184,7 @@ def run_verify_main(
     emit_error: Callable,
     emit_json: Callable,
     build_meta: Callable,
+    independent_verifiers: dict[str, Callable] | None = None,
 ) -> None:
     """Shared ``main()`` implementation for verify_findings scripts."""
     parser = argparse.ArgumentParser(description=description)
@@ -174,6 +193,13 @@ def run_verify_main(
     parser.add_argument("--db-path", required=True,
                         help="Path to the analysis database")
     parser.add_argument("--json", action="store_true", help="JSON output mode")
+    parser.add_argument(
+        "--verification-mode",
+        choices=["independent", "replicate"],
+        default="independent",
+        help="Verification strategy: 'independent' uses cross-representation "
+             "verifiers (default), 'replicate' uses same-representation only",
+    )
     args = parser.parse_args()
 
     db_path = resolve_db_path(args.db_path)
@@ -197,7 +223,9 @@ def run_verify_main(
     else:
         emit_error("Findings file must contain a dict or list", ErrorCode.PARSE_ERROR)
 
-    status_message(f"Verifying {len(findings_list)} findings...")
+    verification_mode = getattr(args, "verification_mode", "independent")
+    status_message(f"Verifying {len(findings_list)} findings "
+                   f"(mode={verification_mode})...")
     results = verify_findings(
         findings_list,
         db_path,
@@ -205,11 +233,14 @@ def run_verify_main(
         check_feasibility,
         load_function_record=load_function_record,
         status_message=status_message,
+        independent_verifiers=independent_verifiers,
+        verification_mode=verification_mode,
     )
 
     result_data = {
         "status": "ok",
-        "_meta": build_meta(db_path, verifier=verifier_name),
+        "_meta": build_meta(db_path, verifier=verifier_name,
+                            verification_mode=verification_mode),
         "verified_findings": [r.to_dict() for r in results],
         "summary": {
             "total_input": len(findings_list),

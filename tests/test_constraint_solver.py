@@ -241,14 +241,16 @@ class TestCollectAndCheck:
 # ---------------------------------------------------------------------------
 
 class TestLogicalOrHandling:
-    """Test that || conditions are skipped (not falsely marked infeasible)."""
+    """Test that || conditions are parsed into disjuncts (not falsely marked infeasible)."""
 
-    def test_or_condition_skipped(self):
-        """v5 == 1 || v5 == 2 should NOT produce conflicting constraints."""
+    def test_or_condition_parsed_to_disjuncts(self):
+        """v5 == 1 || v5 == 2 should be parsed into disjuncts, not conjunctive constraints."""
         guards = [{"condition": "v5 == 1 || v5 == 2", "line_number": 5}]
         cs = collect_constraints(guards)
-        assert cs.unparsed_guards == 1
+        assert cs.unparsed_guards == 0
         assert len(cs.constraints) == 0
+        assert len(cs.disjuncts) == 1
+        assert len(cs.disjuncts[0].disjuncts) == 2
 
     def test_or_condition_not_infeasible(self):
         """A guard with || should not cause the path to be marked infeasible."""
@@ -267,11 +269,11 @@ class TestLogicalOrHandling:
         assert len(cs.constraints) >= 2
         assert cs.unparsed_guards == 0
 
-    def test_mixed_and_or_guard_skips_or(self):
-        """If a condition has ||, skip the whole guard even if && is also present."""
+    def test_mixed_and_or_guard_parsed(self):
+        """If a condition has ||, parse it into disjunct branches."""
         guards = [{"condition": "v5 > 0 && (v6 == 1 || v6 == 2)", "line_number": 5}]
         cs = collect_constraints(guards)
-        assert cs.unparsed_guards == 1
+        assert len(cs.disjuncts) == 1
 
     def test_pure_conjunctive_guards_feasible(self):
         guards = [
@@ -282,3 +284,138 @@ class TestLogicalOrHandling:
         result = check_feasibility(cs)
         assert result.feasible is True
         assert len(cs.constraints) >= 2
+
+
+# ---------------------------------------------------------------------------
+# OR handling tests (solver-level disjunct evaluation)
+# ---------------------------------------------------------------------------
+
+class TestOrHandling:
+    """Test solver-level OR disjunct evaluation."""
+
+    def test_or_split_produces_branches(self):
+        """_split_on_or splits on top-level || and respects parens."""
+        from helpers.constraint_collector import _split_on_or
+
+        parts = _split_on_or("v5 == 1 || v5 == 2")
+        assert parts == ["v5 == 1", "v5 == 2"]
+
+        nested = _split_on_or("(v5 == 1 || v5 == 2) && v6 > 0")
+        assert len(nested) == 1, "nested || inside parens should not split"
+
+    def test_feasible_if_any_branch_ok(self):
+        """Path is feasible if at least one OR branch is satisfiable."""
+        cs = ConstraintSet(
+            constraints=[
+                Constraint(variable="v5", operator=">", value=0, source_line=5),
+            ],
+            disjuncts=[
+                ConstraintSet(disjuncts=[
+                    ConstraintSet(constraints=[
+                        Constraint(variable="v5", operator="==", value=1, source_line=10),
+                    ]),
+                    ConstraintSet(constraints=[
+                        Constraint(variable="v5", operator="==", value=-1, source_line=10),
+                    ]),
+                ]),
+            ],
+        )
+        result = check_feasibility(cs)
+        assert result.feasible is not False
+
+    def test_infeasible_if_all_branches_conflict(self):
+        """Path is infeasible only when ALL OR branches conflict."""
+        cs = ConstraintSet(
+            constraints=[
+                Constraint(variable="v5", operator=">", value=100, source_line=5),
+            ],
+            disjuncts=[
+                ConstraintSet(disjuncts=[
+                    ConstraintSet(constraints=[
+                        Constraint(variable="v5", operator="==", value=1, source_line=10),
+                    ]),
+                    ConstraintSet(constraints=[
+                        Constraint(variable="v5", operator="==", value=2, source_line=10),
+                    ]),
+                ]),
+            ],
+        )
+        result = check_feasibility(cs)
+        assert result.feasible is False
+
+    def test_or_via_collect_and_check(self):
+        """End-to-end: guard with || parsed and checked correctly."""
+        guards = [
+            {"condition": "v5 > 100", "line_number": 5},
+            {"condition": "v5 == 50 || v5 == 200", "line_number": 10},
+        ]
+        cs = collect_constraints(guards)
+        result = check_feasibility(cs)
+        assert result.feasible is not False
+
+
+# ---------------------------------------------------------------------------
+# Symbolic equivalence tests
+# ---------------------------------------------------------------------------
+
+class TestSymbolicEquivalence:
+    """Test transitive equality resolution via union-find."""
+
+    def test_transitive_chain(self):
+        """v5 == v6 and v6 == 42 should derive v5 == 42."""
+        cs = ConstraintSet(constraints=[
+            Constraint(variable="v5", operator="==", value="v6", source_line=5),
+            Constraint(variable="v6", operator="==", value=42, source_line=10),
+            Constraint(variable="v5", operator=">", value=100, source_line=15),
+        ])
+        result = check_feasibility(cs)
+        assert result.feasible is False, "v5 is transitively 42, but > 100 required"
+
+    def test_three_variable_chain(self):
+        """v5 == v6, v6 == v7, v7 == 10 should derive v5 == 10."""
+        cs = ConstraintSet(constraints=[
+            Constraint(variable="v5", operator="==", value="v6", source_line=5),
+            Constraint(variable="v6", operator="==", value="v7", source_line=6),
+            Constraint(variable="v7", operator="==", value=10, source_line=7),
+            Constraint(variable="v5", operator="!=", value=10, source_line=8),
+        ])
+        result = check_feasibility(cs)
+        assert result.feasible is False
+
+    def test_no_conflict_when_consistent(self):
+        """Transitive resolution should not create false conflicts."""
+        cs = ConstraintSet(constraints=[
+            Constraint(variable="v5", operator="==", value="v6", source_line=5),
+            Constraint(variable="v6", operator="==", value=42, source_line=10),
+            Constraint(variable="v5", operator=">", value=10, source_line=15),
+        ])
+        result = check_feasibility(cs)
+        assert result.feasible is True
+
+
+# ---------------------------------------------------------------------------
+# Decidability threshold tests
+# ---------------------------------------------------------------------------
+
+class TestDecidabilityThreshold:
+    """Test the lowered 25% decidability threshold."""
+
+    def test_one_of_four_decidable_is_not_none(self):
+        """1 decidable out of 4 total (25%) should not return None."""
+        cs = ConstraintSet(constraints=[
+            Constraint(variable="v5", operator=">", value=10, source_line=5),
+            Constraint(variable="v6", operator="<", value="v7", source_line=10),
+            Constraint(variable="v8", operator=">", value="v9", source_line=15),
+            Constraint(variable="v10", operator="<", value="v11", source_line=20),
+        ])
+        result = check_feasibility(cs)
+        assert result.feasible is not None, "25% decidable should be enough"
+
+    def test_below_threshold_returns_none(self):
+        """0 decidable out of N > 0 should return None."""
+        cs = ConstraintSet(constraints=[
+            Constraint(variable="v5", operator="<", value="v6", source_line=5),
+            Constraint(variable="v7", operator=">", value="v8", source_line=10),
+        ])
+        result = check_feasibility(cs)
+        assert result.feasible is None

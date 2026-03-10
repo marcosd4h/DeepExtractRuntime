@@ -28,18 +28,44 @@ def merge_findings(*scanner_outputs: tuple[dict, str]) -> list[Finding]:
     return deduplicate(all_findings)
 
 
-def deduplicate(findings: list[Finding]) -> list[Finding]:
+def deduplicate(
+    findings: list[Finding], *, max_per_key: int = 3,
+) -> list[Finding]:
     """Remove duplicate findings (same function + same sink + same category).
 
-    When duplicates exist, keep the one with the highest score.
+    When duplicates exist, keep up to *max_per_key* distinct paths per
+    dedup key, sorted by score descending.  Findings with identical
+    path signatures (or empty paths) are collapsed to the highest score.
+
+    Parameters
+    ----------
+    max_per_key:
+        Maximum number of findings to keep per dedup key.  When the
+        value is 1 (legacy behaviour), only the highest-scoring
+        finding per key is kept.
     """
-    best: dict[str, Finding] = {}
+    buckets: dict[str, list[Finding]] = {}
     for f in findings:
         key = f.dedup_key
-        existing = best.get(key)
-        if existing is None or f.score > existing.score:
-            best[key] = f
-    return rank(list(best.values()))
+        buckets.setdefault(key, []).append(f)
+
+    result: list[Finding] = []
+    for key, bucket in buckets.items():
+        bucket.sort(key=lambda f: f.score, reverse=True)
+
+        seen_paths: dict[str, Finding] = {}
+        for f in bucket:
+            psig = f.path_signature
+            existing = seen_paths.get(psig)
+            if existing is None:
+                if len(seen_paths) < max_per_key:
+                    seen_paths[psig] = f
+            elif f.score > existing.score:
+                seen_paths[psig] = f
+
+        result.extend(seen_paths.values())
+
+    return rank(result)
 
 
 def rank(findings: list[Finding]) -> list[Finding]:

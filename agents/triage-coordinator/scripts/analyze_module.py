@@ -53,6 +53,29 @@ from helpers.progress import status_message
 
 
 # ---------------------------------------------------------------------------
+# Adaptive top-N calculation
+# ---------------------------------------------------------------------------
+def _adaptive_top_n(function_count: int, entry_count: int = 0) -> int:
+    """Compute adaptive top-N based on module size and entry point count.
+
+    Uses config keys under ``security_auditor``:
+    - ``top_n_base``            (default 5)
+    - ``top_n_per_100_functions`` (default 1)
+    - ``top_n_max``             (default 25)
+    - ``top_n_min``             (default 3)
+    """
+    base = int(get_config_value("security_auditor.top_n_base", 5))
+    per_100 = int(get_config_value("security_auditor.top_n_per_100_functions", 1))
+    top_max = int(get_config_value("security_auditor.top_n_max", 25))
+    top_min = int(get_config_value("security_auditor.top_n_min", 3))
+
+    n = base + (function_count // 100) * per_100
+    if entry_count > 0:
+        n = max(n, (entry_count + 1) // 2)
+    return max(top_min, min(n, top_max))
+
+
+# ---------------------------------------------------------------------------
 # Adaptive timeout calculation
 # ---------------------------------------------------------------------------
 def compute_adaptive_timeout(
@@ -620,6 +643,10 @@ def run_pipeline(
     if workspace_run_dir is None:
         module_name = chars.file_name or Path(db_path).stem
         workspace_run_dir = create_run_dir(module_name, goal)
+
+    # Adaptive top-N when caller uses the default value
+    if top_n <= 0:
+        top_n = _adaptive_top_n(chars.total_functions)
 
     # Compute adaptive timeout if no explicit override was given
     adaptive_timeout = compute_adaptive_timeout(chars.total_functions)

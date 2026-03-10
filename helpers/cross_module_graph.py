@@ -25,6 +25,7 @@ Usage::
 
 from __future__ import annotations
 
+import json
 import logging
 import sqlite3
 import threading
@@ -49,6 +50,65 @@ _log = logging.getLogger(__name__)
 def _xref_result_key(module_name: str, function_name: str) -> str:
     """Build a collision-free key for a cross-module xref lookup."""
     return f"{module_name}!{function_name}"
+
+
+def resolve_forwarded_export(
+    module_name: str, function_name: str
+) -> Optional[tuple[str, str]]:
+    """Check ``file_info.json`` for a forwarded export and resolve it.
+
+    PE forwarded exports have the form ``target_dll.FunctionName`` in
+    their definition.  This function scans the module's ``file_info.json``
+    exports list for entries containing ``->`` (the forwarding marker
+    added by IDA / DeepExtractIDA) and returns the resolved
+    ``(target_module, target_function)`` tuple or ``None``.
+    """
+    workspace = _auto_workspace_root()
+    if workspace is None:
+        return None
+
+    code_dir = Path(workspace) / "extracted_code"
+    module_stem = module_name.rsplit(".", 1)[0] if "." in module_name else module_name
+    module_dir_candidates = [
+        code_dir / module_stem.replace(".", "_"),
+        code_dir / module_name.replace(".", "_"),
+    ]
+
+    for module_dir in module_dir_candidates:
+        fi_path = module_dir / "file_info.json"
+        if not fi_path.exists():
+            continue
+        try:
+            fi = json.loads(fi_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+
+        exports = fi.get("exports")
+        if not isinstance(exports, list):
+            continue
+
+        for exp in exports:
+            if not isinstance(exp, dict):
+                continue
+            exp_name = exp.get("name", "")
+            if exp_name.lower() != function_name.lower():
+                continue
+            definition = exp.get("definition", "") or exp.get("forward", "")
+            if "->" in definition:
+                target = definition.split("->", 1)[1].strip()
+            elif "." in definition:
+                target = definition.strip()
+            else:
+                continue
+
+            if "." in target:
+                target_module, target_func = target.rsplit(".", 1)
+                if not target_module.lower().endswith(".dll"):
+                    target_module += ".dll"
+                return (target_module, target_func)
+        break
+
+    return None
 
 
 # ===================================================================
@@ -335,6 +395,19 @@ class ModuleResolver:
             except (OSError, RuntimeError, sqlite3.Error) as exc:
                 log_warning(f"Skipping {file_name} during resolve: {exc}", "DB_ERROR")
                 continue
+
+        # Phase 1b: forwarded export fallback
+        if not results:
+            for db_path_entry, file_name_entry in self._module_cache.values():
+                fwd = resolve_forwarded_export(file_name_entry, function_name)
+                if fwd:
+                    target_mod, target_func = fwd
+                    fwd_results = self.resolve_function(
+                        target_func, fuzzy=False, max_results=max_results,
+                    )
+                    if fwd_results:
+                        results.extend(fwd_results)
+                    break
 
         # Phase 2: substring search -- opt-in and bounded
         if fuzzy and len(results) < max_results:
@@ -941,6 +1014,45 @@ class CrossModuleGraph:
         if added:
             _log.info("Injected %d WinRT cross-process edges", added)
         return added
+
+    def build_unified_adjacency(self) -> dict[tuple[str, str], set[tuple[str, str]]]:
+        """Return a single adjacency dict keyed by ``(module, function)`` tuples.
+
+        Merges all per-module internal edges, cross-module external
+        edges, and injected IPC edges into one unified graph.  Useful
+        for whole-workspace reachability queries.
+        """
+        adj: dict[tuple[str, str], set[tuple[str, str]]] = defaultdict(set)
+
+        for mod_key, graph in self._graphs.items():
+            for caller, callees in graph.outbound.items():
+                caller_key = (mod_key, caller)
+                for callee in callees:
+                    if graph.is_internal(callee):
+                        adj[caller_key].add((mod_key, callee))
+
+            for caller, ext_calls in graph.external_calls.items():
+                caller_key = (mod_key, caller)
+                for callee_name, target_module in ext_calls:
+                    target_key = target_module.lower()
+                    target_graph = self._graphs.get(target_key)
+                    if target_graph is not None:
+                        resolved = target_graph.find_function(callee_name)
+                        if resolved:
+                            adj[caller_key].add((target_key, resolved))
+
+            ipc_edges = getattr(graph, "ipc_edges", {})
+            for _client_mod, targets in ipc_edges.items():
+                for proc_name, server_mod, _ipc_id in targets:
+                    target_graph = self._graphs.get(server_mod)
+                    if target_graph is not None:
+                        resolved = target_graph.find_function(proc_name)
+                        if resolved:
+                            for caller in graph.all_nodes:
+                                if graph.is_internal(caller):
+                                    adj[(mod_key, caller)].add((server_mod, resolved))
+
+        return dict(adj)
 
     def inject_all_ipc_edges(self) -> dict[str, int]:
         """Inject RPC, COM, and WinRT edges in one call.

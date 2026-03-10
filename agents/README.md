@@ -559,19 +559,22 @@ Each module also has `extracted_code/{module}/module_profile.json` with pre-comp
 
 ## When to Use Which Subagent
 
-| You want to... | Use |
-|-----------------|-----|
-| Understand what a function does | **re-analyst** |
-| Triage an unknown module | **triage-coordinator** (`--goal triage`) |
-| Run a focused security scan or verify a suspected finding | **security-auditor** |
-| Run a security audit | **triage-coordinator** (`--goal security`) |
-| Generate a comprehensive report | **triage-coordinator** (`--goal full`) |
-| Reconstruct struct/class definitions | **type-reconstructor** |
-| Generate C++ header files from a binary | **type-reconstructor** |
-| Lift all methods of a C++ class | **code-lifter** |
-| Lift related functions with shared context | **code-lifter** |
-| Verify lifted code is correct | **verifier** |
-| Check decompiler accuracy | **verifier** |
+| You want to... | Use | How |
+|-----------------|-----|-----|
+| Understand what a function does | **re-analyst** | `/explain` uses `explain_function.py` script |
+| Enrich xref/callgraph/data-flow with classification | **re-analyst** | `/xref`, `/callgraph`, `/data-flow` use `re_query.py` for metadata |
+| Add behavioral explanations to reports | **re-analyst** | `/full-report` uses `explain_function.py` for entry point explanations |
+| Triage an unknown module | **triage-coordinator** | `/triage` uses `analyze_module.py --goal triage` script |
+| Run a security audit | **triage-coordinator** | `--goal security` for full security pipeline |
+| Generate a comprehensive report | **triage-coordinator** | `/full-report` uses `generate_analysis_plan.py --goal full` script |
+| Run a unified vulnerability scan | **security-auditor** | `/scan` uses `run_security_scan.py` script |
+| Verify security findings with fresh eyes | **security-auditor** | `/audit`, `/taint`, `/memory-scan`, `/logic-scan` launch as subagent |
+| Reconstruct struct/class definitions | **type-reconstructor** | `/reconstruct-types` uses `reconstruct_all.py` script |
+| Generate C++ header files from a binary | **type-reconstructor** | `reconstruct_all.py --output types.h` |
+| Lift all methods of a C++ class | **code-lifter** | `/lift-class` launches as subagent |
+| Lift related functions with shared context | **code-lifter** | Launched as subagent with shared state |
+| Verify lifted code is correct | **verifier** | `/verify-batch`, `/lift-class` launch as subagent |
+| Check decompiler accuracy | **verifier** | Launched as subagent with `readonly: true` |
 
 ## Subagent vs Skill
 

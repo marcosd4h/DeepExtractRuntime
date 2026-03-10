@@ -8,12 +8,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from helpers.def_use_chain import (
+    SANITIZER_APIS,
     TaintResult,
     VarDef,
     VarUse,
     analyze_taint,
     parse_def_use,
     propagate_taint,
+    _extract_field_vars,
+    _parse_blocks,
+    _var_covers,
 )
 
 
@@ -250,3 +254,142 @@ class TestCompoundAssignments:
         code = "if ( v5 == a1 )\n"
         defs, uses = parse_def_use(code)
         assert not any(d.var == "v5" for d in defs)
+
+
+class TestScopeAwareTaint:
+    """Defs inside early-exit blocks should not taint the continuation."""
+
+    def test_early_exit_block_does_not_taint_continuation(self):
+        code = """\
+{
+  if ( a1 == 0 )
+  {
+    v5 = a1;
+    return 0;
+  }
+  memcpy(buf, v5, 10);
+}
+"""
+        result = analyze_taint(code, {"a1"}, scope_aware=True)
+        assert "v5" not in result.tainted_vars
+
+    def test_non_exit_block_does_taint_continuation(self):
+        code = """\
+{
+  if ( a1 > 0 )
+  {
+    v5 = a1;
+  }
+  memcpy(buf, v5, 10);
+}
+"""
+        result = analyze_taint(code, {"a1"}, scope_aware=True)
+        assert "v5" in result.tainted_vars
+
+    def test_scope_aware_disabled_preserves_old_behavior(self):
+        code = """\
+{
+  if ( a1 == 0 )
+  {
+    v5 = a1;
+    return 0;
+  }
+  memcpy(buf, v5, 10);
+}
+"""
+        result = analyze_taint(code, {"a1"}, scope_aware=False)
+        assert "v5" in result.tainted_vars
+
+    def test_else_block_with_return_does_not_taint(self):
+        code = """\
+{
+  if ( a1 )
+  {
+    v5 = 42;
+  }
+  else
+  {
+    v5 = a1;
+    return -1;
+  }
+  func(v5);
+}
+"""
+        result = analyze_taint(code, {"a1"}, scope_aware=True)
+        assert "v5" not in result.tainted_vars
+
+    def test_block_parsing_returns_root(self):
+        lines = ["int x = 0;", "return x;"]
+        blocks = _parse_blocks(lines)
+        assert len(blocks) >= 1
+        assert blocks[0].block_type == "root"
+
+
+class TestFieldSensitiveTaint:
+    """Field-qualified variable tracking."""
+
+    def test_var_covers_base_covers_field(self):
+        tainted = {"a1"}
+        assert _var_covers(tainted, ("a1", "buffer"))
+
+    def test_var_covers_field_does_not_cover_other_field(self):
+        tainted = {("a1", "length")}
+        assert not _var_covers(tainted, ("a1", "buffer"))
+
+    def test_var_covers_exact_field_match(self):
+        tainted = {("a1", "buffer")}
+        assert _var_covers(tainted, ("a1", "buffer"))
+
+    def test_var_covers_plain_match(self):
+        tainted = {"v5"}
+        assert _var_covers(tainted, "v5")
+
+    def test_extract_field_vars_arrow(self):
+        fields = _extract_field_vars("a1->buffer + a1->length")
+        field_tuples = [f for f in fields if isinstance(f, tuple)]
+        assert ("a1", "buffer") in field_tuples
+        assert ("a1", "length") in field_tuples
+
+    def test_extract_field_vars_deref_offset(self):
+        fields = _extract_field_vars("*(_QWORD *)(a1 + 0x10)")
+        field_tuples = [f for f in fields if isinstance(f, tuple)]
+        assert ("a1", "offset_0x10") in field_tuples
+
+    def test_extract_field_vars_plain(self):
+        fields = _extract_field_vars("v5 + v6")
+        assert "v5" in fields
+        assert "v6" in fields
+
+
+class TestSanitizerKill:
+    """Sanitizer API calls kill taint on LHS."""
+
+    def test_sanitizer_api_kills_taint(self):
+        code = "v5 = PathCchCanonicalize(a1, buf, size);\nfunc(v5);\n"
+        result = analyze_taint(code, {"a1"}, sanitizer_kill=True)
+        assert "v5" not in result.tainted_vars
+
+    def test_non_sanitizer_propagates(self):
+        code = "v5 = SomeFunc(a1);\nfunc(v5);\n"
+        result = analyze_taint(code, {"a1"}, sanitizer_kill=True)
+        assert "v5" in result.tainted_vars
+
+    def test_sanitizer_kill_disabled_propagates(self):
+        code = "v5 = PathCchCanonicalize(a1, buf, size);\nfunc(v5);\n"
+        result = analyze_taint(code, {"a1"}, sanitizer_kill=False)
+        assert "v5" in result.tainted_vars
+
+    def test_rhs_call_detected_in_parse(self):
+        code = "v5 = GetFullPathNameW(a1, 260, buf, 0);\n"
+        defs, _ = parse_def_use(code)
+        d = next(d for d in defs if d.var == "v5")
+        assert d.rhs_call == "GetFullPathNameW"
+
+    def test_non_call_rhs_has_no_rhs_call(self):
+        code = "v5 = a1 + 16;\n"
+        defs, _ = parse_def_use(code)
+        d = next(d for d in defs if d.var == "v5")
+        assert d.rhs_call is None
+
+    def test_sanitizer_list_not_empty(self):
+        assert len(SANITIZER_APIS) > 10

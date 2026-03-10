@@ -29,7 +29,7 @@ Usage::
 from __future__ import annotations
 
 from collections import defaultdict, deque
-from typing import Optional
+from typing import Callable, Optional
 
 from .errors import log_warning
 
@@ -94,6 +94,8 @@ class CallGraph:
         self.module_name: str = ""
         # Lowercase name -> canonical name for O(1) exact lookup
         self._name_lower_index: dict[str, str] = {}
+        # Edges originating from vtable xrefs (uncertain resolution)
+        self.vtable_edges: set[tuple[str, str]] = set()
 
     # ------------------------------------------------------------------
     # Serialisation (for caching)
@@ -111,6 +113,7 @@ class CallGraph:
                 for k, v in self.external_calls.items()
             },
             "all_nodes": sorted(self.all_nodes),
+            "vtable_edges": sorted([list(t) for t in self.vtable_edges]),
         }
 
     @classmethod
@@ -150,6 +153,9 @@ class CallGraph:
                 for k, v in data.get("external_calls", {}).items()
             })
             graph.all_nodes = set(data.get("all_nodes", []))
+            graph.vtable_edges = {
+                tuple(t) for t in data.get("vtable_edges", [])
+            }
             graph._rebuild_name_index()
             return graph
         except (TypeError, ValueError, KeyError) as exc:
@@ -251,9 +257,17 @@ class CallGraph:
                     callee_id = xref.get("function_id")
                     module = xref.get("module_name", "")
 
+                    is_vtable = (
+                        (module.lower() in VTABLE_MODULES)
+                        or (xref.get("function_type", 0) in VTABLE_FTYPES)
+                    )
+
                     self.outbound[fname].add(callee)
                     self.inbound[callee].add(fname)
                     self.all_nodes.add(callee)
+
+                    if is_vtable:
+                        self.vtable_edges.add((fname, callee))
 
                     if callee_id is None and module:
                         self.external_calls[fname].add((callee, module))
@@ -308,11 +322,24 @@ class CallGraph:
     # ------------------------------------------------------------------
     # Traversal: BFS forward (callees)
     # ------------------------------------------------------------------
-    def reachable_from(self, start: str, max_depth: int = 0) -> dict[str, int]:
+    def reachable_from(
+        self,
+        start: str,
+        max_depth: int = 0,
+        *,
+        feasibility_fn: Callable[[str, str], bool] | None = None,
+    ) -> dict[str, int]:
         """BFS forward to find all functions reachable from *start*.
 
         Returns ``{name: depth}`` where depth 0 is *start* itself.
         *max_depth* of 0 means unlimited.
+
+        Parameters
+        ----------
+        feasibility_fn:
+            Optional callback ``(caller, callee) -> bool``.  When
+            provided, edges where the function returns ``False`` are
+            skipped during BFS.
         """
         if start not in self.all_nodes:
             return {}
@@ -324,6 +351,8 @@ class CallGraph:
                 continue
             for neighbor in self.outbound.get(current, set()):
                 if neighbor not in visited:
+                    if feasibility_fn is not None and not feasibility_fn(current, neighbor):
+                        continue
                     visited[neighbor] = depth + 1
                     queue.append((neighbor, depth + 1))
         return visited

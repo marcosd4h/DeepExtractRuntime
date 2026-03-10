@@ -98,6 +98,8 @@ class Guard:
     bypass_difficulty: str = "unknown"
     api_in_condition: Optional[str] = None
     tainted_vars_in_condition: list[str] = field(default_factory=list)
+    role: str = "unknown"          # "protects" | "enables" | "sibling" | "unknown"
+    on_path_to_sink: bool = True   # False for sibling-branch guards
 
     def to_dict(self) -> dict:
         d: dict = {
@@ -106,6 +108,8 @@ class Guard:
             "condition": self.condition_text,
             "attacker_controllable": self.attacker_controllable,
             "bypass_difficulty": self.bypass_difficulty,
+            "role": self.role,
+            "on_path_to_sink": self.on_path_to_sink,
         }
         if self.api_in_condition:
             d["api_in_condition"] = self.api_in_condition
@@ -213,17 +217,84 @@ def classify_guard(condition: str, tainted_vars: set[str]) -> Guard:
     )
 
 
+def _classify_guard_role(
+    guard_line: int,
+    sink_line: int,
+    code_lines: list[str],
+) -> tuple[str, bool]:
+    """Determine a guard's role relative to the sink.
+
+    Returns ``(role, on_path_to_sink)`` where *role* is one of
+    ``"protects"``, ``"enables"``, ``"sibling"``, or ``"unknown"``.
+
+    Heuristics (lightweight, no full CFG):
+
+    * **protects**: The then-branch contains an early exit
+      (``return``/``break``/``goto``) and the sink is AFTER the block.
+    * **enables**: The sink is inside the then-branch.
+    * **sibling**: The guard's then-branch does not contain the sink AND
+      does not early-exit -- the sink is in the continuation or else-branch,
+      so this guard is in a sibling scope.
+    """
+    if guard_line < 1 or guard_line > len(code_lines):
+        return "unknown", True
+
+    _early_exit_re = re.compile(r"^\s*(?:return\b|break\s*;|goto\s+\w+)")
+
+    depth = 0
+    then_start = None
+    then_end = None
+    then_has_return = False
+
+    for i in range(guard_line - 1, min(guard_line + 200, len(code_lines))):
+        stripped = code_lines[i].strip()
+        for ch in stripped:
+            if ch == "{":
+                depth += 1
+                if depth == 1 and then_start is None:
+                    then_start = i + 1  # 1-based
+            elif ch == "}":
+                if depth == 1 and then_start is not None and then_end is None:
+                    then_end = i + 1
+                depth -= 1
+        if _early_exit_re.match(stripped) and depth == 1 and then_start is not None:
+            then_has_return = True
+        if depth <= 0 and then_start is not None:
+            break
+
+    if then_start is None or then_end is None:
+        return "unknown", True
+
+    sink_in_then = then_start <= sink_line <= then_end
+
+    if then_has_return and not sink_in_then:
+        return "protects", True
+    if sink_in_then:
+        return "enables", True
+    if not then_has_return and not sink_in_then:
+        return "sibling", False
+
+    return "unknown", True
+
+
 def find_guards_between(
     code: str,
     source_line: int,
     sink_line: int,
     tainted_vars: set[str],
+    *,
+    path_aware: bool = True,
 ) -> list[Guard]:
     """Find conditional guards between *source_line* and *sink_line*.
 
     Scans lines in the half-open range ``[source_line, sink_line)`` for
     ``if (...)`` and ``while (...)`` constructs.  Each condition is
     classified via :func:`classify_guard`.
+
+    When *path_aware* is ``True`` (default), each guard is annotated with
+    a ``role`` (``"protects"``/``"enables"``/``"sibling"``) and
+    ``on_path_to_sink``.  Guards with ``on_path_to_sink=False`` are
+    excluded from the returned list.
     """
     lines = code.splitlines()
     guards: list[Guard] = []
@@ -241,6 +312,16 @@ def find_guards_between(
                 continue
             guard = classify_guard(cond, tainted_vars)
             guard.line_number = idx + 1
+
+            if path_aware:
+                role, on_path = _classify_guard_role(
+                    idx + 1, sink_line, lines,
+                )
+                guard.role = role
+                guard.on_path_to_sink = on_path
+                if not on_path:
+                    continue
+
             guards.append(guard)
 
     return guards

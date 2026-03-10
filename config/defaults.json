@@ -7,14 +7,25 @@
       "W_STRING": 2.0,
       "W_STRING_CAP": 10.0,
       "W_STRUCTURAL": 4.0,
-      "W_LIBRARY": 20.0
+      "W_LIBRARY": 12.0
     },
     "library_interest_penalty": 5,
     "library_interest_penalty_with_dangerous_apis": 2,
     "noise_interest_penalty": 3,
-    "noise_interest_penalty_with_dangerous_apis": 1
+    "noise_interest_penalty_with_dangerous_apis": 1,
+    "structural_thresholds": {
+      "dispatch_min_branches": 15,
+      "dispatch_min_calls": 5,
+      "dispatch_max_loops": 1,
+      "parsing_min_loops": 3,
+      "parsing_min_complexity": 5,
+      "utility_max_asm_instructions": 10,
+      "utility_max_calls": 2,
+      "leaf_max_instructions": 20
+    }
   },
   "scoring": {
+    "min_confidence_for_report": 0.7,
     "uncategorized_dangerous_severity": 0.65,
     "sync_severity": 0.5,
     "source_severity_call_result": 0.5,
@@ -24,7 +35,10 @@
     "scanner_default_top_n": 100
   },
   "callgraph": {
-    "include_vtable_edges": true
+    "include_vtable_edges": true,
+    "default_max_depth": 10,
+    "max_depth_for_reachability": 15,
+    "max_depth_for_taint": 8
   },
   "triage": {
     "com_density_threshold": 5,
@@ -37,7 +51,11 @@
   },
   "security_auditor": {
     "step_timeout_seconds": 180,
-    "per_function_timeout_seconds": 0.2
+    "per_function_timeout_seconds": 0.2,
+    "top_n_base": 5,
+    "top_n_per_100_functions": 1,
+    "top_n_max": 25,
+    "top_n_min": 3
   },
   "pipeline": {
     "default_step_timeout": 300,

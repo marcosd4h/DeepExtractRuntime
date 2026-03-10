@@ -152,6 +152,15 @@ UNBOUNDED_COPY_APIS: tuple[str, ...] = (
     "lstrcat",
 )
 
+SAFE_BOUNDED_COPY_APIS: frozenset[str] = frozenset({
+    "StringCchCopy", "StringCchCopyW", "StringCchCopyA",
+    "StringCbCopy", "StringCbCopyW", "StringCbCopyA",
+    "StringCchCat", "StringCchCatW", "StringCchCatA",
+    "StringCbCat", "StringCbCatW", "StringCbCatA",
+    "StringCchPrintf", "StringCchPrintfW", "StringCbPrintf",
+    "StringCbPrintfW", "StringCbPrintfA",
+})
+
 FORMAT_APIS: tuple[str, ...] = (
     "sprintf",
     "swprintf",
@@ -204,6 +213,42 @@ RE_TRUNCATION_CAST = re.compile(
 )
 
 from helpers.asm_patterns import ASM_CALL_RE as RE_CALL_INSN, IDA_PARAM_RE as RE_IDA_PARAM  # noqa: E402
+
+RE_SIZE_CAP_MIN = re.compile(
+    r"\bmin\s*\(\s*[^,]+\s*,\s*(?:sizeof\s*\([^)]+\)|\d+)\s*\)",
+    re.IGNORECASE,
+)
+
+
+def _is_size_capped(size_arg: str, code: str, call_line: int) -> bool:
+    """Return True if *size_arg* is bounded by a ``min()`` expression.
+
+    Checks two patterns:
+    1. The size argument itself contains ``min(expr, sizeof(...))``.
+    2. The variable used as size was assigned from a ``min()`` call
+       within the preceding 30 lines.
+    """
+    if RE_SIZE_CAP_MIN.search(size_arg):
+        return True
+
+    var_match = re.match(r"^\s*(v\d+)\s*$", size_arg)
+    if var_match:
+        var_name = var_match.group(1)
+        lines = code.splitlines()
+        start = max(0, call_line - 31)
+        end = max(0, call_line - 1)
+        for line in lines[start:end]:
+            stripped = line.strip()
+            if re.match(rf"{re.escape(var_name)}\s*=", stripped) and RE_SIZE_CAP_MIN.search(stripped):
+                return True
+
+    return False
+
+
+def is_safe_bounded_copy_api(api_name: str) -> bool:
+    """Return True if *api_name* is a safe, inherently-bounded copy API."""
+    clean = strip_import_prefix(api_name)
+    return any(clean.startswith(safe) for safe in SAFE_BOUNDED_COPY_APIS)
 
 
 # ---------------------------------------------------------------------------
@@ -313,8 +358,10 @@ __all__ = [
     "RE_CALL_INSN",
     "RE_IDA_PARAM",
     "RE_MUL_INSN",
+    "RE_SIZE_CAP_MIN",
     "RE_STACK_BUFFER",
     "RE_TRUNCATION_CAST",
+    "SAFE_BOUNDED_COPY_APIS",
     "REACHABILITY_SCORES",
     "SCORE_WEIGHTS",
     "TaintResult",
@@ -342,9 +389,11 @@ __all__ = [
     "get_dangerous_api_set",
     "get_format_arg_position",
     "is_alloc_api",
+    "_is_size_capped",
     "is_copy_api",
     "is_format_api",
     "is_free_api",
+    "is_safe_bounded_copy_api",
     "is_unbounded_copy_api",
     "load_all_functions_slim",
     "load_exports",

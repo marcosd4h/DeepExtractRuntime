@@ -37,6 +37,7 @@ from _common import (
     require_rpc_index,
 )
 from helpers.errors import safe_parse_args
+from helpers.rpc_index import detect_rpc_authn_level, detect_rpc_security_callback
 
 _DEFAULT_DEPTH = 3
 
@@ -257,7 +258,21 @@ def audit_module(db_path: str, *, depth: int = _DEFAULT_DEPTH) -> tuple[list[Rpc
                             ],
                         ))
 
+            module_has_security_callback = False
+            module_authn_levels: set[str] = set()
+            for func in all_funcs.values():
+                code = func.decompiled_code or ""
+                if detect_rpc_security_callback(code):
+                    module_has_security_callback = True
+                level = detect_rpc_authn_level(code)
+                if level:
+                    module_authn_levels.add(level)
+
             for iface in ifaces:
+                iface.has_security_callback = module_has_security_callback
+                if module_authn_levels:
+                    iface.authn_level = sorted(module_authn_levels)[-1]
+
                 if iface.is_remote_reachable and not has_auth_register:
                     findings.append(RpcFinding(
                         function_name="(interface-level)",
@@ -267,6 +282,21 @@ def audit_module(db_path: str, *, depth: int = _DEFAULT_DEPTH) -> tuple[list[Rpc
                         severity=0.90,
                         description="Remote-reachable interface without RpcServerRegisterAuthInfo",
                         details=[f"Protocols: {', '.join(sorted(iface.protocols))}"],
+                    ))
+
+                if (iface.authn_level and "NONE" in iface.authn_level
+                        and not iface.has_security_callback):
+                    findings.append(RpcFinding(
+                        function_name="(interface-level)",
+                        interface_id=iface.interface_id,
+                        risk_tier=iface.risk_tier,
+                        finding_type="rpc_authn_level_none",
+                        severity=0.85,
+                        description=(
+                            "Interface uses RPC_C_AUTHN_LEVEL_NONE without a "
+                            "registered security callback"
+                        ),
+                        details=[f"Auth level: {iface.authn_level}"],
                     ))
 
     findings.sort(key=lambda f: f.severity, reverse=True)

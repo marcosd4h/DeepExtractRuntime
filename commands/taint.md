@@ -239,7 +239,7 @@ of the top confirmed taint findings.
 - If zero findings qualify, skip Step 4
 
 **Subagent invocation:**
-Use `subagent_type="re-analyst"` with `readonly: true`. For each finding,
+Use `subagent_type="security-auditor"` with `readonly: true`. For each finding,
 pass:
 
 1. The finding itself (sink name, sink category, severity, score, call
@@ -255,10 +255,12 @@ pass:
 **Subagent prompt template:**
 
 ```
-You are a skeptical security reviewer. You have NOT participated in taint-
+You are a skeptical security auditor. You have NOT participated in taint-
 tracing this function. Your job is to independently evaluate whether each
 taint finding below is a TRUE POSITIVE or FALSE POSITIVE by reading the
-decompiled code and assembly with fresh eyes.
+decompiled code and assembly with fresh eyes. Apply the security-auditor's
+severity criteria and reject common rationalizations (see your
+"Rationalizations to Reject" table).
 
 RULES:
 - Use "does / is / will" in verdicts. NEVER use "might / could / possibly".
