@@ -101,7 +101,7 @@ Present the search results in chat, grouped by dimension. This is a lightweight 
 - Function name hit: `/explain <module> <function>` -- understand what it does
 - API call hit: `/explain <module> <function>` -- see how the API is used in context
 - String hit: `/explain <module> <function>` -- see the string's role in the function
-- Export hit: `/trace-export <module> <export>` -- trace the export's call chain
+- Export hit: `/audit <module> <export> --diagram` -- security audit with call graph for the export
 - Dangerous API hit: `/audit <module> <function>` -- security audit the function
 - Class hit: `/lift-class <module> <class>` -- reconstruct the class
 

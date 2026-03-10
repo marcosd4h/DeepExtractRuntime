@@ -165,7 +165,7 @@ critical steps or produces inconsistent output.
 | 9   | **com-interface-reconstruction** | COM/WRL interface reconstruction          | `scan_com_interfaces.py`, `decode_wrl_templates.py`, `map_class_interfaces.py`, `generate_idl.py`                      |
 | 10  | **state-machine-extractor**      | Dispatch tables, state machines           | `detect_dispatchers.py`, `extract_dispatch_table.py`, `extract_state_machine.py`, `generate_state_diagram.py`          |
 | 11  | **deep-research-prompt**         | Research prompts and context gathering    | `generate_research_prompt.py`, `gather_module_context.py`, `gather_function_context.py`                                |
-| 12  | **decompiled-code-extractor**    | Lift to readable code                     | `find_module_db.py`, `list_functions.py`, `extract_function_data.py`                                                   |
+| 12  | **decompiled-code-extractor**    | Extract function data from analysis DBs   | `find_module_db.py`, `list_functions.py`, `extract_function_data.py`                                                   |
 |     | **helpers** (cross-cutting)      | Unified cross-dimensional search          | `unified_search.py --query <term>` (names, signatures, strings, APIs, classes, exports)                                |
 | 13  | **batch-lift**                   | Lift function groups together             | `collect_functions.py`, `prepare_batch_lift.py`                                                                        |
 | 14  | **verify-decompiled**            | Verify decompiler accuracy                | `verify_function.py`, `scan_module.py`                                                                                 |
@@ -287,7 +287,7 @@ These commands exist and can be recommended as next steps:
 | --------------------------------- | -------------------------------- |
 | `/triage <module>`                | Quick module triage              |
 | `/audit <module> <function>`      | Security audit a function        |
-| `/trace-export <module> <export>` | Trace an export's call chain     |
+| `/audit <module> <export> --diagram` | Audit an export with call graph |
 | `/lift-class <module> <class>`    | Lift all methods of a class      |
 | `/full-report <module>`           | Complete 6-phase analysis report |
 | `/compare-modules <a> <b>`        | Cross-module comparison          |

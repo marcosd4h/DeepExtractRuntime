@@ -12,7 +12,7 @@ The text after `/explain` specifies the **function name** and optionally the **m
 
 If no function is specified, ask the user.
 
-Default callee depth is 1 (direct callees only). Override with `--depth N` (0 = no callees, 2 = two levels deep).
+Default callee depth is 1 (direct callees only). Override with `--depth N` (0 = no callees, 2 = callees of callees, etc.). The script performs true BFS recursive traversal through the call chain, filtering boilerplate (WIL/CRT/ETW thunks) automatically.
 
 ## IMPORTANT: Execution Model
 
@@ -40,23 +40,34 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 > **Tip:** All skill scripts support `--json` for machine-readable output. Use `--json` when parsing script output programmatically.
 
 2. **Gather explanation context**
-   Use the **re-analyst** agent's `explain_function.py` to extract all context in one call:
+   Use the **re-analyst** agent's `explain_function.py` to extract all context in one call.
+
+   > **CRITICAL**: For `--depth >= 1`, always use `--output-file` to write the full JSON to a file.
+   > Stdout is truncated at ~20,000 chars by the Shell tool, which silently discards callee code.
+   > After the script completes, read the output file with the Read tool (chunked if needed)
+   > before synthesizing. **Never rely on stdout for callee code.**
 
    ```bash
-   # By name
-   python .agent/agents/re-analyst/scripts/explain_function.py <db_path> <function_name>
+   # Standard invocation (writes full output to file, avoids stdout truncation)
+   python .agent/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> \
+       --depth <N> --no-assembly --output-file .agent/workspace/explain_out.json
+
+   # Then read the output file before synthesizing:
+   # Use the Read tool on .agent/workspace/explain_out.json (chunked if large)
+   # The callee_details array contains all callee code at every depth level
 
    # By function ID (from lookup)
-   python .agent/agents/re-analyst/scripts/explain_function.py <db_path> --id <function_id>
+   python .agent/agents/re-analyst/scripts/explain_function.py <db_path> --id <function_id> \
+       --output-file .agent/workspace/explain_out.json
 
-   # With deeper callee inclusion
-   python .agent/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> --depth 2
+   # Quick mode (depth 0, no callees -- stdout is fine)
+   python .agent/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> --depth 0
 
-   # Without assembly (shorter output)
-   python .agent/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> --no-assembly
+   # JSON to stdout (only for depth 0 or when output is small)
+   python .agent/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> --depth 0 --json
    ```
 
-   This returns: module context, function identity, classification, decompiled code, assembly, call chain breakdown, inbound callers, categorized strings, dangerous APIs, complexity metrics, and callee code excerpts.
+   This returns: module context, function identity, classification, decompiled code, assembly, call chain breakdown, inbound callers, categorized strings, dangerous APIs, complexity metrics, and recursive callee code (BFS traversal to `--depth` levels, boilerplate filtered).
 
    For additional structured queries (class listing, exports, module overview), use `re_query.py`:
 
@@ -110,7 +121,7 @@ Present the explanation in chat using the structured format above. This is a lig
 
 **Follow-up suggestions**:
 - `/audit <module> <function>` -- full security audit with risk assessment
-- `/trace-export <module> <function>` -- trace through the full call chain (if export)
+- `/audit <module> <function> --diagram` -- full security audit with call graph diagram (if export)
 - `/explain <module> <callee>` -- explain a callee mentioned in the call context
 
 ## Error Handling

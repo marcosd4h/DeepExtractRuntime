@@ -75,7 +75,7 @@ class TestTaintCommandRegistryIntegration:
     def _load(self):
         self.reg = _load_json(COMMAND_REGISTRY)["commands"]
 
-    @pytest.mark.parametrize("cmd", ["taint", "hunt", "audit", "full-report", "trace-export"])
+    @pytest.mark.parametrize("cmd", ["taint", "hunt-plan", "audit", "full-report"])
     def test_command_lists_taint_skill(self, cmd):
         skills = self.reg[cmd].get("skills_used", [])
         assert TAINT_SKILL in skills, (
@@ -146,11 +146,10 @@ class TestTaintCommandMdReferences:
     """Command definitions that use taint-analysis must reference it in their body."""
 
     @pytest.mark.parametrize("cmd_file", [
-        "audit-function.md",
+        "audit.md",
         "full-report.md",
-        "trace-export.md",
         "taint.md",
-        "hunt.md",
+        "hunt-plan.md",
     ])
     def test_command_md_mentions_taint(self, cmd_file):
         path = COMMANDS_DIR / cmd_file
@@ -160,7 +159,7 @@ class TestTaintCommandMdReferences:
         )
 
     def test_audit_has_taint_step(self):
-        text = (COMMANDS_DIR / "audit-function.md").read_text(encoding="utf-8")
+        text = (COMMANDS_DIR / "audit.md").read_text(encoding="utf-8")
         assert "taint_function.py" in text
         assert "taint_forward" in text
 
@@ -168,11 +167,6 @@ class TestTaintCommandMdReferences:
         text = (COMMANDS_DIR / "full-report.md").read_text(encoding="utf-8")
         assert "taint_function.py" in text
         assert "Taint analysis for top entry points" in text
-
-    def test_trace_export_has_taint_step(self):
-        text = (COMMANDS_DIR / "trace-export.md").read_text(encoding="utf-8")
-        assert "taint_function.py" in text
-        assert "Taint Summary" in text
 
 
 # ======================================================================

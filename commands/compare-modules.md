@@ -112,7 +112,7 @@ All saved files must include a provenance header: generation date, workspace run
 
 **Follow-up suggestions**:
 
-- `/trace-export <module> <export>` -- trace an interesting cross-module export through its call chain
+- `/audit <module> <export>` -- security audit on an interesting cross-module export (includes cross-module resolution)
 - `/audit <module> <function>` -- security audit on shared attack surface functions
 - `/data-flow-cross forward <module> <function> --param N` -- trace data flow across module boundaries
 - `/explain <module> <function>` -- understand a function that appears in cross-module call chains

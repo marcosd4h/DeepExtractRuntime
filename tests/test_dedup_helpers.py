@@ -562,6 +562,8 @@ class TestTaxonomyToClassification:
             "named_pipe": "rpc",
             "alpc_path": "rpc",
             "service_account": "security",
+            "credentials": "security",
+            "embedded_command": "security",
             "certificate": "crypto",
             "etw_provider": "telemetry",
             "format_string": "data_parsing",

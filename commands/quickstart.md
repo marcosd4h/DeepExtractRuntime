@@ -138,7 +138,7 @@ Based on the analysis results, suggest the **single best next command** with a c
 1. **Full module triage**: `/triage <module>` -- deep orientation with attack surface ranking
 2. **Security audit**: `/audit <module> <function>` -- focused security assessment
 3. **Call graph exploration**: `/callgraph <module>`
-4. **Trace an export**: `/trace-export <module> <export_name>`
+4. **Audit an export**: `/audit <module> <export_name> --diagram`
 5. **Search for patterns**: `/search <module> CreateProcess`
 ```
 

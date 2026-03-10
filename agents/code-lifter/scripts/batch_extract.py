@@ -17,6 +17,9 @@ Usage:
     # Specific functions by ID
     python batch_extract.py <db_path> --id-list 12,15,18,22
 
+    # List all C++ classes with method counts
+    python batch_extract.py <db_path> --list-classes [--skip-library]
+
     # Initialize shared state file (for use with track_shared_state.py)
     python batch_extract.py <db_path> --class <ClassName> --init-state
 
@@ -29,6 +32,9 @@ Examples:
 
     python .agent/agents/code-lifter/scripts/batch_extract.py \\
         extracted_dbs/cmd_exe_6d109a3a00.db --id-list 42,43,44,45 --init-state
+
+    python .agent/agents/code-lifter/scripts/batch_extract.py \\
+        extracted_dbs/cmd_exe_6d109a3a00.db --list-classes --skip-library
 """
 
 from __future__ import annotations
@@ -36,7 +42,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Optional
 
@@ -55,7 +61,7 @@ from _common import (
     scan_struct_accesses,
     topological_sort_functions,
 )
-from helpers import db_error_handler, emit_error, get_workspace_args, load_function_index_for_db, resolve_function, validate_function_id
+from helpers import db_error_handler, emit_error, get_workspace_args, load_function_index_for_db, resolve_function, resolve_module_dir, validate_function_id
 from helpers.errors import ErrorCode, safe_parse_args
 from helpers.json_output import emit_json
 
@@ -217,6 +223,86 @@ def collect_by_names(db_path: str, function_names: list[str]) -> dict:
         result["not_found"] = not_found
 
     return result
+
+
+def list_classes(db_path: str, skip_library: bool = False) -> dict:
+    """Enumerate all C++ classes in a module with per-class method counts.
+
+    Checks for existing ``lifted_<ClassName>.cpp`` files so callers can
+    see which classes have already been lifted.
+    """
+    with open_individual_analysis_db(db_path) as db:
+        all_funcs = db.get_all_functions()
+        file_info = db.get_file_info()
+        module_name = file_info.file_name if file_info else Path(db_path).stem
+
+    function_index = load_function_index_for_db(db_path)
+    library_names: set[str] = set()
+    if skip_library and function_index:
+        library_names = {k for k, v in function_index.items() if v.get("library") is not None}
+
+    class_counter: Counter[str] = Counter()
+    for func in all_funcs:
+        if library_names and (func.function_name or "") in library_names:
+            continue
+        if func.mangled_name:
+            parsed = parse_class_from_mangled(func.mangled_name)
+            if parsed:
+                class_counter[parsed["class_name"]] += 1
+
+    mod_dir = resolve_module_dir(module_name)
+
+    classes = []
+    for name, count in class_counter.most_common():
+        entry: dict = {"name": name, "method_count": count}
+        if mod_dir is not None:
+            lifted_path = mod_dir / f"lifted_{name}.cpp"
+            if lifted_path.is_file():
+                entry["already_lifted"] = True
+                entry["lifted_file"] = str(lifted_path)
+            else:
+                entry["already_lifted"] = False
+        classes.append(entry)
+
+    return {
+        "status": "ok",
+        "module_name": module_name,
+        "db_path": db_path,
+        "classes": classes,
+        "total_classes": len(classes),
+    }
+
+
+def print_list_classes(result: dict) -> None:
+    """Print human-readable class listing."""
+    module = result["module_name"]
+    total = result["total_classes"]
+    classes = result["classes"]
+
+    print(f"{'=' * 70}")
+    print(f"  C++ classes in {module}  ({total} classes)")
+    print(f"  DB: {result['db_path']}")
+    print(f"{'=' * 70}")
+
+    if not classes:
+        print("\n  No C++ classes found.")
+        return
+
+    max_name_len = max(len(c["name"]) for c in classes)
+    col_width = min(max(max_name_len, 10), 50)
+
+    print(f"\n  {'Class':<{col_width}}  Methods  Status")
+    print(f"  {'-' * col_width}  -------  ----------")
+    for c in classes:
+        lifted = c.get("already_lifted", False)
+        tag = "[LIFTED]" if lifted else ""
+        print(f"  {c['name']:<{col_width}}  {c['method_count']:>7}  {tag}")
+
+    lifted_count = sum(1 for c in classes if c.get("already_lifted"))
+    if lifted_count:
+        print(f"\n  {lifted_count}/{total} class(es) already lifted.")
+
+    print(f"\nUse --class <ClassName> to extract methods for lifting.")
 
 
 # ---------------------------------------------------------------------------
@@ -405,7 +491,11 @@ def main() -> None:
                            help="Extract specific functions by name")
     mode_group.add_argument("--id-list", dest="id_list",
                            help="Comma-separated function IDs")
+    mode_group.add_argument("--list-classes", action="store_true",
+                           help="List all C++ classes with method counts and lifted status")
 
+    parser.add_argument("--skip-library", action="store_true",
+                       help="Skip library-tagged functions (WIL/WRL/STL/CRT/ETW)")
     parser.add_argument("--init-state", action="store_true",
                        help="Initialize shared state file for track_shared_state.py")
     parser.add_argument("--summary", action="store_true",
@@ -416,6 +506,17 @@ def main() -> None:
 
     db_path = resolve_db_path(args.db_path)
 
+    if args.list_classes:
+        with db_error_handler(db_path, "listing classes"):
+            result = list_classes(db_path, skip_library=args.skip_library)
+        ws_args = get_workspace_args(args)
+        force_json = args.json or bool(ws_args["workspace_dir"])
+        if force_json:
+            emit_json(result)
+        else:
+            print_list_classes(result)
+        return
+
     with db_error_handler(db_path, "batch extraction"):
         if args.class_name:
             result = collect_class_methods(db_path, args.class_name)
@@ -425,7 +526,7 @@ def main() -> None:
             ids = [validate_function_id(x.strip(), "--id-list") for x in args.id_list.split(",")]
             result = collect_by_ids(db_path, ids)
         else:
-            parser.error("Specify --class, --functions, or --id-list")
+            parser.error("Specify --class, --functions, --id-list, or --list-classes")
             return
 
     # Optionally initialize shared state

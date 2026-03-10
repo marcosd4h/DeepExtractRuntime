@@ -31,6 +31,7 @@ from _common import (
     extract_jump_table_targets,
     parse_if_chain,
     parse_json_safe,
+    parse_string_compare_chain,
     parse_switch_cases,
     resolve_db_path,
 )
@@ -80,6 +81,7 @@ def scan_module(db_path: str, min_cases: int = 3, with_loops: bool = False, app_
                 "function_signature": func.function_signature or "",
                 "switches": [],
                 "if_chains": [],
+                "string_compare_chains": [],
                 "jump_table_targets": 0,
                 "asm_has_jump_table": False,
                 "has_loops": False,
@@ -110,6 +112,18 @@ def scan_module(db_path: str, min_cases: int = 3, with_loops: bool = False, app_
                     "values": values[:20],
                 })
                 result["total_cases"] += len(chain["comparisons"])
+
+            # 2b. Detect string-compare dispatch chains
+            str_chains = parse_string_compare_chain(decompiled, min_branches=min_cases)
+            for chain in str_chains:
+                keywords = [kw["keyword"] for kw in chain["keywords"]]
+                result["string_compare_chains"].append({
+                    "compare_function": chain["compare_function"],
+                    "variable": chain["variable"],
+                    "branch_count": len(chain["keywords"]),
+                    "keywords": keywords[:20],
+                })
+                result["total_cases"] += len(chain["keywords"])
 
             # 3. Detect jump table targets from detailed outbound xrefs
             detailed_xrefs = parse_json_safe(func.outbound_xrefs)
@@ -147,6 +161,11 @@ def scan_module(db_path: str, min_cases: int = 3, with_loops: bool = False, app_
                 result["is_state_machine_candidate"] = True
             elif result["if_chains"]:
                 result["dispatch_type"] = "if_chain"
+            elif result["string_compare_chains"] and result["has_loops"]:
+                result["dispatch_type"] = "loop_string_compare"
+                result["is_state_machine_candidate"] = True
+            elif result["string_compare_chains"]:
+                result["dispatch_type"] = "string_compare"
             elif result["jump_table_targets"] > 0:
                 result["dispatch_type"] = "jump_table"
             else:
@@ -225,6 +244,12 @@ def _print_table(items: list[dict]) -> None:
             vals = ", ".join(str(v) for v in ic["values"][:8])
             more = f" +{len(ic['values']) - 8} more" if len(ic["values"]) > 8 else ""
             print(f"          if-chain({ic['variable']}): {ic['branch_count']} branches [{vals}{more}]")
+
+        # Show string-compare chain details
+        for sc in c.get("string_compare_chains", []):
+            kws = ", ".join(f'"{k}"' for k in sc["keywords"][:6])
+            more = f" +{len(sc['keywords']) - 6} more" if len(sc["keywords"]) > 6 else ""
+            print(f"          str-cmp({sc['variable']}): {sc['branch_count']} keywords [{kws}{more}]")
 
 
 def main() -> None:

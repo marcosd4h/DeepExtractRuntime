@@ -1,16 +1,16 @@
-# Hunt
+# Hunt Plan
 
 ## Overview
 
 Hypothesis-driven vulnerability research planning. Uses the **adversarial-reasoning** skill to generate testable attack hypotheses, match observations to known Windows attack patterns, plan variant analysis, and validate suspected findings -- all mapped to concrete workspace commands.
 
-The text after `/hunt` specifies the **mode** and **target**:
+The text after `/hunt-plan` specifies the **mode** and **target**:
 
-- `/hunt appinfo.dll` -- campaign mode (default): plan a full VR campaign
-- `/hunt hypothesis TOCTOU appinfo.dll` -- test a specific vulnerability hypothesis
-- `/hunt variant junction appinfo.dll` -- find variants of a known attack pattern
-- `/hunt validate appinfo.dll AiLaunchProcess` -- validate a suspected finding and plan PoC
-- `/hunt surface appinfo.dll` -- map trust boundaries and prioritize attack vectors
+- `/hunt-plan appinfo.dll` -- campaign mode (default): plan a full VR campaign
+- `/hunt-plan hypothesis TOCTOU appinfo.dll` -- test a specific vulnerability hypothesis
+- `/hunt-plan variant junction appinfo.dll` -- find variants of a known attack pattern
+- `/hunt-plan validate appinfo.dll AiLaunchProcess` -- validate a suspected finding and plan PoC
+- `/hunt-plan surface appinfo.dll` -- map trust boundaries and prioritize attack vectors
 
 If no arguments are provided, ask the user what they want to investigate.
 
@@ -191,7 +191,7 @@ The output is an approved research design in the chat conversation, followed by 
 ## Error Handling
 
 - **No modules available**: Suggest running `/health` to check workspace state
-- **Module not triaged yet**: Suggest running `/triage <module>` first, then returning to `/hunt`
+- **Module not triaged yet**: Suggest running `/triage <module>` first, then returning to `/hunt-plan`
 - **Vague goal**: Ask narrowing questions -- don't guess at the user's intent
 - **Unknown vulnerability class**: Load reference.md to check if the class is documented; if not, apply general principles from the hypothesis generation framework
 - **No hypotheses generated**: The module may have minimal attack surface. Report this finding (it is still useful information) and suggest `/full-report` for comprehensive analysis

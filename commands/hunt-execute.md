@@ -2,15 +2,15 @@
 
 ## Overview
 
-Automatically execute a vulnerability research plan produced by `/hunt`. Runs the investigation commands for each hypothesis, collects evidence, scores confidence, and produces a consolidated findings report.
+Automatically execute a vulnerability research plan produced by `/hunt-plan`. Runs the investigation commands for each hypothesis, collects evidence, scores confidence, and produces a consolidated findings report.
 
 Usage:
 
 - `/hunt-execute appinfo.dll` -- execute the most recent hunt plan for this module
-- `/hunt-execute` -- execute the plan from the most recent `/hunt` session
+- `/hunt-execute` -- execute the plan from the most recent `/hunt-plan` session
 - `/hunt-execute --plan-file .agent/workspace/appinfo_hunt_plan_20260304.json` -- execute a specific plan file
 
-This command is the "action" counterpart to `/hunt`'s "planning" phase. While `/hunt` produces hypotheses and maps them to commands, `/hunt-execute` runs those commands and interprets results.
+This command is the "action" counterpart to `/hunt-plan`'s "planning" phase. While `/hunt-plan` produces hypotheses and maps them to commands, `/hunt-execute` runs those commands and interprets results.
 
 ## IMPORTANT: Execution Model
 
@@ -36,12 +36,12 @@ This command orchestrates multiple analysis steps per hypothesis:
 
 ### 1. Locate the hunt plan
 
-Check for an existing `/hunt` plan using this priority order:
+Check for an existing `/hunt-plan` plan using this priority order:
 
 1. **Explicit plan file** (highest priority): If `--plan-file <path>` is provided, load that file directly. Fail with a clear error if the file does not exist or is not valid JSON.
 2. **Workspace files** (preferred): Scan `.agent/workspace/` for `*_hunt_plan_*.json` files. If a module name is provided, filter to plans matching that module. Use the most recent file by timestamp.
-3. **Conversation history** (fallback): If no workspace file is found, look in the conversation history for the most recent `/hunt` output.
-4. If no plan is found by any method, suggest running `/hunt <module>` first.
+3. **Conversation history** (fallback): If no workspace file is found, look in the conversation history for the most recent `/hunt-plan` output.
+4. If no plan is found by any method, suggest running `/hunt-plan <module>` first.
 
 Extract from the plan:
 - **Hypotheses**: Each hypothesis statement with its priority score
@@ -79,7 +79,7 @@ Execute the commands specified in the hunt plan. Common patterns:
 | Missing access check | `/audit <module> <func>` -> `/taint <module> <func>` |
 | TOCTOU / file race | `/data-flow forward <module> <func>` -> `/audit <module> <func>` |
 | Integer overflow | `/verify <module> <func>` -> `/taint <module> <func>` |
-| COM privilege escalation | `/reconstruct-types <module> <class>` -> `/trace-export <module> <export>` |
+| COM privilege escalation | `/reconstruct-types <module> <class>` -> `/audit <module> <export> --diagram` |
 | Variant of known CVE | `/search <module> <pattern>` -> `/taint <module> <candidate>` |
 
 **b. Collect evidence:**
@@ -152,11 +152,11 @@ All saved files must include a provenance header: generation date, module name, 
 
 - `/audit <module> <function>` -- deeper audit on confirmed findings
 - `/taint <module> <function> --cross-module` -- trace cross-module impact
-- `/hunt validate <module> <function>` -- plan PoC development for confirmed findings
+- `/hunt-plan validate <module> <function>` -- plan PoC development for confirmed findings
 
 ## Error Handling
 
-- **No hunt plan found**: Suggest running `/hunt <module>` first
+- **No hunt plan found**: Suggest running `/hunt-plan <module>` first
 - **Module not found**: List available modules and ask user to choose
 - **Command failure**: Log the error, mark hypothesis as "investigation incomplete", continue with next
 - **Partial results**: Always report what was successfully investigated, even if some hypotheses couldn't be tested

@@ -120,7 +120,7 @@ Present the analysis in chat. Include Mermaid diagrams inline when requested. Th
 **Follow-up suggestions:**
 
 - `/xref <module> <function>` -- detailed cross-references for a specific function
-- `/trace-export <module> <export>` -- full call chain trace from an export
+- `/audit <module> <export> --diagram` -- full security audit with call graph from an export
 - `/explain <module> <function>` -- understand what a hub function does
 - `/taint <module> <function>` -- check if tainted data flows through a hub
 

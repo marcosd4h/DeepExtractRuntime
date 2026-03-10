@@ -55,7 +55,7 @@ Ask these questions to scope a vulnerability research campaign:
 ## Research Plan
 1. Triage: /triage <module>
 2. Focus: [specific functions or patterns to investigate]
-3. Deep analysis: [/audit, /taint, /trace-export on selected targets]
+3. Deep analysis: [/audit, /taint on selected targets]
 4. Verification: [/verify on findings to confirm decompiler accuracy]
 
 ## Expected Findings

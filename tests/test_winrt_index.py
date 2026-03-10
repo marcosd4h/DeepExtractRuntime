@@ -825,11 +825,11 @@ class TestRegistryEntries:
         assert "winrt" in commands
         entry = commands["winrt"]
         assert "winrt-interface-analysis" in entry["skills_used"]
-        assert entry["file"] == "winrt-analysis.md"
+        assert entry["file"] == "winrt.md"
 
     def test_command_md_file_exists(self):
         root = Path(__file__).resolve().parent.parent
-        assert (root / "commands" / "winrt-analysis.md").exists()
+        assert (root / "commands" / "winrt.md").exists()
 
     def test_skill_md_file_exists(self):
         root = Path(__file__).resolve().parent.parent

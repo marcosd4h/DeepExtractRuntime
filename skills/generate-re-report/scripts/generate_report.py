@@ -407,18 +407,18 @@ def _section_recommendations(import_result: dict, complexity_result: dict,
     func_reasons: dict[str, list[str]] = defaultdict(list)
 
     for f in by_loops[:30]:
-        func_scores[f["name"]] += f["loop_count"] * 2 + f["max_cyclomatic"]
-        func_reasons[f["name"]].append(f"complex ({f['loop_count']} loops, cyclomatic {f['max_cyclomatic']})")
+        func_scores[f["function_name"]] += f["loop_count"] * 2 + f["max_cyclomatic"]
+        func_reasons[f["function_name"]].append(f"complex ({f['loop_count']} loops, cyclomatic {f['max_cyclomatic']})")
 
     for f in by_xrefs[:50]:
-        func_scores[f["name"]] += f["hub_score"] * 0.5
+        func_scores[f["function_name"]] += f["hub_score"] * 0.5
         if f["hub_score"] > 20:
-            func_reasons[f["name"]].append(f"hub ({f['inbound']} in, {f['outbound']} out)")
+            func_reasons[f["function_name"]].append(f"hub ({f['inbound']} in, {f['outbound']} out)")
 
     for f in by_size[:30]:
         if f["instruction_count"] > 200:
-            func_scores[f["name"]] += f["instruction_count"] * 0.01
-            func_reasons[f["name"]].append(f"large ({f['instruction_count']} instructions)")
+            func_scores[f["function_name"]] += f["instruction_count"] * 0.01
+            func_reasons[f["function_name"]].append(f"large ({f['instruction_count']} instructions)")
 
     top_funcs = sorted(func_scores.items(), key=lambda x: -x[1])[:10]
 
@@ -436,7 +436,7 @@ def _section_recommendations(import_result: dict, complexity_result: dict,
     lines.append("Recommended follow-up analysis using additional skills:\n")
 
     # Check for complex dispatchers
-    by_loops_names = {f["name"] for f in by_loops[:20] if f["loop_count"] >= 3}
+    by_loops_names = {f["function_name"] for f in by_loops[:20] if f["loop_count"] >= 3}
     if by_loops_names:
         sample = list(by_loops_names)[:3]
         names_str = ", ".join(f"`{n}`" for n in sample)
@@ -452,13 +452,13 @@ def _section_recommendations(import_result: dict, complexity_result: dict,
     by_globals = complexity_result.get("by_global_state", [])
     if by_globals and by_globals[0]["total"] > 10:
         lines.append(f"- **data-flow-tracer**: High global state access count -- "
-                     f"trace data flow through `{by_globals[0]['name']}` and related functions")
+                     f"trace data flow through `{by_globals[0]['function_name']}` and related functions")
 
     # Entry point coverage
     entry_reach = topology_result.get("entry_reachability", [])
     if entry_reach:
         top_entry = entry_reach[0]
-        lines.append(f"- **callgraph-tracer**: Entry `{top_entry['name']}` reaches "
+        lines.append(f"- **callgraph-tracer**: Entry `{top_entry['function_name']}` reaches "
                      f"{top_entry['reachable_count']} functions -- trace its call chain")
 
     # Dead code

@@ -38,10 +38,12 @@ from _common import (
     emit_error,
     format_int,
     parse_json_safe,
+    parse_string_compare_chain,
     parse_switch_cases,
     parse_if_chain,
     extract_case_handlers,
     RE_FUNCTION_CALL,
+    RE_STRING_CMP_CALL,
     resolve_db_path,
 )
 
@@ -69,6 +71,10 @@ RE_STATE_ASSIGN = re.compile(
 RE_BREAK = re.compile(r'\bbreak\s*;')
 RE_RETURN_VAL = re.compile(r'\breturn\s+(.+?)\s*;')
 RE_CONTINUE = re.compile(r'\bcontinue\s*;')
+
+# Word-boundary match for loop keywords to avoid false positives from
+# identifiers like "format", "double", "done", "before", etc.
+RE_LOOP_KW = re.compile(r'\b(?:while|for)\s*\(|\bdo\s*\{')
 
 
 def reconstruct_state_machine(
@@ -103,8 +109,13 @@ def reconstruct_state_machine(
     # Step 3: Determine the state variable
     state_var = primary_table.switch_variable
 
+    # Pre-parse switches once to avoid redundant regex work in
+    # _extract_transitions and per-state _is_terminal_state calls.
+    parsed_switches = parse_switch_cases(decompiled)
+
     # Step 4: Analyze transitions -- find where the state variable is reassigned
-    transitions = _extract_transitions(decompiled, state_var, primary_table)
+    transitions = _extract_transitions(decompiled, state_var, primary_table,
+                                       parsed_switches=parsed_switches)
 
     # Step 5: Build state model
     sm = StateMachine(
@@ -118,9 +129,16 @@ def reconstruct_state_machine(
     # Build states from dispatch table cases
     known_states = set()
     for case in primary_table.cases:
+        if case.case_label:
+            state_name = case.case_label
+        elif case.label:
+            state_name = case.label
+        else:
+            state_name = f"STATE_{format_int(case.case_value)}"
+
         state = StateInfo(
             state_id=case.case_value,
-            state_name=case.label or f"STATE_{format_int(case.case_value)}",
+            state_name=state_name,
             handler_name=case.handler_name,
             handler_id=case.handler_id,
         )
@@ -128,6 +146,7 @@ def reconstruct_state_machine(
         # Determine if terminal (handler returns or breaks out of loop)
         state.is_terminal = _is_terminal_state(
             case.case_value, state_var, decompiled, primary_table,
+            parsed_switches=parsed_switches,
         )
 
         # Attach transitions FROM this state
@@ -163,6 +182,8 @@ def _extract_transitions(
     decompiled: str,
     state_var: Optional[str],
     table: DispatchTable,
+    *,
+    parsed_switches: Optional[list[dict[str, Any]]] = None,
 ) -> list[dict[str, Any]]:
     """Find state transitions by detecting assignments to the state variable.
 
@@ -173,8 +194,7 @@ def _extract_transitions(
 
     transitions = []
 
-    # Parse the switch body for each case to find state variable assignments
-    switches = parse_switch_cases(decompiled)
+    switches = parsed_switches if parsed_switches is not None else parse_switch_cases(decompiled)
     for sw in switches:
         if sw["switch_variable"] != state_var:
             continue
@@ -231,6 +251,9 @@ def _extract_transitions(
                             "assignment": f"{state_var} = {assigned_val}",
                         })
 
+    # String-compare dispatch: no numeric state transitions -- keywords are
+    # matched sequentially, and unmatched input falls through.  Skip.
+
     return transitions
 
 
@@ -239,9 +262,8 @@ def _split_case_blocks(switch_body: str) -> dict[int, str]:
 
     Returns {case_value: block_text}.
     """
-    import re as re_mod
     blocks: dict[int, str] = {}
-    case_pattern = re_mod.compile(r'^\s*case\s+(-?(?:0[xX][0-9a-fA-F]+|\d+))\s*:', re_mod.MULTILINE)
+    case_pattern = re.compile(r'^\s*case\s+(-?(?:0[xX][0-9a-fA-F]+|\d+))\s*:', re.MULTILINE)
 
     matches = list(case_pattern.finditer(switch_body))
     for i, match in enumerate(matches):
@@ -260,9 +282,27 @@ def _is_terminal_state(
     state_var: Optional[str],
     decompiled: str,
     table: DispatchTable,
+    *,
+    parsed_switches: Optional[list[dict[str, Any]]] = None,
 ) -> bool:
     """Check if a state is terminal (returns or exits the loop without transition)."""
-    switches = parse_switch_cases(decompiled)
+    # For string-compare tables, check the block around the keyword match
+    if table.source_type == "string_compare":
+        case_entry = next((c for c in table.cases if c.case_value == case_val), None)
+        if case_entry and case_entry.case_label:
+            kw = case_entry.case_label
+            idx = decompiled.find(f'"{kw}"')
+            if idx != -1:
+                block_end = decompiled.find("\n}", idx)
+                if block_end == -1:
+                    block_end = min(idx + 500, len(decompiled))
+                block = decompiled[idx:block_end]
+                has_return = bool(RE_RETURN_VAL.search(block))
+                if has_return:
+                    return True
+        return False
+
+    switches = parsed_switches if parsed_switches is not None else parse_switch_cases(decompiled)
     for sw in switches:
         if sw["switch_variable"] != state_var:
             continue
@@ -292,12 +332,9 @@ def _mark_initial_state(sm: StateMachine, decompiled: str, state_var: Optional[s
         rf'\b{re.escape(state_var)}\s*=\s*(-?(?:0[xX][0-9a-fA-F]+|\d+))\s*;'
     )
 
-    # Search in the function prologue (before first while/for/switch)
-    loop_pos = None
-    for kw in ("while", "for", "do"):
-        idx = decompiled.find(kw)
-        if idx != -1 and (loop_pos is None or idx < loop_pos):
-            loop_pos = idx
+    # Search in the function prologue (before first loop construct)
+    loop_match = RE_LOOP_KW.search(decompiled)
+    loop_pos = loop_match.start() if loop_match else None
 
     if loop_pos is not None:
         prologue = decompiled[:loop_pos]
@@ -325,7 +362,7 @@ def _extract_action_context(before_assign: str, full_block: str) -> Optional[str
         line = line.strip()
         if line.startswith("if"):
             return line
-        for match in RE_FUNCTION_CALL.finditer(line):
+        if RE_FUNCTION_CALL.search(line):
             return line.strip()
 
     return None
@@ -404,29 +441,7 @@ def print_state_machine(
             emit_error("No state machine pattern detected", ErrorCode.NO_DATA)
             return
 
-        output = {
-            "function_name": sm.function_name,
-            "function_id": sm.function_id,
-            "state_variable": sm.state_variable,
-            "state_count": len(sm.states),
-            "loop_info": sm.loop_info,
-            "states": [],
-            "all_transitions": [],
-        }
-        for state in sm.states:
-            output["states"].append({
-                "state_id": state.state_id,
-                "state_name": state.state_name,
-                "handler_name": state.handler_name,
-                "handler_id": state.handler_id,
-                "is_initial": state.is_initial,
-                "is_terminal": state.is_terminal,
-                "transition_count": len(state.transitions),
-            })
-            for t in state.transitions:
-                output["all_transitions"].append(t)
-
-        emit_json(output)
+        emit_json(_sm_to_cacheable(sm))
         return
 
     if sm is None:
@@ -562,13 +577,13 @@ def main() -> None:
             )
             if err:
                 if "Multiple matches" in err:
+                    if args.json:
+                        emit_error(err, ErrorCode.AMBIGUOUS)
                     print(err)
                     return
                 emit_error(f"[{Path(db_path).stem}] {err}", ErrorCode.NOT_FOUND)
 
             cache_params = {"function_id": func.function_id}
-            if args.with_code:
-                cache_params["with_code"] = True
             if not args.no_cache:
                 cached = get_cached(db_path, "state_machine", params=cache_params)
                 if cached is not None:

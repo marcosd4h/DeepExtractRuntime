@@ -9,6 +9,7 @@ The text after `/audit` specifies the **function name** and optionally the **mod
 - `/audit AiCheckSecureApplicationDirectory` -- searches all modules
 - `/audit appinfo.dll AiCheckSecureApplicationDirectory` -- targets specific module
 - `/audit appinfo.dll --search CheckSecurity` -- pattern search
+- `/audit appinfo.dll AiLaunchProcess --diagram` -- include Mermaid call graph diagram
 
 If no function is specified, ask the user.
 
@@ -40,8 +41,8 @@ Before running the multi-skill audit pipeline:
 
 - **Function ID over name**: Step 1 returns a `function_id`. Use `--id <function_id>` in all subsequent script invocations -- it is unambiguous and avoids name-resolution edge cases.
 - **JSON mode**: All skill scripts support `--json` for machine-readable output. Always pass `--json` when parsing script output programmatically.
-- **Parallelism**: See the inline `>` notes after Steps 3f and 5 for execution batches. Step 7 runs after Step 6.
-- **Subagent descriptions**: When delegating to subagents, use descriptions that name the audit step and target function -- e.g. "Build security dossier for RAiLaunchAdminProcess", "Trace call chain from RAiLaunchAdminProcess", "Classify RAiLaunchAdminProcess". Never use generic descriptions like "Raw JSON content retrieval" or "File read".
+- **Parallelism**: See the inline `>` note after Step 3h+3i for execution batches. Steps 2, 3, 3b, 3d, 3e, 4, and 4b (if `--diagram`) all run in the first parallel batch. Step 4c runs in Batch B (needs callchain results). Step 7 runs after Step 6.
+- **Subagent descriptions**: When delegating to subagents, use descriptions that name the audit step and target function -- e.g. "Build security dossier for RAiLaunchAdminProcess", "Trace call chain from RAiLaunchAdminProcess". Never use generic descriptions like "Raw JSON content retrieval" or "File read".
 
 ## Steps
 
@@ -82,7 +83,7 @@ python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> --id <f
     --workspace-dir <run_dir> --workspace-step dossier
 ```
 
-Produces: IPC context (RPC/COM/WinRT classification), parameter risk scoring, identity, attack reachability from exports, untrusted data exposure, dangerous operations (direct + transitive), resource patterns, complexity metrics, neighboring context, and module security posture.
+Produces: IPC context (RPC/COM/WinRT classification), parameter risk scoring, identity, function classification (primary/secondary categories, interest score, signals), attack reachability from exports, untrusted data exposure, dangerous operations (direct + transitive), resource patterns, complexity metrics, neighboring context, and module security posture.
 
 ### 3. Extract full function data
 
@@ -106,35 +107,27 @@ Returns entry point classification and risk scoring: `entry_type` (COM_METHOD, R
 
 ### 3c. Backward trace to dangerous APIs (conditional)
 
-`backward_trace.py` searches for the `--target` API **inside the function being traced**. It cannot trace from a transitive callee's API. The target must be a direct call in the function body.
+Run the backward trace selector to determine which traces to execute:
 
-**Determine which case applies before running anything:**
+```
+python .agent/helpers/select_backward_traces.py \
+    --dossier <run_dir>/dossier/results.json \
+    --extract-callee <run_dir>/extract_callee/results.json \
+    --json
+```
 
-**Case A — Target function has direct dangerous calls** (`dangerous_operations.dangerous_apis_direct` is non-empty):
+The script implements the Case A / Case B / Skip decision:
+- **Case A**: Target function has direct dangerous calls → traces from the target function
+- **Case B**: Thin wrapper (target has no direct dangerous calls but Step 3f callee does) → traces from the callee
+- **Skip**: Neither applies → no traces needed
 
-Run up to 3 traces in parallel from the **target function's ID**, one per distinct danger category found in `dangerous_apis_direct`:
+The output contains a `traces` array with `function_id`, `target_api`, `category`, and `step_name` for each trace to run. Execute all returned traces in parallel:
 
 ```
 python .agent/skills/data-flow-tracer/scripts/backward_trace.py <db_path> --id <function_id> \
-    --target <api_from_dangerous_apis_direct_category_N> --json \
-    --workspace-dir <run_dir> --workspace-step backward_trace_<category>
+    --target <target_api> --json \
+    --workspace-dir <run_dir> --workspace-step <step_name>
 ```
-
-**Case B — Thin wrapper: target has no direct dangerous calls but Step 3f callee does** (`dangerous_apis_direct` is empty AND Step 3f ran):
-
-The callee's direct dangerous calls are the intersection of:
-- `dangerous_operations.callee_dangerous_apis[<callee_name>]` (dangerous APIs reachable from the callee)
-- `extract_callee.outbound_xrefs[*].function_name` (APIs the callee directly calls in its body)
-
-Run up to 3 traces in parallel from the **callee's function ID**, one per danger category:
-
-```
-python .agent/skills/data-flow-tracer/scripts/backward_trace.py <db_path> --id <callee_function_id> \
-    --target <api_in_both_callee_dangerous_apis_and_outbound_xrefs> --json \
-    --workspace-dir <run_dir> --workspace-step backward_trace_<category>
-```
-
-**Skip Step 3c entirely** if `dangerous_apis_direct` is empty AND Step 3f did not run (non-wrapper with no direct dangerous calls — rely on taint forward and callchain data instead).
 
 Each trace produces concrete parameter-to-sink argument paths for that danger category. Use results to populate the Data Flow Concerns section with confirmed call-site evidence.
 
@@ -200,40 +193,34 @@ Returns interface-level security context for all RPC interfaces in the module. F
 
 **Note:** RPC authentication level (`RPC_C_AUTHN_LEVEL_*`), security callbacks, and endpoint ACLs are set at runtime during server registration and are not present in static extraction data. Note this as a caveat in the Confidence and Caveats section: *"RPC auth level and security callback are runtime-registered and not statically detectable; assume worst-case (unauthenticated) unless a dynamic analysis confirms otherwise."*
 
-### 3h. Deep security callee extraction (conditional)
+### 3h+3i. Deep callee extraction (conditional, scripted)
 
-Automatically triggered when the dossier shows **`dangerous_ops_reachable >= 10`** (from step 3b attack surface) OR **`is_rpc_handler: true`** (from step 2 dossier). These are the conditions under which open unknowns in the concern checklist (C1/C5 size-arg origin, C2 impersonation paths, C3 share flags) are most likely to be HIGH or CRITICAL, making deeper code reading worthwhile in a single pass rather than requiring manual follow-up `/audit` runs.
+Run the callee selection helper to determine which callees to extract for Steps 3h (deep security callees) and 3i (taint-path intermediates). This script implements both selection algorithms and handles DB existence checks, tier assignment, deduplication, and capping.
 
-**Selection algorithm (run once, after steps 2 + 3b complete):**
-
-1. Collect unique callee names from `dangerous_operations.security_relevant_callees.command_execution` and `.privilege` by splitting each `"CalleeName->API"` entry on `"->"` and taking the left side.
-2. Exclude the primary callee already extracted in Step 3f (if Step 3f ran).
-3. Assign each callee a tier: Tier 1 = appears in `command_execution`; Tier 2 = appears in `privilege` only.
-4. Within each tier, sort descending by `len(callee_dangerous_apis[callee_name])` (proxy for breadth of dangerous reach).
-5. Filter to callees where decompiled code exists: check `db.get_function_by_name(callee_name)` — skip any callee that has no decompiled code in the DB.
-6. Take the **top 4** across both tiers (Tier 1 first). If fewer than 4 qualify, extract all that qualify.
-
-**Mandatory enumeration before extraction:** Before running any extractions, produce the full numbered selection list (callee name, tier, API count, assigned step name). This list is the contract -- every item on it MUST be extracted. Example:
+**Trigger conditions** (evaluated by the script):
+- Step 3h triggers when `dangerous_ops_reachable >= 10` (from step 3b) OR `is_rpc_handler: true` (from step 2 dossier)
+- Step 3i triggers when taint forward (step 3e) has findings with `path_hops > 1` AND empty `guards`
 
 ```
-Step 3h selection (4 callees):
-  extract_deep_1: AiLaunchProcess       [Tier 1, 11 APIs]
-  extract_deep_2: AiLaunchConsentUI     [Tier 1,  3 APIs]
-  extract_deep_3: AiGetClientInformation [Tier 2,  2 APIs]
-  extract_deep_4: AipBuildConsentToken   [Tier 2,  2 APIs]
+python .agent/helpers/select_audit_callees.py <db_path> \
+    --dossier <run_dir>/dossier/results.json \
+    --attack-surface <run_dir>/attack_surface/results.json \
+    --taint-forward <run_dir>/taint_forward/results.json \
+    --exclude <callee_names_from_step_3f> \
+    --json
 ```
 
-**Completeness rule:** ALL callees on the enumeration list must be extracted. Do not extract a partial subset and move on. After all extractions complete, verify that every `extract_deep_<N>` step appears in the workspace `manifest.json` with `status: success`. If any extraction failed, retry it once with `--function` instead of `--id`; if it fails again, note the specific gap in the Confidence and Caveats section (e.g., *"`AipBuildConsentToken` extraction failed -- C4 flag-validation concern could not be resolved from callee code"*).
+The script outputs `all_extractions` -- a combined list of deep callees (up to 4, tier-ranked) and taint-path callees (up to 3, score-ranked). Each entry includes `callee_name`, `function_id`, `step_name`, `tier`, `api_count`, `source` ("3h" or "3i"), and `rationale`.
 
-Extract each selected callee in parallel, numbered sequentially:
+Extract all returned callees in parallel:
 
 ```
 python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> \
-    --function <callee_name_N> --json \
-    --workspace-dir <run_dir> --workspace-step extract_deep_<N>
+    --function <callee_name> --json \
+    --workspace-dir <run_dir> --workspace-step <step_name>
 ```
 
-(e.g. `extract_deep_1`, `extract_deep_2`, `extract_deep_3`, `extract_deep_4`)
+**Completeness rule:** ALL callees returned by the script must be extracted. After all extractions complete, verify that every step name appears in the workspace `manifest.json` with `status: success`. If any extraction failed, retry it once with `--function` instead of `--id`; if it fails again, note the specific gap in the Confidence and Caveats section.
 
 **What each extraction resolves during synthesis:**
 
@@ -243,46 +230,11 @@ python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py 
 | Tier 2 `privilege` callee that does impersonation (e.g. `AiGetClientInformation`) | C2: verify `RpcImpersonateClient` / `RpcRevertToSelf` are paired on all error paths |
 | Tier 2 callee that modifies tokens (e.g. `AipBuildConsentToken`) | C4: confirm flag validation before `NtSetInformationToken` |
 | Tier 3 `file_write` callee (e.g. `AiCheckSecureApplicationDirectory`) | C3: confirm `CreateFileW` share flags and handle-based path resolution |
+| Taint-path intermediate (e.g. `AiBuildAxISParams`) | C1/C5: verify allocation arithmetic, implicit bounds checks, and taint severity |
 
-During Step 6 synthesis, read all `extract_deep_*` payloads and reference them by callee name. Prefix findings sourced from deep callees: e.g., *"(Source: deep callee `AiLaunchProcess`, manual review)"*.
+During Step 6 synthesis, read all `extract_deep_*` and `extract_taint_*` payloads and reference them by callee name. Prefix findings: *"(Source: deep callee `AiLaunchProcess`, manual review)"* or *"(Source: taint-path callee `AiBuildAxISParams`, manual review of allocation arithmetic)"*. If manual review changes a taint severity, state the adjustment and evidence in the concern entry.
 
-### 3i. Taint-path callee extraction (conditional)
-
-Automatically triggered when Step 3e (taint forward) produces one or more findings where **`path_hops > 1`** AND **`guards` is empty (`[]`)**. These are unguarded multi-hop taint paths where an intermediate callee stands between the tainted RPC parameter and the dangerous sink. Without reading that callee's code, the severity assessment defaults to the taint tool's score -- which may overestimate (the callee may contain implicit bounds checks, safe allocation patterns, or transport-layer constraints the taint engine cannot model) or underestimate (the callee may have additional vulnerabilities the tool missed).
-
-**Why this step exists:** Taint analysis reports reachability -- "parameter X reaches sink Y through callee Z" -- but cannot evaluate semantic correctness of Z's handling. The audit severity rubric requires distinguishing "theoretical weakness requiring multiple preconditions" (MEDIUM) from "confirmed data flow to dangerous sink" (HIGH/CRITICAL). That distinction depends on reading Z's code. Step 3h does not cover this case because it selects callees by `command_execution`/`privilege` category from the dossier, not by taint-path membership; a `memory_unsafe` intermediate callee (like an allocation+copy helper) would never be selected by 3h.
-
-**Selection algorithm (run once, after Step 3e completes):**
-
-1. For each finding in `taint_forward.forward_findings` where `path_hops > 1` AND `guards == []`:
-   a. Parse the `path` array. Each intermediate element (not the first source and not the last sink) has the format `"FunctionName.paramOrLocal"`.
-   b. Extract the function name by splitting on `"."` and taking the left side.
-   c. Collect the finding's `severity` and `score` for prioritization.
-2. Deduplicate callee names across all qualifying findings. If a callee appears on multiple taint paths, keep the highest `score` as its priority.
-3. Exclude any callee already extracted by Step 3f (`extract_callee`, `extract_callee_d2`, etc.) or Step 3h (`extract_deep_*`).
-4. Exclude import-only functions (those with no decompiled code in the DB) -- these are typically the sink itself (e.g. `wcscpy_s`), not an analyzable intermediate.
-5. Cap at **3 callees**. Sort by taint finding score descending.
-
-Extract each selected callee with a tracked workspace step:
-
-```
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> \
-    --function <callee_name> --json \
-    --workspace-dir <run_dir> --workspace-step extract_taint_<N>
-```
-
-(e.g. `extract_taint_1`, `extract_taint_2`, `extract_taint_3`)
-
-**What each extraction resolves during synthesis:**
-
-The extracted callee's code enables the synthesizer to:
-- Confirm or refute the taint tool's severity score by reading the actual allocation, copy, and validation logic
-- Identify implicit guards the taint engine missed (e.g., `_s`-suffix functions with counted sizes, allocation size that tracks string length)
-- Detect latent issues the taint engine cannot model (e.g., 32-bit arithmetic truncation before allocation, unbounded manual `wcslen` loops, missing `maxcount` IDL attributes)
-
-During Step 6 synthesis, read all `extract_taint_*` payloads when assessing concerns C1 and C5. Reference findings with their source: e.g., *"(Source: taint-path callee `AiBuildAxISParams`, manual review of allocation arithmetic)"*. If the manual review changes the effective severity from the taint tool's reported level, state the adjustment and evidence in the concern entry (e.g., *"Taint tool reported HIGH (0.636); downgraded to MEDIUM after confirming LRPC transport caps prevent the 32-bit overflow precondition"*).
-
-> **Run steps 2 + 3 + 3b + 3e in parallel** -- they are independent. Step 3c depends on steps 2 + 3f (needs `dangerous_apis_direct` from dossier and, for thin wrappers, the callee ID + `outbound_xrefs` from extract_callee). Step 3d is a file read with no dependencies. Step 3f (and its depth-2/3/4 extensions) depends on steps 2 + 3; each deeper level depends on the previous level's extract result. **Step 3h runs in parallel with 3c/3d/3e/3f** once steps 2 + 3b complete. Step 3g depends on step 2 (needs `is_rpc_handler` from dossier). **Step 3i runs after Step 3e completes** (needs taint forward findings to select callees); it can run in parallel with 3c/3d/3f/3g/3h since it has no dependency on them.
+> **Batch A: Run steps 2 + 3 + 3b + 3d + 3e + 4 + 4b (if `--diagram`) in parallel** -- they all depend only on Step 1 (`db_path` + `function_id`). **Batch B (after Batch A):** Run `select_audit_callees.py` (needs dossier + attack_surface + taint_forward results), then extract all returned callees in parallel alongside 3f, 3g, 3c, and 4c (needs callchain results). Step 3f depends on steps 2 + 3; each deeper level depends on the previous level's extract result. Step 3g depends on step 2 (needs `is_rpc_handler`). Step 3c depends on steps 2 + 3f (see Step 3c rules).
 
 ### 4. Trace call chain
 
@@ -294,21 +246,32 @@ python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> --id <
 
 Shows the compact call tree (depth 4). For specific paths of interest, extract full code output from the callchain results.
 
-### 5. Classify function purpose
+### 4b. Generate Mermaid diagram (conditional -- only when `--diagram` is specified)
 
 ```
-python .agent/skills/classify-functions/scripts/classify_function.py <db_path> --id <function_id> \
-    --json \
-    --workspace-dir <run_dir> --workspace-step classify
+python .agent/skills/callgraph-tracer/scripts/generate_diagram.py <db_path> \
+    --id <function_id> --depth 4 --format mermaid --json \
+    --workspace-dir <run_dir> --workspace-step diagram
 ```
 
-Returns the function's role, category, interest score, and classification signals.
+Produces a Mermaid call graph diagram rooted at the target function. Runs in Batch A (depends only on Step 1). Include the diagram in a `## Call Graph Diagram` section in the report between "Call Chain Analysis" and "Risk Assessment".
 
-> **Run steps 4 + 5 in parallel** -- they are independent of each other. Steps 4-5 only depend on steps 2 + 3 for context during synthesis.
+### 4c. Cross-module resolution
+
+Resolve external callees discovered in the call chain:
+
+1. First try the **import-export-resolver** skill (`query_function.py --function <callee> --direction export`) to resolve external callees via PE import/export tables (handles API-set forwarders like `api-ms-win-*` -> `kernelbase.dll`).
+2. Fall back to the **callgraph-tracer** skill (`cross_module_resolve.py --from-function`) for callees not resolvable via import tables.
+3. For each resolvable cross-module callee, optionally run `chain_analysis.py` starting from that callee's module DB.
+
+Runs in Batch B (needs callchain results to know which callees are external). Include a `## Cross-Module Transitions` section in the report showing a table:
+
+| Source Function | External Callee | Target Module | Resolved? |
+|---|---|---|---|
 
 ### 6. Synthesize audit report
 
-Read the workspace results from all steps (2, 3, 3b, 3c, 3d, 3e, 3f + depth-2/3/4 extractions if run, 3g, 3h `extract_deep_*` if run, 3i `extract_taint_*` if run, 4, 5) and combine all findings into a structured report.
+Read the workspace results from all steps (2, 3, 3b, 3c, 3d, 3e, 3f + depth-2/3/4 extractions if run, 3g, `extract_deep_*` and `extract_taint_*` if run, 4, 4b if `--diagram`, 4c) and combine all findings into a structured report.
 
 **IMPORTANT -- workspace results.json envelope structure**: Every `results.json` file written by the workspace bootstrap has this shape:
 ```json
@@ -418,6 +381,18 @@ Use this exact section structure and formatting. Do not rearrange sections or ch
 
 <Brief notes on cross-module calls.>
 
+## Call Graph Diagram (when --diagram)
+
+<Mermaid diagram from Step 4b>
+
+## Cross-Module Transitions
+
+| Source Function | External Callee | Target Module | Resolved? |
+|---|---|---|---|
+| <source> | <callee> | <module> | <yes/no> |
+
+<Brief notes on cross-module dependencies and API-set forwarder resolution.>
+
 ## Risk Assessment
 
 ### Dimension Table
@@ -485,11 +460,11 @@ Scoring:
 
 **Dimension 2 -- Dangerous Operation Density**
 
-Data sources: dossier `dangerous_operations` + classify `signals` + step 3b `attack_surface` + step 3c `backward_trace` + step 3e `taint_forward`.
+Data sources: dossier `dangerous_operations` + dossier `classification.signals` + step 3b `attack_surface` + step 3c `backward_trace` + step 3e `taint_forward`.
 
 Inputs:
 - `dangerous_operations.dangerous_api_count`, `dangerous_operations.security_relevant_callees` (category keys: `memory_unsafe`, `command_execution`, `code_injection`, `privilege`, `file_write`, `registry_write`, `network`, `crypto`, `service`, `handle`, `sync`), `dangerous_operations.callee_dangerous_apis`
-- classify `signals` for categories like `security`, `process_thread`
+- dossier `classification.signals` for categories like `security`, `process_thread`
 - From step 3b: `dangerous_ops_reachable` (total dangerous sinks reachable via callgraph BFS), `depth_to_first_danger` (hop count to nearest dangerous operation)
 - From step 3c: concrete parameter-to-sink paths showing which function parameters feed into which dangerous APIs
 - From step 3e: taint analysis forward findings with severity scores, guard bypass difficulty, and logic effects. Use CRITICAL/HIGH taint findings as direct evidence for scoring.
@@ -546,7 +521,7 @@ The Risk Assessment section of the report must contain these parts in order:
 
 1. **Dimension table**: one row per dimension with its score and the key data points that drove it
 2. **Overall Risk**: the computed level with a one-line rationale citing which dimensions drove it
-3. **Specific concerns**: ranked list where each concern cites its checklist ID and the dossier/verify/classify field it comes from. Assign severity using these rules:
+3. **Specific concerns**: ranked list where each concern cites its checklist ID and the dossier field it comes from. Assign severity using these rules:
    - **CRITICAL**: Directly achieves code execution, privilege escalation, or authentication bypass with attacker-controlled input. Must have a confirmed data flow from untrusted source to dangerous sink (cite the backward_trace or dossier field).
    - **HIGH**: Could achieve the above with one additional precondition (bypass of an intermediate check, TOCTOU race win, etc.), OR a confirmed missing security check in an active code path.
    - **MEDIUM**: Theoretical weakness requiring multiple preconditions, OR a defense-in-depth gap (e.g., missing CFG coverage, missing SEH on a function that handles user data). A concern about untested flag combinations without a confirmed path to dangerous behavior is MEDIUM at most.
@@ -573,11 +548,8 @@ The Recommended Next Steps table must be populated using this deterministic rank
    - Tier 2: `privilege` (e.g., `ImpersonateLoggedOnUser`, `NtSetInformationToken`)
    - Tier 3: `file_write` or `registry_write`
    - Tier 4: all other categories (`memory_unsafe`, `network`, `crypto`, `handle`, `sync`, etc.)
-3. Within the same tier, sort by `dangerous_ops_reachable` count (descending). Use the following lookup order — do NOT leave the cell blank:
-   - **Primary**: callchain step results — look up the callee node in the callchain tree and use its `dangerous_ops_reachable` count if present.
-   - **Proxy (when callchain has no reachability count for the callee)**: use `len(callee_dangerous_apis[callee_name])` — the number of dangerous API names listed for that callee in the dossier. Write this as `N*` (asterisk distinguishes it from a BFS-derived count). Example: `AiBuildAxISParams` has `["wcscpy_s"]` → write `1*`. `AiGetClientInformation` has `["NtOpenProcess", "NtDuplicateToken"]` → write `2*`.
-   - The `dangerous_ops_reachable` column must never be "—". If both primary and proxy are zero, write `0*`.
-4. Output the top 5-7 functions in the table. Include the danger tier, reachability count (or proxy `N*`), and a brief reason.
+3. Within the same tier, sort by `dangerous_ops_reachable` count (descending). Use `len(callee_dangerous_apis[callee_name])` from the dossier — the number of dangerous API names listed for that callee. Example: `AiBuildAxISParams` has `["wcscpy_s"]` → write `1`. `AiGetClientInformation` has `["NtOpenProcess", "NtDuplicateToken"]` → write `2`. The column must never be blank; if zero, write `0`.
+4. Output the top 5-7 functions in the table. Include the danger tier, reachability count, and a brief reason.
 5. After the table, optionally add one line suggesting a `/callgraph`, `/data-flow`, or `/taint` command for deeper investigation.
 
 ### 7. Verify concerns with fresh eyes

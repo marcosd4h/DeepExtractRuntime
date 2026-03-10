@@ -74,7 +74,7 @@ All saved files must include a provenance header: generation date, starting modu
 
 **Follow-up suggestions**:
 
-- `/trace-export <module> <function>` -- trace the full call chain starting from an export.
+- `/audit <module> <function>` -- full security audit (includes cross-module resolution).
 - `/audit <module> <function>` -- security audit on functions in the cross-module flow path.
 
 ## Error Handling

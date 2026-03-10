@@ -13,14 +13,13 @@ Documentation: https://cursor.com/docs/context/commands
 
 | Command              | File                   | Purpose                                                                                             |
 | -------------------- | ---------------------- | --------------------------------------------------------------------------------------------------- |
-| `/triage`            | `triage-module.md`     | Full module triage: identity, classification, topology, attack surface, prioritized recommendations, optional quick security pass |
-| `/audit`             | `audit-function.md`    | Security audit a specific function: dossier, decompiler verification, call chain, risk assessment   |
-| `/trace-export`      | `trace-export.md`      | Trace an export through its full call chain with code, cross-module resolution, and Mermaid diagram |
+| `/triage`            | `triage.md`            | Full module triage: identity, classification, topology, attack surface, prioritized recommendations, optional quick security pass |
+| `/audit`             | `audit.md`             | Security audit a specific function: dossier, verification, call chain, cross-module resolution, risk assessment; optional `--diagram` |
 | `/lift-class`        | `lift-class.md`        | Batch-lift all methods of a C++ class with shared struct context into a cohesive `.cpp` file        |
 | `/full-report`       | `full-report.md`       | End-to-end multi-phase analysis: RE report, classification, attack surface, topology, specialized   |
 | `/compare-modules`   | `compare-modules.md`   | Cross-module comparison: dependencies, API overlap, classification distributions, call chains       |
-| `/verify`            | `verify-function.md`   | Verify decompiler accuracy for a function or scan a module for decompiler issues                    |
-| `/explain`           | `explain-function.md`  | Quick structured explanation of what a function does: purpose, parameters, APIs, call context       |
+| `/verify`            | `verify.md`            | Verify decompiler accuracy for a function or scan a module for decompiler issues                    |
+| `/explain`           | `explain.md`           | Quick structured explanation of what a function does: purpose, parameters, APIs, call context       |
 | `/search`            | `search.md`            | Cross-dimensional search: function names, signatures, strings, APIs, classes, exports               |
 | `/reconstruct-types` | `reconstruct-types.md` | Reconstruct C/C++ struct and class definitions from memory access patterns                          |
 | `/data-flow`         | `data-flow.md`         | Trace parameter flow, argument origins, global variable maps, string usage chains                   |
@@ -32,8 +31,8 @@ Documentation: https://cursor.com/docs/context/commands
 | `/health`            | `health.md`            | Pre-flight workspace validation: check extraction data, DBs, skills, and config                   |
 | `/taint`             | `taint.md`             | Trace attacker-controlled inputs to dangerous sinks with guard/bypass analysis                     |
 | `/brainstorm`        | `brainstorm.md`        | Strategic VR planning: campaign strategy, cross-module campaigns, post-analysis re-planning, tool/skill design |
-| `/hunt`              | `hunt.md`              | Hypothesis-driven VR: campaign planning, attack pattern matching, variant analysis, validation     |
-| `/hunt-execute`      | `hunt-execute.md`      | Execute a `/hunt` research plan: run investigation commands, collect evidence, score confidence    |
+| `/hunt-plan`         | `hunt-plan.md`         | Hypothesis-driven VR: campaign planning, attack pattern matching, variant analysis, validation     |
+| `/hunt-execute`      | `hunt-execute.md`      | Execute a `/hunt-plan` research plan: run investigation commands, collect evidence, score confidence    |
 | `/batch-audit`       | `batch-audit.md`       | Audit top N entry points or privilege-boundary handlers in parallel with consolidated security and exploitability report |
 | `/xref`              | `xref.md`              | Quick cross-reference lookup: show callers and callees in a compact table                         |
 | `/quickstart`        | `quickstart.md`        | Guided first experience: auto-detect modules, run lightweight triage, suggest next steps          |
@@ -45,9 +44,9 @@ Documentation: https://cursor.com/docs/context/commands
 | `/scan`              | `scan.md`              | Unified vulnerability scan: memory + logic + taint with verification and exploitability scoring   |
 | `/diff`              | `diff.md`              | Compare two versions of a module: function deltas, classification shifts, attack surface changes  |
 | `/prioritize`        | `prioritize.md`        | Cross-module finding ranking: load scan/audit results, normalize, rank by exploitability          |
-| `/rpc`               | `rpc-analysis.md`      | RPC analysis: enumerate interfaces, map attack surface, audit security, trace chains, find clients, build topology, blast-radius, query stubs |
-| `/winrt`             | `winrt-analysis.md`  | WinRT analysis: enumerate server classes, map privilege-boundary attack surface, audit security, classify entry points, find EoP targets |
-| `/com`               | `com-analysis.md`    | COM analysis: enumerate servers by module/CLSID, map privilege-boundary attack surface, audit security (permissions, elevation, DCOM), classify entry points, find EoP/UAC bypass targets |
+| `/rpc`               | `rpc.md`               | RPC analysis: enumerate interfaces, map attack surface, audit security, trace chains, find clients, build topology, blast-radius, query stubs |
+| `/winrt`             | `winrt.md`             | WinRT analysis: enumerate server classes, map privilege-boundary attack surface, audit security, classify entry points, find EoP targets |
+| `/com`               | `com.md`               | COM analysis: enumerate servers by module/CLSID, map privilege-boundary attack surface, audit security (permissions, elevation, DCOM), classify entry points, find EoP/UAC bypass targets |
 | `/pipeline`          | `pipeline.md`        | Run, validate, or inspect headless batch analysis pipelines from YAML definitions            |
 
 ## Command Decision Tree
@@ -78,9 +77,8 @@ flowchart TD
     Security --> VerifySec["/verify module func -- check decompiler first"]
     Security --> Audit["/audit module func"]
     Security --> BatchAudit["/batch-audit module --top N or --privilege-boundary"]
-    Security --> TraceExport["/trace-export module export"]
     Security --> Taint["/taint module func"]
-    Security --> Hunt["/hunt module"]
+    Security --> HuntPlan["/hunt-plan module"]
     Security --> HuntExec["/hunt-execute module"]
     Security --> LogicScan["/logic-scan module"]
     Security --> MemScan["/memory-scan module"]
@@ -111,7 +109,7 @@ Type `/` in the Cursor chat input to see all available commands, then select one
 ```
 /triage appinfo.dll
 /audit appinfo.dll AiCheckSecureApplicationDirectory
-/trace-export appinfo.dll AiLaunchProcess
+/audit appinfo.dll AiLaunchProcess --diagram
 /lift-class appinfo.dll CSecurityDescriptor
 /full-report cmd.exe
 /compare-modules appinfo.dll cmd.exe
@@ -124,11 +122,11 @@ Type `/` in the Cursor chat input to see all available commands, then select one
 /brainstorm cross appinfo.dll consent.exe
 /brainstorm replan
 /brainstorm design new-detection-skill
-/hunt appinfo.dll
-/hunt hypothesis TOCTOU appinfo.dll
-/hunt variant junction appinfo.dll
-/hunt validate appinfo.dll AiLaunchProcess
-/hunt surface appinfo.dll
+/hunt-plan appinfo.dll
+/hunt-plan hypothesis TOCTOU appinfo.dll
+/hunt-plan variant junction appinfo.dll
+/hunt-plan validate appinfo.dll AiLaunchProcess
+/hunt-plan surface appinfo.dll
 /batch-audit appinfo.dll --privilege-boundary --top 8
 /data-flow forward appinfo.dll AiLaunchProcess --param 1
 /state-machines cmd.exe FParseWork --diagram
@@ -168,7 +166,7 @@ When module is optional and omitted, commands should:
 6. Optionally runs a lightweight taint pass over top-ranked entry points when `--with-security` is present
 7. Synthesizes a triage report with prioritized function list and recommended next steps
 
-**Output**: Structured triage report in chat. With `--with-security`, adds a quick security findings section based on lightweight taint results. Suggests `/explain` or `/verify` for quick follow-ups, and `/audit`, `/trace-export`, `/lift-class`, `/scan`, or `/full-report` for deeper analysis.
+**Output**: Structured triage report in chat. With `--with-security`, adds a quick security findings section based on lightweight taint results. Suggests `/explain` or `/verify` for quick follow-ups, and `/audit`, `/lift-class`, `/scan`, or `/full-report` for deeper analysis.
 
 **Skills used**: decompiled-code-extractor, generate-re-report, classify-functions, callgraph-tracer, map-attack-surface, taint-analysis (optional)
 
@@ -193,24 +191,6 @@ When module is optional and omitted, commands should:
 **Skills used**: decompiled-code-extractor, security-dossier, map-attack-surface, data-flow-tracer, verify-decompiled, callgraph-tracer, classify-functions, taint-analysis
 
 ---
-
-### `/trace-export` -- Trace Export Call Chain
-
-**Input**: `/trace-export [module] <export_name> [--depth N]` (e.g., `/trace-export appinfo.dll AiLaunchProcess --depth 4`)
-
-**What it does**:
-
-1. Verifies the function is an export
-2. Builds a compact call tree summary to see the full shape
-3. Classifies the 5-8 most interesting functions in the chain
-4. Deep-traces with decompiled code for the most interesting paths
-5. Resolves cross-module callees to other analyzed modules
-6. Generates a Mermaid call graph diagram
-7. Synthesizes a trace report with execution flow narrative, cross-module transitions, and dangerous operations reachable
-
-**Output**: Execution flow narrative with Mermaid diagram, cross-module transition table, dangerous API paths, taint summary, and data flow summary.
-
-**Skills used**: decompiled-code-extractor, generate-re-report, callgraph-tracer, classify-functions, security-dossier, data-flow-tracer, taint-analysis
 
 ---
 
@@ -325,16 +305,16 @@ When module is optional and omitted, commands should:
 
 ---
 
-### `/hunt` -- Vulnerability Research
+### `/hunt-plan` -- Vulnerability Research Planning
 
-**Input**: `/hunt [mode] [module] [target]`
+**Input**: `/hunt-plan [mode] [module] [target]`
 
 Examples:
-- `/hunt appinfo.dll` -- campaign mode (default): plan a full VR campaign
-- `/hunt hypothesis TOCTOU appinfo.dll` -- test a specific vulnerability hypothesis
-- `/hunt variant junction appinfo.dll` -- find variants of a known attack pattern
-- `/hunt validate appinfo.dll AiLaunchProcess` -- validate a suspected finding
-- `/hunt surface appinfo.dll` -- map trust boundaries and prioritize attack vectors
+- `/hunt-plan appinfo.dll` -- campaign mode (default): plan a full VR campaign
+- `/hunt-plan hypothesis TOCTOU appinfo.dll` -- test a specific vulnerability hypothesis
+- `/hunt-plan variant junction appinfo.dll` -- find variants of a known attack pattern
+- `/hunt-plan validate appinfo.dll AiLaunchProcess` -- validate a suspected finding
+- `/hunt-plan surface appinfo.dll` -- map trust boundaries and prioritize attack vectors
 
 **What it does**:
 
@@ -357,7 +337,7 @@ Examples:
 
 **What it does**:
 
-1. Locates the most recent `/hunt` plan from the conversation
+1. Locates the most recent `/hunt-plan` plan from the conversation
 2. Creates a grind-loop scratchpad with one item per hypothesis
 3. For each hypothesis, runs the mapped investigation commands (taint, audit, data-flow, etc.)
 4. Collects evidence and scores confidence (CONFIRMED/LIKELY/POSSIBLE/UNLIKELY/REFUTED)
@@ -500,10 +480,10 @@ automatically, bounded by `loop_limit: 10` in root-level `hooks.json`. See
 
 ### Recommended Workflow
 
-Start broad, then drill down. Use lightweight commands (`/explain`, `/verify`, `/search`) for quick answers, and heavyweight commands (`/audit`, `/trace-export`, `/lift-class`) for deep analysis:
+Start broad, then drill down. Use lightweight commands (`/explain`, `/verify`, `/search`) for quick answers, and heavyweight commands (`/audit`, `/lift-class`) for deep analysis:
 
 ```
-/hunt appinfo.dll                # Strategic: plan a hypothesis-driven VR campaign
+/hunt-plan appinfo.dll           # Strategic: plan a hypothesis-driven VR campaign
 /triage appinfo.dll              # What is this module? What's interesting?
   |
   |-- Quick (lightweight, single-step) --
@@ -513,7 +493,7 @@ Start broad, then drill down. Use lightweight commands (`/explain`, `/verify`, `
   |
   |-- Deep (multi-step pipelines) --
   +--> /audit appinfo.dll FuncX            # Full security audit
-  +--> /trace-export appinfo.dll ExportY   # Follow an export's execution
+  +--> /audit appinfo.dll ExportY --diagram  # Audit with call graph diagram
   +--> /lift-class appinfo.dll ClassZ      # Reconstruct a class
   +--> /reconstruct-types appinfo.dll      # Reconstruct struct/class definitions
   +--> /data-flow forward appinfo.dll FuncX --param 1  # Trace parameter flow
@@ -536,31 +516,32 @@ Shows a representative core integration map for the most commonly chained
 commands (abbreviated headers for width; `/types` = `/reconstruct-types`,
 `/states` = `/state-machines`):
 
-| Skill                        | `/triage` | `/audit` | `/trace-export` | `/lift-class` | `/full-report` | `/compare-modules` | `/verify` | `/explain` | `/search` | `/hunt` |
-| ---------------------------- | :-------: | :------: | :-------------: | :-----------: | :------------: | :----------------: | :-------: | :--------: | :-------: | :-----: |
-| decompiled-code-extractor    |     x     |    x     |        x        |       x       |       x        |         x          |           |            |           |         |
-| generate-re-report           |     x     |          |        x        |               |       x        |         x          |           |            |           |         |
-| classify-functions           |     x     |    x     |        x        |               |       x        |         x          |           |            |           |    x    |
-| callgraph-tracer             |     x     |    x     |        x        |               |       x        |         x          |           |            |           |         |
-| map-attack-surface           |     x     |          |                 |               |       x        |                    |           |            |           |    x    |
-| security-dossier             |           |    x     |                 |               |                |                    |           |            |           |    x    |
-| verify-decompiled            |           |    x     |                 |               |                |                    |     x     |            |           |         |
-| batch-lift                   |           |          |                 |       x       |                |                    |           |            |           |         |
-| reconstruct-types            |           |          |                 |       x       |                |                    |           |            |           |         |
-| com-interface-reconstruction |           |          |                 |               |      x\*       |                    |           |            |           |         |
-| state-machine-extractor      |           |          |                 |               |      x\*       |                    |           |            |           |         |
-| data-flow-tracer             |           |          |                 |               |      x\*       |                    |           |            |           |         |
-| function-index               |     x     |    x     |        x        |               |       x        |         x          |     x     |     x      |           |         |
-| re-analyst                   |           |          |                 |               |                |                    |           |     x      |           |         |
-| adversarial-reasoning        |           |          |                 |               |                |                    |           |            |           |    x    |
-| taint-analysis               |           |    x     |        x        |               |       x        |                    |           |            |           |    x    |
-| unified-search               |           |          |                 |               |                |                    |           |            |     x     |
+| Skill                        | `/triage` | `/audit` | `/lift-class` | `/full-report` | `/compare-modules` | `/verify` | `/explain` | `/search` | `/hunt-plan` |
+| ---------------------------- | :-------: | :------: | :-----------: | :------------: | :----------------: | :-------: | :--------: | :-------: | :----------: |
+| decompiled-code-extractor    |     x     |    x     |       x       |       x        |         x          |           |            |           |         |
+| generate-re-report           |     x     |          |               |       x        |         x          |           |            |           |         |
+| classify-functions           |     x     |    x     |               |       x        |         x          |           |            |           |    x    |
+| callgraph-tracer             |     x     |    x     |               |       x        |         x          |           |            |           |         |
+| map-attack-surface           |     x     |          |               |       x        |                    |           |            |           |    x    |
+| security-dossier             |           |    x     |               |                |                    |           |            |           |    x    |
+| verify-decompiled            |           |    x     |               |                |                    |     x     |            |           |         |
+| batch-lift                   |           |          |       x       |                |                    |           |            |           |         |
+| reconstruct-types            |           |          |       x       |                |                    |           |            |           |         |
+| com-interface-reconstruction |           |          |               |      x\*       |                    |           |            |           |         |
+| state-machine-extractor      |           |          |               |      x\*       |                    |           |            |           |         |
+| data-flow-tracer             |           |    x     |               |      x\*       |                    |           |            |           |         |
+| function-index               |     x     |    x     |               |       x        |         x          |     x     |     x      |           |         |
+| import-export-resolver       |           |    x     |               |                |                    |           |            |           |         |
+| re-analyst                   |           |          |               |                |                    |           |     x      |           |         |
+| adversarial-reasoning        |           |          |               |                |                    |           |            |           |    x    |
+| taint-analysis               |           |    x     |               |       x        |                    |           |            |           |    x    |
+| unified-search               |           |          |               |                |                    |           |            |     x     |
 
 \*Conditional -- only if relevant signals are detected in earlier phases.
 
 ### Shared Infrastructure
 
-- **function-index**: Function-to-file resolution, library tag filtering, module stats. Used by `/audit` (quick lookup), `/triage` (noise ratio), `/full-report` (classification stats), `/trace-export` (callee resolution), `/compare-modules` (comparative stats).
+- **function-index**: Function-to-file resolution, library tag filtering, module stats. Used by `/audit` (quick lookup, callee resolution), `/triage` (noise ratio), `/full-report` (classification stats), `/compare-modules` (comparative stats).
 - **unified-search** (`python .agent/helpers/unified_search.py <db> --query <term>`): Cross-dimensional search across function names, signatures, strings, APIs, classes, and exports in one call. Use when you don't know which dimension a term belongs to, or want a quick overview of everything related to a search term. Supports `--json`, `--dimensions`, `--limit`, and `--all` (search all modules). See the [function-index SKILL.md](../skills/function-index/SKILL.md#unified-search-cross-dimensional) for details.
 
 ## Methodologies
@@ -572,7 +553,7 @@ Some commands reference **methodology skills** -- documentation-only skills that
 | `/audit`         | finding-verification     | Findings are verified against assembly ground truth before severity assignment               |
 | `/audit`         | deep-context-builder     | Agent builds block-by-block understanding before drawing conclusions                        |
 | `/explain`       | deep-context-builder     | Agent builds block-by-block understanding of the function before synthesizing explanation    |
-| `/hunt`          | adversarial-reasoning    | Hypothesis generation, attack pattern matching, and variant analysis guide research planning |
+| `/hunt-plan`     | adversarial-reasoning    | Hypothesis generation, attack pattern matching, and variant analysis guide research planning |
 | `/hunt-execute`  | finding-verification     | Each hypothesis is validated against evidence with confidence scoring                       |
 | `/scan`          | finding-verification     | Detected vulnerabilities are verified to eliminate false positives before reporting          |
 | `/brainstorm`    | brainstorming, adversarial-reasoning | Strategic planning with pipeline templates; reads adversarial-reasoning on demand for VR campaigns |
@@ -592,20 +573,52 @@ Some commands reference **methodology skills** -- documentation-only skills that
 
 `/batch-audit` trades depth for breadth: it runs dossier + taint + exploitability + classification for each function, but omits the full `/audit` pipeline (backward trace, decompiler verification, call chain analysis). Use `/batch-audit` to prioritize targets, then `/audit` for the most interesting ones.
 
+## Command Depth Spectrum
+
+The reconnaissance commands form a strict depth progression, while the security commands occupy a separate axis. The `/triage --with-security` flag bridges the two domains with a lightweight taint pass.
+
+```mermaid
+flowchart LR
+    QS["/quickstart"] -->|"subset of"| TR["/triage"]
+    TR -->|"subset of"| FR["/full-report"]
+    TR -->|"--with-security overlaps"| SC["/scan"]
+    TR -->|"--with-security overlaps"| BA["/batch-audit"]
+
+    subgraph recon ["Reconnaissance Commands"]
+        QS
+        TR
+        FR
+    end
+
+    subgraph security ["Security Commands"]
+        SC
+        BA
+    end
+```
+
+| Command | Scope | Depth | Steps | Grind Loop | Security Coverage |
+|---------|-------|-------|-------|------------|-------------------|
+| `/quickstart` | Module | Quick look | 3 (classify, entries, callgraph) | No | None |
+| `/triage` | Module | Thorough orientation | 5-6 (identity, classify, callgraph, attack surface, optional taint) | No | Optional lightweight taint on top 3-5 entries (`--with-security`) |
+| `/full-report` | Module | Exhaustive | 6 phases (identity, classify, attack surface + dossiers + taint, topology + diagrams, specialized, synthesis) | Yes | Taint + dossiers on top entries (always), COM/dispatch/types (adaptive) |
+| `/scan` | Module | Deep (security-only) | 5 phases (8 scanners + taint, merge, verify, exploitability, synthesis) | Yes | Full: memory corruption + logic flaws + taint + verification + exploitability |
+| `/batch-audit` | Per-function | Deep (security-only) | Per-function pipeline (dossier, taint, exploitability, classify) | Yes | Dossier + taint + exploitability per function; privilege-boundary discovery |
+
+No two commands are redundant -- each occupies a distinct point on the depth/breadth spectrum. `/triage` is the natural "second command" after `/quickstart` and the natural stepping stone toward `/full-report`, `/scan`, or `/audit`.
+
 ## Files
 
 ```
 .agent/commands/
   registry.json             # Machine-readable command contracts
   README.md                 # This file
-  triage-module.md          # /triage
-  audit-function.md         # /audit
-  trace-export.md           # /trace-export
+  triage.md                 # /triage
+  audit.md                  # /audit
   lift-class.md             # /lift-class
   full-report.md            # /full-report
   compare-modules.md        # /compare-modules
-  verify-function.md        # /verify
-  explain-function.md       # /explain
+  verify.md                 # /verify
+  explain.md                # /explain
   search.md                 # /search
   reconstruct-types.md      # /reconstruct-types
   data-flow.md              # /data-flow
@@ -617,7 +630,7 @@ Some commands reference **methodology skills** -- documentation-only skills that
   health.md                 # /health
   taint.md                  # /taint
   brainstorm.md             # /brainstorm
-  hunt.md                   # /hunt
+  hunt-plan.md              # /hunt-plan
   hunt-execute.md           # /hunt-execute
   batch-audit.md            # /batch-audit
   xref.md                   # /xref
@@ -630,8 +643,8 @@ Some commands reference **methodology skills** -- documentation-only skills that
   scan.md                   # /scan
   diff.md                   # /diff
   prioritize.md             # /prioritize
-  rpc-analysis.md           # /rpc
-  winrt-analysis.md         # /winrt
-  com-analysis.md           # /com
+  rpc.md                    # /rpc
+  winrt.md                  # /winrt
+  com.md                    # /com
   pipeline.md               # /pipeline
 ```

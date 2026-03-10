@@ -9,13 +9,14 @@ Usage:
     python explain_function.py <db_path> <function_name>
     python explain_function.py <db_path> --id <function_id>
     python explain_function.py <db_path> <function_name> --depth 2
+    python explain_function.py <db_path> <function_name> --depth 4 --output-file /tmp/out.json
     python explain_function.py <db_path> <function_name> --no-assembly
     python explain_function.py <db_path> <function_name> --json
 
 Examples:
     python explain_function.py extracted_dbs/appinfo_dll_e98d25a9e8.db AiCheckSecureApplicationDirectory
     python explain_function.py extracted_dbs/cmd_exe_6d109a3a00.db --id 42 --depth 2
-    python explain_function.py extracted_dbs/appinfo_dll_e98d25a9e8.db AiLaunchProcess --json
+    python explain_function.py extracted_dbs/appinfo_dll_e98d25a9e8.db AiLaunchProcess --depth 4 --output-file out.json
 
 Output:
     Structured explanation context including:
@@ -28,7 +29,10 @@ Output:
     - String context (categorized)
     - Dangerous API calls
     - Loop/complexity metrics
-    - Callee details (decompiled code of key callees, up to --depth levels)
+    - Callee details: BFS recursive traversal of the call chain to --depth
+      levels, with boilerplate (WIL/CRT/ETW thunks) filtered out.  Each
+      callee includes a depth field (1=direct, 2=callee-of-callee, etc.).
+      Use --output-file for large call chains to avoid stdout truncation.
 """
 
 from __future__ import annotations
@@ -58,6 +62,7 @@ from _common import (  # noqa: E402
     resolve_function,
 )
 from helpers.errors import ErrorCode, db_error_handler, log_warning, safe_parse_args  # noqa: E402
+from helpers.function_index import is_library_function  # noqa: E402
 from helpers.json_output import emit_json  # noqa: E402
 from helpers.script_runner import get_workspace_args  # noqa: E402
 from helpers.cross_module_graph import ModuleResolver  # noqa: E402
@@ -109,93 +114,190 @@ def _resolve_external_modules(outbound_xrefs: list[dict]) -> dict[str, Optional[
 
 
 # ---------------------------------------------------------------------------
-# Callee detail extraction
+# Callee detail extraction -- BFS recursive traversal
 # ---------------------------------------------------------------------------
-def _get_callee_details(
+
+_LINE_LIMITS_BY_DEPTH = {1: 80, 2: 40}
+_LINE_LIMIT_DEEP = 20
+
+
+def _truncate_code(code: str, depth_level: int) -> str:
+    """Truncate decompiled code based on call-chain depth level."""
+    limit = _LINE_LIMITS_BY_DEPTH.get(depth_level, _LINE_LIMIT_DEEP)
+    lines = code.splitlines()
+    if len(lines) <= limit:
+        return code
+    return "\n".join(lines[:limit]) + f"\n// ... ({len(lines) - limit} more lines)"
+
+
+_WIL_INFRASTRUCTURE_PREFIXES = (
+    "wil::", "wistd::", "wil_", "?", "_Tlg", "_lambda_",
+)
+
+
+def _is_boilerplate(fname: str, function_index: Optional[dict]) -> bool:
+    """Return True if the function is library/boilerplate (WIL, CRT, ETW, thunks).
+
+    WIL-tagged functions are only treated as boilerplate when their name
+    matches known WIL/STL infrastructure patterns (``wil::``, ``wistd::``,
+    mangled ``?``-prefix names, ``_Tlg`` trace-logging helpers, etc.).
+    Application functions that merely *consume* WIL types (e.g. accept
+    ``wil::unique_any_t`` params) are often mis-tagged "WIL" by the
+    extraction pipeline and should not be filtered out.
+    """
+    if function_index:
+        entry = function_index.get(fname)
+        if entry is not None:
+            tag = entry.get("library")
+            if tag is None:
+                return False
+            if tag == "WIL":
+                return any(fname.startswith(p) for p in _WIL_INFRASTRUCTURE_PREFIXES)
+            return True
+    return False
+
+
+def _fetch_internal_callee(
+    db, fname: str, fid: int, depth_level: int,
+) -> Optional[dict]:
+    """Fetch an internal callee's decompiled code + outbound xrefs."""
+    func = db.get_function_by_id(fid)
+    if not func or not func.decompiled_code:
+        return None
+    return {
+        "function_name": fname,
+        "function_id": fid,
+        "location": "internal",
+        "depth": depth_level,
+        "signature": func.function_signature,
+        "decompiled_code_excerpt": _truncate_code(func.decompiled_code, depth_level),
+        "_outbound_xrefs": parse_json_safe(func.simple_outbound_xrefs) or [],
+    }
+
+
+def _fetch_external_callee(
+    ext_db: str, fname: str, module_name: str, depth_level: int,
+) -> Optional[dict]:
+    """Fetch an external callee's decompiled code + outbound xrefs."""
+    try:
+        with open_individual_analysis_db(ext_db) as edb:
+            ext_index = load_function_index_for_db(ext_db)
+            func = None
+            if ext_index:
+                entry = ext_index.get(fname)
+                if entry and bool(entry.get("has_decompiled", False)):
+                    fid = get_function_id(entry)
+                    if fid is not None:
+                        func = edb.get_function_by_id(fid)
+            if func is None:
+                results = edb.get_function_by_name(fname)
+                if results:
+                    func = results[0]
+            if func and func.decompiled_code:
+                return {
+                    "function_name": fname,
+                    "function_id": func.function_id,
+                    "location": f"external ({module_name})",
+                    "module_db": ext_db,
+                    "depth": depth_level,
+                    "signature": func.function_signature,
+                    "decompiled_code_excerpt": _truncate_code(
+                        func.decompiled_code, depth_level,
+                    ),
+                    "_outbound_xrefs": parse_json_safe(func.simple_outbound_xrefs) or [],
+                }
+    except Exception as exc:
+        log_warning(f"Failed to access external module {module_name}: {exc}", ErrorCode.DB_ERROR)
+    return None
+
+
+def _get_callee_details_recursive(
     db_path: str,
     outbound_xrefs: list[dict],
     external_module_dbs: dict[str, Optional[str]],
-    max_callees: int = 10,
+    max_depth: int = 1,
 ) -> list[dict]:
-    """Get decompiled code for the most interesting callees."""
-    callees: list[dict] = []
-    seen: set[str] = set()
+    """BFS traversal of the call chain, fetching decompiled code at each level.
 
-    with open_individual_analysis_db(db_path) as db:
-        for xref in outbound_xrefs:
-            if len(callees) >= max_callees:
-                break
+    Filters boilerplate (WIL/CRT/ETW thunks) via ``is_library_function``.
+    Tracks a global ``seen`` set to avoid cycles.  Each result carries a
+    ``depth`` field (1 = direct callee, 2 = callee-of-callee, etc.).
+    """
+    results: list[dict] = []
+    seen: set[str] = set()
+    function_index = load_function_index_for_db(db_path)
+
+    queue: list[tuple[list[dict], int, str]] = [
+        (outbound_xrefs, 1, db_path),
+    ]
+
+    while queue:
+        xrefs, current_depth, current_db = queue.pop(0)
+        if current_depth > max_depth:
+            continue
+
+        internal_xrefs = []
+        external_xrefs = []
+        for xref in xrefs:
+            if not isinstance(xref, dict):
+                continue
+            ftype = xref.get("function_type", 0)
+            if ftype in (4, 8):
+                continue
             fname = xref.get("function_name", "")
-            fid = xref.get("function_id")
             if not fname or fname in seen:
+                continue
+            fid = xref.get("function_id")
+            if fid is not None:
+                internal_xrefs.append(xref)
+            else:
+                external_xrefs.append(xref)
+
+        with open_individual_analysis_db(current_db) as db:
+            for xref in internal_xrefs:
+                fname = xref["function_name"]
+                if fname in seen:
+                    continue
+                if _is_boilerplate(fname, function_index):
+                    seen.add(fname)
+                    continue
+                seen.add(fname)
+
+                fid = xref.get("function_id")
+                if fid is None:
+                    continue
+                entry = _fetch_internal_callee(db, fname, fid, current_depth)
+                if entry is None:
+                    continue
+                child_xrefs = entry.pop("_outbound_xrefs")
+                results.append(entry)
+                if current_depth < max_depth and child_xrefs:
+                    queue.append((child_xrefs, current_depth + 1, current_db))
+
+        for xref in external_xrefs:
+            fname = xref.get("function_name", "")
+            if not fname or fname in seen:
+                continue
+            module_name = xref.get("module_name", "")
+            if module_name in ("data", "vtable", "internal", "static_library"):
                 continue
             seen.add(fname)
 
-            # Internal callee
-            if fid is not None:
-                func = db.get_function_by_id(fid)
-                if func and func.decompiled_code:
-                    code = func.decompiled_code
-                    lines = code.splitlines()
-                    if len(lines) > 60:
-                        code = "\n".join(lines[:50]) + f"\n// ... ({len(lines) - 50} more lines)"
-                    callees.append({
-                        "function_name": fname,
-                        "function_id": fid,
-                        "location": "internal",
-                        "signature": func.function_signature,
-                        "decompiled_code_excerpt": code,
-                    })
+            ext_db = external_module_dbs.get(module_name)
+            if ext_db is None:
+                continue
 
-    # External callees from resolved modules
-    for xref in outbound_xrefs:
-        if len(callees) >= max_callees:
-            break
-        fname = xref.get("function_name", "")
-        fid = xref.get("function_id")
-        module_name = xref.get("module_name", "")
+            entry = _fetch_external_callee(ext_db, fname, module_name, current_depth)
+            if entry is None:
+                continue
+            child_xrefs = entry.pop("_outbound_xrefs")
+            results.append(entry)
+            if current_depth < max_depth and child_xrefs:
+                ext_module_dbs_for_child = _resolve_external_modules(child_xrefs)
+                ext_module_dbs_for_child.update(external_module_dbs)
+                queue.append((child_xrefs, current_depth + 1, ext_db))
 
-        if fid is not None or not module_name or fname in seen:
-            continue
-        if module_name in ("data", "vtable", "internal", "static_library"):
-            continue
-        seen.add(fname)
-
-        ext_db = external_module_dbs.get(module_name)
-        if ext_db is None:
-            continue
-
-        try:
-            with open_individual_analysis_db(ext_db) as edb:
-                ext_index = load_function_index_for_db(ext_db)
-                func = None
-                if ext_index:
-                    entry = ext_index.get(fname)
-                    if entry and bool(entry.get("has_decompiled", False)):
-                        function_id = get_function_id(entry)
-                        if function_id is not None:
-                            func = edb.get_function_by_id(function_id)
-                if func is None:
-                    results = edb.get_function_by_name(fname)
-                    if results:
-                        func = results[0]
-                if func and func.decompiled_code:
-                    code = func.decompiled_code
-                    lines = code.splitlines()
-                    if len(lines) > 60:
-                        code = "\n".join(lines[:50]) + f"\n// ... ({len(lines) - 50} more lines)"
-                    callees.append({
-                        "function_name": fname,
-                        "function_id": func.function_id,
-                        "location": f"external ({module_name})",
-                        "module_db": ext_db,
-                        "signature": func.function_signature,
-                        "decompiled_code_excerpt": code,
-                    })
-        except Exception as exc:
-            log_warning(f"Failed to access external module: {exc}", ErrorCode.DB_ERROR)
-
-    return callees
+    return results
 
 
 # ---------------------------------------------------------------------------
@@ -208,6 +310,7 @@ def explain_function(
     depth: int = 1,
     include_assembly: bool = True,
     as_json: bool = False,
+    output_file: Optional[str] = None,
 ) -> None:
     """Generate complete explanation context for a function."""
     function_index = load_function_index_for_db(db_path)
@@ -297,12 +400,12 @@ def explain_function(
     # Categorize strings
     string_categories = _categorize_strings(strings if isinstance(strings, list) else [])
 
-    # Get callee details if depth > 0
+    # Get callee details recursively if depth > 0
     callee_details = []
     if depth >= 1:
-        callee_details = _get_callee_details(
+        callee_details = _get_callee_details_recursive(
             db_path, outbound, external_module_dbs,
-            max_callees=min(depth * 5, 15),
+            max_depth=depth,
         )
 
     # Module context
@@ -362,11 +465,15 @@ def explain_function(
             {"function_name": x.get("function_name", "?"), "function_id": x.get("function_id")}
             for x in inbound if isinstance(x, dict)
         ],
+        "string_literals": list(strings) if isinstance(strings, list) else [],
         "strings": {
             "total": len(strings) if isinstance(strings, list) else 0,
             "by_category": string_categories,
         },
-        "dangerous_apis": dangerous if isinstance(dangerous, list) else [],
+        "dangerous_apis": [
+            {"api": api} if isinstance(api, str) else api
+            for api in (dangerous if isinstance(dangerous, list) else [])
+        ],
         "complexity": {
             "loop_count": loops.get("loop_count", 0) if isinstance(loops, dict) else 0,
             "loops": loops.get("loops", []) if isinstance(loops, dict) else [],
@@ -377,6 +484,15 @@ def explain_function(
         "vtable_contexts": vtable_ctx[:5] if isinstance(vtable_ctx, list) else [],
         "callee_details": callee_details,
     }
+
+    if output_file:
+        out_path = Path(output_file)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
+        callee_count = len(callee_details)
+        max_level = max((c.get("depth", 1) for c in callee_details), default=0)
+        print(f"Wrote {callee_count} callees across {max_level} levels to {out_path}")
+        return
 
     if as_json:
         emit_json(data)
@@ -439,7 +555,8 @@ def _print_text_explain(data: dict, include_assembly: bool) -> None:
         print(f"  DANGEROUS APIs ({len(data['dangerous_apis'])})")
         print(f"{'=' * 60}")
         for api in data["dangerous_apis"]:
-            print(f"  !! {api}")
+            name = api["api"] if isinstance(api, dict) else api
+            print(f"  !! {name}")
 
     # Complexity
     print(f"\n{'=' * 60}")
@@ -559,13 +676,15 @@ def _print_text_explain(data: dict, include_assembly: bool) -> None:
             else:
                 print(asm)
 
-    # Callee details
+    # Callee details (grouped by depth level)
     if data["callee_details"]:
+        max_level = max((c.get("depth", 1) for c in data["callee_details"]), default=1)
         print(f"\n{'=' * 60}")
-        print(f"  KEY CALLEE CODE ({len(data['callee_details'])} functions)")
+        print(f"  CALLEE CODE ({len(data['callee_details'])} functions, {max_level} levels)")
         print(f"{'=' * 60}")
         for callee in data["callee_details"]:
-            print(f"\n  --- {callee['function_name']} ({callee['location']}) ---")
+            lvl = callee.get("depth", 1)
+            print(f"\n  --- {callee['function_name']} [L{lvl}] ({callee['location']}) ---")
             if callee.get("signature"):
                 print(f"  Signature: {callee['signature']}")
             if callee.get("decompiled_code_excerpt"):
@@ -585,9 +704,12 @@ def main() -> None:
     parser.add_argument("function_name", nargs="?", help="Function name to explain")
     parser.add_argument("--id", type=int, dest="function_id", help="Function ID to explain")
     parser.add_argument("--depth", type=int, default=1,
-                        help="Callee code inclusion depth (0=no callees, 1=direct, 2=two levels). Default: 1")
+                        help="Recursive call chain depth (0=none, 1=direct callees only, 2=callees of callees, ...). "
+                             "Boilerplate (WIL/CRT/ETW) is filtered automatically. Default: 1")
     parser.add_argument("--no-assembly", action="store_true",
                         help="Omit assembly code from output (shorter output)")
+    parser.add_argument("--output-file", dest="output_file", default=None,
+                        help="Write full JSON output to this file instead of stdout (avoids truncation for large call chains)")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     args = safe_parse_args(parser)
 
@@ -611,6 +733,7 @@ def main() -> None:
             depth=args.depth,
             include_assembly=not args.no_assembly,
             as_json=force_json,
+            output_file=args.output_file,
         )
 
 

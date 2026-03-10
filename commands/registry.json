@@ -4,7 +4,7 @@
   "commands": {
     "triage": {
       "purpose": "Full module triage: identity, classification, attack surface, recommendations; optional quick security scan",
-      "file": "triage-module.md",
+      "file": "triage.md",
       "skills_used": ["decompiled-code-extractor", "generate-re-report", "classify-functions", "callgraph-tracer", "map-attack-surface", "taint-analysis"],
       "agents_used": [],
       "parameters": "<module> [--with-security]",
@@ -13,20 +13,11 @@
     },
     "audit": {
       "purpose": "Security audit a specific function: dossier, verification, call chain, risk assessment",
-      "file": "audit-function.md",
-      "skills_used": ["decompiled-code-extractor", "security-dossier", "map-attack-surface", "data-flow-tracer", "callgraph-tracer", "classify-functions", "taint-analysis"],
+      "file": "audit.md",
+      "skills_used": ["decompiled-code-extractor", "security-dossier", "map-attack-surface", "data-flow-tracer", "callgraph-tracer", "classify-functions", "taint-analysis", "import-export-resolver"],
       "methodologies_used": ["finding-verification", "deep-context-builder"],
       "agents_used": ["re-analyst", "verifier"],
-      "parameters": "[module] <function>",
-      "grind_loop": false,
-      "workspace_protocol": true
-    },
-    "trace-export": {
-      "purpose": "Trace an export through its full call chain with code and Mermaid diagram",
-      "file": "trace-export.md",
-      "skills_used": ["decompiled-code-extractor", "generate-re-report", "callgraph-tracer", "classify-functions", "security-dossier", "data-flow-tracer", "taint-analysis"],
-      "agents_used": [],
-      "parameters": "[module] <export_name> [--depth N]",
+      "parameters": "[module] <function> [--diagram]",
       "grind_loop": false,
       "workspace_protocol": true
     },
@@ -59,7 +50,7 @@
     },
     "verify": {
       "purpose": "Verify decompiler accuracy for a function or scan a module for issues",
-      "file": "verify-function.md",
+      "file": "verify.md",
       "skills_used": ["decompiled-code-extractor", "verify-decompiled", "function-index"],
       "agents_used": [],
       "parameters": "[module] [function]",
@@ -68,7 +59,7 @@
     },
     "explain": {
       "purpose": "Quick structured explanation of what a function does",
-      "file": "explain-function.md",
+      "file": "explain.md",
       "skills_used": ["decompiled-code-extractor", "classify-functions", "deep-research-prompt"],
       "methodologies_used": ["deep-context-builder"],
       "agents_used": ["re-analyst"],
@@ -176,9 +167,9 @@
       "grind_loop": false,
       "workspace_protocol": false
     },
-    "hunt": {
+    "hunt-plan": {
       "purpose": "Hypothesis-driven VR: campaign planning, attack pattern matching, variant analysis, finding validation",
-      "file": "hunt.md",
+      "file": "hunt-plan.md",
       "skills_used": ["classify-functions", "map-attack-surface", "security-dossier", "taint-analysis"],
       "methodologies_used": ["adversarial-reasoning"],
       "agents_used": [],
@@ -196,7 +187,7 @@
       "workspace_protocol": false
     },
     "hunt-execute": {
-      "purpose": "Execute a /hunt research plan: run investigation commands, collect evidence, score confidence",
+      "purpose": "Execute a /hunt-plan research plan: run investigation commands, collect evidence, score confidence",
       "file": "hunt-execute.md",
       "skills_used": ["taint-analysis", "security-dossier", "map-attack-surface", "data-flow-tracer", "callgraph-tracer", "exploitability-assessment"],
       "methodologies_used": ["finding-verification"],
@@ -298,7 +289,7 @@
     },
     "rpc": {
       "purpose": "RPC analysis: enumerate interfaces, map attack surface, security audit, trace handler chains, find clients, build topology, blast-radius, query stubs",
-      "file": "rpc-analysis.md",
+      "file": "rpc.md",
       "skills_used": ["rpc-interface-analysis", "decompiled-code-extractor", "map-attack-surface"],
       "agents_used": [],
       "parameters": "<module> | surface [module] | audit <module> | trace <module> <func> | clients <uuid> | topology [module] | blast-radius <module|uuid> | stubs <uuid>",
@@ -307,7 +298,7 @@
     },
     "winrt": {
       "purpose": "WinRT analysis: enumerate server classes, map privilege-boundary attack surface, audit security, classify entry points, find EoP targets",
-      "file": "winrt-analysis.md",
+      "file": "winrt.md",
       "skills_used": ["winrt-interface-analysis", "decompiled-code-extractor", "map-attack-surface"],
       "agents_used": [],
       "parameters": "<module> | surface [module] | methods <module_or_class> | classify <module> | audit <module> | privesc [--top N]",
@@ -316,7 +307,7 @@
     },
     "com": {
       "purpose": "COM analysis: enumerate servers by module or CLSID, map privilege-boundary attack surface, audit security (permissions, elevation, DCOM), classify entry points, find EoP and UAC bypass targets",
-      "file": "com-analysis.md",
+      "file": "com.md",
       "skills_used": ["com-interface-analysis", "decompiled-code-extractor", "map-attack-surface"],
       "agents_used": [],
       "parameters": "<module_or_clsid> | surface [module] | methods <module_or_clsid> | classify <module> | audit <module_or_clsid> | privesc [--top N]",

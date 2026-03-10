@@ -104,8 +104,8 @@ def analyze_topology(db_path: str, app_only: bool = False, *, no_cache: bool = F
         ename = id_to_name.get(eid, f"id_{eid}")
         reachable = graph.reachable_from(ename)
         entry_reachability.append({
-            "name": ename,
-            "id": eid,
+            "function_name": ename,
+            "function_id": eid,
             "reachable_count": len(reachable),
             "reachable_pct": f"{100.0 * len(reachable) / node_count:.1f}%" if node_count > 0 else "0%",
         })
@@ -120,15 +120,15 @@ def analyze_topology(db_path: str, app_only: bool = False, *, no_cache: bool = F
             # Skip compiler-generated, unnamed, and library/boilerplate functions
             # (WIL template instantiations with zero inbound refs are NOT dead code)
             if not fname.startswith("__") and not fname.startswith("_guard") and fname not in library_names:
-                dead_code.append({"name": fname, "id": fid})
-    dead_code.sort(key=lambda x: x["name"])
+                dead_code.append({"function_name": fname, "function_id": fid})
+    dead_code.sort(key=lambda x: x["function_name"])
 
     # --- Leaf functions ---
     leaf_functions = []
     for fid in all_ids:
         if not forward.get(fid):
-            leaf_functions.append({"name": id_to_name.get(fid, f"sub_{fid}"), "id": fid})
-    leaf_functions.sort(key=lambda x: x["name"])
+            leaf_functions.append({"function_name": id_to_name.get(fid, f"sub_{fid}"), "function_id": fid})
+    leaf_functions.sort(key=lambda x: x["function_name"])
 
     # --- Root functions (have outbound but no inbound, and are not exports) ---
     root_functions = []
@@ -137,8 +137,8 @@ def analyze_topology(db_path: str, app_only: bool = False, *, no_cache: bool = F
         inb = reverse.get(fid, set())
         if out and not inb and fid not in entry_ids:
             root_functions.append({
-                "name": id_to_name.get(fid, f"sub_{fid}"),
-                "id": fid,
+                "function_name": id_to_name.get(fid, f"sub_{fid}"),
+                "function_id": fid,
                 "outbound": len(out),
             })
     root_functions.sort(key=lambda x: -x["outbound"])
@@ -159,8 +159,8 @@ def analyze_topology(db_path: str, app_only: bool = False, *, no_cache: bool = F
         ename = id_to_name.get(eid, f"id_{eid}")
         depth = graph.max_depth_from(ename)
         max_depth_from_entries.append({
-            "name": ename,
-            "id": eid,
+            "function_name": ename,
+            "function_id": eid,
             "max_depth": depth,
         })
     max_depth_from_entries.sort(key=lambda x: -x["max_depth"])
@@ -188,8 +188,8 @@ def analyze_topology(db_path: str, app_only: bool = False, *, no_cache: bool = F
         out = len(forward.get(fid, set()))
         if inb >= 3 and out >= 3:
             bottlenecks.append({
-                "name": id_to_name.get(fid, f"sub_{fid}"),
-                "id": fid,
+                "function_name": id_to_name.get(fid, f"sub_{fid}"),
+                "function_id": fid,
                 "inbound": inb,
                 "outbound": out,
                 "paths_through": inb * out,

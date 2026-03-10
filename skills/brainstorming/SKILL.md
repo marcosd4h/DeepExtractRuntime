@@ -66,13 +66,13 @@ Match researcher goals to end-to-end workflows. Each template covers the full li
 |---|---|---|
 | Unfamiliar module | Recon | `/triage` -> `/full-report --brief` -> select next workflow |
 | Find bugs broadly | Broad detection | `/triage` -> `/scan --auto-audit` -> `/prioritize` |
-| Test a hypothesis | Hypothesis hunt | `/triage` -> `/hunt` -> `/hunt-execute` -> `/audit` confirmed |
+| Test a hypothesis | Hypothesis hunt | `/triage` -> `/hunt-plan` -> `/hunt-execute` -> `/audit` confirmed |
 | Audit IPC handlers | Privilege boundary | `/triage` -> `/com`/`/rpc`/`/winrt` -> `/batch-audit --privilege-boundary` |
 | Deep single function | Deep audit | `/explain` -> deep-context-builder -> `/audit` -> `/verify` |
 | Cross-DLL taint | Cross-module taint | per-module `/triage` -> `/imports` -> `/data-flow-cross` -> `/taint --cross-module` |
-| Find bug variants | Variant hunt | `/hunt variant` per module -> `/taint` candidates -> `/prioritize` |
+| Find bug variants | Variant hunt | `/hunt-plan variant` per module -> `/taint` candidates -> `/prioritize` |
 
-When the researcher's goal resolves to single-module hypothesis-driven VR, recommend `/hunt` instead of duplicating its work.
+When the researcher's goal resolves to single-module hypothesis-driven VR, recommend `/hunt-plan` instead of duplicating its work.
 
 ## Companion Skills
 

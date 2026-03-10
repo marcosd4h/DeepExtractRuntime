@@ -63,6 +63,35 @@ RE_RETURN = re.compile(r'\breturn\s+(.+?)\s*;')
 
 
 # ---------------------------------------------------------------------------
+# String-compare dispatch detection
+# ---------------------------------------------------------------------------
+
+_STRING_CMP_FUNCTIONS = frozenset({
+    "_wcsnicmp", "_o__wcsnicmp", "_wcsicmp", "_o__wcsicmp",
+    "wcsncmp", "_wcsncmp", "wcscmp",
+    "strcmp", "_stricmp", "strncmp", "_strnicmp",
+    "_mbsicmp", "_o__mbsicmp",
+    "_o_strcmp", "_o_strncmp", "_o_wcscmp", "_o_wcsncmp",
+})
+
+# Matches a call to a string-compare function with a string literal arg:
+#   _wcsnicmp(ptr, L"keyword", 7)
+#   _o__wcsnicmp(Str, L"eol=", 4)
+#   strcmp(buf, "exit")
+# Captures: (compare_func, first_arg, string_literal)
+RE_STRING_CMP_CALL = re.compile(
+    r'\b(' + '|'.join(re.escape(f) for f in sorted(_STRING_CMP_FUNCTIONS)) +
+    r')\s*\(\s*'
+    r'([^,]+?)'           # first arg (the pointer being compared)
+    r'\s*,\s*'
+    r'(?:L\s*)?'          # optional L prefix for wide strings
+    r'"([^"]*)"'          # the string literal
+    r'\s*(?:,\s*[^)]+)?'  # optional third arg (length)
+    r'\s*\)',
+)
+
+
+# ---------------------------------------------------------------------------
 # Dispatch table data structures
 # ---------------------------------------------------------------------------
 
@@ -76,7 +105,8 @@ class CaseEntry:
     is_internal: bool = False
     handler_module: Optional[str] = None
     label: Optional[str] = None  # string literal or name associated with this case
-    source: str = "decompiled"  # "decompiled", "jump_table", "if_chain"
+    case_label: Optional[str] = None  # keyword string for string-compare dispatch
+    source: str = "decompiled"  # "decompiled", "jump_table", "if_chain", "string_compare"
     confidence: float = 100.0
 
 
@@ -179,6 +209,81 @@ def parse_if_chain(decompiled: str, min_branches: int = 4) -> list[dict[str, Any
         for var, comps in comparisons.items()
         if len(comps) >= min_branches
     ]
+
+
+def parse_string_compare_chain(
+    decompiled: str, min_branches: int = 3,
+) -> list[dict[str, Any]]:
+    """Detect if-chains dispatching on string-compare function results.
+
+    Finds sequential calls to _wcsnicmp / strcmp / etc. where the same pointer
+    is compared against different string literals, forming a keyword dispatcher.
+
+    Returns list of dicts with keys:
+        variable          -- the pointer argument being compared
+        compare_function  -- primary compare function name (most frequent)
+        keywords          -- list of {keyword, start_pos, compare_function}
+    Only returns chains with >= min_branches distinct keyword comparisons.
+    """
+    matches: list[dict[str, Any]] = []
+    for m in RE_STRING_CMP_CALL.finditer(decompiled):
+        func_name = m.group(1)
+        first_arg = m.group(2).strip()
+        keyword = m.group(3)
+        # Normalize the first-arg: strip casts like (unsigned int) and
+        # outer parens so "Str" and "(wchar_t *)Str" collapse to "Str".
+        bare_arg = re.sub(r'\([^)]*\)\s*', '', first_arg).strip()
+        if not bare_arg:
+            bare_arg = first_arg
+        matches.append({
+            "variable": bare_arg,
+            "compare_function": func_name,
+            "keyword": keyword,
+            "start_pos": m.start(),
+        })
+
+    if not matches:
+        return []
+
+    # Group by variable name, preserving source order
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for item in matches:
+        var = item["variable"]
+        groups.setdefault(var, []).append(item)
+
+    results = []
+    for var, items in groups.items():
+        # Deduplicate keywords while preserving order
+        seen: set[str] = set()
+        unique_items: list[dict[str, Any]] = []
+        for item in items:
+            if item["keyword"] not in seen:
+                seen.add(item["keyword"])
+                unique_items.append(item)
+        if len(unique_items) < min_branches:
+            continue
+
+        # Determine the most frequent compare function
+        func_counts: dict[str, int] = {}
+        for item in unique_items:
+            f = item["compare_function"]
+            func_counts[f] = func_counts.get(f, 0) + 1
+        primary_func = max(func_counts, key=func_counts.get)  # type: ignore[arg-type]
+
+        results.append({
+            "variable": var,
+            "compare_function": primary_func,
+            "keywords": [
+                {
+                    "keyword": item["keyword"],
+                    "start_pos": item["start_pos"],
+                    "compare_function": item["compare_function"],
+                }
+                for item in unique_items
+            ],
+        })
+
+    return results
 
 
 def extract_case_handlers(body_text: str) -> dict[int, list[str]]:
@@ -358,6 +463,7 @@ __all__ = [
     "format_int",
     "parse_if_chain",
     "parse_json_safe",
+    "parse_string_compare_chain",
     "parse_switch_cases",
     "RE_ASM_JUMP_TABLE",
     "RE_ASM_SWITCH_CMP",
@@ -367,6 +473,7 @@ __all__ = [
     "RE_GOTO",
     "RE_IF_EQ_CONST",
     "RE_RETURN",
+    "RE_STRING_CMP_CALL",
     "RE_SWITCH",
     "resolve_db_path",
     "resolve_tracking_db",

@@ -168,7 +168,7 @@ Check off Phase 5 in the scratchpad (even if no specialized analysis was needed)
     - **String Intelligence**: categorized strings, notable clusters
     - **Specialized Findings**: COM interfaces, dispatch tables, global state (if detected)
     - **Anomalies**: decompiler failures, oversized functions, missing canaries. Include index entries where `has_decompiled=false` (these may have `file=null` but still valid `function_id` / `has_assembly` metadata).
-    - **Prioritized Analysis Roadmap**: ranked next steps with `/explain` and `/verify` for quick follow-ups, `/audit`, `/trace-export`, `/lift-class` for deep dives, and `/search` for targeted exploration
+    - **Prioritized Analysis Roadmap**: ranked next steps with `/explain` and `/verify` for quick follow-ups, `/audit`, `/lift-class` for deep dives, and `/search` for targeted exploration
 
     Check off Phase 6 and set Status to `DONE` in the scratchpad.
 

@@ -104,7 +104,7 @@ def analyze_complexity(db_path: str, app_only: bool = False, *, no_cache: bool =
 
         if loop_count > 0:
             by_loops.append({
-                "id": fid, "name": fname,
+                "function_id": fid, "function_name": fname,
                 "loop_count": loop_count, "max_nesting": max_nesting,
                 "max_cyclomatic": max_cyclomatic, "has_infinite": has_infinite,
             })
@@ -120,7 +120,7 @@ def analyze_complexity(db_path: str, app_only: bool = False, *, no_cache: bool =
 
         if hub_score > 0:
             by_xrefs.append({
-                "id": fid, "name": fname,
+                "function_id": fid, "function_name": fname,
                 "inbound": in_count, "outbound": out_count, "hub_score": hub_score,
             })
 
@@ -136,7 +136,7 @@ def analyze_complexity(db_path: str, app_only: bool = False, *, no_cache: bool =
                     if n:
                         global_names.add(n)
             by_global_state.append({
-                "id": fid, "name": fname,
+                "function_id": fid, "function_name": fname,
                 "reads": reads, "writes": writes, "total": reads + writes,
                 "globals": sorted(global_names)[:10],
             })
@@ -145,7 +145,7 @@ def analyze_complexity(db_path: str, app_only: bool = False, *, no_cache: bool =
         asm_lines = count_asm_instructions(func.assembly_code)
         decomp_lines = len(func.decompiled_code.splitlines()) if func.decompiled_code else 0
         by_size.append({
-            "id": fid, "name": fname,
+            "function_id": fid, "function_name": fname,
             "instruction_count": asm_lines, "decompiled_lines": decomp_lines,
         })
         size_dist[get_size_bucket(asm_lines)] += 1
@@ -160,7 +160,7 @@ def analyze_complexity(db_path: str, app_only: bool = False, *, no_cache: bool =
         errors = parse_json_safe(func.analysis_errors) or []
         if isinstance(errors, list) and errors:
             with_errors.append({
-                "id": fid, "name": fname,
+                "function_id": fid, "function_name": fname,
                 "errors": [
                     e.get("error", e.get("reason", str(e)))
                     for e in errors if isinstance(e, dict)

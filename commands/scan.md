@@ -15,6 +15,7 @@ Usage:
 - `/scan appinfo.dll --taint-only` -- only taint analysis on entry points
 - `/scan appinfo.dll <function>` -- all detectors on a specific function
 - `/scan appinfo.dll --auto-audit` -- after scanning, automatically audit the top 3 CRITICAL/HIGH findings
+- `/scan appinfo.dll --no-cache` -- bypass cached results for all scanners
 
 ## IMPORTANT: Execution Model
 
@@ -106,6 +107,8 @@ Then run taint analysis on the top 5 ranked entry points:
 python .agent/skills/taint-analysis/scripts/taint_function.py <db_path> --id <fid> --depth 2 --json
 ```
 
+**Cache bypass:** When `--no-cache` is specified, append `--no-cache` to each scanner invocation above.
+
 **Single-function mode:** If a function is specified, run all scanners with `--id <fid>` and taint analysis on that specific function. Skip entry point discovery.
 
 Check off Phase 1.
@@ -155,8 +158,13 @@ python .agent/skills/exploitability-assessment/scripts/assess_finding.py \
     --taint-report <taint_results.json> \
     --memory-findings <memory_results.json> \
     --logic-findings <logic_results.json> \
-    --module-db <db_path> --json
+    --module-db <db_path> \
+    [--dossier <dossier.json>] \
+    [--verify-report <verify.json>] \
+    --json
 ```
+
+Optional enrichment: `--dossier` (from `build_dossier.py`) and `--verify-report` (from `verify_function.py`) provide additional context for more accurate exploitability scoring. Include them when Phase 3 verification or a prior `/audit` run produced these artifacts.
 
 For batch processing of entry points:
 
@@ -207,7 +215,7 @@ Check off Phase 4.
 **Recommended Next Steps:**
 - `/audit <module> <function>` -- deep audit on CRITICAL/HIGH findings
 - `/taint <module> <function> --cross-module` -- cross-module impact assessment
-- `/hunt hypothesis <type> <module>` -- hypothesis-driven investigation on patterns
+- `/hunt-plan hypothesis <type> <module>` -- hypothesis-driven investigation on patterns
 - `/explain <module> <function>` -- understand what a flagged function does
 
 Check off Phase 5.

@@ -94,7 +94,7 @@ Each module has:
 ```
 /explain appinfo.dll <function>       # What does it do?
 /search appinfo.dll CreateProcess     # Find related functions
-/trace-export appinfo.dll <export>    # Trace from export down
+/audit appinfo.dll <export> --diagram  # Audit export with call graph
 /data-flow appinfo.dll <function>     # Where does data go?
 ```
 
@@ -125,7 +125,7 @@ Each module has:
 | `/verify <module> <function>`     | Check decompiler accuracy                 |
 | `/verify-batch <module>`          | Batch verify all functions                |
 | `/lift-class <module> <class>`    | Lift C++ class methods                    |
-| `/trace-export <module> <export>` | Trace call chain from export              |
+| `/audit <module> <export> --diagram` | Audit with call graph from export      |
 | `/data-flow <module> <function>`  | Trace data flow (forward/backward)        |
 | `/data-flow-cross <function>`     | Cross-module data flow                    |
 | `/reconstruct-types <module>`     | Reconstruct struct/class types            |

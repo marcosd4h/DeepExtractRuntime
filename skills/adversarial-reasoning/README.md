@@ -114,7 +114,7 @@ The [reference.md](reference.md) companion document (951 lines) contains:
 | TOCTOU / file race | `/data-flow forward`, `/audit` | data-flow-tracer, security-dossier |
 | Symlink/junction | `/search CreateFileW`, `/data-flow forward` | data-flow-tracer, classify-functions |
 | Integer overflow | `/verify`, `/taint` | verify-decompiled, taint-analysis |
-| COM privilege escalation | `/reconstruct-types`, `/trace-export` | com-interface-reconstruction, callgraph-tracer |
+| COM privilege escalation | `/reconstruct-types`, `/audit --diagram` | com-interface-reconstruction, callgraph-tracer |
 | Named pipe impersonation | `/search CreateNamedPipe`, `/taint` | taint-analysis, map-attack-surface |
 | RPC auth bypass | `/search RpcImpersonate`, `/audit` | security-dossier, taint-analysis |
 

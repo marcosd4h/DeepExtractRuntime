@@ -39,7 +39,7 @@ helper modules.
 3. **Drill into a function**: `/explain <module> <function>` for quick understanding, `/audit <module> <function>` for security assessment.
 
 Use lightweight commands (`/explain`, `/verify`, `/search`) for quick answers;
-heavyweight commands (`/audit`, `/trace-export`, `/lift-class`, `/full-report`) for deep analysis. Run `/health` to diagnose workspace issues.
+heavyweight commands (`/audit`, `/lift-class`, `/full-report`) for deep analysis. Run `/health` to diagnose workspace issues.
 
 For a guided walkthrough, read `docs/ONBOARDING.md`.
 

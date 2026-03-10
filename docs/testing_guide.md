@@ -1036,43 +1036,43 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Flags-Tested**: three module arguments
 - **Protocol**: workspace
 
-### TEST-STRUCT-035: Trace export
+### TEST-STRUCT-035: Audit with diagram
 
 - **Category**: structural
 - **Component**: command
-- **Component-Name**: /trace-export
+- **Component-Name**: /audit
 - **Target-Module**: shell32.dll
 - **Target-Function**: ShellExecuteExW
-- **Command**: `/trace-export shell32.dll ShellExecuteExW`
-- **Expected**: Full call tree, decompiled code, Mermaid diagram from ShellExecuteExW
-- **Validates**: Export trace pipeline
-- **Flags-Tested**: none (default)
+- **Command**: `/audit shell32.dll ShellExecuteExW --diagram`
+- **Expected**: Full security audit with Mermaid call graph diagram from ShellExecuteExW
+- **Validates**: --diagram flag on audit pipeline
+- **Flags-Tested**: --diagram
 - **Protocol**: workspace
 
-### TEST-STRUCT-036: Trace export list
+### TEST-STRUCT-036: Audit with cross-module
 
 - **Category**: structural
 - **Component**: command
-- **Component-Name**: /trace-export
-- **Target-Module**: appinfo.dll
-- **Target-Function**: N/A
-- **Command**: `/trace-export appinfo.dll --list`
-- **Expected**: All exports listed for appinfo.dll
-- **Validates**: --list flag
-- **Flags-Tested**: --list
-- **Protocol**: none
-
-### TEST-STRUCT-037: Trace export with depth
-
-- **Category**: structural
-- **Component**: command
-- **Component-Name**: /trace-export
+- **Component-Name**: /audit
 - **Target-Module**: appinfo.dll
 - **Target-Function**: AiLaunchProcess
-- **Command**: `/trace-export appinfo.dll AiLaunchProcess --depth 4`
-- **Expected**: Deeper call tree trace
-- **Validates**: --depth parameter
-- **Flags-Tested**: --depth
+- **Command**: `/audit appinfo.dll AiLaunchProcess`
+- **Expected**: Security audit with cross-module callee resolution table (default behavior)
+- **Validates**: Cross-module resolution in audit pipeline
+- **Flags-Tested**: none (cross-module is default)
+- **Protocol**: workspace
+
+### TEST-STRUCT-037: Audit with diagram and cross-module
+
+- **Category**: structural
+- **Component**: command
+- **Component-Name**: /audit
+- **Target-Module**: appinfo.dll
+- **Target-Function**: AiLaunchProcess
+- **Command**: `/audit appinfo.dll AiLaunchProcess --diagram`
+- **Expected**: Full audit with Mermaid diagram and cross-module transitions
+- **Validates**: --diagram flag (cross-module is always included)
+- **Flags-Tested**: --diagram
 - **Protocol**: workspace
 
 ### TEST-STRUCT-038: Diff modules
@@ -1901,10 +1901,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 
 - **Category**: vr-campaign
 - **Component**: command
-- **Component-Name**: /hunt
+- **Component-Name**: /hunt-plan
 - **Target-Module**: appinfo.dll
 - **Target-Function**: N/A
-- **Command**: `/hunt appinfo.dll`
+- **Command**: `/hunt-plan appinfo.dll`
 - **Expected**: Structured VR campaign plan with hypotheses
 - **Validates**: Default campaign mode
 - **Flags-Tested**: none (default)
@@ -1914,10 +1914,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 
 - **Category**: vr-campaign
 - **Component**: command
-- **Component-Name**: /hunt
+- **Component-Name**: /hunt-plan
 - **Target-Module**: appinfo.dll
 - **Target-Function**: N/A
-- **Command**: `/hunt hypothesis TOCTOU appinfo.dll`
+- **Command**: `/hunt-plan hypothesis TOCTOU appinfo.dll`
 - **Expected**: TOCTOU-specific hypothesis with verification strategy
 - **Validates**: hypothesis mode with vulnerability class
 - **Flags-Tested**: hypothesis, type
@@ -1927,10 +1927,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 
 - **Category**: vr-campaign
 - **Component**: command
-- **Component-Name**: /hunt
+- **Component-Name**: /hunt-plan
 - **Target-Module**: appinfo.dll
 - **Target-Function**: N/A
-- **Command**: `/hunt variant junction appinfo.dll`
+- **Command**: `/hunt-plan variant junction appinfo.dll`
 - **Expected**: Junction-based attack variant analysis
 - **Validates**: variant mode with pattern
 - **Flags-Tested**: variant, pattern
@@ -1940,10 +1940,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 
 - **Category**: vr-campaign
 - **Component**: command
-- **Component-Name**: /hunt
+- **Component-Name**: /hunt-plan
 - **Target-Module**: appinfo.dll
 - **Target-Function**: AiLaunchProcess
-- **Command**: `/hunt validate appinfo.dll AiLaunchProcess`
+- **Command**: `/hunt-plan validate appinfo.dll AiLaunchProcess`
 - **Expected**: Validation strategy for suspected finding
 - **Validates**: validate mode with function
 - **Flags-Tested**: validate, function
@@ -1953,10 +1953,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 
 - **Category**: vr-campaign
 - **Component**: command
-- **Component-Name**: /hunt
+- **Component-Name**: /hunt-plan
 - **Target-Module**: appinfo.dll
 - **Target-Function**: N/A
-- **Command**: `/hunt surface appinfo.dll`
+- **Command**: `/hunt-plan surface appinfo.dll`
 - **Expected**: Trust boundary mapping
 - **Validates**: surface mode
 - **Flags-Tested**: surface
@@ -4511,7 +4511,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: hypothesis-driven-investigation
 - **Target-Module**: appinfo.dll
 - **Target-Function**: AiLaunchProcess
-- **Command**: `/hunt appinfo.dll` then `/hunt-execute appinfo.dll` then `/audit appinfo.dll <confirmed_function>`
+- **Command**: `/hunt-plan appinfo.dll` then `/hunt-execute appinfo.dll` then `/audit appinfo.dll <confirmed_function>`
 - **Expected**: Plan -> execute -> validate confirmed findings
 - **Validates**: Full VR investigation workflow
 - **Flags-Tested**: N/A
@@ -4524,8 +4524,8 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: export-dependency-tracing
 - **Target-Module**: shell32.dll
 - **Target-Function**: ShellExecuteExW
-- **Command**: `/trace-export shell32.dll ShellExecuteExW` then `/taint shell32.dll ShellExecuteExW --cross-module` then `/audit shell32.dll ShellExecuteExW` then `/verify shell32.dll ShellExecuteExW`
-- **Expected**: Trace -> taint -> audit -> verify along execution path
+- **Command**: `/audit shell32.dll ShellExecuteExW --diagram` then `/taint shell32.dll ShellExecuteExW --cross-module` then `/verify shell32.dll ShellExecuteExW`
+- **Expected**: Audit with diagram -> taint -> verify along execution path
 - **Validates**: Full export tracing workflow
 - **Flags-Tested**: --cross-module
 - **Protocol**: workspace

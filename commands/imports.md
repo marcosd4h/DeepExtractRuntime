@@ -97,7 +97,7 @@ Present the analysis in chat. Include Mermaid diagrams inline when requested. No
 **Follow-up suggestions:**
 
 - `/callgraph <module>` -- internal call graph topology
-- `/trace-export <module> <export>` -- trace an export through its call chain
+- `/audit <module> <export>` -- security audit on an export (includes cross-module resolution)
 - `/compare-modules <moduleA> <moduleB>` -- cross-module comparison
 - `/data-flow-cross forward <module> <function>` -- trace data flow across module boundaries
 

@@ -249,13 +249,14 @@ python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py 
 
 ## Detection Strategies
 
-The skill combines three detection approaches:
+The skill combines four detection approaches:
 
 ### 1. Decompiled Code Parsing
 
 - **Switch/case**: Regex extraction of `switch(var) { case N: ... }` blocks
 - **If-else chains**: Detect sequences of `if (var == CONST)` comparing the same variable against 4+ constants (common Hex-Rays output for small switches)
-- **Handler extraction**: Parse function calls within each case block to identify the handler
+- **String-compare chains**: Detect sequential calls to `_wcsnicmp`/`strcmp`/`wcsncmp`/etc. comparing the same pointer against different string literals (keyword dispatchers in command parsers, option parsers, protocol handlers)
+- **Handler extraction**: Parse function calls within each case/branch block to identify the handler
 
 ### 2. Jump Table Resolution from Xrefs
 
@@ -269,6 +270,7 @@ The skill combines three detection approaches:
 - Track assignments to the switch variable within case blocks as state transitions
 - Mark states as initial (assigned before the loop) or terminal (return without transition)
 - Use `string_literals` to name states and commands
+- String-compare chains inside loops are detected as `loop_string_compare` candidates
 
 ## Direct Helper Module Access
 

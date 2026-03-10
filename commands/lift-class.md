@@ -42,7 +42,17 @@ Validate arguments using `helpers.command_validation.validate_command_args("lift
 If validation fails, report the errors and stop. On success, use `result.resolved["db_path"]` for subsequent script calls.
 
 1. **Find the module DB**
-   Use the **decompiled-code-extractor** skill (`find_module_db.py`) to resolve the module. To browse available classes, use the **reconstruct-types** skill (`list_types.py` or `extract_class_hierarchy.py`).
+   Use the **decompiled-code-extractor** skill (`find_module_db.py`) to resolve the module.
+
+   **To list available classes** (when user passes `--list`), use `batch_extract.py --list-classes`:
+
+   ```bash
+   python .agent/agents/code-lifter/scripts/batch_extract.py <db_path> --list-classes [--skip-library] [--json]
+   ```
+
+   Alternative: `python .agent/skills/batch-lift/scripts/collect_functions.py <db_path> --list-classes [--skip-library] [--json]`
+
+   Output includes an `already_lifted` flag per class, indicating whether a `lifted_<ClassName>.cpp` file already exists in `extracted_code/<module>/`. When listing, present results and stop -- do not proceed to lifting.
 
 > **Tip:** All skill scripts support `--json` for machine-readable output. Use `--json` when parsing script output programmatically.
 
@@ -56,7 +66,7 @@ If validation fails, report the errors and stop. On success, use `result.resolve
    Review: method count, which have decompiled code, dependency order, initial struct scan.
    If the class has many methods (>15), ask the user if they want to lift all or a subset.
 
-   Use `--app-only` on `collect_functions.py` or `--skip-library` to exclude WIL/WRL boilerplate methods that sometimes appear in class groups. `resolve_module_dir()` from helpers provides the extracted_code path for output.
+   Use `--skip-library` on `batch_extract.py` or `--skip-library` on `python .agent/skills/batch-lift/scripts/collect_functions.py` to exclude WIL/WRL boilerplate methods that sometimes appear in class groups. `resolve_module_dir()` from helpers provides the extracted_code path for output.
 
 3. **Delegate to the code-lifter subagent**
    Launch the `code-lifter` subagent with a descriptive name (e.g., `"Lift CSecurityDescriptor methods (appinfo.dll)"`) and a prompt that includes:
@@ -91,7 +101,7 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 
 - `/reconstruct-types <module> <class>` -- refine struct/class definitions with full module context
 - `/explain <module> <method>` -- understand a specific method's behavior in detail
-- `/trace-export <module> <export>` -- trace the call chain if any lifted methods are exports
+- `/audit <module> <export> --diagram` -- audit with call graph if any lifted methods are exports
 
 ## Step Dependencies
 

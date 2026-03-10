@@ -6,19 +6,22 @@ re-analyst agent.
 
 Categories
 ----------
-file_path      -- Drive-letter paths, device paths, system paths, PE refs
-registry_key   -- Registry hives, keys, and well-known paths
-url            -- HTTP/HTTPS/FTP/WSS/file URLs
-rpc_endpoint   -- ALPC, named-pipe, TCP RPC endpoint strings
-named_pipe     -- ``\\\\.\\pipe\\...`` paths
-alpc_path      -- ALPC port paths (\\RPC Control\\, \\BaseNamedObjects\\)
-service_account -- NT AUTHORITY\\*, LocalSystem, etc.
-certificate    -- Certificate file extensions (.cer, .pfx, .pem, etc.)
-etw_provider   -- ``Microsoft-Windows-*`` provider names
-guid           -- ``{xxxxxxxx-xxxx-...}`` CLSID / IID patterns
-error_message  -- Strings containing error/failure keywords (phrase context)
-format_string  -- printf-style format specifiers
-debug_trace    -- TraceLogging / ETW / WPP keywords
+file_path        -- Drive-letter paths, device paths, system paths, PE refs
+registry_key     -- Registry hives, keys, and well-known paths
+url              -- HTTP/HTTPS/FTP/WSS/file URLs
+rpc_endpoint     -- ALPC, named-pipe, TCP RPC endpoint strings
+named_pipe       -- ``\\\\.\\pipe\\...`` paths
+alpc_path        -- ALPC port paths (\\RPC Control\\, \\BaseNamedObjects\\)
+service_account  -- NT AUTHORITY\\*, LocalSystem, etc.
+certificate      -- Certificate file extensions (.cer, .pfx, .pem, etc.)
+credentials      -- Hardcoded passwords, API keys, tokens, auth headers
+embedded_command -- Shell commands, PowerShell strings, WMI queries
+source_path      -- Build/source file paths leaked from compilation
+etw_provider     -- ``Microsoft-Windows-*`` provider names
+guid             -- ``{xxxxxxxx-xxxx-...}`` CLSID / IID patterns
+error_message    -- Strings containing error/failure keywords (phrase context)
+format_string    -- printf-style format specifiers
+debug_trace      -- TraceLogging / ETW / WPP keywords
 """
 
 from __future__ import annotations
@@ -54,6 +57,16 @@ STRING_TAXONOMY: list[tuple[re.Pattern, str, str]] = [
     (re.compile(r"NT AUTHORITY\\(?:LOCAL SYSTEM|NETWORK SERVICE|LOCAL SERVICE|SYSTEM)", re.I), "service_account", "Built-in service account"),
     (re.compile(r"(?:^|\\)LocalSystem(?:$|\\| )", re.I), "service_account", "LocalSystem account"),
     (re.compile(r"\.\\(?:LocalSystem|NetworkService|LocalService)", re.I), "service_account", "Dot-prefix service account"),
+    # Credentials / secrets (high-value; before error_message to avoid misclassification)
+    (re.compile(r"\b(?:password|passwd|pwd)\s*[:=]", re.I), "credentials", "Hardcoded password"),
+    (re.compile(r"\b(?:api[_-]?key|apikey|secret[_-]?key|auth[_-]?token|access[_-]?token)\s*[:=]", re.I), "credentials", "Hardcoded API key/token"),
+    (re.compile(r"(?:^|\s)(?:Authorization|Bearer|Basic)\s*[:=\s]", re.I), "credentials", "Auth header value"),
+    # Embedded commands (shell, PowerShell, WMI)
+    (re.compile(r"\bcmd(?:\.exe)?\s+/[ckr]\b", re.I), "embedded_command", "Shell command invocation"),
+    (re.compile(r"\bpowershell(?:\.exe)?\b", re.I), "embedded_command", "PowerShell invocation"),
+    (re.compile(r"\bwmic(?:\.exe)?\b", re.I), "embedded_command", "WMI command-line"),
+    (re.compile(r"\bInvoke-(?:Expression|Command|WebRequest|RestMethod)\b", re.I), "embedded_command", "PowerShell cmdlet"),
+    (re.compile(r"\bSELECT\s+.+\s+FROM\s+Win32_", re.I), "embedded_command", "WMI query"),
     # ETW / telemetry
     (re.compile(r"Microsoft-Windows-", re.I), "etw_provider", "ETW provider name"),
     # GUIDs
@@ -64,14 +77,39 @@ STRING_TAXONOMY: list[tuple[re.Pattern, str, str]] = [
     (re.compile(r"%[-+0 #]*(?:\d+|\*)?(?:\.(?:\d+|\*))?(?:h{1,2}|l{1,2}|L|z|j|t|q|I|I32|I64|w)?[diouxXeEfFgGaAcCsSpn%]"), "format_string", "printf-style format"),
     # Debug / trace
     (re.compile(r"TraceLogging|TRACE_LEVEL|ETW_KEYWORD|WPP_", re.I), "debug_trace", "Trace/ETW keyword"),
+    # Source / build paths leaked from compilation (low priority, placed last)
+    (re.compile(r"\.(?:cpp|cxx|hpp|hxx|h|c)(?:[\"'\s]|$)", re.I), "source_path", "Source file reference"),
+    (re.compile(r"(?:^|\\)(?:onecore|onecoreuap|minkernel|base|shell|ds|windows)\\", re.I), "source_path", "Windows build tree path"),
 ]
 
 # All canonical category names, in definition order.
 CATEGORIES = [
     "file_path", "registry_key", "url", "rpc_endpoint", "named_pipe",
-    "alpc_path", "service_account", "certificate",
-    "etw_provider", "guid", "error_message", "format_string", "debug_trace",
+    "alpc_path", "service_account", "certificate", "credentials",
+    "embedded_command", "source_path", "etw_provider", "guid",
+    "error_message", "format_string", "debug_trace",
 ]
+
+# Security risk level per category.  Used by string-intelligence output
+# and downstream consumers for sorting/filtering.
+CATEGORY_RISK: dict[str, str] = {
+    "credentials":      "HIGH",
+    "named_pipe":       "HIGH",
+    "rpc_endpoint":     "HIGH",
+    "url":              "HIGH",
+    "certificate":      "HIGH",
+    "embedded_command": "HIGH",
+    "registry_key":     "MEDIUM",
+    "alpc_path":        "MEDIUM",
+    "format_string":    "MEDIUM",
+    "file_path":        "MEDIUM",
+    "service_account":  "MEDIUM",
+    "source_path":      "LOW",
+    "error_message":    "LOW",
+    "guid":             "LOW",
+    "etw_provider":     "LOW",
+    "debug_trace":      "LOW",
+}
 
 # Mapping from canonical taxonomy names to the classify-functions scoring
 # categories.  classify-functions uses coarser buckets (e.g. ``rpc`` covers
@@ -84,6 +122,8 @@ TAXONOMY_TO_CLASSIFICATION: dict[str, str] = {
     "alpc_path": "rpc",
     "service_account": "security",
     "certificate": "crypto",
+    "credentials": "security",
+    "embedded_command": "security",
     "etw_provider": "telemetry",
     "format_string": "data_parsing",
 }

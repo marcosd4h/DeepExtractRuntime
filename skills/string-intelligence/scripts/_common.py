@@ -22,6 +22,7 @@ resolve_db_path, resolve_tracking_db = make_db_resolvers(WORKSPACE_ROOT)
 from helpers.string_taxonomy import (  # noqa: E402
     STRING_TAXONOMY,
     CATEGORIES,
+    CATEGORY_RISK,
     categorize_string,
     categorize_string_simple,
     categorize_strings,
@@ -29,6 +30,7 @@ from helpers.string_taxonomy import (  # noqa: E402
 
 __all__ = [
     "CATEGORIES",
+    "CATEGORY_RISK",
     "STRING_TAXONOMY",
     "WORKSPACE_ROOT",
     "categorize_string",

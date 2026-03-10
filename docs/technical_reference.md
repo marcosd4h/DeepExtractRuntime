@@ -20,13 +20,13 @@ For systematic evaluation of known high-risk components:
 
 ## Hypothesis-Driven Investigation
 For targeted research based on specific vulnerability classes or patterns:
-- **Planning Phase**: Executes hunt command to synthesize a structured research schema and generate verifiable hypotheses.
+- **Planning Phase**: Executes hunt-plan command to synthesize a structured research schema and generate verifiable hypotheses.
 - **Execution Phase**: Executes hunt-execute command to systematically apply the generated schema against the target binary, recording confidence scores for each hypothesis.
 - **Validation Phase**: Executes audit command on confirmed findings, followed by the finding-verification capability to evaluate the results against assembly-level ground truth.
 
 ## Export Dependency Tracing
 For exhaustive mapping of specific exported interfaces:
-- **Execution Path Mapping**: Executes trace-export command to construct a call tree, retrieve decompiled syntax, and generate a topological diagram.
+- **Execution Path Mapping**: Executes audit command with `--diagram` to construct a call tree, retrieve decompiled syntax, and generate a topological diagram.
 - **Data Flow Analysis**: Executes taint command with cross-module parameters to map parameter propagation across trust boundaries.
 - **Security Assessment**: Executes audit command for localized vulnerability assessment.
 
@@ -598,18 +598,6 @@ Executes differential calculations across discrete binary versions.
   - Executes code-level differential analysis on functions demonstrating the highest change variation.
 - **Composed Elements**: decompiled-code-extractor, classify-functions, map-attack-surface.
 
-### trace-export
-Executes exhaustive flow analysis initiating from an exported function.
-- **Parameters**: module name, export string, maximum depth integer, export listing flag.
-- **Execution Sequence**:
-  - Confirms the export definition state.
-  - Calculates a compact traversal structure via chain_analysis.py.
-  - Classifies the operational intent of the localized callees.
-  - Constructs a security dossier for the primary export.
-  - Executes parameter tracing and conditionally executes taint tracking.
-  - Renders the resulting topological map.
-- **Composed Elements**: decompiled-code-extractor, generate-re-report, callgraph-tracer, classify-functions, security-dossier, data-flow-tracer, taint-analysis, import-export-resolver, function-index.
-
 ## Interface Analysis Operations
 
 ### com
@@ -702,7 +690,7 @@ Executes parallel initialization of multiple audit processes.
 
 ## VR Campaign Operations
 
-### hunt
+### hunt-plan
 Executes the generation of a verifiable analysis sequence.
 - **Parameters**: operation mode string, module name, target string.
 - **Execution Sequence**:
@@ -889,7 +877,7 @@ The shared Python library operates at the foundational tier, exposing core progr
 - **diff**: decompiled-code-extractor, classify-functions, map-attack-surface
 - **explain**: function-index, decompiled-code-extractor, classify-functions, deep-research-prompt
 - **full-report**: decompiled-code-extractor, generate-re-report, classify-functions, map-attack-surface, callgraph-tracer, com-interface-reconstruction, state-machine-extractor, data-flow-tracer, taint-analysis, security-dossier, reconstruct-types, verify-decompiled, function-index
-- **hunt**: adversarial-reasoning, classify-functions, map-attack-surface, security-dossier, taint-analysis
+- **hunt-plan**: adversarial-reasoning, classify-functions, map-attack-surface, security-dossier, taint-analysis
 - **hunt-execute**: taint-analysis, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, exploitability-assessment
 - **imports**: import-export-resolver
 - **lift-class**: decompiled-code-extractor, code-lifting, batch-lift, reconstruct-types
@@ -903,7 +891,7 @@ The shared Python library operates at the foundational tier, exposing core progr
 - **state-machines**: state-machine-extractor, decompiled-code-extractor, function-index
 - **strings**: string-intelligence, decompiled-code-extractor
 - **taint**: taint-analysis, function-index, decompiled-code-extractor
-- **trace-export**: decompiled-code-extractor, generate-re-report, callgraph-tracer, classify-functions, security-dossier, data-flow-tracer, taint-analysis, import-export-resolver, function-index
+- **audit**: decompiled-code-extractor, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, classify-functions, taint-analysis, import-export-resolver, function-index
 - **triage**: decompiled-code-extractor, generate-re-report, classify-functions, callgraph-tracer, map-attack-surface, taint-analysis, function-index
 - **verify**: verify-decompiled, function-index
 - **verify-batch**: verify-decompiled, function-index, reconstruct-types, decompiled-code-extractor

@@ -397,11 +397,11 @@ class TestValidateCommandArgs:
 
     @pytest.mark.parametrize("command_name, mode", [
         ("rpc", "surface"),
-        ("rpc-analysis", "clients"),
+        ("rpc", "clients"),
         ("winrt", "privesc"),
-        ("winrt-analysis", "surface"),
+        ("winrt", "surface"),
         ("com", "surface"),
-        ("com-analysis", "privesc"),
+        ("com", "privesc"),
     ])
     def test_moduleless_modes_are_allowed(self, command_name, mode):
         r = validate_command_args(command_name, {"mode": mode})
@@ -409,11 +409,11 @@ class TestValidateCommandArgs:
 
     @pytest.mark.parametrize("command_name, mode", [
         ("rpc", "audit"),
-        ("rpc-analysis", "trace"),
+        ("rpc", "trace"),
         ("winrt", "audit"),
-        ("winrt-analysis", "methods"),
+        ("winrt", "methods"),
         ("com", "audit"),
-        ("com-analysis", "methods"),
+        ("com", "methods"),
     ])
     def test_module_required_for_non_moduleless_modes(self, command_name, mode):
         r = validate_command_args(command_name, {"mode": mode})

@@ -84,7 +84,9 @@ python .agent/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py <mo
 python .agent/skills/rpc-interface-analysis/scripts/audit_rpc_security.py <db_path> --json
 ```
 
-Present: security findings ranked by severity -- missing impersonation, missing revert, remote interfaces without auth, complex type risks. For each finding, include the interface UUID, risk tier, and remediation guidance.
+Present: security findings ranked by severity -- missing impersonation, missing revert, remote interfaces without auth, complex type risks, elevation handlers without identity checks. For each finding, include the interface UUID, risk tier, and remediation guidance.
+
+When generating Mermaid attack surface diagrams for `ncalrpc`-only services, label the attacker node as "Medium-IL Caller (standard user process)" -- not "Low-IL / Medium-IL". LRPC endpoints are not accessible to Low Integrity or AppContainer processes without explicit DACL grants.
 
 ### Step 4: `/rpc trace <module> <function>` -- Handler Chain Trace
 

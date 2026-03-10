@@ -35,7 +35,6 @@ from typing import Any, Optional
 from .config import get_config_value
 from .db_paths import module_name_from_path
 from .errors import log_warning
-from .progress import status_message
 
 _log = logging.getLogger(__name__)
 
@@ -480,7 +479,7 @@ class ComIndex:
             if not ctx_dir.is_dir():
                 _log.debug("COM context directory not found: %s", ctx_dir)
                 continue
-            status_message(f"Loading COM data ({ctx.value})...")
+            _log.debug("Loading COM data (%s)...", ctx.value)
             self._load_context(ctx_dir, ctx)
 
         self._loaded = bool(self._servers)

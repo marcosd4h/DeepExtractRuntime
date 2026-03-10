@@ -31,6 +31,10 @@ Standalone scripts:
                            Run directly:  python .agent/helpers/qa_runner.py [options]
     health_check.py     -- Workspace health check (extraction data, DBs, registries, config).
                            Run directly:  python .agent/helpers/health_check.py [--quick|--full] [--json]
+    select_audit_callees.py -- Select callees for deep extraction during /audit (Steps 3h + 3i).
+                           Run directly:  python .agent/helpers/select_audit_callees.py <db_path> --dossier <path> [--json]
+    select_backward_traces.py -- Select backward trace targets for /audit Step 3c.
+                           Run directly:  python .agent/helpers/select_backward_traces.py --dossier <path> [--json]
 
 All public symbols are lazily imported on first access to avoid loading
 all 30+ submodules when only a few are needed.

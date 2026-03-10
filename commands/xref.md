@@ -2,7 +2,7 @@
 
 ## Overview
 
-Quick cross-reference lookup for a function: show who calls it (inbound xrefs) and what it calls (outbound xrefs) in a compact table format. Lightweight alternative to `/trace-export` for when you just need to see a function's immediate neighborhood.
+Quick cross-reference lookup for a function: show who calls it (inbound xrefs) and what it calls (outbound xrefs) in a compact table format. Lightweight alternative to `/audit` for when you just need to see a function's immediate neighborhood.
 
 Usage:
 
@@ -99,7 +99,7 @@ Present the xref table directly in chat. No file is saved for this lightweight c
 **Follow-up suggestions:**
 
 - `/explain <module> <callee>` -- understand what a callee does
-- `/trace-export <module> <function>` -- full call chain trace
+- `/audit <module> <function> --diagram` -- full security audit with call graph diagram
 - `/audit <module> <function>` -- security audit on the function
 - `/data-flow forward <module> <function> --param N` -- trace parameter into callees
 - `/taint <module> <function>` -- check if tainted data reaches dangerous callees

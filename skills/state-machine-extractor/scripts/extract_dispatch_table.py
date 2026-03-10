@@ -40,6 +40,7 @@ from _common import (
     format_int,
     parse_if_chain,
     parse_json_safe,
+    parse_string_compare_chain,
     parse_switch_cases,
     resolve_db_path,
     RE_FUNCTION_CALL,
@@ -182,7 +183,55 @@ def build_dispatch_table(func: FunctionRecord, db) -> list[DispatchTable]:
 
         tables.append(table)
 
-    # 3. Jump table targets (if no switch/if-chain found)
+    # 2b. Parse string-compare dispatch chains
+    str_chains = parse_string_compare_chain(decompiled, min_branches=3)
+    for chain in str_chains:
+        table = DispatchTable(
+            function_name=func_name,
+            function_id=func.function_id,
+            switch_variable=chain["variable"],
+            source_type="string_compare",
+            total_cases=len(chain["keywords"]),
+            has_default=True,  # string-compare chains always have an implicit fallthrough
+        )
+
+        for ordinal, kw_info in enumerate(chain["keywords"]):
+            keyword = kw_info["keyword"]
+            entry = CaseEntry(
+                case_value=ordinal,
+                case_value_hex=keyword,
+                case_label=keyword,
+                label=keyword,
+                source="string_compare",
+                confidence=90.0,
+            )
+
+            pos = kw_info["start_pos"]
+            block_end = decompiled.find("\n}", pos)
+            if block_end == -1:
+                block_end = min(pos + 500, len(decompiled))
+            block = decompiled[pos:block_end]
+
+            calls = []
+            for call_match in RE_FUNCTION_CALL.finditer(block):
+                fname = call_match.group(1)
+                if fname in xref_by_name:
+                    calls.append(fname)
+
+            primary = _pick_primary_handler(calls, xref_by_name) if calls else None
+            if primary:
+                entry.handler_name = primary
+                xref = xref_by_name.get(primary, {})
+                entry.handler_id = xref.get("function_id")
+                entry.is_internal = xref.get("function_id") is not None
+                entry.handler_module = xref.get("module_name")
+
+            table.string_labels[ordinal] = keyword
+            table.cases.append(entry)
+
+        tables.append(table)
+
+    # 3. Jump table targets (if no switch/if-chain/string-compare found)
     if not tables and detailed_xrefs:
         jt_targets = extract_jump_table_targets(detailed_xrefs)
         if jt_targets:
@@ -290,6 +339,7 @@ def _tables_to_cacheable(tables: list[DispatchTable]) -> list[dict]:
                     "is_internal": c.is_internal,
                     "handler_module": c.handler_module,
                     "label": c.label,
+                    "case_label": c.case_label,
                     "source": c.source,
                     "confidence": c.confidence,
                 }
@@ -322,6 +372,7 @@ def _table_from_cached(d: dict) -> DispatchTable:
             is_internal=c.get("is_internal", False),
             handler_module=c.get("handler_module"),
             label=c.get("label"),
+            case_label=c.get("case_label"),
             source=c.get("source", "decompiled"),
             confidence=c.get("confidence", 100.0),
         ))
@@ -348,6 +399,7 @@ def print_dispatch_table(tables: list[DispatchTable], func: FunctionRecord, as_j
                         "is_internal": c.is_internal,
                         "handler_module": c.handler_module,
                         "label": c.label,
+                        "case_label": c.case_label,
                         "source": c.source,
                         "confidence": c.confidence,
                     }
@@ -378,7 +430,9 @@ def print_dispatch_table(tables: list[DispatchTable], func: FunctionRecord, as_j
     for i, table in enumerate(tables):
         print(f"\n{'=' * 80}")
         header = f"  Table {i + 1}: "
-        if table.switch_variable:
+        if table.source_type == "string_compare":
+            header += f"str-cmp({table.switch_variable})"
+        elif table.switch_variable:
             header += f"switch({table.switch_variable})"
         else:
             header += f"{table.source_type}"
@@ -390,9 +444,10 @@ def print_dispatch_table(tables: list[DispatchTable], func: FunctionRecord, as_j
         print(f"  Source: {table.source_type}")
         print(f"{'=' * 80}\n")
 
-        # Table header
-        print(f"  {'Case':>10}  {'Handler':<40}  {'ID':>6}  {'Int':>3}  {'Label'}")
-        print(f"  {'-' * 10}  {'-' * 40}  {'-' * 6}  {'-' * 3}  {'-' * 30}")
+        is_str_cmp = table.source_type == "string_compare"
+        case_col = "Keyword" if is_str_cmp else "Case"
+        print(f"  {case_col:>20}  {'Handler':<40}  {'ID':>6}  {'Int':>3}  {'Label'}")
+        print(f"  {'-' * 20}  {'-' * 40}  {'-' * 6}  {'-' * 3}  {'-' * 30}")
 
         for case in table.cases:
             handler = case.handler_name or "(unknown)"
@@ -403,7 +458,10 @@ def print_dispatch_table(tables: list[DispatchTable], func: FunctionRecord, as_j
             label = case.label or ""
             if len(label) > 30:
                 label = label[:27] + "..."
-            print(f"  {case.case_value_hex:>10}  {handler:<40}  {hid:>6}  {internal:>3}  {label}")
+            case_display = f'"{case.case_label}"' if case.case_label else case.case_value_hex
+            if len(case_display) > 20:
+                case_display = case_display[:17] + "..."
+            print(f"  {case_display:>20}  {handler:<40}  {hid:>6}  {internal:>3}  {label}")
 
         if table.has_default:
             dh = table.default_handler or "(fallthrough)"

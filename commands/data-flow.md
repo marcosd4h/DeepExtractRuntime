@@ -103,7 +103,7 @@ Present the trace results in chat. This is a lightweight retrieval command; file
 
 **Follow-up suggestions**:
 
-- `/trace-export <module> <function>` -- trace the full call chain from an export
+- `/audit <module> <function> --diagram` -- full security audit with call graph from an export
 - `/audit <module> <function>` -- security audit on functions in the data flow path
 - `/explain <module> <function>` -- understand what a function in the chain does
 

@@ -41,6 +41,18 @@ else if ( v5 == 12 ) // branch 3
 3. Groups with >= `min_branches` (default 4) comparisons are reported as dispatch candidates
 4. Each branch's handler is resolved from function calls in the subsequent block
 
+### String-Compare Chain Detection
+
+Detects keyword dispatch via sequential string-comparison function calls:
+
+1. `RE_STRING_CMP_CALL` matches calls to known compare functions with a string literal argument (e.g., `_wcsnicmp(ptr, L"keyword", 7)`)
+2. The first argument (the compared pointer) is extracted and normalized (casts stripped)
+3. Matches are grouped by the compared variable
+4. Groups with >= `min_branches` distinct keywords are reported as string-compare dispatchers
+5. Each keyword becomes a case entry with `source="string_compare"` and `case_label` set to the keyword string
+
+This handles patterns where Hex-Rays produces sequential `_wcsnicmp` / `strcmp` / etc. calls that collectively form a keyword dispatcher -- common in command parsers, option parsers, and protocol handlers.
+
 ### Jump Table Resolution (Outbound Xrefs)
 
 The detailed `outbound_xrefs` JSON field contains jump table metadata:
@@ -78,13 +90,14 @@ The `cmp` values often indicate the maximum case value (the `ja default` pattern
 
 ## State Machine Reconstruction
 
-A **state machine** is detected when a dispatch pattern (switch or if-chain) appears inside a loop. The reconstruction algorithm:
+A **state machine** is detected when a dispatch pattern (switch, if-chain, or string-compare chain) appears inside a loop. The reconstruction algorithm:
 
 ### Detection Criteria
 
-1. Function has at least one switch or if-chain with >= 3 cases
+1. Function has at least one switch, if-chain, or string-compare chain with >= 3 cases
 2. `loop_analysis` reports at least one loop
-3. The switch variable is assigned to new values within case blocks (state transitions)
+3. For switch/if-chain: the switch variable is assigned to new values within case blocks (state transitions)
+4. For string-compare chains: sequential keyword comparisons form the dispatch (no state variable reassignment; each keyword is a distinct branch)
 
 ### State Identification
 
@@ -144,11 +157,40 @@ A state is terminal when its case block:
             "is_internal": true,
             "handler_module": "internal",
             "label": "init",
+            "case_label": null,
             "source": "decompiled",
             "confidence": 100.0
         }
     ],
     "string_labels": { "0": "init", "5": "process" }
+}
+```
+
+For string-compare dispatchers, `source_type` is `"string_compare"`, `case_value` is the ordinal position (0, 1, 2...), `case_value_hex` and `case_label` hold the keyword string:
+
+```json
+{
+    "function_name": "FParseWork",
+    "function_id": 192,
+    "switch_variable": "Str",
+    "source_type": "string_compare",
+    "total_cases": 6,
+    "has_default": true,
+    "cases": [
+        {
+            "case_value": 0,
+            "case_value_hex": "usebackq",
+            "handler_name": null,
+            "handler_id": null,
+            "is_internal": false,
+            "handler_module": null,
+            "label": "usebackq",
+            "case_label": "usebackq",
+            "source": "string_compare",
+            "confidence": 90.0
+        }
+    ],
+    "string_labels": { "0": "usebackq", "1": "useback" }
 }
 ```
 
@@ -234,7 +276,7 @@ generate_state_diagram.py <- _common.py, extract_dispatch_table.py, extract_stat
 
 | Field | Use |
 |-------|-----|
-| `decompiled_code` | Parse switch/case, if-chains |
+| `decompiled_code` | Parse switch/case, if-chains, string-compare chains |
 | `outbound_xrefs` (detailed) | Jump table targets with `is_jump_table_target` |
 | `simple_outbound_xrefs` | Handler name/ID resolution |
 | `string_literals` | Command/state name labels |
@@ -329,6 +371,34 @@ else if ( v5 == 3 )
 ```
 Characteristics: Hex-Rays sometimes decompiles small switches as if-chains, especially with non-contiguous case values.
 
+### String-Compare Dispatch (keyword matching)
+
+```cpp
+v28 = _o__wcsnicmp(ptr, L"usebackq", 8);
+if ( !v28 )
+{
+    enable_backquote = 1;
+    ptr += 8;
+}
+v29 = _o__wcsnicmp(ptr, L"eol=", 4);
+if ( !v29 )
+{
+    eol_char = ptr[4];
+    ptr += 5;
+}
+if ( (unsigned int)_o__wcsnicmp(ptr, L"delims=", 7) )
+{
+    // not delims -- try next keyword
+}
+else
+{
+    parse_delimiters(ptr + 7);
+}
+```
+Characteristics: Sequential calls to `_wcsnicmp`/`strcmp`/`wcsncmp` comparing the same pointer against different string literals. The return value is checked for zero (match) or non-zero (no match). Each keyword match triggers a distinct handler block.
+
+Detected compare functions: `_wcsnicmp`, `_o__wcsnicmp`, `_wcsicmp`, `wcsncmp`, `strcmp`, `_stricmp`, `strncmp`, `_strnicmp`, `wcscmp`, `_mbsicmp`, and `_o_` prefixed variants.
+
 ---
 
 ## Helper Module API Reference
@@ -392,3 +462,4 @@ dot -Tsvg output.dot -o output.svg
 2. **Computed state transitions**: When the next state is computed (e.g., `state = lookup_table[input]`), individual transitions cannot be extracted from static analysis alone.
 3. **Nested switches**: Only the outermost switch per variable is reconstructed as a dispatch table. Nested switches (different variables) produce separate tables.
 4. **Optimized switches**: Compiler-optimized binary search trees for large switches may not be fully reconstructed from decompiled code; assembly + jump table data helps.
+5. **String-compare variable aliasing**: When Hex-Rays renames the compared pointer across branches (SSA-style), keyword comparisons using different variable names are grouped separately, potentially fragmenting one logical chain into multiple smaller ones.

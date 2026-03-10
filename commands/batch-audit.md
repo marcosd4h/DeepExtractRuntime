@@ -213,7 +213,7 @@ All saved files must include a provenance header: generation date, module name, 
 
 - `/audit <module> <function>` -- full deep audit on critical findings
 - `/taint <module> <function> --cross-module` -- trace critical findings across DLL boundaries
-- `/hunt validate <module> <function>` -- plan PoC for confirmed findings
+- `/hunt-plan validate <module> <function>` -- plan PoC for confirmed findings
 - `/lift-class <module> <class>` -- lift flagged class for manual code review
 - `/rpc audit <module>` -- inspect interface-level RPC security findings
 - `/com audit <module_or_clsid>` -- inspect COM permission and activation details

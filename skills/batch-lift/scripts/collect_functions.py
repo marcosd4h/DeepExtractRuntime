@@ -61,6 +61,7 @@ from helpers import (
     load_function_index_for_db,
     open_individual_analysis_db,
     resolve_function,
+    resolve_module_dir,
     search_index,
 )
 from helpers.cache import get_cached, cache_result
@@ -336,10 +337,20 @@ def list_classes(db_path: str, skip_library: bool = False) -> dict:
             if parsed:
                 class_counter[parsed["class_name"]] += 1
 
-    classes = [
-        {"name": name, "method_count": count}
-        for name, count in class_counter.most_common()
-    ]
+    mod_dir = resolve_module_dir(module_name)
+
+    classes = []
+    for name, count in class_counter.most_common():
+        entry: dict = {"name": name, "method_count": count}
+        if mod_dir is not None:
+            lifted_path = mod_dir / f"lifted_{name}.cpp"
+            if lifted_path.is_file():
+                entry["already_lifted"] = True
+                entry["lifted_file"] = str(lifted_path)
+            else:
+                entry["already_lifted"] = False
+        classes.append(entry)
+
     return {
         "status": "ok",
         "module_name": module_name,
@@ -469,22 +480,28 @@ def print_list_classes_output(result: dict) -> None:
     total = result["total_classes"]
     classes = result["classes"]
 
-    print(f"{'=' * 60}")
+    print(f"{'=' * 70}")
     print(f"  C++ classes in {module}  ({total} classes)")
     print(f"  DB: {result['db_path']}")
-    print(f"{'=' * 60}")
+    print(f"{'=' * 70}")
 
     if not classes:
         print("\n  No C++ classes found.")
         return
 
     max_name_len = max(len(c["name"]) for c in classes)
-    col_width = min(max(max_name_len, 10), 60)
+    col_width = min(max(max_name_len, 10), 50)
 
-    print(f"\n  {'Class':<{col_width}}  Methods")
-    print(f"  {'-' * col_width}  -------")
+    print(f"\n  {'Class':<{col_width}}  Methods  Status")
+    print(f"  {'-' * col_width}  -------  ----------")
     for c in classes:
-        print(f"  {c['name']:<{col_width}}  {c['method_count']:>7}")
+        lifted = c.get("already_lifted", False)
+        tag = "[LIFTED]" if lifted else ""
+        print(f"  {c['name']:<{col_width}}  {c['method_count']:>7}  {tag}")
+
+    lifted_count = sum(1 for c in classes if c.get("already_lifted"))
+    if lifted_count:
+        print(f"\n  {lifted_count}/{total} class(es) already lifted.")
 
     print(f"\nUse --class <ClassName> to collect methods for batch lifting.")
 

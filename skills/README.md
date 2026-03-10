@@ -720,7 +720,7 @@ when composing VR campaign pipelines.
 **Typical use:** Invoked via the `/brainstorm` command. Use for strategic
 decisions ("which workflow should I use?", "what should I investigate
 next?", "how should this new skill be designed?"). For single-module
-hypothesis-driven VR, recommend `/hunt` instead.
+hypothesis-driven VR, recommend `/hunt-plan` instead.
 
 ---
 
@@ -773,7 +773,7 @@ that guides the researcher to use existing tools effectively.
 security-dossier, taint-analysis, data-flow-tracer, callgraph-tracer
 (referenced in tool chain recommendations).
 
-**Typical use:** Invoked via the `/hunt` command or when a user asks to
+**Typical use:** Invoked via the `/hunt-plan` command or when a user asks to
 plan a VR campaign, generate attack hypotheses, find bug variants,
 validate a suspected vulnerability, or reason about Windows attack
 patterns against an extracted module.

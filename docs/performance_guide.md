@@ -73,8 +73,8 @@ Instead of running full triage on a large module, target specific subsystems:
 # Explain a specific function
 /explain large_module.dll <function>
 
-# Trace a specific export (bounded by --depth)
-/trace-export large_module.dll <export> --depth 3
+# Audit a specific export with diagram (bounded by call chain depth)
+/audit large_module.dll <export> --diagram
 
 # Reconstruct types for a specific class
 /reconstruct-types large_module.dll CSpecificClass
@@ -95,8 +95,8 @@ Cross-module call chain tracing can explode on large modules. Always use
 `--depth` to bound traversal:
 
 ```
-# Limit to 3 levels of call chain (default is 10)
-/trace-export large_module.dll <export> --depth 3
+# Audit a single export (bounded call chain depth 4)
+/audit large_module.dll <export> --diagram
 
 # Limit data flow tracing depth
 /data-flow forward large_module.dll <function> --param 1 --depth 2
@@ -199,7 +199,7 @@ These commands operate on a single module and are always safe:
 
 - `/triage <module>`, `/explain <module> <function>`, `/audit <module> <function>`
 - `/verify <module> <function>`, `/lift-class <module> <class>`
-- `/trace-export <module> <export>`, `/data-flow <module> <function>`
+- `/audit <module> <export> --diagram`, `/data-flow <module> <function>`
 - `/reconstruct-types <module>`, `/state-machines <module>`
 - `/search <module> <term>` (single-module search)
 

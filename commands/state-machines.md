@@ -130,7 +130,7 @@ Present the analysis in chat. Include Mermaid diagrams inline. This is a lightwe
 
 - `/explain <module> <handler_function>` -- understand what a specific handler does
 - `/data-flow forward <module> <function> --param 1` -- trace state variable flow
-- `/trace-export <module> <export>` -- trace the full call chain from the parent export
+- `/audit <module> <export> --diagram` -- full security audit with call graph from the parent export
 
 ## Error Handling
 

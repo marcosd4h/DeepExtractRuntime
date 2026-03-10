@@ -127,7 +127,7 @@ For each module, show:
 **Recommended Next Steps:**
 - `/audit <module> <function>` -- deep audit on the top CRITICAL/HIGH findings
 - `/scan <module>` -- run scans on modules with no cached results
-- `/hunt <module>` -- hypothesis-driven investigation on high-priority patterns
+- `/hunt-plan <module>` -- hypothesis-driven investigation on high-priority patterns
 
 ## Output
 

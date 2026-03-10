@@ -2,7 +2,7 @@
 
 ## Overview
 
-Strategic research planning for vulnerability research campaigns, cross-module investigations, post-analysis re-planning, and tool/skill design. Complements `/hunt` (which is tactical and hypothesis-driven for a single module) by operating at the strategic layer: deciding which workflows to use, composing end-to-end research pipelines, spanning multiple modules, and incorporating prior results.
+Strategic research planning for vulnerability research campaigns, cross-module investigations, post-analysis re-planning, and tool/skill design. Complements `/hunt-plan` (which is tactical and hypothesis-driven for a single module) by operating at the strategic layer: deciding which workflows to use, composing end-to-end research pipelines, spanning multiple modules, and incorporating prior results.
 
 The text after `/brainstorm` determines the **planning mode**:
 
@@ -19,19 +19,19 @@ If omitted, ask the user what they want to plan.
 
 Read the **brainstorming** skill (`SKILL.md`) and follow its workflow. For campaign and cross-module modes, also read **adversarial-reasoning** (`SKILL.md`) on demand when you need vulnerability class knowledge, Windows security mental models, or the research prioritization rubric to inform approach selection.
 
-## Relationship to /hunt
+## Relationship to /hunt-plan
 
-`/brainstorm` is the **strategist**; `/hunt` is the **tactician**.
+`/brainstorm` is the **strategist**; `/hunt-plan` is the **tactician**.
 
-| Dimension | `/brainstorm` | `/hunt` |
-|-----------|---------------|---------|
+| Dimension | `/brainstorm` | `/hunt-plan` |
+|-----------|---------------|--------------|
 | Scope | Multi-module, multi-workflow | Single module, single campaign |
 | Output | End-to-end pipeline with workflow selection | Ranked hypothesis list with per-hypothesis commands |
 | VR depth | Selects and composes workflows | Generates and scores testable hypotheses |
 | Handoff | Produces CreatePlan with specific command sequences | Produces hunt plan file for `/hunt-execute` |
 | Best for | "Where do I start?", "What workflow?", "What next?" | "What specific bugs might exist in this module?" |
 
-When the researcher's goal resolves to single-module hypothesis-driven VR, recommend `/hunt` rather than duplicating its work. Use `/brainstorm` for the strategic wrapper around `/hunt` when needed.
+When the researcher's goal resolves to single-module hypothesis-driven VR, recommend `/hunt-plan` rather than duplicating its work. Use `/brainstorm` for the strategic wrapper around `/hunt-plan` when needed.
 
 ## Steps
 
@@ -119,7 +119,7 @@ Multi-module coordinated campaign. Use when the research target spans DLL bounda
 | Dependency chain (A calls B calls C) | Per-module `/triage` -> `/imports` for dependency graph -> `/data-flow-cross` for cross-DLL tracking -> `/taint` with `--cross-module` |
 | Shared attack surface (A and B expose similar APIs) | Per-module `/triage` -> `/compare-modules` -> parallel `/batch-audit` -> `/prioritize --all` |
 | COM/RPC client-server | `/com` or `/rpc` to map interfaces -> trace from client to server -> `/audit` server-side handlers |
-| Variant hunting across modules | `/hunt variant <pattern>` per module -> `/prioritize` to rank cross-module |
+| Variant hunting across modules | `/hunt-plan variant <pattern>` per module -> `/prioritize` to rank cross-module |
 | Privilege escalation chain | Map trust boundaries across modules -> `/taint` from low-priv entry to high-priv sink -> `/audit` boundary-crossing functions |
 
 ---
@@ -144,13 +144,13 @@ Post-analysis re-planning. Consume results from prior commands to decide what to
 
 | Situation | Recommended next step |
 |---|---|
-| Triage done, no scanning | `/scan` for automated detection or `/hunt` for hypothesis-driven |
-| Scan done, unverified findings | `/audit` on top findings, or `/hunt validate` for specific suspects |
-| Scan done, few findings | `/hunt` to generate hypotheses the scanner may have missed (logic bugs, TOCTOU, confused deputy) |
+| Triage done, no scanning | `/scan` for automated detection or `/hunt-plan` for hypothesis-driven |
+| Scan done, unverified findings | `/audit` on top findings, or `/hunt-plan validate` for specific suspects |
+| Scan done, few findings | `/hunt-plan` to generate hypotheses the scanner may have missed (logic bugs, TOCTOU, confused deputy) |
 | Multiple modules scanned | `/prioritize --all` to rank cross-module, then `/audit` top hits |
 | Hunt executed, confirmed findings | Exploitability deep-dive: `/audit` with full dossier, assess PoC feasibility |
 | Hunt executed, all refuted | Pivot: different vulnerability class, different entry points, or `/full-report` for comprehensive recon |
-| Audit done on key functions | Cross-module trace if findings touch DLL boundaries; `/hunt variant` if pattern is reusable |
+| Audit done on key functions | Cross-module trace if findings touch DLL boundaries; `/hunt-plan variant` if pattern is reusable |
 
 ---
 
@@ -226,7 +226,7 @@ Once approved, use the CreatePlan tool to produce an actionable implementation p
 - Decision points after each command (what to look for, when to pivot)
 - Expected outputs and how to interpret them
 - Follow-up actions based on results
-- For VR campaigns: explicit recommendation of `/hunt` or `/hunt-execute` where hypothesis-driven work is needed
+- For VR campaigns: explicit recommendation of `/hunt-plan` or `/hunt-execute` where hypothesis-driven work is needed
 
 ## Pipeline Templates
 
@@ -261,7 +261,7 @@ Strategic planning followed by structured hypothesis testing.
 
 ```
 /triage <module>                          # Prerequisite reconnaissance
-/hunt <module>                            # Generate ranked hypotheses
+/hunt-plan <module>                       # Generate ranked hypotheses
 -> Review: approve/modify the hunt plan
 /hunt-execute <module>                    # Automated investigation
 -> Review: confirmed vs refuted hypotheses
@@ -277,7 +277,7 @@ Targeted at IPC handler security (RPC, COM, WinRT, named pipes).
 /com <module>  | /rpc <module> | /winrt <module>  # Enumerate interfaces
 /batch-audit <module> --privilege-boundary         # Audit all IPC handlers
 -> Review: cross-function patterns, shared guard weaknesses
-/hunt validate <module> <suspect>                  # Confirm specific findings
+/hunt-plan validate <module> <suspect>              # Confirm specific findings
 ```
 
 ### Deep Audit Pipeline
@@ -312,7 +312,7 @@ Following attacker-controlled data across DLL boundaries.
 Searching for siblings of a known bug pattern across modules.
 
 ```
-/hunt variant <pattern> <module>          # Decompose pattern, design search
+/hunt-plan variant <pattern> <module>     # Decompose pattern, design search
 -> Review: candidate list from search queries
 /taint <module> <candidate>               # Verify taint path matches pattern
 /verify <module> <candidate>              # Decompiler accuracy on candidates
@@ -332,17 +332,17 @@ When proposing approaches, map research needs to the full toolkit:
 | **Recon** | Import/export relationships | `/imports` | import-export-resolver |
 | **Surface** | Entry point discovery | `/triage` | map-attack-surface |
 | **Surface** | IPC interface enumeration | `/com`, `/rpc`, `/winrt` | com-interface-analysis, rpc-interface-analysis, winrt-interface-analysis |
-| **Surface** | Trust boundary mapping | `/hunt surface` | adversarial-reasoning, map-attack-surface |
+| **Surface** | Trust boundary mapping | `/hunt-plan surface` | adversarial-reasoning, map-attack-surface |
 | **Surface** | Dispatch/command handlers | `/state-machines` | state-machine-extractor |
 | **Comprehension** | Function understanding | `/explain` | analyze-ida-decompiled, deep-context-builder |
 | **Comprehension** | Deep pre-audit context | `/explain --depth 3` | deep-context-builder, deep-research-prompt |
 | **Comprehension** | Decompiler verification | `/verify` | verify-decompiled |
 | **Comprehension** | Type/struct recovery | `/reconstruct-types` | reconstruct-types, com-interface-reconstruction |
 | **Comprehension** | Code lifting | `/lift-class` | code-lifting, batch-lift |
-| **Investigation** | Call chain tracing | `/trace-export`, `/callgraph` | callgraph-tracer |
+| **Investigation** | Call chain tracing | `/audit --diagram`, `/callgraph` | callgraph-tracer |
 | **Investigation** | Data flow analysis | `/data-flow`, `/data-flow-cross` | data-flow-tracer |
 | **Investigation** | Taint analysis | `/taint` | taint-analysis |
-| **Investigation** | Hypothesis testing | `/hunt`, `/hunt-execute` | adversarial-reasoning |
+| **Investigation** | Hypothesis testing | `/hunt-plan`, `/hunt-execute` | adversarial-reasoning |
 | **Investigation** | Security audit | `/audit`, `/batch-audit` | security-dossier, taint-analysis |
 | **Detection** | Memory corruption scan | `/memory-scan`, `/scan` | memory-corruption-detector |
 | **Detection** | Logic vulnerability scan | `/logic-scan`, `/scan` | logic-vulnerability-detector |
@@ -353,13 +353,13 @@ When proposing approaches, map research needs to the full toolkit:
 
 ## Output
 
-The output is an approved research design in the chat conversation, followed by a CreatePlan implementation plan. No files are written by this command (unlike `/hunt`, which persists a plan file).
+The output is an approved research design in the chat conversation, followed by a CreatePlan implementation plan. No files are written by this command (unlike `/hunt-plan`, which persists a plan file).
 
 ## Error Handling
 
 - **No modules available**: Suggest running `/health` to check workspace state
 - **Module not triaged yet**: Suggest running `/triage <module>` first, then returning to `/brainstorm`
 - **Vague goal**: Ask narrowing questions -- don't guess at the user's intent
-- **Goal resolves to single-module hypothesis VR**: Recommend `/hunt` instead -- it has deeper adversarial-reasoning integration for that use case
+- **Goal resolves to single-module hypothesis VR**: Recommend `/hunt-plan` instead -- it has deeper adversarial-reasoning integration for that use case
 - **No prior results for replan mode**: Suggest starting with `/triage` or `/quickstart`, then return to `/brainstorm replan` after initial analysis
 - **Design topic overlaps existing skill/command**: Point to the existing implementation and ask if the researcher wants to extend it or build something new

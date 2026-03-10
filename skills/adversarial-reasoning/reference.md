@@ -103,7 +103,7 @@
 
 - `/triage <module>` -- identify if the module runs as a service or elevated process
 - `/audit <module> <func>` -- full security dossier
-- `/trace-export <module> <export>` -- follow entry point to privileged operations
+- `/audit <module> <export> --diagram` -- audit entry point with call graph to privileged operations
 - `/taint <module> <func>` -- trace attacker parameters to privileged sinks
 
 **Red flags:** Module description says "service" or "system component." Entry points are `SERVICE_MAIN`, `RPC_HANDLER`, or `COM_METHOD`. Call chain reaches `CreateProcess*` or file write APIs.
@@ -240,7 +240,7 @@
 
 - `/data-flow forward <module> <func>` -- trace object pointer from allocation through use and free
 - `/verify <module> <func>` -- confirm decompiler correctly represents free/use ordering
-- `/trace-export <module> <export>` -- map object lifetime across call chain
+- `/audit <module> <export> --diagram` -- map object lifetime across call chain
 
 **Red flags:** Destructor pattern (`~ClassName`) called from error handler while object is still referenced by caller. Allocation and free in different functions without clear ownership protocol.
 
@@ -389,7 +389,7 @@
 
 ```
 /reconstruct-types <module> <com_class>   # vtable layout
-/trace-export <module> DllGetClassObject  # factory chain
+/audit <module> DllGetClassObject --diagram  # factory chain
 /search <module> CoImpersonateClient      # impersonation usage
 /taint <module> <method> --params 1       # trace VARIANT/BSTR input
 ```
@@ -592,7 +592,7 @@
 1. **Map the attack surface:**
 
    ```
-   /hunt surface <module>
+   /hunt-plan surface <module>
    ```
 
    Focus on: RPC handlers, named pipe handlers, COM methods, service control handler.
@@ -650,7 +650,7 @@
 
    ```
    /reconstruct-types <module> <ClassName>
-   /trace-export <module> DllGetClassObject
+   /audit <module> DllGetClassObject --diagram
    ```
 
 3. **Audit each non-trivial vtable method:**
@@ -764,7 +764,7 @@
 3. **Check what happens between impersonate and revert:**
 
    ```
-   /trace-export <module> <func> --depth 3
+   /audit <module> <func> --diagram
    ```
 
    Operations between impersonate/revert happen as the impersonated user. Operations _after_ revert happen as the server (SYSTEM).
@@ -863,7 +863,7 @@
 2. **Entry point enumeration:**
 
    ```
-   /hunt surface <module>
+   /hunt-plan surface <module>
    ```
 
    Map: exports, RPC handlers, COM methods, pipe handlers, callbacks.
@@ -1071,7 +1071,7 @@ BECAUSE:     The entry point is externally reachable (attack_score=<score>),
              parameters are attacker-controlled (param_risk_score=<risk>), and
              the call chain reaches <dangerous_api> without adequate checks.
 TEST:        /audit <module> <func>
-             /trace-export <module> <func> --depth 3
+             /audit <module> <func> --diagram
              /taint <module> <func>
 REFUTES IF:  All paths from entry to sink pass through a hard security check that
              the attacker cannot bypass (auth check with attacker_controllable=NO).

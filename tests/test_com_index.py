@@ -935,11 +935,11 @@ class TestRegistryEntries:
         assert "com" in commands
         entry = commands["com"]
         assert "com-interface-analysis" in entry["skills_used"]
-        assert entry["file"] == "com-analysis.md"
+        assert entry["file"] == "com.md"
 
     def test_command_md_file_exists(self):
         root = Path(__file__).resolve().parent.parent
-        assert (root / "commands" / "com-analysis.md").exists()
+        assert (root / "commands" / "com.md").exists()
 
     def test_skill_md_file_exists(self):
         root = Path(__file__).resolve().parent.parent

@@ -21,6 +21,7 @@ _SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(_SCRIPT_DIR))
 
 from _common import (
+    CATEGORY_RISK,
     categorize_string,
     emit_error,
     open_individual_analysis_db,
@@ -34,11 +35,17 @@ from helpers.json_output import emit_json
 from helpers.function_resolver import resolve_function
 from helpers.validation import validate_function_id
 
+_RISK_SORT_ORDER = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
+
 
 def _truncate(s: str, max_len: int = 100) -> str:
     if len(s) <= max_len:
         return s
     return s[: max_len - 3] + "..."
+
+
+def _risk_for(category: str) -> str:
+    return CATEGORY_RISK.get(category, "LOW")
 
 
 def analyze_strings(
@@ -78,6 +85,7 @@ def analyze_strings(
                 funcs = db.get_all_functions()
 
     string_index: dict[str, dict] = {}
+    func_string_counts: dict[str, int] = defaultdict(int)
     total_refs = 0
 
     for func in funcs:
@@ -95,6 +103,7 @@ def analyze_strings(
 
             total_refs += 1
             s_key = s.strip()
+            func_string_counts[fname] += 1
 
             if s_key not in string_index:
                 cat_result = categorize_string(s_key)
@@ -110,19 +119,21 @@ def analyze_strings(
     uncategorized: list[str] = []
 
     for s_key, info in string_index.items():
+        cat = info["category"]
         entry = {
             "string": info["string"],
             "functions": sorted(info["functions"]),
-            "count": len(info["functions"]),
+            "function_count": len(info["functions"]),
             "description": info["description"],
+            "risk": _risk_for(cat),
         }
-        if info["category"] == "uncategorized":
+        if cat == "uncategorized":
             uncategorized.append(s_key)
         else:
-            categories[info["category"]].append(entry)
+            categories[cat].append(entry)
 
     for cat in categories:
-        categories[cat].sort(key=lambda x: -x["count"])
+        categories[cat].sort(key=lambda x: -x["function_count"])
 
     summary = {cat: len(entries) for cat, entries in categories.items()}
     summary = dict(sorted(summary.items(), key=lambda x: -x[1]))
@@ -131,7 +142,16 @@ def analyze_strings(
     for cat, entries in categories.items():
         for e in entries:
             all_entries.append({**e, "category": cat})
-    all_entries.sort(key=lambda x: -x["count"])
+    all_entries.sort(key=lambda x: (
+        _RISK_SORT_ORDER.get(x["risk"], 2),
+        -x["function_count"],
+    ))
+
+    top_functions = sorted(
+        [{"function": fn, "string_count": cnt}
+         for fn, cnt in func_string_counts.items()],
+        key=lambda x: -x["string_count"],
+    )
 
     result = {
         "status": "ok",
@@ -141,7 +161,8 @@ def analyze_strings(
         "total_string_refs": total_refs,
         "uncategorized_count": len(uncategorized),
         "uncategorized_sample": uncategorized[:50],
-        "top_referenced": all_entries[:30],
+        "top_referenced": all_entries,
+        "top_functions": top_functions,
         "_meta": {
             "db": str(db_path),
             "generated": datetime.now(timezone.utc).isoformat(),
@@ -158,6 +179,35 @@ def analyze_strings(
     return result
 
 
+def _apply_filters(
+    result: dict,
+    *,
+    top_n: int = 10,
+    category_filter: str | None = None,
+) -> dict:
+    """Return a filtered copy of *result* respecting --top and --category."""
+    out = dict(result)
+    cats = out.get("categories", {})
+
+    if category_filter:
+        cats = {k: v for k, v in cats.items() if k == category_filter}
+
+    if top_n:
+        cats = {k: v[:top_n] for k, v in cats.items()}
+
+    out["categories"] = cats
+
+    top_ref = out.get("top_referenced", [])
+    if category_filter:
+        top_ref = [e for e in top_ref if e.get("category") == category_filter]
+    out["top_referenced"] = top_ref[:top_n] if top_n else top_ref[:30]
+
+    top_funcs = out.get("top_functions", [])
+    out["top_functions"] = top_funcs[:top_n] if top_n else top_funcs[:20]
+
+    return out
+
+
 def _print_text(result: dict, top_n: int = 10, category_filter: str | None = None) -> None:
     """Print human-readable string analysis."""
     total_unique = result.get("total_unique_strings", 0)
@@ -170,35 +220,41 @@ def _print_text(result: dict, top_n: int = 10, category_filter: str | None = Non
 
     summary = result.get("summary", {})
     if summary:
-        print(f"{'Category':<22} {'Unique Strings':>14}")
-        print(f"{'-' * 22} {'-' * 14}")
+        print(f"{'Category':<22} {'Strings':>8} {'Risk':>8}")
+        print(f"{'-' * 22} {'-' * 8} {'-' * 8}")
         for cat, count in summary.items():
-            print(f"{cat:<22} {count:>14}")
+            if category_filter and cat != category_filter:
+                continue
+            print(f"{cat:<22} {count:>8} {_risk_for(cat):>8}")
         print()
 
-    categories = result.get("categories", {})
+    filtered = _apply_filters(result, top_n=top_n, category_filter=category_filter)
+    categories = filtered.get("categories", {})
     for cat, entries in categories.items():
-        if category_filter and cat != category_filter:
-            continue
-        print(f"--- {cat} ({len(entries)} strings) ---\n")
-        for e in entries[:top_n]:
+        print(f"--- {cat} [{_risk_for(cat)}] ({len(entries)} shown) ---\n")
+        for e in entries:
             s = _truncate(e["string"], 80)
             funcs = e["functions"][:5]
             func_str = ", ".join(funcs)
             if len(e["functions"]) > 5:
                 func_str += f" +{len(e['functions']) - 5} more"
-            print(f"  [{e['count']:>3} refs] {s}")
-            print(f"           {func_str}")
-        if len(entries) > top_n:
-            print(f"  ... and {len(entries) - top_n} more")
+            print(f"  [{e['function_count']:>3} funcs] {s}")
+            print(f"            {func_str}")
         print()
 
-    top = result.get("top_referenced", [])
+    top = filtered.get("top_referenced", [])
     if top and not category_filter:
         print(f"--- Most Widely Referenced ---\n")
-        for e in top[:top_n]:
+        for e in top:
             s = _truncate(e["string"], 60)
-            print(f"  [{e['count']:>3} refs] [{e['category']}] {s}")
+            print(f"  [{e['function_count']:>3} funcs] [{e['category']}:{e['risk']}] {s}")
+        print()
+
+    top_funcs = filtered.get("top_functions", [])
+    if top_funcs:
+        print(f"--- Functions With Most Strings ---\n")
+        for f in top_funcs:
+            print(f"  {f['string_count']:>4} strings  {f['function']}")
         print()
 
 
@@ -228,7 +284,12 @@ def main():
     )
 
     if args.json:
-        emit_json(result, default=str)
+        filtered = _apply_filters(
+            result, top_n=args.top, category_filter=args.category,
+        )
+        filtered["_meta"]["params"]["top"] = args.top
+        filtered["_meta"]["params"]["category"] = args.category
+        emit_json(filtered, default=str)
     else:
         _print_text(result, top_n=args.top, category_filter=args.category)
 

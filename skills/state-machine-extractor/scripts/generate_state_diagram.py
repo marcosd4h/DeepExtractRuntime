@@ -60,21 +60,26 @@ def generate_dispatch_mermaid(func: FunctionRecord, db) -> str:
 
         # Dispatcher node
         disp_id = f"{prefix}DISP"
-        disp_label = f"{func_name}\\nswitch({switch_label})"
+        if table.source_type == "string_compare":
+            disp_label = f"{func_name}\\nstr-cmp({switch_label})"
+        else:
+            disp_label = f"{func_name}\\nswitch({switch_label})"
         lines.append(f'    {disp_id}["{disp_label}"]')
 
         # Case nodes
         for case in table.cases:
             case_id = f"{prefix}C{_safe_id(case.case_value)}"
             handler = case.handler_name or "(inline)"
-            label_text = case.label or ""
+            label_text = case.case_label or case.label or ""
             if label_text:
                 label_text = f"\\n{_escape_mermaid(label_text[:40])}"
 
             node_label = f"{_escape_mermaid(handler)}{label_text}"
-            edge_label = f"|case {format_int(case.case_value)}|"
+            if case.case_label:
+                edge_label = f'|"{_escape_mermaid(case.case_label)}"|'
+            else:
+                edge_label = f"|case {format_int(case.case_value)}|"
 
-            # Color based on type
             if case.is_internal:
                 lines.append(f'    {case_id}["{node_label}"]')
                 lines.append(f"    style {case_id} fill:#d4edda,stroke:#28a745")
@@ -168,23 +173,31 @@ def generate_dispatch_dot(func: FunctionRecord, db) -> str:
         switch_label = table.switch_variable or "dispatch"
 
         disp_id = f"{prefix}DISP"
+        if table.source_type == "string_compare":
+            disp_desc = f"str-cmp({_escape_dot(switch_label)})"
+        else:
+            disp_desc = f"switch({_escape_dot(switch_label)})"
         lines.append(
-            f'    {disp_id} [label="{_escape_dot(func_name)}\\nswitch({_escape_dot(switch_label)})", '
+            f'    {disp_id} [label="{_escape_dot(func_name)}\\n{disp_desc}", '
             f'fillcolor="#cce5ff", shape=diamond];'
         )
 
         for case in table.cases:
             case_id = f"{prefix}C{_safe_id(case.case_value)}"
             handler = case.handler_name or "(inline)"
-            label = case.label or ""
+            label = case.case_label or case.label or ""
             node_label = f"{_escape_dot(handler)}"
             if label:
                 node_label += f"\\n{_escape_dot(label[:40])}"
 
             color = "#d4edda" if case.is_internal else "#fff3cd"
             lines.append(f'    {case_id} [label="{node_label}", fillcolor="{color}"];')
+            if case.case_label:
+                edge_label = f'"{_escape_dot(case.case_label)}"'
+            else:
+                edge_label = f'"case {format_int(case.case_value)}"'
             lines.append(
-                f'    {disp_id} -> {case_id} [label="case {format_int(case.case_value)}"];'
+                f'    {disp_id} -> {case_id} [label={edge_label}];'
             )
 
         if table.has_default:

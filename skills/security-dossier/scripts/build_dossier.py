@@ -83,6 +83,20 @@ try:
 except ImportError:
     pass
 
+_HAS_CLASSIFY = False
+try:
+    import importlib.util as _ilu
+    _CLF_COMMON = Path(__file__).resolve().parents[1].parent / "classify-functions" / "scripts" / "_common.py"
+    if _CLF_COMMON.is_file():
+        _spec = _ilu.spec_from_file_location("_clf_common", str(_CLF_COMMON))
+        _clf_mod = _ilu.module_from_spec(_spec)
+        sys.modules[_spec.name] = _clf_mod
+        _spec.loader.exec_module(_clf_mod)
+        _classify_function = _clf_mod.classify_function
+        _HAS_CLASSIFY = True
+except Exception:
+    pass
+
 
 # Thin wrappers preserving the original call signatures used in this module.
 
@@ -111,12 +125,14 @@ class DossierBuilder:
         all_functions: list,
         callee_depth: int = 4,
         extra_entrypoint_names: set[str] | None = None,
+        function_index: dict | None = None,
     ) -> None:
         self.db_path = db_path
         self.func = func
         self.file_info = file_info
         self.all_functions = all_functions
         self.callee_depth = callee_depth
+        self._function_index = function_index
 
         # Build indexes
         self._func_by_id: dict[int, Any] = {}
@@ -205,6 +221,7 @@ class DossierBuilder:
         """Build and return the complete dossier as a dict."""
         result = {
             "identity": self._identity(),
+            "classification": self._classification(),
             "reachability": self._reachability(),
             "data_exposure": self._data_exposure(),
             "dangerous_operations": self._dangerous_ops(),
@@ -238,6 +255,16 @@ class DossierBuilder:
             "module_description": self.file_info.file_description if self.file_info else None,
         }
 
+    def _classification(self) -> dict:
+        """Classify the function's purpose, interest score, and signals."""
+        if not _HAS_CLASSIFY:
+            return {}
+        try:
+            result = _classify_function(self.func, function_index=self._function_index)
+            return result.to_dict()
+        except Exception:
+            return {}
+
     def _reachability(self) -> dict:
         is_exported = self.fname in self._export_names
         export_info = None
@@ -262,8 +289,8 @@ class DossierBuilder:
             if module in ("data", "vtable") or ftype in (4, 8):
                 continue
             direct_callers.append({
-                "name": xref.get("function_name", "?"),
-                "id": xref.get("function_id"),
+                "function_name": xref.get("function_name", "?"),
+                "function_id": xref.get("function_id"),
                 "module": module,
                 "is_internal": xref.get("function_id") is not None,
             })
@@ -418,9 +445,9 @@ class DossierBuilder:
                 continue
 
             all_callees.append({
-                "name": callee_name,
+                "function_name": callee_name,
                 "module": xref.get("module_name", ""),
-                "id": xref.get("function_id"),
+                "function_id": xref.get("function_id"),
                 "is_internal": xref.get("function_id") is not None,
             })
 
@@ -599,8 +626,8 @@ class DossierBuilder:
                     and f.function_name != self.fname
                 ):
                     class_methods.append({
-                        "name": f.function_name,
-                        "id": f.function_id,
+                        "function_name": f.function_name,
+                        "function_id": f.function_id,
                         "has_decompiled": has_real_decompiled(f.decompiled_code),
                     })
 
@@ -609,8 +636,8 @@ class DossierBuilder:
             if not isinstance(xref, dict) or xref.get("function_type", 0) in (4, 8):
                 continue
             callees.append({
-                "name": xref.get("function_name", "?"),
-                "id": xref.get("function_id"),
+                "function_name": xref.get("function_name", "?"),
+                "function_id": xref.get("function_id"),
                 "module": xref.get("module_name", ""),
                 "is_internal": xref.get("function_id") is not None,
             })
@@ -624,8 +651,8 @@ class DossierBuilder:
             if module in ("data", "vtable") or ftype in (4, 8):
                 continue
             callers.append({
-                "name": xref.get("function_name", "?"),
-                "id": xref.get("function_id"),
+                "function_name": xref.get("function_name", "?"),
+                "function_id": xref.get("function_id"),
                 "module": module,
                 "is_internal": xref.get("function_id") is not None,
             })
@@ -757,6 +784,22 @@ def format_text(dossier: dict, db_path: str) -> str:
     lines.append(f"  Has Assembly:        {'Yes' if ident['has_assembly'] else 'No'}")
     if ident.get("module_description"):
         lines.append(f"  Module Description:  {ident['module_description']}")
+
+    # 1b. Classification
+    clf = dossier.get("classification", {})
+    if clf:
+        _section(lines, "1b. CLASSIFICATION")
+        lines.append(f"  Primary Category:  {clf.get('primary_category', '(unknown)')}")
+        secondaries = clf.get("secondary_categories", [])
+        if secondaries:
+            lines.append(f"  Secondary:         {', '.join(secondaries)}")
+        lines.append(f"  Interest Score:    {clf.get('interest_score', 0)}/10")
+        sigs = clf.get("signals", {})
+        if sigs:
+            lines.append(f"  Signals:")
+            for cat, entries in sorted(sigs.items()):
+                if entries:
+                    lines.append(f"    [{cat}]: {', '.join(entries[:5])}")
 
     # 2. Reachability
     _section(lines, "2. ATTACK REACHABILITY")
@@ -1058,6 +1101,7 @@ def main() -> None:
         all_functions=all_functions,
         callee_depth=args.callee_depth,
         extra_entrypoint_names=extra_ep_names,
+        function_index=function_index,
     )
     dossier = builder.build()
 

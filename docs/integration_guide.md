@@ -35,7 +35,7 @@ layer also supports a root-level `analyzed_files.db` fallback.
 ### 1. Command Dispatch
 
 The user types `/triage appinfo.dll`. The agent resolves that to
-`.agent/commands/triage-module.md`, which defines the workflow, the
+`.agent/commands/triage.md`, which defines the workflow, the
 workspace-handoff expectations, and the optional `--with-security` branch.
 
 ### 2. Preflight Validation
@@ -242,7 +242,7 @@ When a function crosses a DLL boundary:
 4. Function resolution proceeds in the target module
 
 This is what enables cross-module call chain tracing for commands like
-`/trace-export`, `/data-flow-cross`, `/imports`, and `/compare-modules`.
+`/audit` (Step 4c), `/data-flow-cross`, `/imports`, and `/compare-modules`.
 
 ---
 

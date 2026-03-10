@@ -194,7 +194,6 @@ _COMMAND_REQUIREMENTS: dict[str, dict] = {
     "audit": {"requires": ["function"], "optional": ["module"]},
     "explain": {"requires": ["function"], "optional": ["module"]},
     "verify": {"requires": [], "optional": ["module", "function"]},
-    "trace-export": {"requires": ["function"], "optional": ["module"]},
     "data-flow": {"requires": ["module", "function"]},
     "data-flow-cross": {"requires": ["module", "function"]},
     "taint": {"requires": ["module", "function"]},
@@ -219,13 +218,9 @@ _COMMAND_REQUIREMENTS: dict[str, dict] = {
     "cache-manage": {"requires": []},
     "runs": {"requires": [], "optional": ["module"]},
     "brainstorm": {"requires": []},
-    "hunt": {"requires": []},
+    "hunt-plan": {"requires": []},
     "diff": {"requires": ["module"]},
     "rpc": {
-        "requires": ["module"],
-        "moduleless_modes": {"surface", "clients", "topology", "stubs"},
-    },
-    "rpc-analysis": {
         "requires": ["module"],
         "moduleless_modes": {"surface", "clients", "topology", "stubs"},
     },
@@ -233,15 +228,7 @@ _COMMAND_REQUIREMENTS: dict[str, dict] = {
         "requires": ["module"],
         "moduleless_modes": {"surface", "privesc"},
     },
-    "winrt-analysis": {
-        "requires": ["module"],
-        "moduleless_modes": {"surface", "privesc"},
-    },
     "com": {
-        "requires": ["module"],
-        "moduleless_modes": {"surface", "privesc"},
-    },
-    "com-analysis": {
         "requires": ["module"],
         "moduleless_modes": {"surface", "privesc"},
     },

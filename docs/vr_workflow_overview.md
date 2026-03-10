@@ -47,7 +47,7 @@ DeepExtract is an AI-driven analysis runtime that operates on IDA Pro extraction
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  Commands (36)          User-facing slash commands           │
-│  /triage /scan /audit /hunt /lift-class /com /rpc ...       │
+│  /triage /scan /audit /hunt-plan /lift-class /com /rpc ...       │
 ├─────────────────────────────────────────────────────────────┤
 │  Agents (6)             Specialized subagents                │
 │  re-analyst  triage-coordinator  security-auditor            │
@@ -1763,7 +1763,6 @@ EOF## 5. Commands Reference
 | | `/state-machines` | State machine extraction | no |
 | | `/compare-modules` | Cross-module comparison | no |
 | | `/diff` | Compare binary versions | no |
-| | `/trace-export` | Trace export call chain | no |
 | **Interface Analysis** | `/com` | COM server analysis | no |
 | | `/rpc` | RPC interface analysis | no |
 | | `/winrt` | WinRT server analysis | no |
@@ -1773,7 +1772,7 @@ EOF## 5. Commands Reference
 | | `/taint` | Taint analysis | no |
 | **Security Auditing** | `/audit` | Audit single function | no |
 | | `/batch-audit` | Audit multiple functions | yes |
-| **VR Campaigns** | `/hunt` | VR planning | no |
+| **VR Campaigns** | `/hunt-plan` | VR planning | no |
 | | `/hunt-execute` | Execute hunt plan | yes |
 | | `/brainstorm` | Research planning | no |
 | **Code Quality** | `/verify` | Verify decompiler accuracy | no |
@@ -2154,39 +2153,6 @@ EOF## 5. Commands Reference
 
 ---
 
-#### `/trace-export`
-
-**Purpose:** Trace an export through its full call chain with code and Mermaid diagram.
-
-**Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `module` | positional | no | Module name |
-| `export_name` | positional | yes | Export name |
-| `--depth` | int | no | Trace depth (default 3) |
-| `--list` | flag | no | List all exports first |
-
-**Workflow (10 steps):**
-1. Find DB
-2. Verify export (`analyze_imports.py --exports`)
-3. Compact call tree (`chain_analysis.py --depth 3 --summary`)
-4. Classify key functions (5-8 most interesting callees)
-5. Security dossier (`build_dossier.py`)
-6. Deep trace with code (`chain_analysis.py --depth 2 --follow`)
-7. Data flow (`forward_trace.py`)
-8. Taint analysis (conditional, `taint_function.py`)
-9. Cross-module resolution
-10. Generate Mermaid diagram
-
-**Skills:** decompiled-code-extractor, generate-re-report, callgraph-tracer, classify-functions, security-dossier, data-flow-tracer, taint-analysis, import-export-resolver, function-index.
-
-**Output:** `extracted_code/<module>/reports/trace_export_<export>_<timestamp>.md`
-
-**Parallelism:** Steps 3+4 parallel; Steps 5+6+7+8+9+10 parallel.
-
----
-
 ### 5.4 Interface Analysis
 
 #### `/com`
@@ -2424,7 +2390,7 @@ EOF## 5. Commands Reference
 
 ### 5.7 VR Campaigns
 
-#### `/hunt`
+#### `/hunt-plan`
 
 **Purpose:** Hypothesis-driven vulnerability research planning.
 
@@ -2454,7 +2420,7 @@ EOF## 5. Commands Reference
 
 #### `/hunt-execute`
 
-**Purpose:** Execute a previously created `/hunt` plan.
+**Purpose:** Execute a previously created `/hunt-plan` plan.
 
 **Parameters:**
 
@@ -2806,7 +2772,7 @@ For thorough security assessment:
 For targeted vulnerability research:
 
 ```
-/hunt <module>                       Plan research campaign
+/hunt-plan <module>                  Plan research campaign
     │                                (generates hypotheses + investigation commands)
     ▼
 /hunt-execute <module>               Execute the plan
@@ -2823,7 +2789,7 @@ For targeted vulnerability research:
 For tracing a specific export end-to-end:
 
 ```
-/trace-export <module> <export>      Full call chain with code + diagram
+/audit <module> <export> --diagram    Full audit with call graph diagram
     │
     ▼
 /taint <module> <export>             Taint trace from export parameters
@@ -2903,7 +2869,7 @@ For producing readable C++ from decompiled code:
 | `/explain` | function-index, decompiled-code-extractor, classify-functions, deep-research-prompt |
 | `/full-report` | decompiled-code-extractor, generate-re-report, classify-functions, map-attack-surface, callgraph-tracer, com-interface-reconstruction, state-machine-extractor, data-flow-tracer, taint-analysis, security-dossier, reconstruct-types, verify-decompiled, function-index |
 | `/health` | (helpers only) |
-| `/hunt` | adversarial-reasoning, classify-functions, map-attack-surface, security-dossier, taint-analysis |
+| `/hunt-plan` | adversarial-reasoning, classify-functions, map-attack-surface, security-dossier, taint-analysis |
 | `/hunt-execute` | taint-analysis, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, exploitability-assessment |
 | `/imports` | import-export-resolver |
 | `/lift-class` | decompiled-code-extractor, code-lifting, batch-lift, reconstruct-types |
@@ -2920,7 +2886,7 @@ For producing readable C++ from decompiled code:
 | `/state-machines` | state-machine-extractor, decompiled-code-extractor, function-index |
 | `/strings` | string-intelligence, decompiled-code-extractor |
 | `/taint` | taint-analysis, function-index, decompiled-code-extractor |
-| `/trace-export` | decompiled-code-extractor, generate-re-report, callgraph-tracer, classify-functions, security-dossier, data-flow-tracer, taint-analysis, import-export-resolver, function-index |
+| `/audit` | decompiled-code-extractor, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, classify-functions, taint-analysis, import-export-resolver, function-index |
 | `/triage` | decompiled-code-extractor, generate-re-report, classify-functions, callgraph-tracer, map-attack-surface, taint-analysis, function-index |
 | `/verify` | verify-decompiled, function-index |
 | `/verify-batch` | verify-decompiled, function-index, reconstruct-types, decompiled-code-extractor |

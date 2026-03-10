@@ -99,8 +99,10 @@ scan_auth_bypass.py         <db_path> [--function <name> | --id <N>] [--top N] [
 scan_state_errors.py        <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
 scan_logic_flaws.py         <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
 scan_api_misuse.py          <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
-scan_module.py              <db_path> [--top N] [--min-severity LOW|MODERATE|MEDIUM|HIGH|CRITICAL] [--app-only] [--json] [--no-cache]
+scan_module.py              <db_path> [--top N] [--min-severity LOW|MODERATE|MEDIUM|HIGH|CRITICAL] [--app-only] [--json] [--no-cache]  # verify-decompiled (decompiler accuracy, not vuln scanning)
 collect_functions.py        <db_path> --class <name> | --chain <name> | --export <name> | --list-classes [--depth N] [--json]
 reconstruct_all.py          <db_path> [--class <name>] [--include-com] [--validate] [--output <file>] [--json]
 pipeline_cli.py             list-steps | validate <yaml> | run <yaml> [--dry-run] [--modules <m1> ...] [--json]
+select_audit_callees.py     <db_path> --dossier <path> [--attack-surface <path>] [--taint-forward <path>] [--exclude <names...>] [--json]
+select_backward_traces.py   --dossier <path> [--extract-callee <path>] [--json]
 ```
