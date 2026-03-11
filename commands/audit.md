@@ -526,10 +526,29 @@ The Risk Assessment section of the report must contain these parts in order:
    - **LOW**: Code quality concern, untested path, or cosmetic issue that does not directly affect security.
 
    Every concern must cite its source field (e.g., `Source: dossier.dangerous_operations.security_relevant_callees`) and its checklist ID (e.g., `C1`).
+
+   **Code evidence in concerns — always lead with decompiled C, then supplement with assembly:**
+   When a concern references a specific code pattern, always show the relevant **decompiled C/C++ snippet first**. Only append the corresponding assembly snippet when it reveals something not visible in the decompiled output (e.g., a `cmov` that the decompiler collapsed into an `if/else`, a hardcoded register value, or a calling-convention detail). Never show assembly alone as the primary evidence. Format as:
+
+   ```c
+   // Decompiled C:
+   if ( v4 != 5 )
+       v2 = v4;
+   v4 = v2;    // if v4 was 5, v2 stays 0 → v4 becomes 0 (silent success)
+   ```
+
+   ```asm
+   ; Assembly (shows compiler lowered to conditional-move, no branch taken for error==5):
+   cmp   esi, 5
+   cmovnz edi, esi   ; v2 = v4 only when v4 != 5; stays 0 otherwise
+   mov   esi, edi    ; v4 = v2
+   ```
+
+   If the decompiled C already makes the pattern fully clear, omit the assembly block entirely.
 4. **Confidence and caveats**: any data gaps (e.g., "static reachability does not capture RPC dispatch")
 5. **Code-level observations** (optional, max 3): Observations from reading the decompiled code that are NOT already covered by the checklist concerns above. Rules:
    - Maximum **3** observations. Do not pad with low-value items.
-   - Each must reference a **specific line, variable, or code pattern** in the decompiled output.
+   - Each must reference a **specific line, variable, or code pattern** in the decompiled C/C++ output. Always quote the decompiled C snippet inline; only add an assembly snippet when it reveals something the decompiled code cannot (same rule as for Specific Concerns above).
    - Each must be labeled: `"Manual review -- not from automated dossier data"`.
    - These do **not** contribute to or alter the risk dimension scores.
    - **Use final assessed severity only.** If analysis reveals an observation is not a live issue, omit it entirely rather than labeling it HIGH and then walking it back within the same entry. A self-refuting finding that starts with a high severity label misleads readers who skim labels. The label must reflect the conclusion, not the initial hypothesis.

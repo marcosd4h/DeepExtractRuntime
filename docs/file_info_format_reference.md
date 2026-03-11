@@ -20,34 +20,16 @@ Output directory resolution:
 - **`main.py` with `--cpp-output-dir`**: output goes to `{cpp_output_dir}/{module_name}/`.
 - **`headless_batch_extractor.ps1`**: passes `--cpp-output-dir "{StorageDir}/extracted_code"`, so reports are written to `{StorageDir}/extracted_code/{module_name}/`.
 
-### C++ File Naming (Grouped Files)
+### C++ File Naming
 
-When C++ generation is enabled, functions are **grouped** into combined `.cpp` files of approximately 250-300 lines each, not emitted as individual per-function files. The grouping algorithm works as follows:
+When C++ generation is enabled, functions are grouped into combined files of about **450--500 lines** each to reduce file count:
 
-1. **Classify**: Functions are categorized by the presence of `::` in their name (class methods vs. standalone) and by library tag detection (WIL, STL, WRL, CRT, ETW/TraceLogging).
-2. **Sort**: Within each category, functions are sorted alphabetically by name.
-3. **Pack**: Functions are written sequentially into numbered group files, splitting to a new file when the current file reaches the ~250-300 line target.
+- **Class methods:** Grouped by class into `{module_name}_{class}_group_1.cpp`, `{module_name}_{class}_group_2.cpp`, etc. Methods are packed in alphabetical order.
+- **Standalone functions:** Grouped into `{module_name}_standalone_group_1.cpp`, `{module_name}_standalone_group_2.cpp`, etc. Functions are packed in alphabetical order.
 
-The resulting file naming patterns are:
+Class and function names are sanitized: `::` is replaced with `_`, invalid filename characters are removed, and components are truncated to 100 characters. The generator also caps total filename length to avoid OS path limits, appending a hash if needed. If a name collision occurs, a numeric suffix (e.g., `_2`) is appended.
 
-| Pattern | Content | Example |
-|---------|---------|---------|
-| `{module}_{ClassName}_group_{N}.cpp` | Methods of `ClassName`, split across numbered groups | `appinfo_dll_CSecurityDescriptor_group_1.cpp` |
-| `{module}_standalone_group_{N}.cpp` | Standalone (non-class) functions, alphabetically packed | `appinfo_dll_standalone_group_50.cpp` |
-| `{module}_{library}_group_{N}.cpp` | Library/runtime boilerplate functions | `appinfo_dll_wil_group_3.cpp` |
-
-Component sanitization replaces `::` with `_`, removes invalid filename characters, and truncates components to 100 characters. The generator also caps total filename length to avoid OS path limits, appending a hash if needed.
-
-To locate a specific function within grouped files, use `function_index.json` (see [Function Index Format Reference](function_index_format_reference.md)) rather than scanning files. Each function within a grouped file is preceded by a structured comment header:
-
-```cpp
-// Function Name: AiCheckSecureApplicationDirectory
-// Mangled Name: ?AiCheckSecureApplicationDirectory@@YAJPEBGPEAUCSecurityDescriptor@@PEAH@Z
-// Function Signature (Extended): __int64 __fastcall AiCheckSecureApplicationDirectory(...)
-// Function Signature: long AiCheckSecureApplicationDirectory(ushort const *,...)
-```
-
-The `Function Signature (Extended)` line is included only when the extended signature is present and different from the base signature.
+Each function in a grouped file is preceded by a comment block with its name, mangled name, signature, and optional library tag. The `Function Signature (Extended)` line is included only when the extended signature is present and different from the base signature.
 
 ---
 
