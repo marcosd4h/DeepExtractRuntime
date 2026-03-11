@@ -184,7 +184,6 @@ After all functions are audited:
 
 **Executive Summary:**
 - Total functions audited, risk distribution (N CRITICAL, N HIGH, etc.)
-- Module security posture (ASLR/DEP/CFG status)
 - Top 3 most exploitable findings across all functions
 
 **Per-Function Results** (table format):

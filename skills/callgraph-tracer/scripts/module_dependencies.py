@@ -45,6 +45,7 @@ from _common import (
     resolve_tracking_db,
 )
 from helpers.errors import ErrorCode, db_error_handler, safe_parse_args
+from helpers.progress import status_message
 from helpers.json_output import emit_json
 
 
@@ -108,7 +109,7 @@ class ModuleDependencyMapper:
         analyzed_module_names = set(self._modules.keys())
 
         for mod_key, (db_path, file_name) in targets.items():
-            print(f"  Scanning {file_name}...", file=sys.stderr)
+            status_message(f"Scanning {file_name}...")
             with db_error_handler(db_path, "analyzing module dependencies"):
                 with open_individual_analysis_db(db_path) as db:
                     file_info = db.get_file_info()

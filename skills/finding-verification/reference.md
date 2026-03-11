@@ -76,7 +76,6 @@ or reduced severity.
 **What to check**:
 - List all compensating controls identified in the taint analysis guards
 - For each guard, assess bypass difficulty (is it attacker-controllable?)
-- Check module security features: ASLR, DEP, CFG, CET, stack canaries
 - Consider the execution context: privilege level, sandbox, integrity level
 - Ask: "If I were defending this code, what would I point to?"
 

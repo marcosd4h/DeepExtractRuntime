@@ -78,7 +78,7 @@ python .agent/helpers/qa_runner.py --output-dir work/testcase_output
 ### Execution
 
 ```text
-I want you to run all the testcases from the QA plan here @.agent/docs/qa_test_plan.md and run the testcases. Read the entire plan before proceeding.
+I want you to run all the testcases from the QA plan here @.agent/docs/testing_guide.md and run the testcases. Read the entire plan before proceeding.
 
 Your  goal is to run the testcases, and capture tool execution that is failing here @work/testcase_output . Don't attempt to fix anything, just capture the failing tool execution output. Capture warnings too when applicable. Capture empty or misbehaving steps too. These findings will be fixed by a different agent
 

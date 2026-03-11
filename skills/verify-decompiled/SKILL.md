@@ -2,13 +2,12 @@
 name: verify-decompiled
 description: Verify decompiler accuracy by comparing IDA Hex-Rays decompiled output against assembly ground truth, detecting and surgically fixing specific inaccuracies such as wrong access sizes, missing NULL guards, collapsed operations, return type errors, and signedness mismatches. Use when the user asks to verify decompiled code, check decompiler accuracy, find decompiler errors, compare assembly vs decompiled output, validate Hex-Rays output, correct decompilation bugs, or mentions decompiler verification or accuracy checking.
 cacheable: true
+depends_on: ["decompiled-code-extractor"]
 ---
 
 # Verify Decompiled Code
 
-## Purpose
-
-Find and fix **specific places where Hex-Rays got something wrong** compared to the assembly. The output is the original decompiler output with minimal, targeted fixes -- not a rewrite.
+## Purpose compared to the assembly. The output is the original decompiler output with minimal, targeted fixes -- not a rewrite.
 
 This is **not** lifting and **not** annotation. Variables stay as `a1`/`v5`, struct access stays as `*((_QWORD *)a1 + 14)`, gotos stay as gotos. It fixes only what the decompiler got wrong.
 
@@ -24,6 +23,14 @@ This is **not** lifting and **not** annotation. Variables stay as `a1`/`v5`, str
 | **When to use**    | Before reading/analyzing decompiled code | When you need clean source   |
 
 **verify-decompiled makes decompiler output trustworthy.** Lifting makes it readable. They're sequential -- verify first, then lift if needed.
+
+## When NOT to Use
+
+- Lifting or rewriting decompiled code to clean, readable C++ -- use **code-lifting** or the **code-lifter** agent
+- Scanning for security vulnerabilities (not decompiler accuracy issues) -- use **memory-corruption-detector** or **logic-vulnerability-detector**
+- Independently verifying that *lifted* code matches the original binary -- use the **verifier** agent
+- General function explanation without assembly comparison -- use **re-analyst** or `/explain`
+- Reconstructing struct/class types from memory access patterns -- use **reconstruct-types**
 
 ## Data Sources
 

@@ -7,7 +7,11 @@ description: >
   attack surface, WinRT security, WinRT privilege escalation, WinRT
   method signatures, WinRT entry points, or needs to audit WinRT
   activation servers.
+cacheable: false
+depends_on: []
 ---
+
+# WinRT Interface Analysis
 
 ## Purpose
 
@@ -56,9 +60,9 @@ process privilege.
 List all WinRT server classes for a module with full metadata.
 
 ```bash
-python skills/winrt-interface-analysis/scripts/resolve_winrt_server.py TaskFlowDataEngine.dll
-python skills/winrt-interface-analysis/scripts/resolve_winrt_server.py TaskFlowDataEngine.dll --json
-python skills/winrt-interface-analysis/scripts/resolve_winrt_server.py TaskFlowDataEngine.dll --context medium_il_privileged --json
+python .agent/skills/winrt-interface-analysis/scripts/resolve_winrt_server.py TaskFlowDataEngine.dll
+python .agent/skills/winrt-interface-analysis/scripts/resolve_winrt_server.py TaskFlowDataEngine.dll --json
+python .agent/skills/winrt-interface-analysis/scripts/resolve_winrt_server.py TaskFlowDataEngine.dll --context medium_il_privileged --json
 ```
 
 ### `map_winrt_surface.py`
@@ -66,9 +70,9 @@ python skills/winrt-interface-analysis/scripts/resolve_winrt_server.py TaskFlowD
 Risk-ranked WinRT attack surface, per module or system-wide.
 
 ```bash
-python skills/winrt-interface-analysis/scripts/map_winrt_surface.py --system-wide --top 20
-python skills/winrt-interface-analysis/scripts/map_winrt_surface.py --system-wide --tier critical --json
-python skills/winrt-interface-analysis/scripts/map_winrt_surface.py --privileged-only --context medium_il_privileged --json
+python .agent/skills/winrt-interface-analysis/scripts/map_winrt_surface.py --system-wide --top 20
+python .agent/skills/winrt-interface-analysis/scripts/map_winrt_surface.py --system-wide --tier critical --json
+python .agent/skills/winrt-interface-analysis/scripts/map_winrt_surface.py --privileged-only --context medium_il_privileged --json
 ```
 
 ### `enumerate_winrt_methods.py`
@@ -76,8 +80,8 @@ python skills/winrt-interface-analysis/scripts/map_winrt_surface.py --privileged
 List methods for a class or module, optionally with pseudo-IDL.
 
 ```bash
-python skills/winrt-interface-analysis/scripts/enumerate_winrt_methods.py TaskFlowDataEngine.dll --json
-python skills/winrt-interface-analysis/scripts/enumerate_winrt_methods.py Windows.Internal.Data.Activities.ActivityImageManager --show-pseudo-idl
+python .agent/skills/winrt-interface-analysis/scripts/enumerate_winrt_methods.py TaskFlowDataEngine.dll --json
+python .agent/skills/winrt-interface-analysis/scripts/enumerate_winrt_methods.py Windows.Internal.Data.Activities.ActivityImageManager --show-pseudo-idl
 ```
 
 ### `classify_winrt_entrypoints.py`
@@ -85,8 +89,8 @@ python skills/winrt-interface-analysis/scripts/enumerate_winrt_methods.py Window
 Semantic classification of WinRT method names into functional categories.
 
 ```bash
-python skills/winrt-interface-analysis/scripts/classify_winrt_entrypoints.py TaskFlowDataEngine.dll --json
-python skills/winrt-interface-analysis/scripts/classify_winrt_entrypoints.py --system-wide --json
+python .agent/skills/winrt-interface-analysis/scripts/classify_winrt_entrypoints.py TaskFlowDataEngine.dll --json
+python .agent/skills/winrt-interface-analysis/scripts/classify_winrt_entrypoints.py --system-wide --json
 ```
 
 ### `audit_winrt_security.py`
@@ -94,7 +98,7 @@ python skills/winrt-interface-analysis/scripts/classify_winrt_entrypoints.py --s
 Security audit combining WinRT metadata with decompiled code analysis.
 
 ```bash
-python skills/winrt-interface-analysis/scripts/audit_winrt_security.py <db_path> --json
+python .agent/skills/winrt-interface-analysis/scripts/audit_winrt_security.py <db_path> --json
 ```
 
 ### `find_winrt_privesc.py`
@@ -102,8 +106,8 @@ python skills/winrt-interface-analysis/scripts/audit_winrt_security.py <db_path>
 Find privilege escalation targets: medium-IL reachable SYSTEM servers.
 
 ```bash
-python skills/winrt-interface-analysis/scripts/find_winrt_privesc.py --json
-python skills/winrt-interface-analysis/scripts/find_winrt_privesc.py --top 20 --json
+python .agent/skills/winrt-interface-analysis/scripts/find_winrt_privesc.py --json
+python .agent/skills/winrt-interface-analysis/scripts/find_winrt_privesc.py --top 20 --json
 ```
 
 ## Direct Helper Module Access

@@ -41,7 +41,7 @@ arguments, dependencies, and caching contracts for each skill.
 | [import-export-resolver](#import-export-resolver) | analysis | Resolve PE import/export relationships across modules | 4 | Yes | decompiled-code-extractor |
 | [string-intelligence](#string-intelligence) | analysis | Categorize string literals by security relevance (URLs, registry keys, pipes, certs) | 1 | Yes | decompiled-code-extractor |
 | [memory-corruption-detector](#memory-corruption-detector) | security | Detect memory corruption: buffer overflows, integer issues, UAF, format strings | 5 | Yes | decompiled-code-extractor, callgraph-tracer, taint-analysis |
-| [exploitability-assessment](#exploitability-assessment) | security | Assess exploitability of taint findings with mitigations and guard analysis | 2 | No | taint-analysis, security-dossier, map-attack-surface, memory-corruption-detector, logic-vulnerability-detector |
+| [exploitability-assessment](#exploitability-assessment) | security | Assess exploitability of taint findings with guard analysis | 2 | No | taint-analysis, security-dossier, map-attack-surface, memory-corruption-detector, logic-vulnerability-detector |
 | [finding-verification](#finding-verification) | security | Verify findings against assembly ground truth to eliminate false positives | -- | No | taint-analysis, data-flow-tracer, security-dossier, exploitability-assessment, import-export-resolver |
 | [logic-vulnerability-detector](#logic-vulnerability-detector) | security | Detect logic bugs: auth bypasses, state machine errors, TOCTOU, API misuse | 6 | Yes | decompiled-code-extractor, callgraph-tracer, taint-analysis, state-machine-extractor, security-dossier, map-attack-surface |
 | [rpc-interface-analysis](#rpc-interface-analysis) | security | Analyze RPC interfaces: enumerate UUIDs, map attack surface, audit security, trace chains, find clients, build topology, blast-radius, query stubs | 6 | No | decompiled-code-extractor, map-attack-surface, callgraph-tracer |
@@ -515,7 +515,7 @@ path from entry?), untrusted data exposure, dangerous operations (direct
 and via callees), resource patterns (synchronization, memory, global
 state), complexity assessment (instructions, branches, loops, cyclomatic
 complexity, stack frame), neighbouring context (class methods,
-callers/callees), and module security posture (ASLR, DEP, CFG, SEH).
+callers/callees).
 Designed as pre-audit context gathering -- run it before manually
 reviewing a decompiled function.
 
@@ -599,8 +599,8 @@ analysis databases. Unlike raw metadata dumps, it cross-correlates data,
 computes derived metrics, and produces actionable guidance -- the report
 you would write manually after hours with the binary, generated in
 seconds. Sections cover executive summary, provenance and build
-environment (Rich header, PDB path), security posture (ASLR/DEP/CFG/SEH,
-section permissions, stack canaries), external interface (imports and
+environment (Rich header, PDB path), binary structure (DLL characteristics,
+section permissions), external interface (imports and
 exports categorized by capability across ~500 Win32/NT APIs), internal
 architecture (class hierarchy, symbol quality), complexity hotspots
 (ranked by loops, xrefs, globals, assembly size), string intelligence
@@ -808,15 +808,13 @@ researcher asks "is this bug real?"
 
 #### logic-vulnerability-detector
 
-Detects logic vulnerability classes that bypass hardware memory mitigations
-(ASLR, DEP, CFG, CET). Three detection scripts scan for auth/authz bypasses
+Detects logic vulnerability classes: auth/authz bypasses
 (missing checks, auth-after-action, impersonation leaks), state machine
 errors (state bypass, unrestricted transitions), and general logic flaws
 (TOCTOU/double-fetch, missing return value checks, confused deputy, error
 path privilege leaks). An independent verification script re-reads raw code
 and assembly with fresh eyes to confirm or reject each finding before the
-final report. Scoring model accounts for the fact that logic bugs are not
-blocked by memory mitigations.
+final report.
 
 **Key scripts:** `scan_auth_bypass.py` (auth/authz bypass detection),
 `scan_state_errors.py` (state machine vulnerabilities),

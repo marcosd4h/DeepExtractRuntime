@@ -2,7 +2,7 @@
 
 ## Overview
 
-Scan a module (or a specific function) for logic vulnerabilities that bypass hardware memory mitigations: authentication/authorization bypasses, state machine errors, TOCTOU/double-fetch, missing security return checks, impersonation leaks, confused deputy, and error-path privilege leaks.  Includes independent verification that re-reads code with fresh eyes before presenting results.
+Scan a module (or a specific function) for logic vulnerabilities: authentication/authorization bypasses, state machine errors, TOCTOU/double-fetch, missing security return checks, impersonation leaks, confused deputy, and error-path privilege leaks.  Includes independent verification that re-reads code with fresh eyes before presenting results.
 
 In **single-function mode**, the target is typically an external entry point
 (RPC handler, COM vtable method, export). The command collects the callee
@@ -123,7 +123,6 @@ Parse the report and present:
 - Total findings, actionable count, false positives removed
 - Severity distribution (CRITICAL/HIGH/MEDIUM/LOW)
 - Category distribution
-- Mitigation note: logic bugs bypass ASLR/DEP/CFG/CET
 
 **For each top finding (sorted by verified score):**
 - Severity, confidence, and verified score
@@ -132,7 +131,7 @@ Parse the report and present:
 - Dangerous operation and entry point (if applicable)
 - Verification reasoning
 - Assembly evidence (if available)
-- Mitigating factors (if any)
+- Compensating controls (if any)
 
 **Verification Summary:**
 - Confirmed, Likely, Uncertain, False Positive counts
@@ -493,7 +492,6 @@ External call surface: CreateProcessAsUserW, DuplicateToken, NtDuplicateToken,
   verification. M confirmed, K rejected, J severity-adjusted.
 - If findings exist at depth > 0 but not at depth 0: highlight that the
   entry point itself is clean but its callees are not
-- Mitigation note: logic bugs bypass ASLR/DEP/CFG/CET
 
 ### Phase E: Zero-findings enrichment
 

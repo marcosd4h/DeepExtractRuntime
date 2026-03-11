@@ -38,7 +38,7 @@ from _common import (
     resolve_db_path,
 )
 from helpers import resolve_function, search_functions_by_pattern
-from helpers.errors import ErrorCode, db_error_handler, safe_parse_args
+from helpers.errors import ErrorCode, db_error_handler, emit_error, safe_parse_args
 from helpers.json_output import emit_json
 
 
@@ -248,7 +248,7 @@ def main() -> None:
     elif args.function_name:
         extract_function(db_path, function_name=args.function_name, as_json=args.json)
     else:
-        parser.error("Provide a function name, --id, or --search")
+        emit_error("Provide a function name, --id, or --search", ErrorCode.INVALID_ARGS)
 
 
 if __name__ == "__main__":

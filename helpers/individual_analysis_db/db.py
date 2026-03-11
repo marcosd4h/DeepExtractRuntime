@@ -10,23 +10,12 @@ import threading
 from typing import Any, Iterable, Optional, Set
 import warnings
 
+from ..sql_utils import LIKE_ESCAPE, escape_like
 from .records import FileInfoRecord, FunctionRecord, FunctionWithModuleInfo, Page
 
-
-def _escape_like(value: str) -> str:
-    """Escape SQL LIKE meta-characters so *value* is matched literally.
-
-    Escapes ``\\``, ``%``, and ``_`` with a backslash.  Callers must
-    append ``ESCAPE '\\'`` to the LIKE clause.
-    """
-    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-
-
-escape_like = _escape_like
-
-_LIKE_ESCAPE = r" ESCAPE '\'"
-
-LIKE_ESCAPE = _LIKE_ESCAPE
+# Backward-compat aliases for internal use
+_escape_like = escape_like
+_LIKE_ESCAPE = LIKE_ESCAPE
 
 _SQL_VAR_BATCH = 500
 
@@ -91,7 +80,7 @@ def _validate_readonly_sql(sql: str) -> None:
         )
 
 
-def ensure_performance_indexes(db_path: str | Path) -> dict[str, Any]:
+def reject_db_mutation(db_path: str | Path) -> dict[str, Any]:
     """Reject runtime attempts to mutate extraction databases."""
     resolved = Path(db_path).expanduser().resolve()
     raise RuntimeError(
@@ -99,6 +88,9 @@ def ensure_performance_indexes(db_path: str | Path) -> dict[str, Any]:
         f"by runtime helpers: {resolved}. Run any indexing or maintenance "
         "steps in an explicitly offline workflow outside the DeepExtract runtime."
     )
+
+
+ensure_performance_indexes = reject_db_mutation
 
 
 class IndividualAnalysisDB:

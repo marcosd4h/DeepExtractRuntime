@@ -40,7 +40,7 @@ from helpers import (
     search_functions_by_pattern,
     validate_function_id,
 )
-from helpers.errors import ErrorCode, db_error_handler, safe_parse_args
+from helpers.errors import emit_error, ErrorCode, db_error_handler, safe_parse_args
 from helpers.json_output import emit_json
 
 
@@ -229,7 +229,7 @@ def main() -> None:
     with db_error_handler(db_path, "loading function for classification"):
         with open_individual_analysis_db(db_path) as db:
             if not args.function_name and args.function_id is None:
-                parser.error("Provide a function name, --id, or --search")
+                emit_error("Provide a function name, --id, or --search", ErrorCode.INVALID_ARGS)
 
             func, err = resolve_function(
                 db,

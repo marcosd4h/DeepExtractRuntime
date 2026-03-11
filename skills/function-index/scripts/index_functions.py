@@ -149,7 +149,7 @@ def main() -> None:
     args = safe_parse_args(parser)
 
     if not args.module and not args.all:
-        parser.error("Provide a module name or use --all")
+        emit_error("Provide a module name or use --all", ErrorCode.INVALID_ARGS)
 
     if args.all:
         modules = list_extracted_modules()

@@ -30,13 +30,11 @@ sys.path.insert(0, str(_AGENT_DIR))
 from helpers.config import get_config_value  # noqa: E402
 from helpers.cleanup_workspace import cleanup_workspace  # noqa: E402
 from helpers.errors import log_warning  # noqa: E402
+from helpers.session_utils import read_hook_input  # noqa: E402
 
 
 def main() -> None:
-    try:
-        _input = sys.stdin.read()
-    except Exception as exc:
-        log_warning(f"Failed to read stdin in cleanup hook: {exc}", "UNKNOWN")
+    _input = read_hook_input()
 
     hours = float(get_config_value("hooks.workspace_cleanup_age_hours", 48))
     older_than_days = max(1, math.ceil(hours / 24))
@@ -56,7 +54,7 @@ def main() -> None:
                 file=sys.stderr,
             )
     except Exception as exc:
-        print(f"Cleanup error: {exc}", file=sys.stderr)
+        log_warning(f"Cleanup error: {exc}", "UNKNOWN")
 
     print(json.dumps({}))
 

@@ -1,6 +1,8 @@
 ---
 name: taint-analysis
 description: Trace attacker-controlled inputs forward to dangerous sinks and backward to discover origins, including deep cross-module taint propagation with parameter mapping, trust boundary analysis, COM vtable resolution, and RPC boundary detection.  Reports what sensitive functions are reached, what guards must be bypassed, how tainted data affects internal logic, and identifies multi-module attack chains.  Use when the user asks to taint-trace, find where a parameter goes, check if attacker data reaches a sensitive API, identify what needs to be bypassed, trace across DLL boundaries, find privilege escalation vectors, or asks about exploitation potential of a function's inputs.
+cacheable: true
+depends_on: ["decompiled-code-extractor", "map-attack-surface"]
 ---
 
 # Taint Analysis
@@ -214,7 +216,7 @@ Score = sink_weight * (1/sqrt(path_hops)) * guard_penalty
 
 Sink weights (20 categories): command_execution (1.0) > code_injection (0.95) > memory_unsafe (0.9) > privilege (0.85) > code_loading (0.8) > named_pipe/device_io/alpc_ipc (0.75) > file_write/registry_write/service_control (0.7) > com_marshaling/dde (0.65) > network (0.6) > debug_control (0.55) > memory_alloc (0.5) > process_enum (0.4) > wow64 (0.35)
 
-Covers ~250 dangerous API prefixes including Nt* syscalls, COM/OLE/DDE, named pipes, ALPC, DeviceIoControl, and more (sourced from `deep_extract/data/dangerous_apis.json`).
+Covers ~250 dangerous API prefixes including Nt* syscalls, COM/OLE/DDE, named pipes, ALPC, DeviceIoControl, and more (sourced from `config/assets/misc_data/dangerous_apis.json`).
 
 Each non-attacker-controllable guard reduces score by 0.15.
 

@@ -55,6 +55,8 @@ _QA_PLAN_PATH = _WORKSPACE_ROOT / ".agent" / "docs" / "testing_guide.md"
 if str(_RUNTIME_ROOT) not in sys.path:
     sys.path.insert(0, str(_RUNTIME_ROOT))
 
+from helpers.json_output import emit_json  # noqa: E402
+
 # ---------------------------------------------------------------------------
 # Data model
 # ---------------------------------------------------------------------------
@@ -342,108 +344,7 @@ def run_one_test(
 
     stdout = proc.stdout or ""
     stderr = proc.stderr or ""
-
-    if tc.expects_error:
-        if proc.returncode != 0:
-            try:
-                for line in stderr.strip().splitlines():
-                    if line.strip():
-                        err = json.loads(line.strip())
-                        if "error" in err and "code" in err:
-                            return TestResult(
-                                test_id=tc.test_id, status="pass",
-                                exit_code=proc.returncode, elapsed_s=elapsed,
-                                stdout_len=len(stdout), stderr_len=len(stderr),
-                                command=cmd_str,
-                            )
-            except Exception:
-                pass
-            return TestResult(
-                test_id=tc.test_id, status="fail", exit_code=proc.returncode,
-                elapsed_s=elapsed,
-                notes="Expected structured error JSON on stderr but not found",
-                stdout_len=len(stdout), stderr_len=len(stderr), command=cmd_str,
-            )
-        else:
-            return TestResult(
-                test_id=tc.test_id, status="fail", exit_code=0,
-                elapsed_s=elapsed,
-                notes="Expected non-zero exit but got 0",
-                stdout_len=len(stdout), stderr_len=len(stderr), command=cmd_str,
-            )
-
-    if proc.returncode != 0:
-        if tc.expects_no_data_ok:
-            for line in stderr.strip().splitlines():
-                try:
-                    err = json.loads(line.strip())
-                    if err.get("code") == "NO_DATA":
-                        return TestResult(
-                            test_id=tc.test_id, status="pass",
-                            exit_code=proc.returncode, elapsed_s=elapsed,
-                            notes="NO_DATA (acceptable)",
-                            stdout_len=len(stdout), stderr_len=len(stderr),
-                            command=cmd_str,
-                        )
-                except Exception:
-                    pass
-        return TestResult(
-            test_id=tc.test_id, status="fail", exit_code=proc.returncode,
-            elapsed_s=elapsed,
-            notes=stderr.strip()[:300] if stderr.strip() else "non-zero exit",
-            stdout_len=len(stdout), stderr_len=len(stderr), command=cmd_str,
-        )
-
-    if tc.expects_json:
-        if not stdout.strip():
-            return TestResult(
-                test_id=tc.test_id, status="fail", exit_code=0,
-                elapsed_s=elapsed, notes="stdout is empty (expected JSON)",
-                stdout_len=0, stderr_len=len(stderr), command=cmd_str,
-            )
-        try:
-            data = json.loads(stdout.strip())
-            if not isinstance(data, dict):
-                return TestResult(
-                    test_id=tc.test_id, status="fail", exit_code=0,
-                    elapsed_s=elapsed,
-                    notes=f"JSON is {type(data).__name__}, expected dict",
-                    stdout_len=len(stdout), stderr_len=len(stderr),
-                    command=cmd_str,
-                )
-            status_val = data.get("status")
-            if status_val not in ("ok", "error"):
-                return TestResult(
-                    test_id=tc.test_id, status="fail", exit_code=0,
-                    elapsed_s=elapsed,
-                    notes=f"JSON status={status_val!r}, expected 'ok' or 'error'",
-                    stdout_len=len(stdout), stderr_len=len(stderr),
-                    command=cmd_str,
-                )
-        except json.JSONDecodeError as e:
-            return TestResult(
-                test_id=tc.test_id, status="fail", exit_code=0,
-                elapsed_s=elapsed,
-                notes=f"Invalid JSON: {e}",
-                stdout_len=len(stdout), stderr_len=len(stderr), command=cmd_str,
-            )
-
-    warn_notes = ""
-    if stderr.strip():
-        warn_notes = stderr.strip()[:500]
-
-    if warn_notes:
-        return TestResult(
-            test_id=tc.test_id, status="warn", exit_code=0,
-            elapsed_s=elapsed, notes=warn_notes,
-            stdout_len=len(stdout), stderr_len=len(stderr), command=cmd_str,
-        )
-
-    return TestResult(
-        test_id=tc.test_id, status="pass", exit_code=0,
-        elapsed_s=elapsed,
-        stdout_len=len(stdout), stderr_len=len(stderr), command=cmd_str,
-    )
+    return _evaluate_proc(tc, proc, stdout, stderr, elapsed, cmd_str)
 
 
 # ---------------------------------------------------------------------------
@@ -507,7 +408,7 @@ def save_result_with_output(
         save_result(result, output_dir, tc)
         return result
 
-    result = run_one_test.__wrapped__(tc, proc, stdout, stderr, elapsed, cmd_str)
+    result = _evaluate_proc(tc, proc, stdout, stderr, elapsed, cmd_str)
     save_result(result, output_dir, tc, stdout, stderr)
     return result
 
@@ -963,8 +864,7 @@ def main():
     )
 
     if args.json:
-        json.dump(summary, sys.stdout, indent=2)
-        print()
+        emit_json(summary)
 
 
 if __name__ == "__main__":

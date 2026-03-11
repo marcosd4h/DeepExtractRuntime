@@ -1,0 +1,67 @@
+# Cache Conventions
+
+## Cache Infrastructure
+
+Skill scripts use the filesystem cache in `.agent/cache/` via `helpers.cache`:
+
+- **Storage**: `.agent/cache/{module}/{operation}.json`
+- **Freshness**: DB file mtime matching + configurable TTL (default 24h from `cache.max_age_hours`)
+- **Atomicity**: Write-to-temp then `os.replace()`
+- **API**: `get_cached()`, `cache_result()`, `clear_cache()`
+
+## When to Cache
+
+Cache results from **expensive module-wide computations** (classification,
+call graph, topology, struct scanning, entry point discovery, string analysis).
+
+## When NOT to Cache
+
+- Single-function lookups (`extract_function_data.py`, `classify_function.py`)
+- Display-only filter variations (`--top N`, `--category`)
+- Low-cost O(1) operations
+- Search/interactive modes (`--search` patterns)
+
+## Required Pattern for Cacheable Scripts
+
+Every cacheable script MUST:
+
+1. Accept `--no-cache` as an argparse flag
+2. Check cache before computation with `get_cached(db_path, "op_name", params=params)`
+3. Store result after computation with `cache_result(db_path, "op_name", result, params=params)`
+4. Only include parameters that **change the output** in `params` (not `--top`, `--json`)
+
+```python
+from helpers.cache import get_cached, cache_result
+
+def compute(db_path: str, *, no_cache: bool = False) -> dict:
+    params = {"key": value}  # only if output varies by param
+    if not no_cache:
+        cached = get_cached(db_path, "operation_name", params=params)
+        if cached is not None:
+            return cached
+    # ... expensive computation ...
+    cache_result(db_path, "operation_name", result, params=params)
+    return result
+```
+
+## Cache Key Naming
+
+- Keys use `snake_case` matching the script's purpose
+- Parameters sorted alphabetically, joined with `__`
+- Per-function caching includes function name as a param
+
+## Cache Invalidation
+
+Cache hits require BOTH conditions:
+- DB mtime matches stored `db_mtime` (within 1s tolerance)
+- Entry is within TTL (default 24h)
+
+Re-extraction of a module automatically invalidates its cache.
+
+## Custom Serialization
+
+When returning non-dict objects, provide `_to_cacheable()` / `_from_cached()`
+helpers (see `callgraph.py`, `classify_module.py` for examples).
+
+See `docs/cache_conventions.md` for full reference including key naming
+tables, parameter encoding rules, and the new-script checklist.

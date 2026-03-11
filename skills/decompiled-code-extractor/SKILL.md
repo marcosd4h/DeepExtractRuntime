@@ -1,6 +1,8 @@
 ---
 name: decompiled-code-extractor
 description: Extract function data from DeepExtractIDA analysis databases -- decompiled C++, raw x64 assembly, signatures, string literals, xrefs, vtable contexts, global variable accesses, stack frames, and loop analysis. Use when you need to locate a module's analysis database, list or search functions within it, or extract all data for a specific function. This is the foundational data-access skill that other skills depend on.
+cacheable: false
+depends_on: []
 ---
 
 # Decompiled Code Extractor
@@ -15,6 +17,14 @@ skill depends on.
 
 The scripts do not perform any analysis, lifting, or rewriting. They
 are purely data retrieval tools.
+
+## When NOT to Use
+
+- Classifying functions by purpose or triaging a module -- use **classify-functions**
+- Understanding what a function does (explanation, not raw data) -- use **re-analyst** or `/explain`
+- Tracing call chains or cross-module execution paths -- use **callgraph-tracer**
+- Scanning for vulnerabilities in extracted code -- use **memory-corruption-detector** or **logic-vulnerability-detector**
+- Lifting or rewriting decompiled code to readable C++ -- use **code-lifting** or the **code-lifter** agent
 
 ## Data Sources
 

@@ -634,7 +634,7 @@ def main() -> None:
     with db_error_handler(db_path, "gathering function context"):
         with open_individual_analysis_db(db_path) as db:
             if not args.function_name and args.function_id is None:
-                parser.error("Provide a function name or --id")
+                emit_error("Provide a function name or --id", ErrorCode.INVALID_ARGS)
 
             func, err = resolve_function(
                 db,

@@ -1,6 +1,8 @@
 ---
 name: callgraph-tracer
 description: Trace call graphs, execution paths, and cross-module xref chains across DeepExtractIDA analysis databases. Use when the user asks to trace a function's call chain, find paths between functions, understand cross-module dependencies, show what a function calls across DLL boundaries, generate call graph diagrams, find reachable functions from an entry point, identify recursive call clusters, or asks about execution flow across extracted modules.
+cacheable: true
+depends_on: ["decompiled-code-extractor"]
 ---
 
 # Call Graph Tracer & Cross-Module Chain Analysis
@@ -8,6 +10,14 @@ description: Trace call graphs, execution paths, and cross-module xref chains ac
 ## Purpose
 
 Trace execution paths and call chains across extracted Windows PE binaries. Builds directed call graphs from `simple_outbound_xrefs` / `simple_inbound_xrefs` in analysis DBs, supports path finding, reachability analysis, and **cross-module chain analysis** -- following function calls across DLL boundaries to retrieve decompiled code at each step.
+
+## When NOT to Use
+
+- Tracing how a specific parameter or data value flows through functions -- use **data-flow-tracer**
+- PE-level import/export dependency mapping (loader-level, not code xrefs) -- use **import-export-resolver**
+- General function explanation or understanding decompiled code -- use **re-analyst** or `/explain`
+- Ranking entry points by attack value -- use **map-attack-surface**
+- Tracing attacker-controlled input to dangerous sinks -- use **taint-analysis**
 
 ## Data Sources
 

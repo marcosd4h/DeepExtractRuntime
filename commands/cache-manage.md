@@ -1,4 +1,4 @@
-Manage Cached Analysis Results
+# Cache Manage
 
 ## Overview
 
@@ -56,4 +56,4 @@ Present the cache management results in chat.
 
 - **Cache directory not found**: Report that no cache exists yet; nothing to manage
 - **Permission error**: Report the file path and suggest checking filesystem permissions
-- **Invalid subcommand**: List available subcommands: `stats`, `clear`, `refresh`
+- **Invalid subcommand**: List available subcommands: `stats`, `clear`, `refresh`, `purge-runs`

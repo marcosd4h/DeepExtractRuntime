@@ -1,6 +1,8 @@
 ---
 name: map-attack-surface
 description: Map the complete attack surface of a Windows PE binary by discovering all entry points (exports, COM vtable methods, RPC handlers, WinRT methods, callbacks, window procedures, service handlers, TLS callbacks, IPC dispatchers, socket handlers, and more), ranking them by attack value using callgraph reachability to dangerous operations, and generating CRS-compatible entrypoints.json. Use when the user asks to map attack surface, find entry points, discover where an attacker can enter a binary, rank exports by risk, generate entrypoints for fuzzing, identify attack-accessible functions, or asks about the attack surface of an extracted module.
+cacheable: true
+depends_on: ["decompiled-code-extractor"]
 ---
 
 # Attack Surface Mapper
@@ -10,6 +12,14 @@ description: Map the complete attack surface of a Windows PE binary by discoveri
 Answer: **"Where can an attacker enter this binary?"**
 
 Automatically discover, classify, and rank every possible entry point in an analyzed Windows PE binary, from obvious DLL exports to hidden COM vtable methods, RPC stubs, callback registrations, and socket dispatchers. Each entry point is ranked by attack value using callgraph reachability to dangerous operations.
+
+## When NOT to Use
+
+- General module-level triage or function classification -- use **classify-functions** or **generate-re-report**
+- Tracing attacker-controlled input to specific sinks -- use **taint-analysis**
+- Assessing exploitability of specific findings -- use **exploitability-assessment**
+- Understanding what a specific function does -- use **re-analyst** or `/explain`
+- PE-level import/export dependency mapping -- use **import-export-resolver**
 
 ## Data Sources
 
@@ -134,7 +144,7 @@ python .agent/skills/map-attack-surface/scripts/generate_entrypoints_json.py <db
 ```json
 {
   "version": "1.0",
-  "module": { "file_name", "md5_hash", "security_features", ... },
+  "module": { "file_name", "md5_hash", ... },
   "attack_surface_summary": { "total_entry_points", "avg_attack_score", ... },
   "type_distribution": { "EXPORT_DLL": N, "RPC_HANDLER": N, ... },
   "entry_points": [

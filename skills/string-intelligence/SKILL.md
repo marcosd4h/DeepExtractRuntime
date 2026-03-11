@@ -8,6 +8,8 @@ description: >-
   registry keys in strings, wants to understand what strings a function
   or module references, asks about hardcoded secrets, or needs string
   categorization for triage.
+cacheable: true
+depends_on: ["decompiled-code-extractor"]
 ---
 
 # String Intelligence
@@ -19,6 +21,14 @@ into security-relevant categories. Researchers use this to quickly identify
 interesting strings (URLs pointing to C2 infrastructure, registry keys
 indicating persistence, format strings suggesting logging) without manually
 reading every function.
+
+## When NOT to Use
+
+- Tracing how a string value flows through function parameters to API calls -- use **data-flow-tracer** (`string_trace.py`)
+- Classifying functions by purpose using API calls and naming patterns (not just strings) -- use **classify-functions**
+- Building a security dossier for a function with dangerous string usage -- use **security-dossier**
+- Generating a full module report with string intelligence as one section -- use **generate-re-report**
+- General function explanation -- use **re-analyst** or `/explain`
 
 ## Data Sources
 

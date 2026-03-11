@@ -2,18 +2,18 @@
 
 ## Overview
 
-Cross-module analysis of two or more DeepExtractIDA-analyzed modules -- comparing dependency relationships, import/export overlap, function classification distributions, security postures, and cross-module call chains.
+Cross-module analysis of two or more DeepExtractIDA-analyzed modules -- comparing dependency relationships, import/export overlap, function classification distributions, and cross-module call chains.
 
 The text after `/compare-modules` lists **two or more module names**:
 - `/compare-modules appinfo.dll cmd.exe`
 - `/compare-modules explorer.exe shell32.dll ntdll.dll`
-- `/compare-modules --all` -- compare all analyzed modules at a high level (capped at 50 modules; see Scale Limits)
+- `/compare-modules --all` -- compare all analyzed modules at a high level (capped at 200 modules; see Scale Limits)
 
 If fewer than two modules are specified, list available modules and ask.
 
 ## Scale Limits
 
-The `--all` flag is capped at 50 modules (configurable via `scale.max_modules_compare` in `.agent/config/defaults.json`). If there are more than 50 modules, `--all` compares the first 50 and warns the user. For targeted comparison of specific modules, always list them explicitly.
+The `--all` flag is capped at 200 modules (configurable via `scale.max_modules_compare` in `.agent/config/defaults.json`). If there are more than 200 modules, `--all` compares the first 200 and warns the user. For targeted comparison of specific modules, always list them explicitly.
 
 With 100+ modules, pairwise analysis becomes O(N^2). Use `--all` only for high-level overviews; use explicit module lists for detailed comparison.
 
@@ -72,24 +72,20 @@ If validation fails, report the errors and stop. On success, use `result.resolve
    Prefer `function_id` from index entries when fetching full function rows (`db.get_function_by_id`) instead of `db.get_function_by_name`.
    Use the **classify-functions** skill (`triage_summary.py`) for each module. Compare: category distributions (what each module primarily does), interesting function counts, and noise ratios.
 
-8. **Security posture comparison**
-   Use `module_profile.json` per module for ASLR/DEP/CFG status and canary coverage percentage (available in session context "Module Profiles" section). For full DLL characteristics, use the **generate-re-report** skill (`generate_report.py --summary`) for each module.
-
-9. **Cross-module call chain analysis**
+8. **Cross-module call chain analysis**
    For the most interesting inter-module function calls (from Step 3), use the **callgraph-tracer** skill (`chain_analysis.py --follow <target> --depth 2`) to trace execution across module boundaries.
 
-10. **Generate cross-module diagram**
+9. **Generate cross-module diagram**
    Use the **callgraph-tracer** skill (`generate_diagram.py --cross-module`) to produce a Mermaid diagram of inter-module relationships.
 
-11. **Synthesize comparison report**
+10. **Synthesize comparison report**
    Combine all findings:
 
-   - **Module Profiles**: side-by-side table from `module_profile.json` (functions, exports, imports, noise ratio, library breakdown, dangerous API categories, ASLR/DEP/CFG, canary coverage)
+   - **Module Profiles**: side-by-side table from `module_profile.json` (functions, exports, imports, noise ratio, library breakdown, dangerous API categories)
    - **Dependency Mapping**: direction of dependencies (provider/consumer), Mermaid diagram
    - **Shared Function Calls**: table of caller -> callee -> type for cross-module calls
    - **Import/Export Overlap**: shared import sources, export/import matching between modules
    - **Capability Comparison**: classification distributions side-by-side, unique capabilities per module
-   - **Security Posture Comparison**: features and coverage side-by-side
    - **Cross-Module Call Chains**: narrative for the most interesting inter-module execution paths
    - **Architectural Observations**: role relationships, coupling tightness, shared data (registry keys, file paths, strings). Function_index `group_by_library()` per module reveals architectural differences -- e.g., heavy WRL usage = COM-focused, heavy CRT = C runtime-focused.
    - **Recommended Cross-Module Analysis**: interesting cross-boundary functions to audit, shared attack surface
@@ -102,7 +98,7 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 - Steps 5 + 6 + 7 + 8 are independent per-module operations -- run them concurrently for each module.
 - Step 9 depends on Step 3 (needs inter-module function calls to select targets).
 - Step 10 depends on Step 9 (needs cross-module relationship data).
-- Step 11 depends on all previous steps.
+- Step 10 depends on all previous steps.
 
 ## Output
 

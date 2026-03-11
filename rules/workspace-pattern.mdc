@@ -67,7 +67,7 @@ All skill scripts use `emit_error()` from `helpers.errors` for structured error 
 
 - On failure, scripts write a single JSON line to **stderr**: `{"error": "<message>", "code": "<code>"}`
 - Exit code is always **1** on error.
-- Error codes: `NOT_FOUND`, `INVALID_ARGS`, `DB_ERROR`, `PARSE_ERROR`, `NO_DATA`, `UNKNOWN`.
+- Error codes: `NOT_FOUND`, `INVALID_ARGS`, `DB_ERROR`, `PARSE_ERROR`, `NO_DATA`, `AMBIGUOUS`, `UNKNOWN`.
 - Coordinators should parse stderr for this JSON format when a child step exits non-zero.
 
 ## JSON Output Contract

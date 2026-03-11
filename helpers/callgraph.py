@@ -153,9 +153,6 @@ class CallGraph:
                 for k, v in data.get("external_calls", {}).items()
             })
             graph.all_nodes = set(data.get("all_nodes", []))
-            graph.vtable_edges = {
-                tuple(t) for t in data.get("vtable_edges", [])
-            }
             graph._rebuild_name_index()
             return graph
         except (TypeError, ValueError, KeyError) as exc:
@@ -322,24 +319,11 @@ class CallGraph:
     # ------------------------------------------------------------------
     # Traversal: BFS forward (callees)
     # ------------------------------------------------------------------
-    def reachable_from(
-        self,
-        start: str,
-        max_depth: int = 0,
-        *,
-        feasibility_fn: Callable[[str, str], bool] | None = None,
-    ) -> dict[str, int]:
+    def reachable_from(self, start: str, max_depth: int = 0) -> dict[str, int]:
         """BFS forward to find all functions reachable from *start*.
 
         Returns ``{name: depth}`` where depth 0 is *start* itself.
         *max_depth* of 0 means unlimited.
-
-        Parameters
-        ----------
-        feasibility_fn:
-            Optional callback ``(caller, callee) -> bool``.  When
-            provided, edges where the function returns ``False`` are
-            skipped during BFS.
         """
         if start not in self.all_nodes:
             return {}
@@ -351,8 +335,6 @@ class CallGraph:
                 continue
             for neighbor in self.outbound.get(current, set()):
                 if neighbor not in visited:
-                    if feasibility_fn is not None and not feasibility_fn(current, neighbor):
-                        continue
                     visited[neighbor] = depth + 1
                     queue.append((neighbor, depth + 1))
         return visited

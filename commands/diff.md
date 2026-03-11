@@ -8,6 +8,19 @@ Usage:
 - `/diff <module_old> <module_new>`
 - `/diff appinfo_v1.dll appinfo_v2.dll`
 
+## IMPORTANT: Execution Model
+
+**This is an execute-immediately command. Do NOT present anything for user confirmation.** Run all analysis steps and present the completed diff report straight to the chat as your response.
+
+## Execution Context
+
+> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.agent`
+> (so the `.agent/` directory is on `sys.path`), **not** from the workspace root.
+> Script invocations like `python .agent/skills/.../script.py` can be run from the workspace root
+> because those scripts manage their own path setup.
+
+> **Tip:** All skill scripts support `--json` for machine-readable output. Use `--json` when parsing script output programmatically.
+
 ## Steps
 
 ### Step 0: Preflight Validation
@@ -98,7 +111,7 @@ Assemble the diff report:
 3. **Classification Delta**: Category distribution comparison with notable shifts
 4. **Attack Surface Delta**: New/removed entry points, score changes
 5. **Code-Level Changes**: Semantic diff summaries for top changed functions
-6. **Security Impact Assessment**: What the changes mean for the module's security posture
+6. **Security Impact Assessment**: What the changes mean for the module's security-relevant behavior
 7. **Recommended Next Steps**: Specific `/audit` or `/taint` commands for new or changed security-relevant functions
 
 **Entry:** Steps 3-5 exit criteria met

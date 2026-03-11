@@ -8,7 +8,7 @@ Detailed reference for section data sources, API taxonomy categories, string cat
 |---|---|---|
 | 1. Executive Summary | `file_info.*`, imports, function count | `generate_report.py` |
 | 2. Provenance & Build | `rich_header`, `pdb_path`, `time_date_stamp_str`, `is_net_assembly`, `clr_metadata` | `generate_report.py` |
-| 3. Security Posture | `security_features`, `dll_characteristics`, `load_config`, `sections`, `stack_frame.has_canary` | `generate_report.py` + `analyze_complexity.py` |
+| 3. Binary Structure | `dll_characteristics`, `sections` | `generate_report.py` |
 | 4. External Interface | `imports`, `exports` | `analyze_imports.py` |
 | 5. Internal Architecture | `function_name` (class detection via `::`), `mangled_name` | `generate_report.py` |
 | 6. Complexity Hotspots | `loop_analysis`, `simple_inbound_xrefs`, `simple_outbound_xrefs`, `global_var_accesses`, `assembly_code`, `analysis_errors`, `stack_frame` | `analyze_complexity.py` |

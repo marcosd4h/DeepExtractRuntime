@@ -52,7 +52,7 @@ from _common import (
     resolve_db_path,
     topological_sort_functions,
 )
-from helpers.errors import ErrorCode, safe_parse_args
+from helpers.errors import ErrorCode, emit_error, safe_parse_args
 
 from helpers import (
     build_id_map,
@@ -557,8 +557,7 @@ def main() -> None:
             result = collect_export_down(db_path, args.export_name, max_depth=args.depth,
                                         skip_library=args.skip_library, function_id=args.function_id)
         else:
-            parser.error("Specify --class, --chain, --export, or --list-classes")
-            return
+            emit_error("Specify --class, --chain, --export, or --list-classes", ErrorCode.INVALID_ARGS)
     except FileNotFoundError as e:
         emit_error(str(e), ErrorCode.NOT_FOUND)
     except Exception as e:

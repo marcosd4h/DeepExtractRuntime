@@ -418,11 +418,11 @@ def main() -> None:
         args.function_name = args.function_name_pos
 
     if not args.function_name and args.function_id is None:
-        parser.error("Provide a function name or --id")
+        emit_error("Provide a function name or --id", ErrorCode.INVALID_ARGS)
     if args.function_id is not None:
         args.function_id = validate_function_id(args.function_id)
     if args.param < 1:
-        parser.error("Parameter number must be >= 1")
+        emit_error("Parameter number must be >= 1", ErrorCode.INVALID_ARGS)
 
     db_path = resolve_db_path(args.db_path)
 

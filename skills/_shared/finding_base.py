@@ -14,7 +14,6 @@ Skills import from here and extend with category-specific constants::
         load_function_record,
         load_all_functions_slim,
         load_exports,
-        load_security_features,
         build_meta,
         matches_api_list,
     )
@@ -162,20 +161,6 @@ def load_exports(db_path: str) -> list[dict[str, Any]]:
     return []
 
 
-def load_security_features(db_path: str) -> dict[str, Any]:
-    """Load module security features from file_info."""
-    try:
-        with open_individual_analysis_db(db_path) as db:
-            fi = db.get_file_info()
-            if fi and fi.security_features:
-                features = parse_json_safe(fi.security_features)
-                if isinstance(features, dict):
-                    return features
-    except Exception as exc:
-        log_warning(f"Could not load security features: {exc}", "DB_ERROR")
-    return {}
-
-
 def build_meta(db_path: str, skill_name: str, **extra: Any) -> dict[str, Any]:
     """Build a ``_meta`` block for JSON output."""
     return {
@@ -229,7 +214,6 @@ __all__ = [
     "load_all_functions_slim",
     "load_exports",
     "load_function_record",
-    "load_security_features",  # cosmetic display-only; not used in scoring
     "matches_api_list",
     "severity_label",
     "strip_import_prefix",

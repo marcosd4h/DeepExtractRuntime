@@ -46,7 +46,7 @@ from _common import (
     search_index,
 )
 from helpers.cross_module_graph import ModuleResolver  # shared helper
-from helpers.errors import ErrorCode, db_error_handler, safe_parse_args
+from helpers.errors import ErrorCode, db_error_handler, emit_error, safe_parse_args
 from helpers.json_output import emit_json
 
 
@@ -384,7 +384,7 @@ def main() -> None:
     elif args.function_name:
         resolve_function_global(args.function_name, args.tracking_db, as_json=args.json)
     else:
-        parser.error("Provide a function name, --from-function, or --resolve-all")
+        emit_error("Provide a function name, --from-function, or --resolve-all", ErrorCode.INVALID_ARGS)
 
 
 if __name__ == "__main__":

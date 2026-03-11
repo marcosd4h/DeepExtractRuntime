@@ -1,6 +1,8 @@
 ---
 name: brainstorming
 description: "Strategic research planning for VR campaigns, cross-module investigations, post-analysis re-planning, and tool/skill design. Use when the user wants to plan a research strategy, decide which workflow to use, scope a multi-module campaign, re-plan after initial analysis, or design a new tool/skill/command."
+cacheable: false
+depends_on: []
 ---
 
 # Brainstorming

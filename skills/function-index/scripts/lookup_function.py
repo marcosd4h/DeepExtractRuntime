@@ -191,7 +191,7 @@ def main() -> None:
         args.function_name = args.function_name_pos
 
     if not args.function_name and not args.pattern:
-        parser.error("Provide a function_name or use --search <pattern>")
+        emit_error("Provide a function_name or use --search <pattern>", ErrorCode.INVALID_ARGS)
 
     if args.function_name:
         results = lookup_exact(args.function_name, module_name=args.module)

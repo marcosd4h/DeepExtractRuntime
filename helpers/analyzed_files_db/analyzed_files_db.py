@@ -15,7 +15,7 @@ from ..db_paths import resolve_db_path, workspace_root_from_tracking_db
 
 _log = logging.getLogger(__name__)
 
-from ..individual_analysis_db.db import _escape_like, _LIKE_ESCAPE
+from ..sql_utils import escape_like, LIKE_ESCAPE
 
 
 ANALYZED_FILES_TABLE = "analyzed_files"
@@ -194,10 +194,10 @@ class AnalyzedFilesDB:
             params.append(normalized)
         if name_contains:
             if case_insensitive:
-                clauses.append("LOWER(file_name) LIKE LOWER(?)" + _LIKE_ESCAPE)
+                clauses.append("LOWER(file_name) LIKE LOWER(?)" + LIKE_ESCAPE)
             else:
-                clauses.append("file_name LIKE ?" + _LIKE_ESCAPE)
-            params.append(f"%{_escape_like(name_contains)}%")
+                clauses.append("file_name LIKE ?" + LIKE_ESCAPE)
+            params.append(f"%{escape_like(name_contains)}%")
 
         query = f"SELECT * FROM {ANALYZED_FILES_TABLE}"
         if clauses:

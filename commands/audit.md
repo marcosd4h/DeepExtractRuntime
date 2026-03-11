@@ -83,7 +83,7 @@ python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> --id <f
     --workspace-dir <run_dir> --workspace-step dossier
 ```
 
-Produces: IPC context (RPC/COM/WinRT classification), parameter risk scoring, identity, function classification (primary/secondary categories, interest score, signals), attack reachability from exports, untrusted data exposure, dangerous operations (direct + transitive), resource patterns, complexity metrics, neighboring context, and module security posture.
+Produces: IPC context (RPC/COM/WinRT classification), parameter risk scoring, identity, function classification (primary/secondary categories, interest score, signals), attack reachability from exports, untrusted data exposure, dangerous operations (direct + transitive), resource patterns, complexity metrics, and neighboring context.
 
 ### 3. Extract full function data
 
@@ -362,7 +362,6 @@ Use this exact section structure and formatting. Do not rearrange sections or ch
 - File operations: ...
 - Global reads/writes: <global_reads> reads, <global_writes> writes
 - Sync operations: <present or none>
-- Module security: ASLR <check> DEP <check> CFG <check> SEH <check>
 
 ## Data Flow Concerns
 
@@ -483,7 +482,6 @@ Inputs:
 - `complexity.instruction_count`, `complexity.branch_count`, `complexity.loop_count`
 - `complexity.max_cyclomatic_complexity`
 - `resource_patterns.has_global_writes`, `resource_patterns.sync_operations`
-- `module_security.cfg`
 - Note: if `complexity.has_syscall` is true (direct syscall / `int 2Eh`), flag as HIGH risk signal (potential evasion of security hooks)
 
 Scoring:
@@ -524,8 +522,8 @@ The Risk Assessment section of the report must contain these parts in order:
 3. **Specific concerns**: ranked list where each concern cites its checklist ID and the dossier field it comes from. Assign severity using these rules:
    - **CRITICAL**: Directly achieves code execution, privilege escalation, or authentication bypass with attacker-controlled input. Must have a confirmed data flow from untrusted source to dangerous sink (cite the backward_trace or dossier field).
    - **HIGH**: Could achieve the above with one additional precondition (bypass of an intermediate check, TOCTOU race win, etc.), OR a confirmed missing security check in an active code path.
-   - **MEDIUM**: Theoretical weakness requiring multiple preconditions, OR a defense-in-depth gap (e.g., missing CFG coverage, missing SEH on a function that handles user data). A concern about untested flag combinations without a confirmed path to dangerous behavior is MEDIUM at most.
-   - **LOW**: Code quality concern, untested path, or cosmetic issue that does not directly affect security posture.
+   - **MEDIUM**: Theoretical weakness requiring multiple preconditions, OR a defense-in-depth gap in validation or authorization. A concern about untested flag combinations without a confirmed path to dangerous behavior is MEDIUM at most.
+   - **LOW**: Code quality concern, untested path, or cosmetic issue that does not directly affect security.
 
    Every concern must cite its source field (e.g., `Source: dossier.dangerous_operations.security_relevant_callees`) and its checklist ID (e.g., `C1`).
 4. **Confidence and caveats**: any data gaps (e.g., "static reachability does not capture RPC dispatch")
@@ -563,16 +561,22 @@ Use `subagent_type="security-auditor"` with `readonly: true`. Pass it a self-con
 1. The **severity criteria** (the CRITICAL/HIGH/MEDIUM/LOW rules from the Required Output Format above)
 2. The **raw dossier summary JSON** (from `<run_dir>/dossier/summary.json`)
 3. The **raw attack surface summary** (from `<run_dir>/attack_surface/summary.json`, if available)
-4. The **raw backward trace summary** (from `<run_dir>/backward_trace/summary.json`, if available)
+4. The **raw backward trace summary** (from `<run_dir>/backward_trace_*/summary.json` for every backward trace step that ran, if available)
 5. The **raw taint_forward summary** (from `<run_dir>/taint_forward/summary.json`, if available)
 6. The **function's decompiled code** (from `<run_dir>/extract/results.json` `stdout.decompiled_code` field)
 7. The **function's assembly code** (from `<run_dir>/extract/results.json` `stdout.assembly_code` field) -- required for ground-truth checks such as confirming hardcoded argument values, bit-test instructions, and calling conventions
-8. The **primary callee's decompiled code** (from `<run_dir>/extract_callee/results.json` `stdout.decompiled_code`, if Step 3f ran) -- required for verifying concerns about callee-level alternate paths and flag gating
-9. The **taint-path callee decompiled code** (from `<run_dir>/extract_taint_*/results.json` `stdout.decompiled_code`, if Step 3i ran) -- required for verifying severity adjustments where the synthesizer upgraded or downgraded a taint finding's severity based on reading the intermediate callee's allocation, copy, or validation logic
-10. The **module profile `security_posture` section** (ASLR/DEP/CFG/SEH flags only)
-11. The **Data Interpretation Rules** (param_risk_score is 0-1, noise_ratio is 0-1, attack_score is 0-1)
-12. The **draft specific concerns list** with their assigned severities, checklist IDs, and cited source fields
-13. The **draft dimension scores** with their key data points
+8. The **full callee chain decompiled code** -- paste every callee that was extracted during the audit, in call-depth order, labeled by function name and step name. This covers:
+   - Depth-1 primary callee (`extract_callee/results.json` `stdout.decompiled_code`) -- required for verifying callee-level alternate paths and flag gating
+   - Depth-2 callee (`extract_callee_d2/results.json` `stdout.decompiled_code`), if Step 3f depth-2 ran
+   - Depth-3 callee (`extract_callee_d3/results.json` `stdout.decompiled_code`), if Step 3f depth-3 ran
+   - Depth-4 callee (`extract_callee_d4/results.json` `stdout.decompiled_code`), if Step 3f depth-4 ran
+   - Deep security callees (`extract_deep_*/results.json` `stdout.decompiled_code` for every step returned by `select_audit_callees.py`), if Step 3h ran -- required for verifying Tier-1/2/3 callee-level concerns (impersonation pairing, flag validation, file-handle share flags)
+   - Taint-path intermediate callees (`extract_taint_*/results.json` `stdout.decompiled_code` for every step returned by `select_audit_callees.py`), if Step 3i ran -- required for verifying severity adjustments on allocation arithmetic and taint propagation
+9. The **Data Interpretation Rules** (param_risk_score is 0-1, noise_ratio is 0-1, attack_score is 0-1)
+10. The **draft specific concerns list** with their assigned severities, checklist IDs, and cited source fields
+11. The **draft dimension scores** with their key data points
+
+**How to collect callee code before building the prompt**: Before calling the subagent, iterate over the workspace manifest (`<run_dir>/manifest.json`) and collect `stdout.decompiled_code` + `stdout.function_name` from every step whose name matches `extract_callee*`, `extract_deep_*`, or `extract_taint_*`. This ensures the verifier sees the full call chain regardless of how many callee levels were actually extracted.
 
 **Subagent prompt template:**
 
@@ -600,21 +604,33 @@ DATA INTERPRETATION:
 RAW DATA:
 <paste dossier summary JSON>
 <paste attack surface summary JSON>
-<paste backward trace summary JSON>
+<paste backward trace summary JSON (all backward_trace_* steps)>
 <paste taint_forward summary JSON, if available>
-<paste module profile security_posture>
 
 DECOMPILED CODE (target function):
 <paste decompiled code for the target function>
 
-DECOMPILED CODE (primary callee, if available from extract_callee step):
-<paste decompiled code for the primary callee>
-
-DECOMPILED CODE (taint-path callee(s), if available from extract_taint_* steps):
-<paste decompiled code for each taint-path callee, labeled by function name>
-
-ASSEMBLY CODE (target function, if needed for ground-truth checks):
+ASSEMBLY CODE (target function):
 <paste assembly code for the target function>
+
+DECOMPILED CODE (call chain -- paste ALL extracted callees in depth order):
+--- extract_callee: <function_name> ---
+<paste decompiled code>
+
+--- extract_callee_d2: <function_name> --- (if run)
+<paste decompiled code>
+
+--- extract_callee_d3: <function_name> --- (if run)
+<paste decompiled code>
+
+--- extract_callee_d4: <function_name> --- (if run)
+<paste decompiled code>
+
+--- extract_deep_<N>: <function_name> --- (one block per deep callee from Step 3h, if run)
+<paste decompiled code>
+
+--- extract_taint_<N>: <function_name> --- (one block per taint-path callee from Step 3i, if run)
+<paste decompiled code>
 
 DRAFT DIMENSION SCORES (D1-D3):
 <paste dimension table rows for Attack Surface Exposure, Dangerous Operation Density, Complexity and Error Surface>

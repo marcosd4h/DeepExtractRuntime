@@ -1,6 +1,8 @@
 ---
 name: data-flow-tracer
 description: Trace how data moves through decompiled binaries -- forward parameter flow, backward argument origin, global variable producer/consumer maps, and string literal usage chains. Use when the user asks to trace a parameter, find where an argument comes from, map global variable readers/writers, trace string usage, understand data flow between functions, or asks what happens to a specific value in a function.
+cacheable: true
+depends_on: ["decompiled-code-extractor"]
 ---
 
 # Data Flow & Taint Tracing
@@ -10,6 +12,14 @@ description: Trace how data moves through decompiled binaries -- forward paramet
 Trace how specific data moves through extracted Windows PE binaries. Follows parameter values forward through outbound calls, traces API call arguments backward to their origin, maps global variable producers/consumers, and tracks string literal usage chains. Uses `simple_outbound_xrefs`, `simple_inbound_xrefs`, `global_var_accesses`, `string_literals`, decompiled code parsing, and assembly as ground truth.
 
 **This is about understanding data relationships, not security.** Do not add vulnerability annotations or security assessments.
+
+## When NOT to Use
+
+- Tracing attacker-controlled input to dangerous sinks with guard/bypass analysis -- use **taint-analysis**
+- Following call chains across modules (code-level xrefs, not data flow) -- use **callgraph-tracer**
+- PE-level import/export resolution -- use **import-export-resolver**
+- Scanning for specific vulnerability patterns (buffer overflows, TOCTOU) -- use **memory-corruption-detector** or **logic-vulnerability-detector**
+- Categorizing strings without tracing their data flow -- use **string-intelligence**
 
 ## Data Sources
 

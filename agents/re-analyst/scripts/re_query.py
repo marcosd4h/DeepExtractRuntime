@@ -76,7 +76,6 @@ def module_overview(db_path: str, as_json: bool = False) -> None:
         emit_error("No file_info record found in database", ErrorCode.NO_DATA)
 
     # Parse key metadata
-    security = parse_json_safe(fi.security_features) or {}
     imports = parse_json_safe(fi.imports) or []
     exports = parse_json_safe(fi.exports) or []
     entry_points = parse_json_safe(fi.entry_point) or []
@@ -112,13 +111,6 @@ def module_overview(db_path: str, as_json: bool = False) -> None:
         if isinstance(dapis, list):
             total_dangerous_refs += len(dapis)
 
-    # Security features
-    sec_flags = []
-    for feat in ("aslr_enabled", "dep_enabled", "cfg_enabled", "seh_enabled"):
-        val = security.get(feat)
-        if val:
-            sec_flags.append(feat.replace("_enabled", "").upper())
-
     data = {
         "module": {
             "file_name": fi.file_name,
@@ -132,7 +124,6 @@ def module_overview(db_path: str, as_json: bool = False) -> None:
             "file_size_bytes": fi.file_size_bytes,
             "analysis_timestamp": fi.analysis_timestamp or "",
         },
-        "security_features": sec_flags,
         "counts": {
             "total_functions": func_count,
             "with_decompiled": with_decompiled,
@@ -182,7 +173,6 @@ def module_overview(db_path: str, as_json: bool = False) -> None:
         print(f"  MD5:           {mi['md5_hash']}")
     if mi["file_size_bytes"]:
         print(f"  Size:          {mi['file_size_bytes']:,} bytes")
-    print(f"  Security:      {', '.join(data['security_features']) if data['security_features'] else 'none detected'}")
     print()
     print(f"  Functions:     {ct['total_functions']} total")
     print(f"    Decompiled:  {ct['with_decompiled']}")
@@ -388,10 +378,6 @@ def function_with_context(
         lcount = data["loops"].get("loop_count", 0)
         if lcount:
             print(f"\n  Loops: {lcount}")
-    if isinstance(data["stack_frame"], dict):
-        canary = data["stack_frame"].get("has_canary")
-        if canary is not None:
-            print(f"  Stack canary: {'yes' if canary else 'no'}")
 
 
 # ---------------------------------------------------------------------------
@@ -562,6 +548,9 @@ def search_functions(db_path: str, pattern: str, as_json: bool = False) -> None:
         results = search_functions_by_pattern(db, pattern, function_index=function_index)
 
     if not results:
+        if as_json:
+            from helpers.errors import emit_error, ErrorCode
+            emit_error(f"No functions matching '{pattern}'", ErrorCode.NO_DATA)
         print(f"No functions matching '{pattern}' found.")
         return
 

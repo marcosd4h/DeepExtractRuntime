@@ -18,15 +18,29 @@ from typing import Optional
 DB_NAME_RE = re.compile(r"^(.+?)_[0-9a-f]{6,}\.db$", re.IGNORECASE)
 """Match DB filenames like ``appinfo_dll_f2bbf324a1.db`` and extract the module stem."""
 
+DB_HASH_SUFFIX_RE = re.compile(r"_[0-9a-f]{6,}$", re.IGNORECASE)
+"""Match the ``_<hex>`` hash suffix on a DB stem (no ``.db`` extension)."""
+
 
 def module_name_from_path(raw_path: str) -> str:
     """Extract the filename from a full Windows path."""
     return Path(raw_path).name
 
 
-def _normalize_module_lookup_name(name: str) -> str:
-    """Normalize a user/module name for tolerant matching."""
+def normalize_module_name(name: str) -> str:
+    """Normalize a module name for tolerant matching.
+
+    Lowercases and replaces non-alphanumeric runs with underscores.
+    """
     return re.sub(r"[^a-z0-9]+", "_", name.strip().lower()).strip("_")
+
+
+def _normalize_module_lookup_name(name: str) -> str:
+    """Normalize a user/module name for tolerant matching.
+
+    .. deprecated:: Use :func:`normalize_module_name` instead.
+    """
+    return normalize_module_name(name)
 
 
 def _module_stem_from_db_filename(filename: str) -> str:

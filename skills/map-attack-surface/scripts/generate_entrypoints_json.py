@@ -35,6 +35,7 @@ from _common import EntryPoint, EntryPointType, parse_json_safe
 from rank_entrypoints import rank_entrypoints
 from helpers import open_individual_analysis_db
 from helpers.errors import db_error_handler, safe_parse_args
+from helpers.progress import status_message
 from helpers.json_output import emit_json
 
 
@@ -93,11 +94,6 @@ def generate_entrypoints_json(
             "total_functions": total_funcs,
             "analysis_db": str(db_path),
         }
-
-        # Security features
-        sec = parse_json_safe(fi.security_features)
-        if sec and isinstance(sec, dict):
-            module_info["security_features"] = sec
 
     # Type distribution
     type_dist = Counter(ep.type_label for ep in entries)
@@ -264,7 +260,7 @@ def main() -> None:
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(json_str, encoding="utf-8")
-        print(f"Written to {output_path} ({len(doc['entry_points'])} entry points)", file=sys.stderr)
+        status_message(f"Written to {output_path} ({len(doc['entry_points'])} entry points)")
     else:
         emit_json(doc)
 

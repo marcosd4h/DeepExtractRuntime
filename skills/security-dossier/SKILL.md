@@ -1,6 +1,8 @@
 ---
 name: security-dossier
 description: Build comprehensive security context dossiers for functions in DeepExtractIDA binaries -- gathering identity, attack reachability, data flow exposure, dangerous operations, resource patterns, complexity metrics, and neighboring context in one command. Use when the user asks to audit a function's security posture, build a security dossier, assess attack surface, check function reachability from exports, find dangerous API usage, or needs pre-audit context gathering for a decompiled function.
+cacheable: true
+depends_on: ["decompiled-code-extractor", "callgraph-tracer", "classify-functions"]
 ---
 
 # Security Context Dossier
@@ -16,16 +18,13 @@ One-command deep context gathering for security auditing. Before manually review
 5. **Resource Patterns** -- Synchronization, memory operations, global variable reads/writes
 6. **Complexity Assessment** -- Instructions, branches, loops, cyclomatic complexity, stack frame
 7. **Neighboring Context** -- Class methods, direct callees/callers
-8. **Module Security Posture** -- ASLR, DEP, CFG, SEH status
-9. **Data Quality** -- Extraction-time error warnings
+8. **Data Quality** -- Extraction-time error warnings
 
 ## Data Sources
 
 - **Individual analysis DBs** (`extracted_dbs/{module}_{hash}.db`): Function records, xrefs, assembly, loop analysis, stack frame, dangerous APIs, global accesses
 - **Tracking DB** (`extracted_dbs/analyzed_files.db`): Module name to DB path mapping
 - **Exports/Entry points**: From `file_info` table in individual DBs
-- **Security features**: From `file_info.security_features`
-
 For DB schema details, see [data_format_reference.md](../../docs/data_format_reference.md).
 
 ### Finding a Module DB
@@ -110,7 +109,6 @@ Focus on these high-priority indicators:
 | **Security-Relevant Callees**    | Sensitive operations performed via callees                       |
 | **Receives External Data = YES** | Untrusted data can flow to this function                         |
 | **Global Writes**                | State mutation affecting other functions                         |
-| **No Canary + Large Stack**      | Stack buffer overflow risk                                       |
 | **High Cyclomatic Complexity**   | Complex control flow, higher bug probability                     |
 
 **Step 4**: Deep Dive
@@ -167,7 +165,7 @@ Source: `simple_outbound_xrefs` classified for sync/memory/file APIs. `global_va
 
 ### 6. Complexity Assessment
 
-Source: `assembly_code` (instruction/branch/call counts), `loop_analysis` (loop count, cyclomatic complexity), `stack_frame` (sizes, canary, exception handler). Includes `has_syscall` for direct syscall detection and `string_categories` from `categorize_strings()`.
+Source: `assembly_code` (instruction/branch/call counts), `loop_analysis` (loop count, cyclomatic complexity), `stack_frame` (sizes, exception handler). Includes `has_syscall` for direct syscall detection and `string_categories` from `categorize_strings()`.
 
 ### 7. Neighboring Context
 

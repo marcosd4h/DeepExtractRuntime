@@ -57,6 +57,7 @@ from helpers import (
 )
 from helpers.cache import get_cached, cache_result
 from helpers.errors import ErrorCode, db_error_handler, emit_error, safe_parse_args
+from helpers.progress import status_message
 from helpers.json_output import emit_json
 
 
@@ -381,7 +382,7 @@ def trace_function_strings(
 
 def list_strings(db_path: str, limit: int = 100) -> dict:
     """List all unique strings in the module. Returns structured result."""
-    print(f"Scanning strings in {Path(db_path).name}...", file=sys.stderr)
+    status_message(f"Scanning strings in {Path(db_path).name}...")
     string_map = _list_all_strings(db_path, limit)
 
     result = {

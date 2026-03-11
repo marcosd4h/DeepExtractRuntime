@@ -121,6 +121,7 @@ All connections enforce `PRAGMA query_only = ON`.
 | Resolve DB path from module name | `resolve_db_path_auto(db_path)` | `db_paths` |
 | Resolve tracking DB path | `resolve_tracking_db_auto(workspace)` | `db_paths` |
 | Windows long-path support | `safe_long_path(path)` | `db_paths` |
+| Escape SQL LIKE meta-characters | `escape_like(value)` / `LIKE_ESCAPE` | `sql_utils` |
 
 **Key types:** `IndividualAnalysisDB`, `FunctionRecord`, `FileInfoRecord`,
 `AnalyzedFilesDB`, `AnalyzedFileRecord`.
@@ -178,7 +179,6 @@ Query pre-computed module fingerprints (noise ratio, API surface, complexity).
 | Load all module profiles | `load_all_profiles(workspace)` | `module_profile` |
 | Get noise ratio (library %) | `get_noise_ratio(profile)` | `module_profile` |
 | Get technology flags | `get_technology_flags(profile)` | `module_profile` |
-| Get canary coverage | `get_canary_coverage(profile)` | `module_profile` |
 
 ### param_risk
 
@@ -290,6 +290,21 @@ must use these rather than raw `print()` or `sys.exit()`.
 **Error codes:** `NOT_FOUND`, `INVALID_ARGS`, `DB_ERROR`, `PARSE_ERROR`,
 `NO_DATA`, `AMBIGUOUS`, `UNKNOWN`.
 
+### Logging Configuration
+
+Side-effect-only module that configures the `helpers` Python logger hierarchy
+on import. All helper modules use `logging.getLogger(__name__)` to inherit this
+configuration. The structured JSON error protocol (`emit_error`, `log_warning`)
+remains the primary agent-facing output; Python logging is for human debugging
+(cache tracing, DB query timing, module resolution diagnostics).
+
+| Operation | Helper | Module |
+|-----------|--------|--------|
+| Configure logger hierarchy (auto-runs on import) | `configure_logging()` | `logging_config` |
+
+Controlled by the `DEEPEXTRACT_LOG_LEVEL` environment variable (default
+`WARNING`). Set to `DEBUG` for full tracing.
+
 ### Caching
 
 Filesystem cache with 24-hour TTL validated by database modification time.
@@ -387,6 +402,10 @@ Run directly from the command line (not imported as modules):
 | `unified_search.py` | Search across functions, strings, APIs, classes, exports | `python .agent/helpers/unified_search.py <db> --query <term> [--json]` |
 | `cleanup_workspace.py` | Clean old workspace run directories | `python .agent/helpers/cleanup_workspace.py [--older-than DAYS] [--dry-run]` |
 | `pipeline_cli.py` | Headless batch pipeline CLI (run, validate, list-steps) | `python .agent/helpers/pipeline_cli.py run <yaml> [--json]` |
+| `qa_runner.py` | Parse QA test plan, execute testable commands, report results | `python .agent/helpers/qa_runner.py [--prefix PREFIX] [--test ID] [--list] [--json]` |
+| `health_check.py` | Validate workspace data, DBs, registries, and config | `python .agent/helpers/health_check.py [--quick|--full] [--json]` |
+| `select_audit_callees.py` | Select callees for deep extraction during /audit (Steps 3h+3i) | `python .agent/helpers/select_audit_callees.py <db> --dossier <path> [--attack-surface <path>] [--json]` |
+| `select_backward_traces.py` | Select backward trace targets for /audit Step 3c | `python .agent/helpers/select_backward_traces.py --dossier <path> [--extract-callee <path>] [--json]` |
 
 > **Programmatic search**: Skill scripts that need to combine search with other
 > logic should import `run_search` directly instead of spawning a subprocess:

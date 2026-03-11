@@ -42,6 +42,7 @@ from typing import Any
 # Import shared utilities
 from _common import WORKSPACE_ROOT
 from helpers.errors import ErrorCode, emit_error, safe_parse_args
+from helpers.json_output import emit_json
 from helpers.script_runner import get_workspace_args
 
 
@@ -52,12 +53,10 @@ def _load_json(path: str) -> dict:
         p = WORKSPACE_ROOT / path
     if not p.exists():
         emit_error(f"File not found: {p}", ErrorCode.NOT_FOUND)
-        return {}
     try:
         return json.loads(p.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         emit_error(f"Malformed JSON in {p}: {exc}", ErrorCode.PARSE_ERROR)
-        return {}
 
 
 def _severity_rank(severity: str) -> int:
@@ -361,21 +360,30 @@ def main() -> None:
     # Generate report
     if force_json:
         report_data = generate_json_report(compare_data, agent_findings)
-        report_text = json.dumps(report_data, indent=2, ensure_ascii=False)
+
+        if args.output:
+            out_path = Path(args.output)
+            if not out_path.is_absolute():
+                out_path = WORKSPACE_ROOT / args.output
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(
+                json.dumps(report_data, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            print(f"Report also written to: {out_path}", file=sys.stderr)
+
+        emit_json(report_data)
     else:
         report_text = generate_markdown_report(compare_data, agent_findings)
 
-    # Output -- always print to stdout (bootstrap captures in workspace mode).
-    # Additionally write to file when --output is specified.
-    if args.output:
-        out_path = Path(args.output)
-        if not out_path.is_absolute():
-            out_path = WORKSPACE_ROOT / args.output
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(report_text, encoding="utf-8")
-        print(report_text)
-        print(f"Report also written to: {out_path}", file=sys.stderr)
-    else:
+        if args.output:
+            out_path = Path(args.output)
+            if not out_path.is_absolute():
+                out_path = WORKSPACE_ROOT / args.output
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(report_text, encoding="utf-8")
+            print(f"Report also written to: {out_path}", file=sys.stderr)
+
         print(report_text)
 
 

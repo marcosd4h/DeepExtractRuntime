@@ -156,7 +156,7 @@ The system employs a standardized filesystem handoff protocol to manage state du
 
 # Skills Reference
 
-The runtime implements 29 distinct capabilities, categorized by functional purpose. These capabilities operate as discrete analytical units, processing extraction data and generating structured output.
+The runtime implements 29 distinct skills, categorized by functional purpose. These capabilities operate as discrete analytical units, processing extraction data and generating structured output.
 
 ## Foundation and Data Access
 
@@ -297,7 +297,7 @@ This capability tracks parameter input via execution paths to sensitive sinks, m
 - **generate_taint_report.py**: Synthesizes trace data, calculating a severity score inversely proportional to path length and guard complexity.
 
 ### exploitability-assessment
-This capability processes output from detection capabilities, normalizing data into a unified schema and calculating a comprehensive exploitability index based on mitigation controls and reachability.
+This capability processes output from detection capabilities, normalizing data into a unified schema and calculating a comprehensive exploitability index based on reachability and guard bypass difficulty.
 - **assess_finding.py**: Calculates exploitability for discrete findings across five weighted dimensions.
 - **batch_assess.py**: Processes aggregate finding sets for prioritization sorting.
 

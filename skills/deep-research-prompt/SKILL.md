@@ -2,13 +2,12 @@
 name: deep-research-prompt
 description: Generate comprehensive deep research prompts from DeepExtractIDA analysis databases by gathering function classification, call graphs, data flow, string intelligence, COM interfaces, and module context, then synthesizing structured research prompts and detailed research reports. Use when the user asks to research a function deeply, understand what a function does end-to-end, generate research prompts for a binary component, trace the full behavior of an API or export, create analysis prompts for deep research, or wants to understand the complete behavior of a function across module boundaries.
 cacheable: true
+depends_on: ["decompiled-code-extractor", "classify-functions", "callgraph-tracer", "data-flow-tracer", "state-machine-extractor", "generate-re-report", "com-interface-reconstruction", "reconstruct-types", "taint-analysis"]
 ---
 
 # Deep Research Prompt Generator
 
-## Purpose
-
-Generate structured, evidence-based deep research prompts for reverse engineering analysis. This skill **orchestrates all other skills** to gather maximum context about a target function or module area, then synthesizes findings into a comprehensive research prompt that drives detailed investigation.
+## Purpose for reverse engineering analysis. This skill **orchestrates all other skills** to gather maximum context about a target function or module area, then synthesizes findings into a comprehensive research prompt that drives detailed investigation.
 
 The two-phase approach:
 
@@ -16,6 +15,14 @@ The two-phase approach:
 2. **Synthesize Phase**: Combine all gathered context into a structured research prompt with specific questions, then use that prompt to produce a detailed research report
 
 **This is a meta-skill.** It coordinates the output of other skills into a unified research workflow.
+
+## When NOT to Use
+
+- Quick function explanation without full context gathering -- use **re-analyst** or `/explain`
+- Scanning for specific vulnerability patterns -- use **memory-corruption-detector** or **logic-vulnerability-detector**
+- Generating a module overview report (not function-focused research) -- use **generate-re-report**
+- Tracing a single parameter or API argument origin -- use **data-flow-tracer**
+- Planning a vulnerability research campaign with attack hypotheses -- use **adversarial-reasoning**
 
 ## Data Sources
 
@@ -32,7 +39,7 @@ All data comes from existing skill infrastructure:
 | Dispatch tables           | state-machine-extractor      | Switch/case dispatchers, state machines                |
 | Taint analysis            | taint-analysis               | Sink reachability, guards, bypass difficulty, severity |
 | Type information          | reconstruct-types            | Struct layouts, class hierarchies, vtable contexts     |
-| Module overview           | generate-re-report           | Import/export analysis, security posture, architecture |
+| Module overview           | generate-re-report           | Import/export analysis, architecture                   |
 | Decompiled code           | decompiled-code-extractor    | Raw decompiled C++, assembly, signatures               |
 
 ### Finding a Module DB
@@ -119,7 +126,6 @@ Output includes:
 - Top interesting functions with classification
 - Cross-module dependency map
 - String intelligence summary
-- Security posture
 - COM density and class list (if applicable)
 - Architecture overview (class hierarchy, function count by type)
 

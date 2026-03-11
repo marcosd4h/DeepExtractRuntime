@@ -26,7 +26,6 @@ Output:
     5. Resource Patterns (sync, memory, global state)
     6. Complexity Assessment (loops, branches, stack frame)
     7. Neighboring Context (class methods, call chain peers)
-    8. Module Security Posture (ASLR, DEP, CFG, SEH)
 """
 
 from __future__ import annotations
@@ -148,13 +147,6 @@ class DossierBuilder:
         # Parse file-level data
         self.exports = _ensure_list(parse_json_safe(file_info.exports) if file_info else None)
         self.entry_points = _ensure_list(parse_json_safe(file_info.entry_point) if file_info else None)
-        self.security_features = _ensure_dict(
-            parse_json_safe(file_info.security_features) if file_info else None
-        )
-        self.load_config = _ensure_dict(
-            parse_json_safe(file_info.load_config) if file_info and hasattr(file_info, "load_config") else None
-        )
-
         # Parse function-level data
         self.fname = func.function_name or ""
         self.outbound = _ensure_list(parse_json_safe(func.simple_outbound_xrefs))
@@ -228,7 +220,6 @@ class DossierBuilder:
             "resource_patterns": self._resources(),
             "complexity": self._complexity(),
             "neighboring_context": self._neighbors(),
-            "module_security": self._module_security(),
         }
         dq = self._data_quality()
         if dq.get("has_issues"):
@@ -588,7 +579,6 @@ class DossierBuilder:
             "local_vars_size": self.stack_frame.get("local_vars_size"),
             "args_size": self.stack_frame.get("args_size"),
             "saved_regs_size": self.stack_frame.get("saved_regs_size"),
-            "has_canary": self.stack_frame.get("has_canary"),
             "has_exception_handler": self.stack_frame.get("exception_handler"),
             "frame_pointer_present": self.stack_frame.get("frame_pointer_present"),
             "string_count": len(self.strings),
@@ -667,18 +657,6 @@ class DossierBuilder:
             "direct_callers": callers,
             "direct_caller_count": len(callers),
         }
-
-    def _module_security(self) -> dict:
-        result = {
-            "aslr": self.security_features.get("aslr_enabled"),
-            "dep": self.security_features.get("dep_enabled"),
-            "cfg": self.security_features.get("cfg_enabled"),
-            "seh": self.security_features.get("seh_enabled"),
-        }
-        if self.load_config:
-            result["cet"] = self.load_config.get("cet_enabled")
-            result["xfg"] = self.load_config.get("xfg_enabled")
-        return result
 
     def _data_quality(self) -> dict:
         """Surface extraction-time errors and warnings."""
@@ -761,7 +739,6 @@ def format_text(dossier: dict, db_path: str) -> str:
     resources = dossier["resource_patterns"]
     complexity = dossier["complexity"]
     neighbors = dossier["neighboring_context"]
-    mod_sec = dossier["module_security"]
 
     # Header
     lines.append("#" * 80)
@@ -930,7 +907,6 @@ def format_text(dossier: dict, db_path: str) -> str:
     lines.append(f"    Local Vars Size:    {_hex_or_none(complexity['local_vars_size'])}")
     lines.append(f"    Args Size:          {_hex_or_none(complexity['args_size'])}")
     lines.append(f"    Saved Regs:         {_hex_or_none(complexity['saved_regs_size'])}")
-    lines.append(f"    Has Canary:         {_bool_str(complexity['has_canary'])}")
     lines.append(f"    Exception Handler:  {_bool_str(complexity['has_exception_handler'])}")
 
     # 7. Neighbors
@@ -950,17 +926,6 @@ def format_text(dossier: dict, db_path: str) -> str:
         lines.append(f"    -> {c['name']} {tag}")
     if neighbors["direct_callee_count"] > 20:
         lines.append(f"    ... and {neighbors['direct_callee_count'] - 20} more")
-
-    # Module security footer
-    _section(lines, "MODULE SECURITY POSTURE")
-    lines.append(f"  ASLR: {_bool_str(mod_sec['aslr'])}")
-    lines.append(f"  DEP:  {_bool_str(mod_sec['dep'])}")
-    lines.append(f"  CFG:  {_bool_str(mod_sec['cfg'])}")
-    lines.append(f"  SEH:  {_bool_str(mod_sec['seh'])}")
-    if mod_sec.get("cet") is not None:
-        lines.append(f"  CET:  {_bool_str(mod_sec['cet'])}")
-    if mod_sec.get("xfg") is not None:
-        lines.append(f"  XFG:  {_bool_str(mod_sec['xfg'])}")
 
     # Data quality (only if issues exist)
     dq = dossier.get("data_quality")

@@ -10,6 +10,7 @@ description: >-
   memory-corruption-detector, logic-vulnerability-detector, or
   taint-analysis before reporting.
 depends_on: ["taint-analysis", "data-flow-tracer", "security-dossier", "exploitability-assessment", "import-export-resolver"]
+cacheable: false
 ---
 
 # Finding Verification

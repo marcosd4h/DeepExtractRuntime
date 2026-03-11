@@ -1,6 +1,8 @@
 ---
 name: adversarial-reasoning
 description: "Guide hypothesis-driven vulnerability research on Windows PE binaries using structured attack methodology, vulnerability class knowledge, and Windows-specific attack pattern playbooks. Use when the user asks to plan a vulnerability research campaign, generate attack hypotheses, find variants of a known bug class, validate a suspected vulnerability, reason about trust boundaries, identify privilege escalation vectors, plan a TOCTOU/race condition investigation, assess exploit feasibility, or asks for VR strategy guidance on an extracted module."
+cacheable: false
+depends_on: []
 ---
 
 # Adversarial Reasoning

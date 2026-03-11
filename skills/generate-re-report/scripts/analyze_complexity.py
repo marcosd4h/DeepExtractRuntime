@@ -43,7 +43,6 @@ def analyze_complexity(db_path: str, app_only: bool = False, *, no_cache: bool =
         with_errors: [{id, name, errors}]
         distributions: {size: {bucket: count}, complexity: {bucket: count}, type: {class: N, standalone: N}}
         function_count: int
-        canary_coverage: {total, with_canary, without_canary, unknown, percentage}
     """
     params = {"app_only": app_only}
     if not no_cache:
@@ -67,11 +66,6 @@ def analyze_complexity(db_path: str, app_only: bool = False, *, no_cache: bool =
     size_dist: dict[str, int] = defaultdict(int)
     complexity_dist: dict[str, int] = defaultdict(int)
     type_dist = {"class_method": 0, "standalone": 0}
-
-    canary_total = 0
-    canary_yes = 0
-    canary_no = 0
-    canary_unknown = 0
 
     for func in all_funcs:
         fid = func.function_id
@@ -167,18 +161,6 @@ def analyze_complexity(db_path: str, app_only: bool = False, *, no_cache: bool =
                 ][:5],
             })
 
-        # --- Stack canary ---
-        stack = parse_json_safe(func.stack_frame)
-        if isinstance(stack, dict) and stack.get("analysis_available", True):
-            canary_total += 1
-            canary_val = stack.get("has_canary")
-            if canary_val is True:
-                canary_yes += 1
-            elif canary_val is False:
-                canary_no += 1
-            else:
-                canary_unknown += 1
-
     # Sort rankings
     by_loops.sort(key=lambda x: (-x["loop_count"], -x["max_cyclomatic"]))
     by_xrefs.sort(key=lambda x: -x["hub_score"])
@@ -197,13 +179,6 @@ def analyze_complexity(db_path: str, app_only: bool = False, *, no_cache: bool =
             "type": type_dist,
         },
         "function_count": len(all_funcs),
-        "canary_coverage": {
-            "total": canary_total,
-            "with_canary": canary_yes,
-            "without_canary": canary_no,
-            "unknown": canary_unknown,
-            "percentage": f"{100.0 * canary_yes / canary_total:.1f}%" if canary_total > 0 else "N/A",
-        },
     }
 
     cache_result(db_path, "analyze_complexity", result, params=params)
@@ -308,16 +283,6 @@ def format_complexity_report(result: dict, top_n: int = 10) -> str:
             lines.append(f"- `{entry['name']}`: {errors_str}")
         if len(with_errors) > top_n:
             lines.append(f"- _... and {len(with_errors) - top_n} more_")
-        lines.append("")
-
-    # Canary coverage
-    canary = result.get("canary_coverage", {})
-    if canary.get("total", 0) > 0:
-        lines.append("### Stack Canary Coverage\n")
-        lines.append(f"- With canary: {canary['with_canary']} ({canary['percentage']})")
-        lines.append(f"- Without canary: {canary['without_canary']}")
-        if canary["unknown"] > 0:
-            lines.append(f"- Unknown: {canary['unknown']}")
         lines.append("")
 
     return "\n".join(lines)

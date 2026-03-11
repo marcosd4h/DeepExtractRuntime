@@ -36,6 +36,7 @@ from _common import (
     truncate_string,
 )
 from helpers.errors import ErrorCode, db_error_handler, emit_error, safe_parse_args
+from helpers.progress import status_message
 from helpers.json_output import emit_json
 
 # Import sub-analyzers
@@ -185,36 +186,9 @@ def _section_provenance(fi) -> str:
     return "\n".join(lines)
 
 
-def _section_security(fi, canary_coverage: dict) -> str:
-    """Section 3: Security Posture."""
-    lines = ["## 3. Security Posture\n"]
-
-    # Security features table
-    sf = parse_json_safe(fi.security_features)
-    if isinstance(sf, dict):
-        lines.append("### Mitigation Status\n")
-        lines.append("| Feature | Status |")
-        lines.append("|---|---|")
-        for feature, label in [
-            ("aslr_enabled", "ASLR (Address Space Layout Randomization)"),
-            ("dep_enabled", "DEP (Data Execution Prevention)"),
-            ("cfg_enabled", "CFG (Control Flow Guard)"),
-            ("seh_enabled", "SEH (Structured Exception Handling)"),
-            ("code_integrity", "Code Integrity"),
-            ("safeseh_present", "SafeSEH"),
-        ]:
-            val = sf.get(feature)
-            if val is True:
-                lines.append(f"| {label} | Enabled |")
-            elif val is False:
-                lines.append(f"| {label} | **Disabled** |")
-
-        seh_handlers = sf.get("safeseh_handlers")
-        if seh_handlers is not None:
-            lines.append(f"| SafeSEH Handler Count | {seh_handlers} |")
-        if sf.get("cfg_check_function_present"):
-            lines.append(f"| CFG Check Function | Present |")
-        lines.append("")
+def _section_security(fi) -> str:
+    """Section 3: Binary Structure."""
+    lines = ["## 3. Binary Structure\n"]
 
     # DLL Characteristics
     dll_chars = parse_json_safe(fi.dll_characteristics)
@@ -239,7 +213,6 @@ def _section_security(fi, canary_coverage: dict) -> str:
                 x = sec.get("executable", False)
                 if w and x:
                     anomalies.append(f"`{name}` (writable + executable)")
-                # Check non-standard section names
                 standard = {".text", ".rdata", ".data", ".pdata", ".rsrc", ".reloc",
                             ".idata", ".edata", ".tls", ".bss", ".CRT", ".00cfg",
                             ".gfids", ".giats", ".didat", ".mrdata", ".retplne"}
@@ -251,27 +224,6 @@ def _section_security(fi, canary_coverage: dict) -> str:
             for a in anomalies:
                 lines.append(f"- {a}")
             lines.append("")
-
-    # Stack canary coverage
-    if canary_coverage.get("total", 0) > 0:
-        lines.append("### Stack Canary Coverage\n")
-        lines.append(
-            f"**{canary_coverage['percentage']}** of functions have stack canaries "
-            f"({canary_coverage['with_canary']}/{canary_coverage['total']})"
-        )
-        lines.append("")
-
-    # Load config
-    lc = parse_json_safe(fi.load_config)
-    if isinstance(lc, dict) and lc.get("present"):
-        lines.append("### Load Configuration\n")
-        if lc.get("se_handler_count") is not None:
-            lines.append(f"- SEH handler count: {lc['se_handler_count']}")
-        if lc.get("guard_cf_check_function"):
-            lines.append(f"- CFG check function: `{lc['guard_cf_check_function']}`")
-        if lc.get("guard_flags"):
-            lines.append(f"- Guard flags: `{lc['guard_flags']}`")
-        lines.append("")
 
     return "\n".join(lines)
 
@@ -536,9 +488,8 @@ def generate_report(db_path: str, top_n: int = 10, summary_mode: bool = False,
         # Section 2: Provenance & Build
         sections.append(_section_provenance(fi))
 
-    # Section 3: Security Posture
-    canary = complexity_result.get("canary_coverage", {})
-    sections.append(_section_security(fi, canary))
+    # Section 3: Binary Structure
+    sections.append(_section_security(fi))
 
     # Section 4: External Interface
     sections.append("## 4. External Interface (Import/Export Analysis)\n")
@@ -611,10 +562,7 @@ def generate_report_json(db_path: str, *, no_cache: bool = False) -> dict:
             "compilation_timestamp": fi.time_date_stamp_str,
         },
         "security": {
-            "features": parse_json_safe(fi.security_features),
             "dll_characteristics": parse_json_safe(fi.dll_characteristics),
-            "load_config": parse_json_safe(fi.load_config),
-            "canary_coverage": complexity_result.get("canary_coverage"),
         },
         "imports": import_result,
         "exports": export_result,
@@ -650,7 +598,7 @@ def main():
             wrapped = {"status": "ok"}
             wrapped.update(result)
             out_path.write_text(json.dumps(wrapped, indent=2, default=str), encoding="utf-8")
-            print(f"Report written to {out_path}", file=sys.stderr)
+            status_message(f"Report written to {out_path}")
         else:
             emit_json(result, default=str)
     else:
@@ -662,7 +610,7 @@ def main():
                 out_path = WORKSPACE_ROOT / args.output
             out_path.parent.mkdir(parents=True, exist_ok=True)
             out_path.write_text(output, encoding="utf-8")
-            print(f"Report written to {out_path}", file=sys.stderr)
+            status_message(f"Report written to {out_path}")
         else:
             print(output)
 

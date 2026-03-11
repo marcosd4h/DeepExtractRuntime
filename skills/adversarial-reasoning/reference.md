@@ -206,22 +206,21 @@
 
 #### A.2.1 Stack Buffer Overflow
 
-**Definition:** Write beyond a fixed-size stack buffer, corrupting adjacent stack data (return address, saved registers, SEH records).
+**Definition:** Write beyond a fixed-size stack buffer, corrupting adjacent stack data (return address, saved registers).
 
 **Detection signals:**
 
 - Fixed-size `WCHAR path[MAX_PATH]` or `char buf[256]` on the stack
 - `wcscpy` / `strcpy` / `wcscat` / `strcat` with no prior length check
 - Loop writing to stack buffer with loop bound derived from input
-- No stack canary (`has_canary: false` in dossier) on functions with large stack frames
 
 **Workspace commands:**
 
 - `/verify <module> <func>` -- check decompiler accuracy for buffer sizes
 - `/taint <module> <func>` -- trace input to the copy operation
-- `/audit <module> <func>` -- check `has_canary` and `local_vars_size`
+- `/audit <module> <func>` -- check `local_vars_size`
 
-**Red flags:** `has_canary: false` + `local_vars_size > 256`. Use of `wcscpy`/`strcpy` on stack buffers. Module `canary_coverage_pct` < 30%.
+**Red flags:** Use of `wcscpy`/`strcpy` on stack buffers with `local_vars_size > 256`.
 
 ---
 
@@ -782,7 +781,7 @@
 1. **Assess the function's complexity and safety:**
 
    ```
-   /audit <module> <parser_func>            # instruction count, loops, canary
+   /audit <module> <parser_func>            # instruction count, loops, complexity
    /verify <module> <parser_func>           # decompiler accuracy
    ```
 
@@ -798,9 +797,9 @@
    - Loop bound from input without cap -> stack/heap overflow
    - Type tag from input controlling a cast -> type confusion
 
-4. **Check safety features:**
+4. **Check complexity and dangerous operations:**
    ```
-   /audit <module> <parser_func>            # has_canary, CFG status
+   /audit <module> <parser_func>            # dangerous APIs, complexity
    ```
 
 ---

@@ -51,16 +51,8 @@ for _p in (_HELPERS_DIR, _AGENT_DIR):
 from helpers.errors import ErrorCode, emit_error, safe_parse_args, db_error_handler
 from helpers.json_output import emit_json
 from helpers.progress import status_message
+from helpers.workspace import load_json_with_envelope as _load_json_file
 from helpers import open_individual_analysis_db
-
-
-def _load_json_file(path: str) -> dict:
-    """Load a JSON file, handling workspace results.json envelope."""
-    with open(path) as f:
-        data = json.load(f)
-    if isinstance(data, dict) and "stdout" in data and "output_type" in data:
-        return data["stdout"]
-    return data
 
 
 def _extract_callee_name(entry: str) -> str:

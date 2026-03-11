@@ -42,7 +42,7 @@ from _common import (
     resolve_db_path,
     search_index,
 )
-from helpers.errors import ErrorCode, db_error_handler, safe_parse_args
+from helpers.errors import ErrorCode, db_error_handler, emit_error, safe_parse_args
 from helpers.json_output import emit_json
 
 
@@ -335,7 +335,7 @@ def main() -> None:
 
     if args.function or args.function_id:
         if not args.db_path:
-            parser.error("db_path required for --function / --id")
+            emit_error("db_path required for --function / --id", ErrorCode.INVALID_ARGS)
         label = args.function or f"ID={args.function_id}"
         edges, internal, external = build_subgraph(
             args.db_path, start_func=args.function,
@@ -347,7 +347,7 @@ def main() -> None:
 
     elif args.path:
         if not args.db_path:
-            parser.error("db_path required for --path")
+            emit_error("db_path required for --path", ErrorCode.INVALID_ARGS)
         edges, internal, external, path = build_path_graph(args.db_path, args.path[0], args.path[1])
         title = f"Path: {args.path[0]} -> {args.path[1]}"
         diagram = emit_mermaid(edges, internal, external, title, highlight_path=path) if args.format == "mermaid" else emit_dot(edges, internal, external, title)

@@ -34,7 +34,7 @@ Execute immediately. Do NOT ask for confirmation before running scripts. Read th
 Parse the user's input to determine the subcommand and target. If a module name is given, verify it exists in the WinRT index by running:
 
 ```bash
-python skills/winrt-interface-analysis/scripts/resolve_winrt_server.py <module> --json
+python .agent/skills/winrt-interface-analysis/scripts/resolve_winrt_server.py <module> --json
 ```
 
 If no servers are found, report this and suggest checking module name spelling or using `surface --system-wide` to see all available modules.
@@ -45,35 +45,35 @@ Based on the parsed subcommand:
 
 **Default (module enumeration):**
 ```bash
-python skills/winrt-interface-analysis/scripts/resolve_winrt_server.py <module> --json
+python .agent/skills/winrt-interface-analysis/scripts/resolve_winrt_server.py <module> --json
 ```
 
 **Surface:**
 ```bash
-python skills/winrt-interface-analysis/scripts/map_winrt_surface.py <module> --json
-python skills/winrt-interface-analysis/scripts/map_winrt_surface.py --system-wide --top 30 --json
+python .agent/skills/winrt-interface-analysis/scripts/map_winrt_surface.py <module> --json
+python .agent/skills/winrt-interface-analysis/scripts/map_winrt_surface.py --system-wide --top 30 --json
 ```
 
 **Methods:**
 ```bash
-python skills/winrt-interface-analysis/scripts/enumerate_winrt_methods.py <module_or_class> --show-pseudo-idl --json
+python .agent/skills/winrt-interface-analysis/scripts/enumerate_winrt_methods.py <module_or_class> --show-pseudo-idl --json
 ```
 
 **Classify:**
 ```bash
-python skills/winrt-interface-analysis/scripts/classify_winrt_entrypoints.py <module> --json
+python .agent/skills/winrt-interface-analysis/scripts/classify_winrt_entrypoints.py <module> --json
 ```
 
 **Audit:**
 1. Resolve the module to its analysis DB using `find_module_db.py`.
 2. Run:
 ```bash
-python skills/winrt-interface-analysis/scripts/audit_winrt_security.py <db_path> --json
+python .agent/skills/winrt-interface-analysis/scripts/audit_winrt_security.py <db_path> --json
 ```
 
 **Privesc:**
 ```bash
-python skills/winrt-interface-analysis/scripts/find_winrt_privesc.py --top 20 --json
+python .agent/skills/winrt-interface-analysis/scripts/find_winrt_privesc.py --top 20 --json
 ```
 
 ### Step 2: Synthesis

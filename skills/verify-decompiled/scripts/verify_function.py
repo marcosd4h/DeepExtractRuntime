@@ -54,7 +54,7 @@ from helpers import (
     search_functions_by_pattern,
     validate_function_id,
 )
-from helpers.errors import ErrorCode, db_error_handler, safe_parse_args
+from helpers.errors import ErrorCode, db_error_handler, emit_error, safe_parse_args
 
 
 def _print_section(title: str, content: str | None, max_lines: int = 0) -> None:
@@ -367,7 +367,7 @@ def main() -> None:
     elif args.function_name:
         verify_function(db_path, function_name=args.function_name, output_json=args.json)
     else:
-        parser.error("Provide a function name, --id, or --search")
+        emit_error("Provide a function name, --id, or --search", ErrorCode.INVALID_ARGS)
 
 
 if __name__ == "__main__":

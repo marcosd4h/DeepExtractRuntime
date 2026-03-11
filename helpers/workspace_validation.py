@@ -8,34 +8,17 @@ Verifies workspace handoff compliance per workspace-pattern.mdc:
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-# Reuse constants from shared workspace to stay in sync
-_MANIFEST_FILE = "manifest.json"
-_RESULTS_FILE = "results.json"
-_SUMMARY_FILE = "summary.json"
-
-
-def _coerce_path(value: str | Path) -> Path:
-    p = Path(value).expanduser()
-    if not p.is_absolute():
-        p = (Path.cwd() / p).resolve()
-    else:
-        p = p.resolve()
-    return p
-
-
-def _json_load(path: Path, default: Any = None) -> Any:
-    if not path.exists():
-        return default
-    try:
-        with path.open("r", encoding="utf-8") as handle:
-            return json.load(handle)
-    except (OSError, json.JSONDecodeError):
-        return default
+from .workspace import (
+    MANIFEST_FILE as _MANIFEST_FILE,
+    RESULTS_FILE as _RESULTS_FILE,
+    SUMMARY_FILE as _SUMMARY_FILE,
+    coerce_path as _coerce_path,
+    json_load as _json_load,
+)
 
 
 @dataclass
@@ -98,7 +81,7 @@ def validate_workspace_run(run_dir: str | Path) -> WorkspaceValidationResult:
             issues=[f"manifest.json not found: {manifest_path}"],
         )
 
-    manifest = _json_load(manifest_path)
+    manifest = _json_load(manifest_path, None)
     if manifest is None:
         return WorkspaceValidationResult(
             valid=False,

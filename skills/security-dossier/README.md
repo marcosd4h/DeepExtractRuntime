@@ -25,7 +25,6 @@ Before manually auditing a decompiled function, you need to understand its secur
 | **Resource Patterns** | Locks held? Memory allocated? Global state mutated? |
 | **Complexity** | How complex is it? Loop count, cyclomatic complexity, stack size |
 | **Neighbors** | What else is nearby? Class methods, callers, callees |
-| **Module Security** | ASLR, DEP, CFG, SEH enabled? |
 
 ## Usage
 
@@ -80,7 +79,6 @@ python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> <functi
   Max Cyclomatic Complexity:  27
   Stack Frame:
     Local Vars Size:    0x290 (656 bytes)
-    Has Canary:         Yes
 ```
 
 ## Key Indicators to Watch
@@ -93,7 +91,6 @@ python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> <functi
 | **command_execution callees** | Command injection potential |
 | **Receives External Data = YES** | Untrusted input flows here |
 | **Global Writes + Reachable** | Attacker-controlled state mutation |
-| **No Canary + Large Stack** | Stack buffer overflow risk |
 | **Cyclomatic Complexity > 10** | Complex flow, higher bug probability |
 
 ## Files

@@ -99,7 +99,7 @@ Rate the hypothesis using the evidence:
 | CONFIRMED | Direct evidence: taint reaches sink with weak/no guards, decompiler-verified |
 | LIKELY | Strong evidence: taint reaches sink but guards present, or decompiler unverified |
 | POSSIBLE | Indirect evidence: dangerous APIs reachable but taint path unclear |
-| UNLIKELY | Counter-evidence: strong guards, mitigations block exploitation |
+| UNLIKELY | Counter-evidence: strong guards block exploitation |
 | REFUTED | Clear counter-evidence: path doesn't exist, types don't match |
 
 **d. Update scratchpad:** Check off the hypothesis.
@@ -121,7 +121,7 @@ If multiple confirmed findings exist, use the batch assessor:
 python .agent/skills/exploitability-assessment/scripts/batch_assess.py <db_path> --json
 ```
 
-The assessment considers: mitigations (ASLR/DEP/CFG), guard bypass difficulty, primitive quality (read/write/exec), and reachability from entry points.
+The assessment considers: guard bypass difficulty, primitive quality (read/write/exec), and reachability from entry points.
 
 ### 5. Synthesize findings report
 
@@ -131,7 +131,7 @@ After all hypotheses are investigated and scored:
 - Hypothesis statement, confidence level, and exploitability score
 - Evidence summary (taint paths, missing checks, dangerous operations)
 - Exploitation primitive (what the attacker gets) with quality rating
-- Mitigation coverage and bypass feasibility
+- Guard coverage and bypass feasibility
 - Suggested next steps (PoC development, deeper analysis)
 
 **Refuted hypotheses:**

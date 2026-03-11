@@ -407,7 +407,6 @@ Examples of common pitfalls:
 
 | Field                | Scale    | Trap                              |
 |----------------------|----------|-----------------------------------|
-| `canary_coverage_pct`| 0-100    | `0.2` = 0.2%, not 20%            |
 | `param_risk_score`   | 0.0-1.0  | `0.7` = 70th percentile risk     |
 | `noise_ratio`        | 0.0-1.0  | `0.48` = 48% library boilerplate |
 | `attack_score`       | 0.0-1.0  | Higher = more attractive target  |

@@ -370,12 +370,6 @@ Write a comprehensive document covering:
   }],
   "cross_module_deps": {"module_name": "function_count"},
   "string_summary": {"category": "count"},
-  "security_posture": {
-    "aslr": "boolean",
-    "dep": "boolean",
-    "cfg": "boolean",
-    "canary_coverage_pct": "number"
-  },
   "com_density": {
     "com_function_count": "number",
     "com_classes": ["string"]

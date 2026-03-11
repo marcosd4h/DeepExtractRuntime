@@ -1,6 +1,8 @@
 ---
 name: com-interface-reconstruction
 description: Reconstruct COM and WRL interface definitions from IDA Pro decompiled Windows PE binaries by analyzing vtable slots, QueryInterface/AddRef/Release patterns, mangled names, and WRL template instantiations. Use when the user asks to reconstruct COM interfaces, find COM classes, decode WRL templates, map CLSIDs, generate IDL descriptions, identify QueryInterface patterns, analyze vtable layouts as COM interfaces, or understand COM class hierarchies in extracted modules.
+cacheable: true
+depends_on: ["decompiled-code-extractor"]
 ---
 
 # COM / WRL Interface Reconstruction

@@ -53,7 +53,7 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 
    This returns structured JSON covering: binary identity, security posture, function classification (category distribution, noise ratio, top interesting functions), call graph topology (node/edge counts, hubs, connectivity), attack surface discovery (entry point types, ranked by attack value), and module fingerprinting (COM-heavy, RPC-heavy, dispatch-heavy trait detection). The coordinator handles adaptive routing based on detected module characteristics.
 
-   The session context "Module Profiles" section already contains pre-computed library noise ratio, dangerous API categories, technology surface flags, complexity metrics, and canary coverage from `module_profile.json`. Use these for additional orientation alongside the coordinator output.
+   The session context "Module Profiles" section already contains pre-computed library noise ratio, dangerous API categories, technology surface flags, and complexity metrics from `module_profile.json`. Use these for additional orientation alongside the coordinator output.
 
 3. **Quick security scan** (conditional -- only when `--with-security` is specified)
    Run `taint_function.py` from the **taint-analysis** skill on the top 3-5 ranked entry points from Step 2:
@@ -65,7 +65,7 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 4. **Synthesize triage report**
    Combine all findings into a structured report:
 
-   - **Binary Identity**: name, size, hashes, compiler, PDB, security posture
+   - **Binary Identity**: name, size, hashes, compiler, PDB
    - **Capability Profile**: import categories, export count, primary purpose
    - **Scale & Complexity**: total functions, named vs `sub_*`, category breakdown, noise ratio. `module_profile.json` provides pre-computed noise ratio, library breakdown (WIL/STL/WRL/CRT/ETW), and complexity stats (loop counts, assembly sizes). `compute_stats()` from function_index provides additional decompiled/assembly availability counts (including entries with `file: null` when decompilation failed).
    - **Most Interesting Functions (Top 10)**: table with name, category, interest score, dangerous APIs, reason

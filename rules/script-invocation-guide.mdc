@@ -76,6 +76,8 @@ All function-targeting scripts accept **`--function <name>`** (preferred)
 or a bare positional name (backward compat). Use `--id <N>` for ID-based
 lookup. Both forms are equivalent.
 
+### Core (decompiled-code-extractor, classify-functions, security-dossier, taint-analysis)
+
 ```
 find_module_db.py           <module_name> | --list | --ext <ext>  [--json]
 list_functions.py           <db_path> [--search "<pattern>"] [--with-signatures] [--has-decompiled] [--limit N] [--json]
@@ -83,14 +85,34 @@ extract_function_data.py    <db_path> --function <name> | --id <N> | --search "<
 classify_function.py        <db_path> --function <name> | --id <N> | --search "<pattern>"  [--json]
 build_dossier.py            <db_path> --function <name> | --id <N> | --search "<pattern>"  [--json]
 verify_function.py          <db_path> --function <name> | --id <N> | --search "<pattern>"  [--json]
-chain_analysis.py           <db_path> --function <name> | --id <N>  [--depth N] [--summary] [--json]
-generate_diagram.py         <db_path> --function <name> | --id <N>  [--depth N] [--format mermaid|dot] [--json]
-forward_trace.py            <db_path> --function <name> | --id <N>  --param <N>  [--depth N] [--json]
-backward_trace.py           <db_path> --function <name> | --id <N>  --target <api>  [--json]
 taint_function.py           <db_path> --function <name> | --id <N>  [--depth N] [--json]
 triage_summary.py           <db_path> [--top N] [--app-only] [--json]
 discover_entrypoints.py     <db_path> [--json]
+```
+
+### Callgraph tracer
+
+```
+chain_analysis.py           <db_path> --function <name> | --id <N>  [--depth N] [--summary] [--json]
+generate_diagram.py         <db_path> --function <name> | --id <N>  [--depth N] [--format mermaid|dot] [--json]
 build_call_graph.py         <db_path> [--stats] [--json]
+analyze_detailed_xrefs.py   <db_path> [--function <name> | --id <N>] [--summary] [--json] [--no-cache]
+module_dependencies.py      --overview | --module <name> | --surface <name> | --shared-functions <mod_A> <mod_B>  [--tracking-db <path>] [--json]
+cross_module_resolve.py     <function_name> | --from-function <db_path> <func> | --resolve-all <db_path> <func>  [--id <N>] [--tracking-db <path>] [--json]
+```
+
+### Data-flow tracer
+
+```
+forward_trace.py            <db_path> --function <name> | --id <N>  --param <N>  [--depth N] [--json]
+backward_trace.py           <db_path> --function <name> | --id <N>  --target <api>  [--json]
+global_state_map.py         <db_path> [--global <name_or_addr>] [--summary] [--shared-only] [--writers-only] [--app-only] [--json] [--no-cache]
+string_trace.py             <db_path> --string <text> | --function <name> | --id <N> | --list-strings  [--callers] [--depth N] [--limit N] [--assembly] [--app-only] [--json] [--no-cache]
+```
+
+### Security scanners (memory-corruption-detector, logic-vulnerability-detector, verify-decompiled)
+
+```
 scan_buffer_overflows.py    <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
 scan_integer_issues.py      <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
 scan_use_after_free.py      <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
@@ -100,9 +122,96 @@ scan_state_errors.py        <db_path> [--function <name> | --id <N>] [--top N] [
 scan_logic_flaws.py         <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
 scan_api_misuse.py          <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
 scan_module.py              <db_path> [--top N] [--min-severity LOW|MODERATE|MEDIUM|HIGH|CRITICAL] [--app-only] [--json] [--no-cache]  # verify-decompiled (decompiler accuracy, not vuln scanning)
+```
+
+### Generate RE report
+
+```
+generate_report.py              <db_path> [--output <file>] [--summary] [--top N] [--json] [--no-cache]
+analyze_strings.py              <db_path> [--top N] [--category <name>] [--json] [--no-cache]
+analyze_imports.py              <db_path> [--include-delay-load] [--exports] [--json] [--no-cache]
+analyze_decompilation_quality.py <db_path> [--json] [--no-cache]
+analyze_topology.py             <db_path> [--top N] [--app-only] [--json] [--no-cache]
+analyze_complexity.py           <db_path> [--top N] [--app-only] [--json] [--no-cache]
+```
+
+### State-machine extractor
+
+```
+detect_dispatchers.py       <db_path> [--min-cases N] [--with-loops] [--app-only] [--json] [--no-cache]
+extract_dispatch_table.py   <db_path> --function <name> | --id <N> | --search "<pattern>"  [--json] [--no-cache]
+extract_state_machine.py    <db_path> --function <name> | --id <N>  [--with-code] [--json] [--no-cache]
+generate_state_diagram.py   <db_path> --function <name> | --id <N>  [--format mermaid|dot] [--mode dispatch|state-machine|auto] [--json]
+```
+
+### Batch lift
+
+```
 collect_functions.py        <db_path> --class <name> | --chain <name> | --export <name> | --list-classes [--depth N] [--json]
+prepare_batch_lift.py       --from-json <file> | --ids <id,id,...>  [<db_path>] [--summary] [--structs-only] [--json]
+```
+
+### Type reconstruction
+
+```
 reconstruct_all.py          <db_path> [--class <name>] [--include-com] [--validate] [--output <file>] [--json]
-pipeline_cli.py             list-steps | validate <yaml> | run <yaml> [--dry-run] [--modules <m1> ...] [--json]
+```
+
+### Exploitability assessment
+
+```
+assess_finding.py           [--taint-report <file>] [--memory-findings <file>] [--logic-findings <file>] [--dossier <file>] [--module-db <db_path>] [--verify-report <file>] [--json]
+batch_assess.py             <db_path> [--top N] [--min-score F] [--depth N] [--json] [--no-cache]
+```
+
+### Audit selection helpers
+
+```
 select_audit_callees.py     <db_path> --dossier <path> [--attack-surface <path>] [--taint-forward <path>] [--exclude <names...>] [--json]
 select_backward_traces.py   --dossier <path> [--extract-callee <path>] [--json]
+```
+
+### Pipeline
+
+```
+pipeline_cli.py             list-steps | validate <yaml> | run <yaml> [--dry-run] [--modules <m1> ...] [--json]
+```
+
+### IPC Analysis (module name as positional arg, NOT db_path)
+
+IPC scripts take a **module name** (e.g. `wuapi.dll`) or an IPC identifier
+(CLSID, UUID, WinRT class name) as the first positional argument -- never
+a `<db_path>`. Exceptions are noted below.
+
+#### COM interface analysis
+
+```
+resolve_com_server.py       <module_or_clsid> [--context <ctx>] [--json]
+map_com_surface.py          [<module>] [--system-wide] [--top N] [--tier critical|high|medium|low] [--context <ctx>] [--privileged-only] [--json]
+enumerate_com_methods.py    <module_or_clsid> [--interface <name>] [--show-pseudo-idl] [--json]
+classify_com_entrypoints.py [<module>] [--system-wide] [--context <ctx>] [--json]
+audit_com_security.py       <module_or_clsid> [--context <ctx>] [--json]
+find_com_privesc.py         [--context <ctx>] [--top N] [--include-uac] [--json]
+```
+
+#### RPC interface analysis
+
+```
+resolve_rpc_interface.py    <module> [--with-stubs] [--json]
+map_rpc_surface.py          [<module>] [--system-wide] [--top N] [--tier critical|high|medium|low] [--servers-only] [--with-blast-radius] [--json]
+audit_rpc_security.py       <db_path> [--depth N] [--json]                          # exception: takes db_path
+trace_rpc_chain.py          <db_path> --function <name> [--depth N] [--json]         # exception: takes db_path
+find_rpc_clients.py         <interface_uuid> [--json]
+rpc_topology.py             [<module>] [--top N] [--json]
+```
+
+#### WinRT interface analysis
+
+```
+resolve_winrt_server.py       <module> [--context <ctx>] [--json]
+map_winrt_surface.py          [<module>] [--system-wide] [--top N] [--tier critical|high|medium|low] [--context <ctx>] [--privileged-only] [--json]
+enumerate_winrt_methods.py    <module_or_class> [--interface <name>] [--show-pseudo-idl] [--json]
+classify_winrt_entrypoints.py [<module>] [--system-wide] [--context <ctx>] [--json]
+audit_winrt_security.py       <db_path> [--json]                                    # exception: takes db_path
+find_winrt_privesc.py         [--context <ctx>] [--top N] [--json]
 ```

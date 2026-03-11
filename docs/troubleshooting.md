@@ -81,10 +81,10 @@ Workspace run directories accumulate under `.agent/workspace/` during multi-step
 To clean up stale workspace runs:
 
 ```bash
-# Preview what would be deleted (default: older than 7 days)
+# Preview what would be deleted (default: older than 2 days, configurable via hooks.workspace_cleanup_age_hours)
 python .agent/helpers/cleanup_workspace.py --dry-run
 
-# Delete workspace runs older than 7 days
+# Delete workspace runs older than the configured threshold (default: 2 days)
 python .agent/helpers/cleanup_workspace.py
 
 # Delete runs older than 1 day

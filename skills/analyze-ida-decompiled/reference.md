@@ -117,7 +117,6 @@ Functions in `function_index.json` have a `library` field:
 | Who built it? | `pe_version_info`, `rich_header` |
 | What APIs does it call? | `imports` |
 | What does it export? | `exports` |
-| Is ASLR/DEP/CFG enabled? | `security_features` |
 | What classes exist? | `function_summary.class_methods` |
 | How many functions total? | `function_summary.total_functions` |
 | Are there TLS callbacks? | `tls_callbacks` |

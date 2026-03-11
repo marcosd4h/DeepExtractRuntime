@@ -34,7 +34,7 @@ Execute immediately. Do NOT ask for confirmation before running scripts. Read th
 Parse the user's input to determine the subcommand and target. If a module name or CLSID is given, verify it exists in the COM index by running:
 
 ```bash
-python skills/com-interface-analysis/scripts/resolve_com_server.py <module_or_clsid> --json
+python .agent/skills/com-interface-analysis/scripts/resolve_com_server.py <module_or_clsid> --json
 ```
 
 If no servers are found, report this and suggest checking module name spelling or using `surface --system-wide` to see all available modules.
@@ -45,33 +45,33 @@ Based on the parsed subcommand:
 
 **Default (module/CLSID enumeration):**
 ```bash
-python skills/com-interface-analysis/scripts/resolve_com_server.py <module_or_clsid> --json
+python .agent/skills/com-interface-analysis/scripts/resolve_com_server.py <module_or_clsid> --json
 ```
 
 **Surface:**
 ```bash
-python skills/com-interface-analysis/scripts/map_com_surface.py <module> --json
-python skills/com-interface-analysis/scripts/map_com_surface.py --system-wide --top 30 --json
+python .agent/skills/com-interface-analysis/scripts/map_com_surface.py <module> --json
+python .agent/skills/com-interface-analysis/scripts/map_com_surface.py --system-wide --top 30 --json
 ```
 
 **Methods:**
 ```bash
-python skills/com-interface-analysis/scripts/enumerate_com_methods.py <module_or_clsid> --show-pseudo-idl --json
+python .agent/skills/com-interface-analysis/scripts/enumerate_com_methods.py <module_or_clsid> --show-pseudo-idl --json
 ```
 
 **Classify:**
 ```bash
-python skills/com-interface-analysis/scripts/classify_com_entrypoints.py <module> --json
+python .agent/skills/com-interface-analysis/scripts/classify_com_entrypoints.py <module> --json
 ```
 
 **Audit:**
 ```bash
-python skills/com-interface-analysis/scripts/audit_com_security.py <module_or_clsid> --json
+python .agent/skills/com-interface-analysis/scripts/audit_com_security.py <module_or_clsid> --json
 ```
 
 **Privesc:**
 ```bash
-python skills/com-interface-analysis/scripts/find_com_privesc.py --top 20 --json
+python .agent/skills/com-interface-analysis/scripts/find_com_privesc.py --top 20 --json
 ```
 
 ### Step 2: Synthesis

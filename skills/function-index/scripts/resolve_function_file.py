@@ -164,11 +164,11 @@ def main() -> None:
         args.function_name = args.function_name_pos
 
     if not args.function_name and not args.names and not args.cpp_file:
-        parser.error("Provide function_name, --names, or --file")
+        emit_error("Provide function_name, --names, or --file", ErrorCode.INVALID_ARGS)
 
     if args.cpp_file:
         if not args.module:
-            parser.error("--file requires --module")
+            emit_error("--file requires --module", ErrorCode.INVALID_ARGS)
         results = resolve_by_file(args.cpp_file, args.module)
     elif args.names:
         name_list = [n.strip() for n in args.names.split(",") if n.strip()]

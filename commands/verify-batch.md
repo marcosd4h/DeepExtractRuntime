@@ -44,7 +44,7 @@ If validation fails, report the errors and stop. On success, use `result.resolve
    - Resolve the target functions using layered resolution:
      - **Quick lookup first**: Use `python .agent/skills/function-index/scripts/lookup_function.py <function_name>` for instant resolution across all modules. Use the returned `function_id` for all subsequent operations.
      - **Fallback**: If lookup returns no match, use `python .agent/skills/decompiled-code-extractor/scripts/list_functions.py <db_path> --search <name>` for fuzzy search.
-     - If a class name is provided, use `python .agent/skills/reconstruct-types/scripts/list_types.py <db_path> --class <class_name>` to get all method IDs.
+     - If a class name is provided, use `python .agent/skills/batch-lift/scripts/collect_functions.py <db_path> --class <class_name> --json` to get all method IDs.
    - After resolving target functions, check each against `is_library_function()` from function_index. If any are library boilerplate (WIL/CRT/STL/WRL/ETW), warn the user and suggest focusing verification on application code instead.
    - Create a **session-scoped scratchpad** at `.agent/hooks/scratchpads/{session_id}.md` to track progress.
 

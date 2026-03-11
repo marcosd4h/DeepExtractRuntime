@@ -27,7 +27,7 @@ from .pipeline_schema import (
 from .progress import status_message
 from .script_runner import find_agent_script, get_workspace_root, run_skill_script
 from .validation import ValidationResult
-from skills._shared import read_results, read_summary
+from .workspace import read_results, read_summary
 
 
 @dataclass

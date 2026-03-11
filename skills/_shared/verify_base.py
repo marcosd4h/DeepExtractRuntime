@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 from typing import Any, Callable
 
-from helpers.errors import ErrorCode, ScriptError
+from helpers.errors import ErrorCode, ScriptError, safe_parse_args
 
 from .finding_base import CONFIDENCE_SCORES, VerificationResult
 
@@ -200,7 +200,7 @@ def run_verify_main(
         help="Verification strategy: 'independent' uses cross-representation "
              "verifiers (default), 'replicate' uses same-representation only",
     )
-    args = parser.parse_args()
+    args = safe_parse_args(parser)
 
     db_path = resolve_db_path(args.db_path)
     findings_path = Path(args.findings)

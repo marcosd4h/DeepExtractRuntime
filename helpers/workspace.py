@@ -152,6 +152,20 @@ def json_load(path: Path, default: Any) -> Any:
         return default
 
 
+def load_json_with_envelope(path: str | Path) -> dict:
+    """Load a JSON file, unwrapping workspace results.json envelope if present.
+
+    Workspace step outputs are wrapped in ``{"stdout": ..., "output_type": ...}``.
+    This helper transparently unwraps the inner payload when that envelope is
+    detected, or returns the raw parsed JSON otherwise.
+    """
+    with open(path, encoding="utf-8") as fh:
+        data = json.load(fh)
+    if isinstance(data, dict) and "stdout" in data and "output_type" in data:
+        return data["stdout"]
+    return data
+
+
 def atomic_write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path: Optional[Path] = None
@@ -189,11 +203,8 @@ def json_dump(path: Path, data: Any) -> None:
 # ---------------------------------------------------------------------------
 
 def _default_workspace_root() -> Path:
-    # helpers/workspace.py -> helpers/ -> runtime root
-    _runtime_root = Path(__file__).resolve().parent.parent
-    if _runtime_root.name == ".agent":
-        return _runtime_root.parent
-    return _runtime_root
+    from .db_paths import _auto_workspace_root
+    return _auto_workspace_root()
 
 
 def _workspace_base_dir() -> Path:

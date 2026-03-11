@@ -10,6 +10,8 @@ description: >-
   tables (not code xrefs), asks about forwarded exports, needs
   cross-module dependency mapping from import tables, or wants to know
   all consumers of a given DLL.
+cacheable: true
+depends_on: ["decompiled-code-extractor"]
 ---
 
 # Import/Export Resolution
@@ -26,6 +28,14 @@ This is distinct from code-level xrefs (`simple_outbound_xrefs`) that
 dependencies; xrefs capture what IDA found in the disassembly. Use this
 skill for loader-level questions, `callgraph-tracer` for code-level
 call chains.
+
+## When NOT to Use
+
+- Tracing code-level call chains or cross-module execution paths -- use **callgraph-tracer**
+- Categorizing imports by API type (file I/O, crypto, network, etc.) -- use **generate-re-report** (`analyze_imports.py`)
+- Mapping attack surface or ranking entry points by risk -- use **map-attack-surface**
+- General function explanation or decompiled code analysis -- use **re-analyst** or `/explain`
+- Understanding cross-module data flow (taint propagation, parameter tracing) -- use **taint-analysis** or **data-flow-tracer**
 
 ## Data Sources
 

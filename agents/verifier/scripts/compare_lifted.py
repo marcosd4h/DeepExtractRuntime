@@ -52,12 +52,11 @@ from _common import (
 
 sys.path.insert(0, str(WORKSPACE_ROOT / ".agent"))
 from helpers import (
-    emit_error,
     load_function_index_for_db,
     open_individual_analysis_db,
     resolve_function,
 )
-from helpers.errors import ErrorCode, db_error_handler, safe_parse_args
+from helpers.errors import ErrorCode, db_error_handler, emit_error, safe_parse_args
 from helpers.json_output import emit_json
 from helpers.script_runner import get_workspace_args
 from helpers.validation import validate_function_id
@@ -685,7 +684,7 @@ def main() -> None:
             emit_error(f"Lifted code file not found: {lifted_path}", ErrorCode.NOT_FOUND)
         lifted_code = lifted_path.read_text(encoding="utf-8")
     else:
-        parser.error("Provide --lifted or --lifted-stdin")
+        emit_error("Provide --lifted or --lifted-stdin", ErrorCode.INVALID_ARGS)
         return
 
     if not lifted_code.strip():
@@ -693,7 +692,7 @@ def main() -> None:
 
     # Validate function specifier
     if args.function_id is None and args.function_name is None:
-        parser.error("Provide a function name or --id")
+        emit_error("Provide a function name or --id", ErrorCode.INVALID_ARGS)
 
     if args.function_id is not None:
         args.function_id = validate_function_id(args.function_id)

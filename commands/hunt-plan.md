@@ -87,7 +87,7 @@ Ask focused questions using the AskQuestion tool. Tailor to the mode:
 Read the adversarial-reasoning SKILL.md and apply the framework for the detected mode:
 
 **Campaign mode:**
-1. Review the module profile: entry point types, IPC surface, security features, dangerous API categories
+1. Review the module profile: entry point types, IPC surface, dangerous API categories
 2. Apply the hypothesis generation framework to produce 3-7 hypotheses from entry point types, classification signals, data flow patterns, and code patterns
 3. Rank hypotheses using the prioritization rubric (Exploitability x Impact x Novelty x Feasibility)
 4. For each top hypothesis, map to specific workspace commands using the workspace integration table
@@ -147,7 +147,7 @@ Loop between steps 3-5 as needed until the researcher approves the plan.
 
 ### 7. Persist the hunt plan
 
-Save the approved plan to `.agent/workspace/<module>_hunt_plan_<timestamp>.json` (using `YYYYMMDD_HHMMSS` for timestamp) with this schema:
+Save the approved plan to `.agent/workspace/<module>_hunt_plan_<timestamp>.json` (using `YYYYMMDD_HHMM` for timestamp) with this schema:
 
 ```json
 {

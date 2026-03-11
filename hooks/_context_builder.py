@@ -8,18 +8,29 @@ Markdown context string that gets injected as ``additional_context``.
 from __future__ import annotations
 
 import logging
+import sys
+from pathlib import Path
 
 from hooks._profile_formatter import format_profile_line
 
 _log = logging.getLogger(__name__)
 
-try:
-    from helpers.config import get_config_value as _get_config_value
-    _CONTEXT_TRUNCATION_THRESHOLD = int(_get_config_value("scale.context_truncation_threshold", 1000))
-except Exception:
-    _CONTEXT_TRUNCATION_THRESHOLD = 1000
-
 _LEVEL_ORDER = {"minimal": 0, "standard": 1, "full": 2}
+
+_IPC_PATH_ENSURED = False
+
+
+def _ensure_helpers_path() -> None:
+    """Ensure the helpers package is importable (idempotent)."""
+    global _IPC_PATH_ENSURED
+    if _IPC_PATH_ENSURED:
+        return
+    _root = Path(__file__).resolve().parents[1]
+    _agent = _root / ".agent"
+    path_entry = str(_agent) if _agent.is_dir() else str(_root)
+    if path_entry not in sys.path:
+        sys.path.insert(0, path_entry)
+    _IPC_PATH_ENSURED = True
 
 
 def _is_level_enabled(context_level: str, required_level: str) -> bool:
@@ -207,13 +218,7 @@ def _build_rpc_section(
 ) -> None:
     """Inject RPC surface summary when the RPC index is available."""
     try:
-        import sys
-        from pathlib import Path
-        _root = Path(__file__).resolve().parents[1]
-        _agent = _root / ".agent"
-        path_entry = str(_agent) if _agent.is_dir() else str(_root)
-        if path_entry not in sys.path:
-            sys.path.insert(0, path_entry)
+        _ensure_helpers_path()
         from helpers.rpc_index import get_rpc_index
         idx = get_rpc_index()
         if not idx.loaded:
@@ -285,13 +290,7 @@ def _build_com_section(
 ) -> None:
     """Inject COM surface summary when the COM index is available."""
     try:
-        import sys
-        from pathlib import Path
-        _root = Path(__file__).resolve().parents[1]
-        _agent = _root / ".agent"
-        path_entry = str(_agent) if _agent.is_dir() else str(_root)
-        if path_entry not in sys.path:
-            sys.path.insert(0, path_entry)
+        _ensure_helpers_path()
         from helpers.com_index import get_com_index
         idx = get_com_index()
         if not idx.loaded:

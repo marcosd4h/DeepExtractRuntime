@@ -9,13 +9,13 @@ description: >-
   for integer overflows, check for use-after-free, find format string
   bugs, hunt for memory safety issues, or asks about memory corruption
   in an extracted module.
+cacheable: true
+depends_on: ["decompiled-code-extractor"]
 ---
 
 # Memory Corruption Detector
 
 ## Purpose
-
-Detect memory corruption vulnerability classes that are the most common
 and highest-severity bugs in Windows binaries. While the existing
 logic-vulnerability-detector targets auth bypasses and business logic
 flaws, this skill targets the classical memory safety bugs:
@@ -34,7 +34,7 @@ confirm or reject each finding before reporting.
 ### SQLite Databases (primary)
 
 - `functions` table: decompiled code, assembly, xrefs, string literals
-- `file_info` table: exports, security features
+- `file_info` table: exports
 - See [data_format_reference.md](../../docs/data_format_reference.md)
 
 ### Finding a Module DB

@@ -7,7 +7,11 @@ description: >
   attack surface, COM security, COM privilege escalation, COM entry
   points, DCOM, UAC bypass via COM, CLSID lookup, COM activation,
   COM service identity, or needs to audit COM server permissions.
+cacheable: false
+depends_on: []
 ---
+
+# COM Interface Analysis
 
 ## Purpose
 
@@ -58,9 +62,9 @@ caller integrity level and server process privilege.
 List all COM servers for a module or look up by CLSID with full metadata.
 
 ```bash
-python skills/com-interface-analysis/scripts/resolve_com_server.py wuapi.dll --json
-python skills/com-interface-analysis/scripts/resolve_com_server.py bfe18e9c-6d87-4450-b37c-e02f0b373803 --json
-python skills/com-interface-analysis/scripts/resolve_com_server.py wbengine.exe --context medium_il_privileged --json
+python .agent/skills/com-interface-analysis/scripts/resolve_com_server.py wuapi.dll --json
+python .agent/skills/com-interface-analysis/scripts/resolve_com_server.py bfe18e9c-6d87-4450-b37c-e02f0b373803 --json
+python .agent/skills/com-interface-analysis/scripts/resolve_com_server.py wbengine.exe --context medium_il_privileged --json
 ```
 
 ### `map_com_surface.py`
@@ -68,9 +72,9 @@ python skills/com-interface-analysis/scripts/resolve_com_server.py wbengine.exe 
 Risk-ranked COM attack surface, per module or system-wide.
 
 ```bash
-python skills/com-interface-analysis/scripts/map_com_surface.py --system-wide --top 20
-python skills/com-interface-analysis/scripts/map_com_surface.py --system-wide --tier critical --json
-python skills/com-interface-analysis/scripts/map_com_surface.py --privileged-only --context medium_il_privileged --json
+python .agent/skills/com-interface-analysis/scripts/map_com_surface.py --system-wide --top 20
+python .agent/skills/com-interface-analysis/scripts/map_com_surface.py --system-wide --tier critical --json
+python .agent/skills/com-interface-analysis/scripts/map_com_surface.py --privileged-only --context medium_il_privileged --json
 ```
 
 ### `enumerate_com_methods.py`
@@ -78,8 +82,8 @@ python skills/com-interface-analysis/scripts/map_com_surface.py --privileged-onl
 List methods for a CLSID or module, optionally with pseudo-IDL.
 
 ```bash
-python skills/com-interface-analysis/scripts/enumerate_com_methods.py wuapi.dll --json
-python skills/com-interface-analysis/scripts/enumerate_com_methods.py bfe18e9c-6d87-4450-b37c-e02f0b373803 --show-pseudo-idl
+python .agent/skills/com-interface-analysis/scripts/enumerate_com_methods.py wuapi.dll --json
+python .agent/skills/com-interface-analysis/scripts/enumerate_com_methods.py bfe18e9c-6d87-4450-b37c-e02f0b373803 --show-pseudo-idl
 ```
 
 ### `classify_com_entrypoints.py`
@@ -87,8 +91,8 @@ python skills/com-interface-analysis/scripts/enumerate_com_methods.py bfe18e9c-6
 Semantic classification of COM method names into functional categories.
 
 ```bash
-python skills/com-interface-analysis/scripts/classify_com_entrypoints.py wuapi.dll --json
-python skills/com-interface-analysis/scripts/classify_com_entrypoints.py --system-wide --json
+python .agent/skills/com-interface-analysis/scripts/classify_com_entrypoints.py wuapi.dll --json
+python .agent/skills/com-interface-analysis/scripts/classify_com_entrypoints.py --system-wide --json
 ```
 
 ### `audit_com_security.py`
@@ -96,8 +100,8 @@ python skills/com-interface-analysis/scripts/classify_com_entrypoints.py --syste
 Security audit: permissions, elevation, identity, marshalling, DCOM exposure.
 
 ```bash
-python skills/com-interface-analysis/scripts/audit_com_security.py wuapi.dll --json
-python skills/com-interface-analysis/scripts/audit_com_security.py bfe18e9c-6d87-4450-b37c-e02f0b373803 --json
+python .agent/skills/com-interface-analysis/scripts/audit_com_security.py wuapi.dll --json
+python .agent/skills/com-interface-analysis/scripts/audit_com_security.py bfe18e9c-6d87-4450-b37c-e02f0b373803 --json
 ```
 
 ### `find_com_privesc.py`
@@ -105,9 +109,9 @@ python skills/com-interface-analysis/scripts/audit_com_security.py bfe18e9c-6d87
 Find privilege escalation targets: medium-IL reachable SYSTEM servers.
 
 ```bash
-python skills/com-interface-analysis/scripts/find_com_privesc.py --json
-python skills/com-interface-analysis/scripts/find_com_privesc.py --top 20 --json
-python skills/com-interface-analysis/scripts/find_com_privesc.py --include-uac --json
+python .agent/skills/com-interface-analysis/scripts/find_com_privesc.py --json
+python .agent/skills/com-interface-analysis/scripts/find_com_privesc.py --top 20 --json
+python .agent/skills/com-interface-analysis/scripts/find_com_privesc.py --include-uac --json
 ```
 
 ## Direct Helper Module Access

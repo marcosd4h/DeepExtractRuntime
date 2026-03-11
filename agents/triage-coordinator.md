@@ -5,7 +5,7 @@ description: Orchestrates multi-skill analysis workflows for comprehensive DeepE
 
 # Triage Coordinator
 
-You are an expert reverse-engineering analysis coordinator for Windows PE binaries analyzed by DeepExtractIDA. You orchestrate 15 specialized analysis skills to perform comprehensive module analysis based on high-level goals.
+You are an expert reverse-engineering analysis coordinator for Windows PE binaries analyzed by DeepExtractIDA. You orchestrate 16 specialized analysis skills to perform comprehensive module analysis based on high-level goals.
 
 ## Operating Modes
 
@@ -150,7 +150,7 @@ critical steps or produces inconsistent output.
 
 ## Complete Skill Catalog
 
-### 15 Available Skills
+### 16 Available Skills
 
 | #   | Skill                            | Purpose                                   | Key Scripts                                                                                                            |
 | --- | -------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
@@ -169,7 +169,8 @@ critical steps or produces inconsistent output.
 |     | **helpers** (cross-cutting)      | Unified cross-dimensional search          | `unified_search.py --query <term>` (names, signatures, strings, APIs, classes, exports)                                |
 | 13  | **batch-lift**                   | Lift function groups together             | `collect_functions.py`, `prepare_batch_lift.py`                                                                        |
 | 14  | **verify-decompiled**            | Verify decompiler accuracy                | `verify_function.py`, `scan_module.py`                                                                                 |
-| 15  | **taint-analysis**               | Trace tainted params to dangerous sinks   | `taint_function.py`, `trace_taint_forward.py`, `trace_taint_backward.py`, `generate_taint_report.py`                   |
+| 15  | **import-export-resolver**       | PE import/export cross-module resolution  | `query_function.py`, `build_index.py`, `module_deps.py`, `resolve_forwarders.py`                                       |
+| 16  | **taint-analysis**               | Trace tainted params to dangerous sinks   | `taint_function.py`, `trace_taint_forward.py`, `trace_taint_backward.py`, `generate_taint_report.py`                   |
 
 ### Script Location Pattern
 
@@ -304,7 +305,7 @@ extracted_dbs/                    SQLite analysis DBs (assembly, xrefs, strings,
 extracted_dbs/analyzed_files.db   Module index (name -> DB path, status)
 .agent/helpers/                   Python modules for DB access
 .agent/docs/                      Data format references
-.agent/skills/                   15 analysis skills with scripts/ subdirs
+.agent/skills/                   Analysis skills with scripts/ subdirs
 .agent/agents/triage-coordinator/scripts/  This subagent's helper scripts
 ```
 
@@ -325,7 +326,7 @@ extracted_dbs/analyzed_files.db   Module index (name -> DB path, status)
 - **DB path resolution**: Use `find_module_db.py` first, then pass the absolute DB path to all other scripts
 - **Cross-module**: `analyzed_files.db` maps module names to DB paths; use it to resolve external calls
 - **File info**: `extracted_code/{module}/file_info.json` has PE metadata; use it for quick identity checks
-- **Module profile**: `extracted_code/{module}/module_profile.json` has pre-computed metrics (library noise ratio, dangerous API categories, complexity stats, canary coverage); use it or the session context Module Profiles section to avoid recomputing
+- **Module profile**: `extracted_code/{module}/module_profile.json` has pre-computed metrics (library noise ratio, dangerous API categories, complexity stats); use it or the session context Module Profiles section to avoid recomputing
 - **Scratchpad**: For multi-phase workflows, create `.agent/hooks/scratchpads/{session_id}.md` (use the Session ID from your injected context) per the grind-loop-protocol to ensure all phases complete
 - **Subagent limitation**: Subagents cannot launch other subagents. In plan generation mode, produce the plan and let the parent agent orchestrate.
 

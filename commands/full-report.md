@@ -166,7 +166,7 @@ Check off Phase 5 in the scratchpad (even if no specialized analysis was needed)
     Combine ALL findings into a comprehensive markdown report:
     - **Executive Summary**: one paragraph with identity, purpose, scale, key findings
     - **Binary Identity & Provenance**: hashes, compiler, PDB, timestamps
-    - **Security Posture**: ASLR/DEP/CFG, canary coverage, DLL characteristics. `module_profile.json` provides canary coverage percentage and security flags directly.
+    - **Binary Structure**: DLL characteristics, section layout.
     - **Capability Profile**: imports by category, exports by type, delay-loaded deps. `module_profile.json` has technology surface flags (COM/RPC/WinRT/pipes) and dangerous API categories.
     - **Function Classification**: distribution table, noise ratio, top 20 interesting functions. `module_profile.json` provides noise ratio and library tag breakdown (WIL/STL/WRL/CRT/ETW counts). Use function_index `compute_stats()` for additional decompiled/assembly availability counts from index metadata.
     - **Attack Surface**: entry point types/counts, top 15 ranked, hidden entry points, taint analysis findings for top entries (sinks reached, severity, guard bypass difficulty)
@@ -174,7 +174,7 @@ Check off Phase 5 in the scratchpad (even if no specialized analysis was needed)
     - **Complexity Hotspots**: by loop complexity, by size, by xref density
     - **String Intelligence**: categorized strings, notable clusters
     - **Specialized Findings**: COM interfaces, dispatch tables, global state (if detected)
-    - **Anomalies**: decompiler failures, oversized functions, missing canaries. Include index entries where `has_decompiled=false` (these may have `file=null` but still valid `function_id` / `has_assembly` metadata).
+    - **Anomalies**: decompiler failures, oversized functions. Include index entries where `has_decompiled=false` (these may have `file=null` but still valid `function_id` / `has_assembly` metadata).
     - **Prioritized Analysis Roadmap**: ranked next steps with `/explain` and `/verify` for quick follow-ups, `/audit`, `/lift-class` for deep dives, and `/search` for targeted exploration
 
     Check off Phase 6 and set Status to `DONE` in the scratchpad.

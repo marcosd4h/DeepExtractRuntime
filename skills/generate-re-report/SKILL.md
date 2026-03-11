@@ -1,6 +1,8 @@
 ---
 name: generate-re-report
 description: Generate comprehensive reverse engineering reports from DeepExtractIDA analysis databases, synthesizing binary identity, security posture, import/export capabilities, internal architecture, complexity hotspots, string intelligence, call graph topology, anomalies, and prioritized focus recommendations. Use when the user asks to generate a report, summarize a binary, understand what a module does, get an overview of an extracted module, triage a binary for analysis, or asks about the capabilities or architecture of an analyzed PE binary.
+cacheable: true
+depends_on: ["decompiled-code-extractor"]
 ---
 
 # Generate RE Report
@@ -10,6 +12,14 @@ description: Generate comprehensive reverse engineering reports from DeepExtract
 Generate synthesized reverse engineering reports from DeepExtractIDA analysis databases. Unlike raw data dumps (`file_info.md`/`file_info.json`), this skill **cross-correlates data**, **computes derived metrics**, and produces **actionable guidance** -- the report you'd write manually after hours with the binary, generated in seconds.
 
 **This is per-module analysis.** Each report covers one binary. The report is a living document that can be regenerated as analysis progresses.
+
+## When NOT to Use
+
+- Deep security analysis of a specific function -- use **security-dossier** or **taint-analysis**
+- Classifying functions by purpose with interest scoring -- use **classify-functions**
+- Generating structured research prompts for deep investigation -- use **deep-research-prompt**
+- Scanning for specific vulnerability classes -- use **memory-corruption-detector** or **logic-vulnerability-detector**
+- Lifting or rewriting decompiled code -- use **code-lifting** or the **code-lifter** agent
 
 ## Data Sources
 
@@ -119,9 +129,9 @@ One-paragraph overview: binary identity, primary capabilities (from import categ
 
 Rich header decode (MSVC compiler version, linker, object file counts), PDB path analysis (source tree structure, developer machine hints), compilation timestamp vs file modification date, .NET status.
 
-### 3. Security Posture
+### 3. Binary Structure
 
-ASLR/DEP/CFG/SEH status, DLL characteristics, section permission anomalies (W+X), stack canary coverage percentage across all functions, load config guard data.
+DLL characteristics, section permission anomalies (W+X).
 
 ### 4. External Interface (Import/Export Analysis)
 
@@ -133,7 +143,7 @@ Class hierarchy from mangled names, symbol quality (named vs `sub_XXXX`), class 
 
 ### 6. Complexity Hotspots
 
-Ranked tables: top by loop complexity, by xref count (hub functions), by global state access, by assembly size. Function distribution by size/type/complexity. Stack canary coverage. Functions with analysis errors.
+Ranked tables: top by loop complexity, by xref count (hub functions), by global state access, by assembly size. Function distribution by size/type/complexity. Functions with analysis errors.
 
 ### 7. String Intelligence
 
@@ -245,7 +255,6 @@ from helpers import open_individual_analysis_db
 
 with open_individual_analysis_db("extracted_dbs/module_hash.db") as db:
     fi = db.get_file_info()
-    print(fi.parsed_security_features)
     print(fi.parsed_imports)
 ```
 

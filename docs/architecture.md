@@ -96,7 +96,7 @@ flowchart TD
 ### Commands
 
 Commands are user-facing Markdown workflows loaded from `.agent/commands/`.
-The live registry currently defines **36 commands**.
+The live registry (`commands/registry.json`) defines the current set.
 
 ### Agents
 
@@ -113,9 +113,9 @@ registry currently defines **6 agents**:
 ### Skills
 
 Skills are reusable analysis pipelines under `.agent/skills/`. The live
-registry currently defines **29 skills**, ranging from extraction helpers and
-call graph analysis to reconstruction, scanning, exploitability assessment, and
-methodology-only guidance.
+registry (`skills/registry.json`) defines all skills, ranging from extraction
+helpers and call graph analysis to reconstruction, scanning, exploitability
+assessment, and methodology-only guidance.
 
 ### Helpers
 
@@ -150,7 +150,7 @@ Each `extracted_code/<module>/` directory contributes:
 
 - `function_index.json` for fast function-to-file resolution
 - `file_info.json` for binary metadata and function summaries
-- `module_profile.json` for precomputed fingerprints and security posture
+- `module_profile.json` for precomputed fingerprints (scale, library composition, complexity)
 
 ### Extracted Code
 
@@ -292,7 +292,7 @@ to clean:
 
 ## Rules
 
-The runtime currently ships **6** rules in `.agent/rules/`:
+The runtime ships the following rules in `.agent/rules/`:
 
 | Rule | Purpose |
 | ---- | ------- |
@@ -302,6 +302,8 @@ The runtime currently ships **6** rules in `.agent/rules/`:
 | `error-handling-convention.mdc` | Entry-point vs library error model |
 | `json-output-convention.mdc` | stdout/stderr and JSON wrapping conventions |
 | `missing-dependency-handling.mdc` | Graceful degradation behavior |
+| `script-invocation-guide.mdc` | Script CLI signatures, DB path resolution, common mistakes |
+| `call-discovery-convention.mdc` | Xref-first call discovery, forbidden regex-only patterns |
 
 ---
 

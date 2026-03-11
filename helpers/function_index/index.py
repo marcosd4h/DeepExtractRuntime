@@ -14,16 +14,11 @@ from pathlib import Path
 from typing import Any, Optional
 
 from ..config import get_config_value
-from ..db_paths import DB_NAME_RE as _DB_NAME_RE
+from ..db_paths import DB_NAME_RE as _DB_NAME_RE, _auto_workspace_root
 from ..errors import log_warning
 
 
-_MODULE_DIR = Path(__file__).resolve().parent
-_HELPERS_DIR = _MODULE_DIR.parent
-_RUNTIME_ROOT = _HELPERS_DIR.parent
-WORKSPACE_ROOT = (
-    _RUNTIME_ROOT.parent if _RUNTIME_ROOT.name == ".agent" else _RUNTIME_ROOT
-)
+WORKSPACE_ROOT = _auto_workspace_root()
 
 EXTRACTED_CODE_DIR = WORKSPACE_ROOT / "extracted_code"
 FUNCTION_INDEX_FILENAME = "function_index.json"
@@ -315,15 +310,13 @@ def load_all_function_indexes(
         )
         modules = modules[:max_modules]
 
-    import sys
+    from helpers.progress import status_message
+
     total = len(modules)
     result: dict[str, dict[str, dict[str, Any]]] = {}
     for i, module_name in enumerate(modules, 1):
         if total >= 500 and i % 500 == 0:
-            print(
-                f"  load_all_function_indexes: {i}/{total} modules...",
-                file=sys.stderr,
-            )
+            status_message(f"load_all_function_indexes: {i}/{total} modules...")
         index = load_function_index(module_name)
         if index:
             result[module_name] = index

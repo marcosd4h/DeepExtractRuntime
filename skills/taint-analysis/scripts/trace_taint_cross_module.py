@@ -495,7 +495,7 @@ def main() -> None:
         return
 
     if not args.function_name and args.function_id is None:
-        parser.error("Provide a function name, --id, or --from-entrypoints")
+        emit_error("Provide a function name, --id, or --from-entrypoints", ErrorCode.INVALID_ARGS)
     if args.function_id is not None:
         args.function_id = validate_function_id(args.function_id)
 

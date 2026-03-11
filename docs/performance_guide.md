@@ -183,7 +183,7 @@ several optimizations:
 | Cross-module function index | `scale.cross_module_index_warn_threshold` | 0 (unlimited) | Index always built; uses JSON fast path |
 | Cross-module graph build | `scale.max_modules_cross_scan` | 0 (unlimited) | All modules loaded; progress logged |
 | `/search --all` | `scale.max_modules_search_all` | 0 (unlimited) | All modules searched |
-| `/compare-modules --all` | `scale.max_modules_compare` | 50 | Only first N modules compared |
+| `/compare-modules --all` | `scale.max_modules_compare` | 200 | Only first N modules compared |
 | `/health` DB validation | `scale.health_sample_count` | 100 | Random sample validated |
 | `cache_stats()` | `scale.cache_stats_sample_limit` | 200 | (stats scan all; use `--module` for single) |
 | LRU connection pool | `scale.max_cached_connections` | 50 | Max cached SQLite connections |

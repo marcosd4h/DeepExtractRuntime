@@ -49,9 +49,6 @@ def gather_module_identity(db) -> dict:
         if fi is None:
             return {}
 
-        security = parse_json_safe(fi.security_features) or {}
-        dll_chars = parse_json_safe(fi.dll_characteristics) or {}
-
         return {
             "file_name": fi.file_name or "",
             "file_description": fi.file_description or "",
@@ -62,12 +59,6 @@ def gather_module_identity(db) -> dict:
             "pdb_path": fi.pdb_path or "",
             "time_date_stamp": fi.time_date_stamp_str or "",
             "is_net_assembly": fi.is_net_assembly or False,
-            "security_posture": {
-                "aslr": security.get("aslr", {}).get("enabled", False) if isinstance(security.get("aslr"), dict) else bool(security.get("aslr")),
-                "dep": security.get("dep", {}).get("enabled", False) if isinstance(security.get("dep"), dict) else bool(security.get("dep")),
-                "cfg": security.get("cfg", {}).get("enabled", False) if isinstance(security.get("cfg"), dict) else bool(security.get("cfg")),
-                "seh": security.get("seh", {}).get("enabled", False) if isinstance(security.get("seh"), dict) else bool(security.get("seh")),
-            },
         }
     except Exception as e:
         log_error(str(e), ErrorCode.DB_ERROR)
@@ -384,17 +375,9 @@ def print_module_context(context: dict) -> None:
             bar = "#" * int(pct / 2)
             print(f"  {cat:<25} {count:>5} ({pct:5.1f}%)  {bar}")
 
-    # Security posture
-    sec = module.get("security_posture", {})
-    if sec:
-        _header("2. SECURITY POSTURE")
-        for feat, val in sec.items():
-            status = "ENABLED" if val else "DISABLED"
-            print(f"  {feat.upper():<8}: {status}")
-
     # Import capabilities
     if imports.get("capabilities"):
-        _header("3. IMPORT CAPABILITIES")
+        _header("2. IMPORT CAPABILITIES")
         print(f"  Total imports: {imports.get('total_imports', 0)} (categorized: {imports.get('categorized_count', 0)})")
         for cat, apis in sorted(imports["capabilities"].items(), key=lambda x: -len(x[1])):
             shown = apis[:8]
@@ -404,7 +387,7 @@ def print_module_context(context: dict) -> None:
 
     # Top functions
     if top_funcs:
-        _header(f"4. TOP {len(top_funcs)} MOST INTERESTING FUNCTIONS")
+        _header(f"3. TOP {len(top_funcs)} MOST INTERESTING FUNCTIONS")
         print(f"  {'Rank':>4}  {'Score':>5}  {'Category':<22}  {'Dangerous':>9}  {'Function Name'}")
         print(f"  {'-' * 4}  {'-' * 5}  {'-' * 22}  {'-' * 9}  {'-' * 40}")
         for i, f in enumerate(top_funcs, 1):
@@ -415,13 +398,13 @@ def print_module_context(context: dict) -> None:
 
     # Cross-module dependencies
     if cross_deps:
-        _header("5. CROSS-MODULE DEPENDENCIES")
+        _header("4. CROSS-MODULE DEPENDENCIES")
         for mod, count in sorted(cross_deps.items(), key=lambda x: -x[1]):
             print(f"  {mod:<35} {count:>5} calls")
 
     # String summary
     if string_summary:
-        _header("6. STRING INTELLIGENCE SUMMARY")
+        _header("5. STRING INTELLIGENCE SUMMARY")
         for cat, items in sorted(string_summary.items(), key=lambda x: -len(x[1])):
             print(f"\n  [{cat}] ({len(items)} unique)")
             for s in items[:3]:
@@ -431,13 +414,13 @@ def print_module_context(context: dict) -> None:
 
     # COM density
     if com.get("com_function_count", 0) > 0:
-        _header("7. COM DENSITY")
+        _header("6. COM DENSITY")
         print(f"  COM-related functions: {com['com_function_count']}")
         if com.get("com_classes"):
             print(f"  COM classes: {', '.join(com['com_classes'][:10])}")
 
     # Architecture
-    _header("8. ARCHITECTURE")
+    _header("7. ARCHITECTURE")
     print(f"  Total classes:       {arch.get('total_classes', 0)}")
     print(f"  Named functions:     {arch.get('named_function_count', 0)} ({arch.get('named_function_pct', 0)}%)")
     print(f"  Unnamed (sub_):      {arch.get('unnamed_function_count', 0)}")

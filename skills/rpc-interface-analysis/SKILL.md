@@ -6,7 +6,11 @@ description: >
   user asks about RPC interfaces, RPC attack surface, RPC security, RPC
   procedures, blast-radius, RPC topology, parameter types, or needs to audit
   RPC handlers.
+cacheable: false
+depends_on: []
 ---
+
+# RPC Interface Analysis
 
 ## Purpose
 
@@ -49,9 +53,9 @@ List all RPC interfaces for a module with full metadata and optional stub
 signatures.
 
 ```bash
-python skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py appinfo.dll
-python skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py appinfo.dll --json
-python skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py spoolsv.exe --with-stubs --json
+python .agent/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py appinfo.dll
+python .agent/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py appinfo.dll --json
+python .agent/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py spoolsv.exe --with-stubs --json
 ```
 
 ### `map_rpc_surface.py`
@@ -60,9 +64,9 @@ Risk-ranked RPC attack surface, per module or system-wide.  Includes optional
 blast-radius analysis.
 
 ```bash
-python skills/rpc-interface-analysis/scripts/map_rpc_surface.py appinfo.dll --json
-python skills/rpc-interface-analysis/scripts/map_rpc_surface.py --system-wide --top 20
-python skills/rpc-interface-analysis/scripts/map_rpc_surface.py --system-wide --with-blast-radius --json
+python .agent/skills/rpc-interface-analysis/scripts/map_rpc_surface.py appinfo.dll --json
+python .agent/skills/rpc-interface-analysis/scripts/map_rpc_surface.py --system-wide --top 20
+python .agent/skills/rpc-interface-analysis/scripts/map_rpc_surface.py --system-wide --with-blast-radius --json
 ```
 
 ### `audit_rpc_security.py`
@@ -70,7 +74,7 @@ python skills/rpc-interface-analysis/scripts/map_rpc_surface.py --system-wide --
 RPC-specific security audit combining index data with decompiled code.
 
 ```bash
-python skills/rpc-interface-analysis/scripts/audit_rpc_security.py <db_path> --json
+python .agent/skills/rpc-interface-analysis/scripts/audit_rpc_security.py <db_path> --json
 ```
 
 ### `trace_rpc_chain.py`
@@ -78,7 +82,7 @@ python skills/rpc-interface-analysis/scripts/audit_rpc_security.py <db_path> --j
 Trace an RPC handler's data flow from NDR dispatch to dangerous sinks.
 
 ```bash
-python skills/rpc-interface-analysis/scripts/trace_rpc_chain.py <db_path> --function <func_name> --json
+python .agent/skills/rpc-interface-analysis/scripts/trace_rpc_chain.py <db_path> --function <func_name> --json
 ```
 
 ### `find_rpc_clients.py`
@@ -87,7 +91,7 @@ Find all modules that implement or consume a given RPC interface UUID.
 Falls back to C# stub data when no runtime clients are present.
 
 ```bash
-python skills/rpc-interface-analysis/scripts/find_rpc_clients.py <interface_uuid> --json
+python .agent/skills/rpc-interface-analysis/scripts/find_rpc_clients.py <interface_uuid> --json
 ```
 
 ### `rpc_topology.py`
@@ -96,9 +100,9 @@ Build a system-wide or per-module RPC client-server topology graph combining
 pipe name extraction, ALPC endpoints, stub metadata, and service grouping.
 
 ```bash
-python skills/rpc-interface-analysis/scripts/rpc_topology.py --json
-python skills/rpc-interface-analysis/scripts/rpc_topology.py spoolsv.exe --json
-python skills/rpc-interface-analysis/scripts/rpc_topology.py --top 20 --json
+python .agent/skills/rpc-interface-analysis/scripts/rpc_topology.py --json
+python .agent/skills/rpc-interface-analysis/scripts/rpc_topology.py spoolsv.exe --json
+python .agent/skills/rpc-interface-analysis/scripts/rpc_topology.py --top 20 --json
 ```
 
 ## Direct Helper Module Access

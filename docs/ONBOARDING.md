@@ -84,9 +84,9 @@ Each module has:
 ### Security Audit Workflow
 
 ```
-/triage appinfo.dll          # Step 1: understand the module
-/triage appinfo.dll --goal security   # Step 2: rank attack surface
-/audit appinfo.dll <top-function>     # Step 3: deep audit top entries
+/triage appinfo.dll                    # Step 1: understand the module
+/triage appinfo.dll --with-security    # Step 2: quick security scan
+/audit appinfo.dll <top-function>      # Step 3: deep audit top entries
 ```
 
 ### Code Understanding Workflow

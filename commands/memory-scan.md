@@ -101,7 +101,7 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 
 6. **Present results**
    Format as a report with:
-   - Module identity and security features (ASLR, DEP, CFG, canary)
+   - Module identity
    - Summary: total findings by category and severity
    - Top findings table: rank, severity, function, category, API, score, confidence
    - For each top finding: evidence lines, path, guards, verification notes
@@ -405,8 +405,7 @@ Findings that don't belong to any narrative group are listed individually.
 
 **Report structure:**
 
-- Module identity and security features (ASLR, DEP, CFG, canary) -- read
-  from `extracted_code/<module>/module_profile.json` field `security_posture`
+- Module identity
 - **Chain summary**: ASCII tree grouped by depth with function names. Mark
   functions with confirmed findings using `*`. Mark functions whose code
   was read (no findings) using `+`. Truncate long lists with `...` but
@@ -507,8 +506,7 @@ Use these plus the Phase C taint results to produce an informed report:
 Present a structured report with these sections:
 
 ### Header
-Module name, binary name, function count, security features (ASLR, DEP, CFG, canary).
-Read from `extracted_code/<module>/module_profile.json` field `security_posture`.
+Module name, binary name, function count.
 
 ### Summary Table
 Category counts and severity distribution.

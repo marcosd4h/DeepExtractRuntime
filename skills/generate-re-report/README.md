@@ -26,7 +26,7 @@ python .agent/skills/generate-re-report/scripts/generate_report.py extracted_dbs
 |---------|----------------|
 | **1. Executive Summary** | Identity, capabilities, scale, compiler, symbol quality |
 | **2. Provenance & Build** | Rich header decode, PDB path analysis, .NET status |
-| **3. Security Posture** | ASLR/DEP/CFG/SEH, section anomalies, canary coverage |
+| **3. Binary Structure** | DLL characteristics, section anomalies |
 | **4. External Interface** | Imports categorized by capability, exports, delay-loads |
 | **5. Internal Architecture** | Class hierarchy, symbol quality, component structure |
 | **6. Complexity Hotspots** | Top functions by loops, xrefs, globals, size |

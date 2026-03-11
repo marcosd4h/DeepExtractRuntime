@@ -387,11 +387,8 @@ Parse the taint output, code review notes, verification results, and
 attack narratives and present a structured report.
 
 **Module identity header:**
-Read from `extracted_code/<module>/module_profile.json` field
-`security_posture`. Present:
 
 - Module name, binary name, function count
-- Security features: ASLR, DEP, CFG, canary status
 
 **Taint path tree (single-function mode):**
 Show the taint propagation tree from the entry point. Mark functions with

@@ -170,7 +170,7 @@ def main() -> None:
         module_name = scan_result.get("module", "unknown")
     else:
         if not args.db_path:
-            parser.error("db_path is required unless using --from-json")
+            emit_error("db_path is required unless using --from-json", ErrorCode.INVALID_ARGS)
         db_path = resolve_db_path(args.db_path)
         status_message("Scanning for memory access patterns...")
         scan_result = scan_module(db_path, class_filter=args.class_name, all_classes=args.all)

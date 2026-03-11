@@ -45,7 +45,7 @@ from _common import (
     scan_struct_accesses,
     topological_sort_functions,
 )
-from helpers.errors import ErrorCode, db_error_handler, log_warning, safe_parse_args
+from helpers.errors import ErrorCode, db_error_handler, emit_error, log_warning, safe_parse_args
 from helpers import open_individual_analysis_db
 from helpers.json_output import emit_json
 
@@ -440,15 +440,14 @@ def main() -> None:
 
         elif args.direct_ids:
             if not args.db_path:
-                parser.error("--ids requires a db_path argument")
+                emit_error("--ids requires a db_path argument", ErrorCode.INVALID_ARGS)
             db_path = resolve_db_path(args.db_path)
             function_ids = [int(x.strip()) for x in args.direct_ids.split(",")]
             dep_order = function_ids  # Use as-is when no ordering info available
             metadata = {"mode": "direct", "db_path": db_path, "module_name": Path(db_path).stem}
 
         else:
-            parser.error("Provide --from-json or --ids")
-            return
+            emit_error("Provide --from-json or --ids", ErrorCode.INVALID_ARGS)
 
         # Extract all function data
         func_data = extract_function_data(db_path, function_ids)

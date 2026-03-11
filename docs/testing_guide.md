@@ -1,9 +1,9 @@
 # DeepExtract AI Runtime -- Testing Guide
 
 > **Purpose**: Complete testing reference for the DeepExtract Agent Analysis
-> Runtime, covering both the **unit test suite** (pytest, 91 test files) and the
-> **integration test plan** (359 test cases across 36 commands, 29 skills, 6
-> agents, 4 pipelines, 3 hooks, and infrastructure conventions).
+> Runtime, covering both the **unit test suite** (pytest) and the
+> **integration test plan** (test cases spanning commands, skills, agents,
+> pipelines, hooks, and infrastructure conventions).
 >
 > **Test targets**: `windows.storage.dll`, `shell32.dll`, `appinfo.dll` --
 > the ShellExecuteExW call chain.
@@ -18,7 +18,7 @@ The runtime has two complementary testing tiers.
 
 | | |
 |---|---|
-| **Location** | `.agent/tests/` (91 pytest files + `conftest.py`) |
+| **Location** | `.agent/tests/` (pytest files + `conftest.py`) |
 | **Runner** | `python -m pytest .agent/tests/ -v` |
 | **Also triggered by** | `/health --full` (step 8 of the health command) |
 | **Typical runtime** | ~10-30 seconds |

@@ -1,6 +1,8 @@
 ---
 name: classify-functions
 description: Automatically classify and triage every function in a DeepExtractIDA module by purpose (file I/O, registry, network, crypto, security, telemetry, dispatch, initialization, etc.) using API calls, string analysis, naming patterns, assembly metrics, and loop complexity. Use when the user asks to classify functions, triage a binary, understand what a module does at a high level, find functions by category, identify interesting functions, filter out noise, or asks about function purpose distribution in an extracted module.
+cacheable: true
+depends_on: ["decompiled-code-extractor"]
 ---
 
 # Function Purpose Classification & Triage
@@ -16,6 +18,14 @@ Automatically categorize every function in a DeepExtractIDA analysis database in
 - **Structural metrics**: loop count, cyclomatic complexity from loop analysis
 
 Output is a categorized function index for the entire module, enabling researchers to triage 1000+ function binaries and focus effort on the most interesting functions.
+
+## When NOT to Use
+
+- Deep security analysis of a specific function -- use **security-dossier** or **taint-analysis**
+- Understanding what a specific function does line-by-line -- use **re-analyst** or `/explain`
+- Generating a full module report with imports, exports, and architecture -- use **generate-re-report**
+- Mapping entry points and ranking by attack value -- use **map-attack-surface**
+- Scanning for specific vulnerability patterns -- use **memory-corruption-detector** or **logic-vulnerability-detector**
 
 ## Data Sources
 

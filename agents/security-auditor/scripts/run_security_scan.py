@@ -31,6 +31,9 @@ from pathlib import Path
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(_SCRIPT_DIR))
+_AGENTS_ROOT = _SCRIPT_DIR.parent.parent
+if str(_AGENTS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_AGENTS_ROOT))
 
 from _common import (
     WORKSPACE_ROOT,
@@ -47,9 +50,32 @@ from _common import (
     status_message,
     to_json,
 )
+from _shared.pipeline_helpers import (
+    adaptive_top_n,
+    extract_top_entrypoints,
+    with_flag,
+)
 from helpers.config import get_config_value
 from helpers.errors import ErrorCode, emit_error, safe_parse_args
 from helpers.json_output import emit_json
+
+
+# ---------------------------------------------------------------------------
+# Step-name to finding-type mapping (explicit, not substring-based)
+# ---------------------------------------------------------------------------
+_STEP_FINDING_TYPE: dict[str, str] = {
+    "scan_buffer_overflows": "memory_corruption",
+    "scan_integer_issues": "memory_corruption",
+    "scan_use_after_free": "memory_corruption",
+    "scan_format_strings": "memory_corruption",
+    "scan_auth_bypass": "logic_vulnerability",
+    "scan_state_errors": "logic_vulnerability",
+    "scan_logic_flaws": "logic_vulnerability",
+    "scan_api_misuse": "logic_vulnerability",
+    "taint_forward": "taint",
+    "taint_backward": "taint",
+    "taint_cross": "taint",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -59,38 +85,6 @@ def _adaptive_timeout(function_count: int) -> int:
     base = int(get_config_value("security_auditor.step_timeout_seconds", 180))
     per_fn = float(get_config_value("security_auditor.per_function_timeout_seconds", 0.2))
     return max(base, int(base + function_count * per_fn))
-
-
-def _adaptive_top_n(function_count: int, entry_count: int = 0) -> int:
-    """Compute adaptive top-N based on module size and entry point count.
-
-    Uses config keys under ``security_auditor``:
-    - ``top_n_base``            (default 5)
-    - ``top_n_per_100_functions`` (default 1)
-    - ``top_n_max``             (default 25)
-    - ``top_n_min``             (default 3)
-
-    The formula adds ``top_n_per_100_functions`` for every 100 functions
-    in the module, then clamps to ``[top_n_min, top_n_max]``.  If
-    *entry_count* exceeds the computed N, the result is raised to cover
-    at least 50% of discovered entry points (still capped by max).
-    """
-    base = int(get_config_value("security_auditor.top_n_base", 5))
-    per_100 = int(get_config_value("security_auditor.top_n_per_100_functions", 1))
-    top_max = int(get_config_value("security_auditor.top_n_max", 25))
-    top_min = int(get_config_value("security_auditor.top_n_min", 3))
-
-    n = base + (function_count // 100) * per_100
-    if entry_count > 0:
-        n = max(n, (entry_count + 1) // 2)
-    return max(top_min, min(n, top_max))
-
-
-def _with_flag(args: list[str], flag: str, enabled: bool) -> list[str]:
-    """Return a copy of *args* with *flag* appended when enabled."""
-    if not enabled or flag in args:
-        return list(args)
-    return list(args) + [flag]
 
 
 def _phase_workers(max_workers: int | None, step_count: int, default: int) -> int:
@@ -226,9 +220,9 @@ def _phase_recon(
 
     steps = [
         ("classify_triage", "classify-functions", "triage_summary.py",
-         _with_flag([db_path, "--json", "--top", "20"], "--no-cache", no_cache)),
+         with_flag([db_path, "--json", "--top", "20"], "--no-cache", no_cache)),
         ("discover_entrypoints", "map-attack-surface", "discover_entrypoints.py",
-         _with_flag([db_path, "--json"], "--no-cache", no_cache)),
+         with_flag([db_path, "--json"], "--no-cache", no_cache)),
         ("rank_entrypoints", "map-attack-surface", "rank_entrypoints.py",
          [db_path, "--json", "--top", "10"]),
     ]
@@ -249,7 +243,7 @@ def _phase_recon(
                 result = future.result()
                 results[name] = result
             except Exception as exc:
-                print(f"  [FAIL] {name}: {exc}", file=sys.stderr)
+                status_message(f"[FAIL] {name}: {exc}")
                 results[name] = {"success": False, "error": str(exc)}
 
     return results
@@ -267,21 +261,21 @@ def _phase_vuln_scan(
     results: dict = {}
     steps = [
         ("scan_buffer_overflows", "memory-corruption-detector",
-         "scan_buffer_overflows.py", _with_flag([db_path, "--json"], "--no-cache", no_cache)),
+         "scan_buffer_overflows.py", with_flag([db_path, "--json"], "--no-cache", no_cache)),
         ("scan_integer_issues", "memory-corruption-detector",
-         "scan_integer_issues.py", _with_flag([db_path, "--json"], "--no-cache", no_cache)),
+         "scan_integer_issues.py", with_flag([db_path, "--json"], "--no-cache", no_cache)),
         ("scan_use_after_free", "memory-corruption-detector",
-         "scan_use_after_free.py", _with_flag([db_path, "--json"], "--no-cache", no_cache)),
+         "scan_use_after_free.py", with_flag([db_path, "--json"], "--no-cache", no_cache)),
         ("scan_format_strings", "memory-corruption-detector",
-         "scan_format_strings.py", _with_flag([db_path, "--json"], "--no-cache", no_cache)),
+         "scan_format_strings.py", with_flag([db_path, "--json"], "--no-cache", no_cache)),
         ("scan_auth_bypass", "logic-vulnerability-detector",
-         "scan_auth_bypass.py", _with_flag([db_path, "--top", "20", "--json"], "--no-cache", no_cache)),
+         "scan_auth_bypass.py", with_flag([db_path, "--top", "20", "--json"], "--no-cache", no_cache)),
         ("scan_state_errors", "logic-vulnerability-detector",
-         "scan_state_errors.py", _with_flag([db_path, "--json"], "--no-cache", no_cache)),
+         "scan_state_errors.py", with_flag([db_path, "--json"], "--no-cache", no_cache)),
         ("scan_logic_flaws", "logic-vulnerability-detector",
-         "scan_logic_flaws.py", _with_flag([db_path, "--top", "20", "--json"], "--no-cache", no_cache)),
+         "scan_logic_flaws.py", with_flag([db_path, "--top", "20", "--json"], "--no-cache", no_cache)),
         ("scan_api_misuse", "logic-vulnerability-detector",
-         "scan_api_misuse.py", _with_flag([db_path, "--top", "20", "--json"], "--no-cache", no_cache)),
+         "scan_api_misuse.py", with_flag([db_path, "--top", "20", "--json"], "--no-cache", no_cache)),
     ]
 
     with ThreadPoolExecutor(max_workers=_phase_workers(max_workers, len(steps), 4)) as pool:
@@ -300,44 +294,10 @@ def _phase_vuln_scan(
                 result = future.result()
                 results[name] = result
             except Exception as exc:
-                print(f"  [FAIL] {name}: {exc}", file=sys.stderr)
+                status_message(f"[FAIL] {name}: {exc}")
                 results[name] = {"success": False, "error": str(exc)}
 
     return results
-
-
-def _extract_top_entrypoints(recon_results: dict, workspace_dir: str, top_n: int) -> list[str]:
-    """Extract top entry point function names from recon results."""
-    ranked = None
-    rank_result = recon_results.get("rank_entrypoints")
-    if isinstance(rank_result, dict) and rank_result.get("success"):
-        ranked = rank_result.get("json_data")
-
-    if ranked is None:
-        loaded = read_results(workspace_dir, "rank_entrypoints")
-        if loaded:
-            ranked = loaded.get("stdout") if isinstance(loaded, dict) else loaded
-
-    names: list[str] = []
-    if isinstance(ranked, list):
-        for entry in ranked:
-            if isinstance(entry, dict):
-                name = entry.get("function_name", entry.get("name", ""))
-                if name:
-                    names.append(name)
-    elif isinstance(ranked, dict):
-        for key in ("ranked", "entrypoints", "top_entrypoints", "ranked_entrypoints"):
-            entries = ranked.get(key, [])
-            if isinstance(entries, list):
-                for entry in entries:
-                    if isinstance(entry, dict):
-                        name = entry.get("function_name", entry.get("name", ""))
-                        if name:
-                            names.append(name)
-                if names:
-                    break
-
-    return names[:top_n]
 
 
 def _phase_taint(
@@ -353,14 +313,14 @@ def _phase_taint(
     targets = [function_name] if function_name else entrypoints[:5]
 
     if not targets:
-        print("  [SKIP] No targets for taint analysis", file=sys.stderr)
+        status_message("[SKIP] No targets for taint analysis")
         return results
 
     with ThreadPoolExecutor(max_workers=_phase_workers(max_workers, len(targets), 3)) as pool:
         future_map = {}
         for fname in targets:
             step_name = f"taint_{fname}"
-            taint_args = _with_flag([db_path, fname, "--depth", str(depth), "--json"], "--no-cache", no_cache)
+            taint_args = with_flag([db_path, fname, "--depth", str(depth), "--json"], "--no-cache", no_cache)
             future = pool.submit(
                 run_skill_script,
                 "taint-analysis", "taint_function.py",
@@ -376,7 +336,7 @@ def _phase_taint(
                 result = future.result()
                 results[name] = result
             except Exception as exc:
-                print(f"  [FAIL] {name}: {exc}", file=sys.stderr)
+                status_message(f"[FAIL] {name}: {exc}")
                 results[name] = {"success": False, "error": str(exc)}
 
     return results
@@ -428,7 +388,7 @@ def _phase_verify(
                 result = future.result()
                 results[name] = result
             except Exception as exc:
-                print(f"  [FAIL] {name}: {exc}", file=sys.stderr)
+                status_message(f"[FAIL] {name}: {exc}")
                 results[name] = {"success": False, "error": str(exc)}
 
     return results
@@ -451,7 +411,7 @@ def _phase_exploitability(db_path: str, workspace_dir: str, timeout: int) -> dic
         args.extend(["--logic-findings", logic_path])
 
     if not taint_path and not memory_path and not logic_path:
-        print("  [SKIP] No findings for exploitability assessment", file=sys.stderr)
+        status_message("[SKIP] No findings for exploitability assessment")
         return results
 
     try:
@@ -462,7 +422,7 @@ def _phase_exploitability(db_path: str, workspace_dir: str, timeout: int) -> dic
         )
         results["exploitability"] = result
     except Exception as exc:
-        print(f"  [FAIL] exploitability: {exc}", file=sys.stderr)
+        status_message(f"[FAIL] exploitability: {exc}")
         results["exploitability"] = {"success": False, "error": str(exc)}
 
     return results
@@ -482,12 +442,9 @@ def _phase_report(
         if not isinstance(data, dict):
             continue
 
-        if "memory" in step_name or "buffer" in step_name or "integer" in step_name or "free" in step_name or "format" in step_name:
-            scanner_pairs.append((data, "memory_corruption"))
-        elif "auth" in step_name or "state_error" in step_name or "logic_flaw" in step_name or "api_misuse" in step_name:
-            scanner_pairs.append((data, "logic_vulnerability"))
-        elif "taint" in step_name:
-            scanner_pairs.append((data, "taint"))
+        finding_type = _STEP_FINDING_TYPE.get(step_name)
+        if finding_type:
+            scanner_pairs.append((data, finding_type))
 
     merged = merge_findings(*scanner_pairs) if scanner_pairs else []
     summary = findings_summary(merged)
@@ -585,7 +542,7 @@ def run_security_pipeline(
     timeout = timeout_override or _adaptive_timeout(0)
 
     if top_n <= 0:
-        top_n = _adaptive_top_n(0)
+        top_n = adaptive_top_n(0)
 
     progress = ProgressReporter(total=6, label="Security scan")
     all_results: dict = {}
@@ -614,7 +571,7 @@ def run_security_pipeline(
     ))
     progress.update(1)
 
-    entrypoints = _extract_top_entrypoints(recon, workspace_dir, top_n)
+    entrypoints = extract_top_entrypoints(recon, workspace_dir, top_n=top_n)
 
     # Prioritize confirmed IPC handlers (RPC, COM, WinRT)
     ipc_data = recon.get("ipc_context", {}).get("json_data", {})
@@ -883,7 +840,7 @@ Goals:
     if args.goal == "audit" and not args.function_name:
         emit_error("--function is required for audit goal", ErrorCode.INVALID_ARGS)
 
-    print(f"Starting security {args.goal} on {Path(db_path).stem}...", file=sys.stderr)
+    status_message(f"Starting security {args.goal} on {Path(db_path).stem}...")
 
     data = run_security_pipeline(
         db_path=db_path,

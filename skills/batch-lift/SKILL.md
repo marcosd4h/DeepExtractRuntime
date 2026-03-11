@@ -1,6 +1,8 @@
 ---
 name: batch-lift
 description: Lift related groups of decompiled functions together with shared context -- C++ class methods, call chains, or entire subtrees from exports. Builds shared struct definitions, determines dependency order, and generates coordinated output. Use when the user asks to lift multiple related functions, an entire class, a call chain, all methods of a type, everything reachable from an export, or mentions batch lifting or contextual lifting.
+cacheable: false
+depends_on: ["decompiled-code-extractor", "callgraph-tracer", "reconstruct-types"]
 ---
 
 # Batch / Contextual Code Lifting
@@ -19,6 +21,14 @@ This skill orchestrates **batch lifting** by:
 **Builds on**: [decompiled-code-extractor](../decompiled-code-extractor/SKILL.md) (function data extraction), [code-lifting](../code-lifting/SKILL.md) (per-function lifting workflow), [callgraph-tracer](../callgraph-tracer/SKILL.md) (call chain discovery), [reconstruct-types](../reconstruct-types/SKILL.md) (struct scanning).
 
 **This is NOT security analysis.** The goal is faithful, readable code reconstruction.
+
+## When NOT to Use
+
+- Lifting a single function in isolation -- use **code-lifting** or the **code-lifter** agent
+- Vulnerability scanning or security analysis of functions -- use **memory-corruption-detector** or **logic-vulnerability-detector**
+- Understanding what a function does without rewriting it -- use **re-analyst** or `/explain`
+- Reconstructing types without lifting code -- use **reconstruct-types**
+- Tracing call chains without lifting the functions -- use **callgraph-tracer**
 
 ## Batch Lifting Modes
 

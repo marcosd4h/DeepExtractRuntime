@@ -44,15 +44,7 @@ for _p in (_HELPERS_DIR, _AGENT_DIR):
 from helpers.errors import safe_parse_args
 from helpers.json_output import emit_json
 from helpers.api_taxonomy import classify_api_security
-
-
-def _load_json_file(path: str) -> dict:
-    """Load a JSON file, handling workspace results.json envelope."""
-    with open(path) as f:
-        data = json.load(f)
-    if isinstance(data, dict) and "stdout" in data and "output_type" in data:
-        return data["stdout"]
-    return data
+from helpers.workspace import load_json_with_envelope as _load_json_file
 
 
 def _pick_one_per_category(apis: list[str], limit: int = 3) -> list[tuple[str, str]]:

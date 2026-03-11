@@ -75,7 +75,7 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module
    - **Phase 2 (Vulnerability Scanning)**: Memory corruption (4 scanners) + logic vulnerability (4 scanners) in parallel
    - **Phase 3 (Taint Analysis)**: Taint analysis on top ranked entry points
    - **Phase 4 (Verification)**: `verify_findings.py` for both memory and logic findings
-   - **Phase 5 (Exploitability)**: `assess_finding.py` / `batch_assess.py` with mitigation, guard bypass, and primitive quality scoring
+   - **Phase 5 (Exploitability)**: `assess_finding.py` / `batch_assess.py` with guard bypass and primitive quality scoring
    - **Phase 6 (Synthesis)**: Merged, deduplicated, severity-ranked findings report
 
    **Cache bypass:** When the user specifies `--no-cache`, pass `--no-cache` to `run_security_scan.py`.
@@ -85,7 +85,7 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module
 ### Synthesize Report
 
 **Executive Summary:**
-- Module identity and security posture
+- Module identity
 - Total findings by pipeline (memory, logic, taint)
 - After verification: confirmed, likely, removed (false positive) counts
 - Severity distribution (CRITICAL/HIGH/MEDIUM/LOW)
@@ -100,17 +100,13 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module
 - Evidence: code lines, taint path, dangerous API
 - Guards on path and bypass feasibility
 - Verification status and reasoning
-- Exploitability assessment (primitive quality, mitigation effectiveness)
+- Exploitability assessment (primitive quality, guard bypass feasibility)
 - Cross-pipeline correlation (if the same function flagged by multiple pipelines)
 
 **Pipeline Breakdown:**
 - Memory corruption: buffer overflows, integer issues, UAF, format strings
 - Logic vulnerabilities: auth bypass, state errors, TOCTOU, missing checks
 - Taint analysis: attacker-reachable sinks with guard/bypass analysis
-
-**Mitigation Analysis:**
-- Which mitigations (ASLR/DEP/CFG/CET/canary) protect against which findings
-- Logic bugs that bypass all hardware mitigations (flagged prominently)
 
 **Recommended Next Steps:**
 - `/audit <module> <function>` -- deep audit on CRITICAL/HIGH findings

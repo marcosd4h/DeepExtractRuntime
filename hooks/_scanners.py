@@ -40,7 +40,6 @@ def scan_modules(extracted_code_dir: Path) -> list[dict]:
 
         basic = info.get("basic_file_info", {})
         version = info.get("pe_version_info", {})
-        security = info.get("security_features", {})
         func_summary = info.get("function_summary", {})
         entry_points = info.get("entry_points", [])
         exports = info.get("exports", [])
@@ -99,15 +98,6 @@ def scan_modules(extracted_code_dir: Path) -> list[dict]:
             if len(cm.get("methods", [])) > 0
         ]
 
-        sec_features = []
-        for feat in ("aslr", "dep", "cfg", "seh"):
-            val = security.get(feat)
-            if isinstance(val, dict):
-                if val.get("enabled"):
-                    sec_features.append(feat.upper())
-            elif val:
-                sec_features.append(feat.upper())
-
         modules.append({
             "name": info.get("module_name", mod.name),
             "file_name": basic.get("file_name", ""),
@@ -127,7 +117,6 @@ def scan_modules(extracted_code_dir: Path) -> list[dict]:
             "export_names": export_names,
             "import_func_count": import_func_count,
             "import_dll_count": len(imports),
-            "security": ", ".join(sec_features) if sec_features else "none detected",
             "dir": mod.name,
         })
 

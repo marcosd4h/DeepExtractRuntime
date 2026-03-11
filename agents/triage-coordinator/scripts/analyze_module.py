@@ -35,6 +35,9 @@ from pathlib import Path
 # Ensure the script directory is on sys.path for sibling imports
 _SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(_SCRIPT_DIR))
+_AGENTS_ROOT = _SCRIPT_DIR.parent.parent
+if str(_AGENTS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_AGENTS_ROOT))
 
 from _common import (
     WORKSPACE_ROOT,
@@ -46,33 +49,15 @@ from _common import (
     resolve_db_path,
     run_skill_script,
 )
+from _shared.pipeline_helpers import (
+    adaptive_top_n,
+    extract_top_entrypoints,
+    with_flag,
+)
 from helpers.config import get_config_value
 from helpers.errors import ErrorCode, emit_error, log_warning, safe_parse_args
 from helpers.json_output import emit_json
 from helpers.progress import status_message
-
-
-# ---------------------------------------------------------------------------
-# Adaptive top-N calculation
-# ---------------------------------------------------------------------------
-def _adaptive_top_n(function_count: int, entry_count: int = 0) -> int:
-    """Compute adaptive top-N based on module size and entry point count.
-
-    Uses config keys under ``security_auditor``:
-    - ``top_n_base``            (default 5)
-    - ``top_n_per_100_functions`` (default 1)
-    - ``top_n_max``             (default 25)
-    - ``top_n_min``             (default 3)
-    """
-    base = int(get_config_value("security_auditor.top_n_base", 5))
-    per_100 = int(get_config_value("security_auditor.top_n_per_100_functions", 1))
-    top_max = int(get_config_value("security_auditor.top_n_max", 25))
-    top_min = int(get_config_value("security_auditor.top_n_min", 3))
-
-    n = base + (function_count // 100) * per_100
-    if entry_count > 0:
-        n = max(n, (entry_count + 1) // 2)
-    return max(top_min, min(n, top_max))
 
 
 # ---------------------------------------------------------------------------
@@ -132,13 +117,6 @@ class PipelineStep:
         self.parallel_group = parallel_group
 
 
-def _with_flag(args: list[str], flag: str, enabled: bool) -> list[str]:
-    """Return a copy of *args* with *flag* appended when enabled."""
-    if not enabled or flag in args:
-        return list(args)
-    return list(args) + [flag]
-
-
 # ---------------------------------------------------------------------------
 # Goal -> pipeline step builders
 # ---------------------------------------------------------------------------
@@ -157,21 +135,21 @@ def _triage_steps(
         PipelineStep(
             "classify_triage",
             "classify-functions", "triage_summary.py",
-            _with_flag(triage_args, "--no-cache", no_cache),
+            with_flag(triage_args, "--no-cache", no_cache),
             description="Classify all functions and generate triage summary",
             parallel_group="triage_classify",
         ),
         PipelineStep(
             "classify_full",
             "classify-functions", "classify_module.py",
-            _with_flag(classify_args, "--no-cache", no_cache),
+            with_flag(classify_args, "--no-cache", no_cache),
             description="Full classification (unfiltered for downstream security analysis)",
             parallel_group="triage_classify",
         ),
         PipelineStep(
             "discover_entrypoints",
             "map-attack-surface", "discover_entrypoints.py",
-            _with_flag(entrypoint_args, "--no-cache", no_cache),
+            with_flag(entrypoint_args, "--no-cache", no_cache),
             description="Discover all entry points (exports, COM, RPC, callbacks, etc.)",
             parallel_group="triage_classify",
         ),
@@ -197,45 +175,12 @@ def _security_steps(
         PipelineStep(
             "call_graph_stats",
             "callgraph-tracer", "build_call_graph.py",
-            _with_flag([db_path, "--stats"], "--no-cache", no_cache),
+            with_flag([db_path, "--stats"], "--no-cache", no_cache),
             json_flag=False,
             description="Compute call graph statistics",
             parallel_group="post_triage",
         ),
     ]
-
-
-def _extract_top_functions(
-    results: dict,
-    workspace_run_dir: str,
-) -> list[str]:
-    """Extract top entry point function names from ranking results."""
-    ranked = _load_workspace_payload(workspace_run_dir, "rank_entrypoints")
-    if ranked is None:
-        ranked = results.get("rank_entrypoints")
-    top_functions: list[str] = []
-
-    if isinstance(ranked, list):
-        for entry in ranked:
-            if isinstance(entry, dict):
-                name = entry.get("function_name", entry.get("name", ""))
-                if name:
-                    top_functions.append(name)
-    elif isinstance(ranked, dict):
-        for key in ("ranked", "entrypoints", "top_entrypoints",
-                     "ranked_entrypoints"):
-            entries = ranked.get(key, [])
-            if isinstance(entries, list):
-                for entry in entries:
-                    if isinstance(entry, dict):
-                        name = entry.get("function_name",
-                                         entry.get("name", ""))
-                        if name:
-                            top_functions.append(name)
-                if top_functions:
-                    break
-
-    return top_functions
 
 
 def _security_dossier_steps(
@@ -248,13 +193,13 @@ def _security_dossier_steps(
 ) -> list[PipelineStep]:
     """Build dossiers for top-N ranked entry points (depends on ranking results)."""
     steps: list[PipelineStep] = []
-    top_functions = _extract_top_functions(results, workspace_run_dir)
+    top_functions = extract_top_entrypoints(results, workspace_run_dir)
 
     for fname in top_functions[:top_n]:
         steps.append(PipelineStep(
             f"dossier_{fname}",
             "security-dossier", "build_dossier.py",
-            _with_flag([db_path, fname, "--callee-depth", "2", "--json"], "--no-cache", no_cache),
+            with_flag([db_path, fname, "--callee-depth", "2", "--json"], "--no-cache", no_cache),
             description=f"Security dossier for {fname}",
             timeout=120,
             parallel_group="dossiers",
@@ -273,13 +218,13 @@ def _security_taint_steps(
 ) -> list[PipelineStep]:
     """Run taint analysis on top-3 ranked entry points (depends on ranking results)."""
     steps: list[PipelineStep] = []
-    top_functions = _extract_top_functions(results, workspace_run_dir)
+    top_functions = extract_top_entrypoints(results, workspace_run_dir)
 
     for fname in top_functions[:top_n]:
         steps.append(PipelineStep(
             f"taint_{fname}",
             "taint-analysis", "taint_function.py",
-            _with_flag([db_path, fname, "--depth", "3", "--json"], "--no-cache", no_cache),
+            with_flag([db_path, fname, "--depth", "3", "--json"], "--no-cache", no_cache),
             description=f"Taint analysis for {fname}",
             timeout=180,
             parallel_group="taint",
@@ -303,7 +248,7 @@ def _full_extra_steps(
         PipelineStep(
             "topology",
             "callgraph-tracer", "build_call_graph.py",
-            _with_flag([db_path, "--stats"], "--no-cache", no_cache),
+            with_flag([db_path, "--stats"], "--no-cache", no_cache),
             json_flag=False,
             description="Call graph topology analysis",
             parallel_group="post_triage",
@@ -347,7 +292,7 @@ def _full_extra_steps(
         steps.append(PipelineStep(
             "scan_com",
             "com-interface-reconstruction", "scan_com_interfaces.py",
-            _with_flag([db_path, "--json"], "--no-cache", no_cache),
+            with_flag([db_path, "--json"], "--no-cache", no_cache),
             description="COM interface reconstruction",
             parallel_group="post_triage",
         ))
@@ -356,7 +301,7 @@ def _full_extra_steps(
         steps.append(PipelineStep(
             "detect_dispatchers",
             "state-machine-extractor", "detect_dispatchers.py",
-            _with_flag([db_path, "--json"], "--no-cache", no_cache),
+            with_flag([db_path, "--json"], "--no-cache", no_cache),
             description="Dispatch table detection",
             parallel_group="post_triage",
         ))
@@ -385,7 +330,7 @@ def _types_steps(
         steps.append(PipelineStep(
             "scan_com_interfaces",
             "com-interface-reconstruction", "scan_com_interfaces.py",
-            _with_flag([db_path, "--json"], "--no-cache", no_cache),
+            with_flag([db_path, "--json"], "--no-cache", no_cache),
             description="Scan for COM interfaces",
             parallel_group="types_scan",
         ))
@@ -419,7 +364,7 @@ def _function_steps(
         PipelineStep(
             "call_graph_neighbors",
             "callgraph-tracer", "build_call_graph.py",
-            _with_flag([db_path, "--neighbors", function_name], "--no-cache", no_cache),
+            with_flag([db_path, "--neighbors", function_name], "--no-cache", no_cache),
             json_flag=False,
             description=f"Direct callers and callees of {function_name}",
             parallel_group="func_analysis",
@@ -427,7 +372,7 @@ def _function_steps(
         PipelineStep(
             "call_graph_reachable",
             "callgraph-tracer", "build_call_graph.py",
-            _with_flag([db_path, "--reachable", function_name, "--max-depth", "2"], "--no-cache", no_cache),
+            with_flag([db_path, "--reachable", function_name, "--max-depth", "2"], "--no-cache", no_cache),
             json_flag=False,
             description=f"Functions reachable from {function_name} (depth 2)",
             parallel_group="func_analysis",
@@ -435,14 +380,14 @@ def _function_steps(
         PipelineStep(
             "forward_trace",
             "data-flow-tracer", "forward_trace.py",
-            _with_flag([db_path, function_name, "--param", "1", "--depth", "3", "--json"], "--no-cache", no_cache),
+            with_flag([db_path, function_name, "--param", "1", "--depth", "3", "--json"], "--no-cache", no_cache),
             description=f"Forward data flow trace for {function_name} (param 1)",
             parallel_group="func_analysis",
         ),
         PipelineStep(
             "security_dossier",
             "security-dossier", "build_dossier.py",
-            _with_flag([db_path, function_name, "--callee-depth", "2", "--json"], "--no-cache", no_cache),
+            with_flag([db_path, function_name, "--callee-depth", "2", "--json"], "--no-cache", no_cache),
             description=f"Security dossier for {function_name}",
             parallel_group="func_analysis",
         ),
@@ -482,7 +427,7 @@ def _function_taint_steps(
         PipelineStep(
             "taint_function",
             "taint-analysis", "taint_function.py",
-            _with_flag([db_path, function_name, "--depth", "3", "--json"], "--no-cache", no_cache),
+            with_flag([db_path, function_name, "--depth", "3", "--json"], "--no-cache", no_cache),
             description=f"Taint analysis for {function_name}",
             timeout=180,
         ),
@@ -618,8 +563,8 @@ def _execute_step(step: PipelineStep, workspace_run_dir: str) -> tuple[dict, dic
 def run_pipeline(
     db_path: str,
     goal: str,
-    function_name: str = None,
-    chars: ModuleCharacteristics = None,
+    function_name: str | None = None,
+    chars: ModuleCharacteristics | None = None,
     workspace_run_dir: str | None = None,
     timeout_override: int | None = None,
     top_n: int = 10,
@@ -646,7 +591,7 @@ def run_pipeline(
 
     # Adaptive top-N when caller uses the default value
     if top_n <= 0:
-        top_n = _adaptive_top_n(chars.total_functions)
+        top_n = adaptive_top_n(chars.total_functions)
 
     # Compute adaptive timeout if no explicit override was given
     adaptive_timeout = compute_adaptive_timeout(chars.total_functions)
@@ -996,10 +941,6 @@ def print_text_summary(data: dict) -> None:
           f"Imports: {module.get('import_count', 0)}")
     print(f"  Classes: {module.get('class_count', 0)} | "
           f"Named: {module.get('named_function_pct', 0)}%")
-    print(f"  Security: "
-          f"ASLR={'Y' if module.get('has_aslr') else 'N'} "
-          f"DEP={'Y' if module.get('has_dep') else 'N'} "
-          f"CFG={'Y' if module.get('has_cfg') else 'N'}")
     if data.get("workspace_run_dir"):
         print(f"  Workspace: {data['workspace_run_dir']}")
 

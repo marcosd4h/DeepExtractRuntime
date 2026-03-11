@@ -526,7 +526,7 @@ def main() -> None:
             ids = [validate_function_id(x.strip(), "--id-list") for x in args.id_list.split(",")]
             result = collect_by_ids(db_path, ids)
         else:
-            parser.error("Specify --class, --functions, --id-list, or --list-classes")
+            emit_error("Specify --class, --functions, --id-list, or --list-classes", ErrorCode.INVALID_ARGS)
             return
 
     # Optionally initialize shared state

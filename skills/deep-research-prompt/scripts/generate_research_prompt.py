@@ -821,7 +821,7 @@ def main() -> None:
 
     elif args.area:
         if not args.db_path:
-            parser.error("db_path is required for area-level prompts")
+            emit_error("db_path is required for area-level prompts", ErrorCode.INVALID_ARGS)
         db_path = resolve_db_path(args.db_path)
         with db_error_handler(db_path, "generating research prompt"):
             with open_individual_analysis_db(db_path) as db:
@@ -830,7 +830,7 @@ def main() -> None:
 
     elif args.function_name or args.function_id is not None:
         if not args.db_path:
-            parser.error("db_path is required for function-level prompts")
+            emit_error("db_path is required for function-level prompts", ErrorCode.INVALID_ARGS)
         db_path = resolve_db_path(args.db_path)
         function_index = load_function_index_for_db(db_path)
 
@@ -888,7 +888,7 @@ def main() -> None:
             prompt = generate_function_prompt(context, detail=args.detail)
 
     else:
-        parser.error("Provide a function name, --id, --area, or --from-json")
+        emit_error("Provide a function name, --id, --area, or --from-json", ErrorCode.INVALID_ARGS)
 
     if args.json:
         emit_json({

@@ -8,6 +8,7 @@ This module provides:
 from __future__ import annotations
 
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
@@ -150,6 +151,7 @@ class AgentOrchestrator:
         self.failure_threshold = failure_threshold
         self._results: list[AgentStepResult] = []
         self._failures = 0
+        self._lock = threading.Lock()
 
     @property
     def results(self) -> list[AgentStepResult]:
@@ -173,9 +175,10 @@ class AgentOrchestrator:
             stderr=result.get("stderr", ""),
             json_data=result.get("json_data"),
         )
-        self._results.append(step_result)
-        if not step_result.success:
-            self._failures += 1
+        with self._lock:
+            self._results.append(step_result)
+            if not step_result.success:
+                self._failures += 1
         return step_result
 
     def run_step(self, step: AgentStep) -> AgentStepResult:
@@ -190,7 +193,8 @@ class AgentOrchestrator:
                 exit_code=-1,
                 error="Circuit open: failure threshold reached",
             )
-            self._results.append(result)
+            with self._lock:
+                self._results.append(result)
             return result
 
         started = time.time()
@@ -238,8 +242,9 @@ class AgentOrchestrator:
                         exit_code=-1,
                         error=str(exc),
                     )
-                    self._results.append(step_result)
-                    self._failures += 1
+                    with self._lock:
+                        self._results.append(step_result)
+                        self._failures += 1
                 results_by_name[step.name] = step_result
 
         return [results_by_name[s.name] for s in steps if s.name in results_by_name]

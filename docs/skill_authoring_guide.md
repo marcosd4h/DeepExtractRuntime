@@ -891,13 +891,13 @@ args.function_id = validate_function_id(args.function_id)  # Validates format
 db_path = resolve_db_path(args.db_path)                     # Resolves and checks existence
 ```
 
-For custom argument validation, use `parser.error()` to produce clean error messages:
+For custom argument validation, use `emit_error()` to produce structured JSON errors:
 
 ```python
 if args.param < 1:
-    parser.error("Parameter number must be >= 1")
+    emit_error("Parameter number must be >= 1", ErrorCode.INVALID_ARGS)
 if not args.function_name and args.function_id is None:
-    parser.error("Provide either a function name or --id")
+    emit_error("Provide either a function name or --id", ErrorCode.INVALID_ARGS)
 ```
 
 ### Output Channels
@@ -916,7 +916,6 @@ misinterpret values if the scale isn't stated:
 
 | Field                | Scale   | Misread Trap                   |
 |----------------------|---------|--------------------------------|
-| `canary_coverage_pct`| 0-100   | `0.2` = 0.2%, not 20%         |
 | `param_risk_score`   | 0.0-1.0 | `0.7` = 70th percentile risk  |
 | `interest_score`     | 0-10    | Integer, not a fraction        |
 

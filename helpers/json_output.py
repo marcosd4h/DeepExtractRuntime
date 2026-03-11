@@ -73,8 +73,9 @@ def emit_json(
             f"emit_json expects a dict, got {type(data).__name__}. "
             "Use emit_json_list() for list payloads."
         )
-    output = {"status": status}
-    output.update(data)
+    effective_status = data.get("status", status)
+    output: dict[str, Any] = {"status": effective_status}
+    output.update({k: v for k, v in data.items() if k != "status"})
     json.dump(output, sys.stdout, indent=2, ensure_ascii=ensure_ascii, default=default)
     sys.stdout.write("\n")
 

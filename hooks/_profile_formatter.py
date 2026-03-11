@@ -11,7 +11,6 @@ def format_profile_line(name: str, profile: dict) -> str:
     lib = profile.get("library_profile", {})
     api = profile.get("api_profile", {})
     comp = profile.get("complexity_profile", {})
-    sec = profile.get("security_posture", {})
 
     noise_pct = int(lib.get("noise_ratio", 0) * 100)
     breakdown = lib.get("breakdown", {})
@@ -41,9 +40,6 @@ def format_profile_line(name: str, profile: dict) -> str:
     avg_asm = comp.get("avg_asm_size", 0)
     max_asm = comp.get("max_asm_size", 0)
 
-    canary = sec.get("canary_coverage_pct")
-    canary_str = f"{canary}%" if canary is not None else "n/a"
-
     parts = [
         f"{noise_pct}% library ({top3_libs})",
         (
@@ -53,7 +49,6 @@ def format_profile_line(name: str, profile: dict) -> str:
         ),
         "+".join(techs) if techs else "no IPC surface",
         f"loops:{loops} avg-asm:{avg_asm} max-asm:{max_asm}",
-        f"canary:{canary_str}",
     ]
     return f"- **{name}**: {' | '.join(parts)}"
 

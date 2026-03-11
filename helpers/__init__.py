@@ -95,6 +95,10 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     "get_dangerous_api_prefixes": (".api_taxonomy", None),
     "get_dangerous_api_set": (".api_taxonomy", None),
     "is_in_dangerous_apis_json": (".api_taxonomy", None),
+    # config
+    "get_config_value": (".config", None),
+    "invalidate_config_cache": (".config", None),
+    "load_config": (".config", None),
     # db_paths
     "_resolve_db_path": (".db_paths", "resolve_db_path"),
     "resolve_db_path_auto": (".db_paths", None),
@@ -127,12 +131,14 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     "emit_error": (".errors", None),
     "log_error": (".errors", None),
     "log_warning": (".errors", None),
+    "safe_parse_args": (".errors", None),
     # json_output
     "emit_json": (".json_output", None),
     "emit_json_list": (".json_output", None),
     "should_force_json": (".json_output", None),
     # cache
     "cache_result": (".cache", None),
+    "cache_stats": (".cache", None),
     "clear_cache": (".cache", None),
     "clear_cache_for_db": (".cache", None),
     "evict_stale": (".cache", None),
@@ -143,6 +149,7 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     "find_agent_script": (".script_runner", None),
     "find_skill_script": (".script_runner", None),
     "get_agents_dir": (".script_runner", None),
+    "get_runtime_root": (".script_runner", None),
     "get_skills_dir": (".script_runner", None),
     "get_workspace_args": (".script_runner", None),
     "get_workspace_root": (".script_runner", None),
@@ -176,8 +183,8 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     "load_profile_for_db": (".module_profile", None),
     "get_noise_ratio": (".module_profile", None),
     "get_technology_flags": (".module_profile", None),
-    "get_canary_coverage": (".module_profile", None),
     # session_utils
+    "read_hook_input": (".session_utils", None),
     "resolve_session_id": (".session_utils", None),
     "scratchpad_path": (".session_utils", None),
     "SCRATCHPADS_DIR": (".session_utils", None),

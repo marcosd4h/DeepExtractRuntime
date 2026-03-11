@@ -17,9 +17,9 @@ Fires once when a new conversation starts. Scans the workspace and injects a str
 
 **What it injects:**
 
-- Module table: name, binary, description, function count, class count, exports, imports, security features
+- Module table: name, binary, description, function count, class count, exports, imports
 - Per-module detail: company, version, size, entry point count
-- Module profiles: pre-computed fingerprints from `module_profile.json` (library noise ratio, dangerous API categories, technology surface flags, complexity metrics, canary coverage)
+- Module profiles: pre-computed fingerprints from `module_profile.json` (library noise ratio, dangerous API categories, technology surface flags, complexity metrics)
 - Analysis database listing with file sizes
 - Quick-reference commands for all skill scripts (find_module_db, list_functions, extract_function_data, triage_summary, scan_module, verify_function)
 - Available skills table with type, purpose, dependencies, and cacheability (from `skills/registry.json`)
@@ -52,7 +52,7 @@ The `env` field (Cursor) sets `AGENT_SESSION_ID` for all subsequent hooks in thi
 
 1. Reads stdin JSON for session identification
 2. Reads `extracted_code/*/file_info.json` for each module (binary identity, PE metadata, function summaries)
-3. Reads `extracted_code/*/module_profile.json` for pre-computed module fingerprints (library composition, API surface, complexity, security posture)
+3. Reads `extracted_code/*/module_profile.json` for pre-computed module fingerprints (library composition, API surface, complexity)
 4. Lists `extracted_dbs/*.db` for analysis databases
 5. Lists `.agent/skills/*/SKILL.md` for available skills
 6. Scans `.agent/rules/*.mdc` for installed runtime rules
@@ -61,7 +61,7 @@ The `env` field (Cursor) sets `AGENT_SESSION_ID` for all subsequent hooks in thi
 9. Ensures `.agent/hooks/scratchpads/` directory exists
 10. Assembles everything into a Markdown context and outputs JSON with `env` and `additional_context`
 
-**Timeout:** 15s host timeout (`hooks.json`); the hook uses a 12s internal deadline to leave buffer for JSON output assembly.
+**Timeout:** 15s host timeout (`hooks.json`); the hook uses the same value from `hooks.session_start_timeout_seconds` as its internal deadline.
 
 #### Context Levels
 
@@ -81,7 +81,7 @@ $env:DEEPEXTRACT_CONTEXT_LEVEL = "full"
 |-------|-------------|-----------------|
 | **`minimal`** | Lightweight context for constrained token budgets | Module summary (compact one-liner per module), analysis database listing, compact name lists of all skills/agents/commands, session ID + scratchpad path |
 | **`standard`** (default) | Balanced context for most workflows | Everything in `minimal` **plus**: full module table, per-module detail block, quick-reference commands, skills table (type, purpose, dependencies, caching), agents table (type, purpose, skills used), commands table (purpose, parameters, skills/agents, grind loop, workspace), workspace layout summary |
-| **`full`** | Maximum context for deep analysis sessions | Everything in `standard` **plus**: module profiles (library noise, dangerous APIs, complexity, canary coverage), README-derived documentation (skills dependency graph, commands usage/integration map, agents architecture/decision table), cached analysis results, pre-computed triage highlights |
+| **`full`** | Maximum context for deep analysis sessions | Everything in `standard` **plus**: module profiles (library noise, dangerous APIs, complexity), README-derived documentation (skills dependency graph, commands usage/integration map, agents architecture/decision table), cached analysis results, pre-computed triage highlights |
 
 **What each level excludes:**
 

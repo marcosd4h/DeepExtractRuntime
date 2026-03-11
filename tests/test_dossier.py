@@ -280,7 +280,7 @@ class TestDataExposure:
 # ---------------------------------------------------------------------------
 
 class TestModuleSecurity:
-    def test_basic_security_features(self):
+    def test_no_module_security_in_output(self):
         func = _make_function_record(function_id=1, function_name="F")
         fi = _make_file_info(
             security_features=json.dumps({
@@ -288,20 +288,8 @@ class TestModuleSecurity:
                 "cfg_enabled": False, "seh_enabled": True,
             }),
         )
-        sec = _build(func, file_info=fi)["module_security"]
-        assert sec["aslr"] is True
-        assert sec["dep"] is True
-        assert sec["cfg"] is False
-        assert sec["seh"] is True
-
-    def test_load_config_cet(self):
-        func = _make_function_record(function_id=1, function_name="F")
-        fi = _make_file_info(
-            load_config=json.dumps({"cet_enabled": True, "xfg_enabled": False}),
-        )
-        sec = _build(func, file_info=fi)["module_security"]
-        assert sec["cet"] is True
-        assert sec["xfg"] is False
+        dossier = _build(func, file_info=fi)
+        assert "module_security" not in dossier
 
 
 # ---------------------------------------------------------------------------

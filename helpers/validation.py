@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
-from .db_paths import DB_NAME_RE, resolve_db_path, workspace_root_from_tracking_db
+from .db_paths import DB_NAME_RE, normalize_module_name, resolve_db_path, workspace_root_from_tracking_db
 
 
 # Expected tables and columns for individual analysis DBs.
@@ -569,12 +569,12 @@ def validate_file_info_consistency(
         json_file_version = version_info.get("file_version")
         json_product_version = version_info.get("product_version")
 
-        db_file_name = row["file_name"] if "file_name" in row.keys() else None
-        db_md5 = row["md5_hash"] if "md5_hash" in row.keys() else None
-        db_sha256 = row["sha256_hash"] if "sha256_hash" in row.keys() else None
-        db_file_version = row["file_version"] if "file_version" in row.keys() else None
+        db_file_name = row["file_name"] if "file_name" in row else None
+        db_md5 = row["md5_hash"] if "md5_hash" in row else None
+        db_sha256 = row["sha256_hash"] if "sha256_hash" in row else None
+        db_file_version = row["file_version"] if "file_version" in row else None
         db_product_version = (
-            row["product_version"] if "product_version" in row.keys() else None
+            row["product_version"] if "product_version" in row else None
         )
 
         def _compare(
@@ -638,6 +638,12 @@ def validate_function_id(value: int | str, arg_name: str = "--id") -> int:
     Raises ScriptError with INVALID_ARGS if invalid.
     """
     from .errors import ErrorCode, ScriptError
+
+    if isinstance(value, bool):
+        raise ScriptError(
+            f"{arg_name} must be an integer, got: {value!r}",
+            ErrorCode.INVALID_ARGS,
+        )
 
     if isinstance(value, float) and not value.is_integer():
         raise ScriptError(
@@ -928,4 +934,4 @@ def validate_workspace_data(
 
 def _normalize_module_key(name: str) -> str:
     """Normalize module names for robust exact matching across naming styles."""
-    return "".join(ch for ch in name.lower() if ch.isalnum())
+    return normalize_module_name(name)

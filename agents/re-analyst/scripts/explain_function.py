@@ -61,7 +61,7 @@ from _common import (  # noqa: E402
     resolve_db_path as _resolve_db_path,
     resolve_function,
 )
-from helpers.errors import ErrorCode, db_error_handler, log_warning, safe_parse_args  # noqa: E402
+from helpers.errors import ErrorCode, db_error_handler, emit_error, log_warning, safe_parse_args  # noqa: E402
 from helpers.function_index import is_library_function  # noqa: E402
 from helpers.json_output import emit_json  # noqa: E402
 from helpers.script_runner import get_workspace_args  # noqa: E402
@@ -411,12 +411,6 @@ def explain_function(
     # Module context
     module_context = {}
     if fi:
-        security = parse_json_safe(fi.security_features) or {}
-        sec_flags = []
-        for feat in ("aslr_enabled", "dep_enabled", "cfg_enabled", "seh_enabled"):
-            if security.get(feat):
-                sec_flags.append(feat.replace("_enabled", "").upper())
-
         module_context = {
             "file_name": fi.file_name,
             "file_description": fi.file_description or "",
@@ -424,7 +418,6 @@ def explain_function(
             "product_name": fi.product_name or "",
             "file_version": fi.file_version or "",
             "pdb_path": fi.pdb_path or "",
-            "security_features": sec_flags,
         }
 
     # Determine if function is an export
@@ -477,7 +470,6 @@ def explain_function(
         "complexity": {
             "loop_count": loops.get("loop_count", 0) if isinstance(loops, dict) else 0,
             "loops": loops.get("loops", []) if isinstance(loops, dict) else [],
-            "stack_canary": stack.get("has_canary") if isinstance(stack, dict) else None,
             "local_vars_size": stack.get("local_vars_size") if isinstance(stack, dict) else None,
         },
         "global_accesses": globals_acc[:20] if isinstance(globals_acc, list) else [],
@@ -519,8 +511,6 @@ def _print_text_explain(data: dict, include_assembly: bool) -> None:
     print(f"\n  Module:        {mc.get('file_name', '?')}")
     if mc.get("file_description"):
         print(f"  Description:   {mc['file_description']}")
-    if mc.get("security_features"):
-        print(f"  Security:      {', '.join(mc['security_features'])}")
 
     # Identity
     print(f"\n  Function:      {ident['function_name']}")
@@ -563,8 +553,6 @@ def _print_text_explain(data: dict, include_assembly: bool) -> None:
     print(f"  COMPLEXITY")
     print(f"{'=' * 60}")
     print(f"  Loops:         {complexity['loop_count']}")
-    if complexity.get("stack_canary") is not None:
-        print(f"  Stack canary:  {'yes' if complexity['stack_canary'] else 'no'}")
     if complexity.get("local_vars_size") is not None:
         print(f"  Stack frame:   {complexity['local_vars_size']} bytes local vars")
 
@@ -714,7 +702,7 @@ def main() -> None:
     args = safe_parse_args(parser)
 
     if not args.function_name and args.function_id is None:
-        parser.error("Provide a function name or --id")
+        emit_error("Provide a function name or --id", ErrorCode.INVALID_ARGS)
 
     if args.function_id is not None:
         args.function_id = validate_function_id(args.function_id)

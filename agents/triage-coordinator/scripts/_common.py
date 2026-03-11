@@ -138,9 +138,6 @@ class ModuleCharacteristics:
     winrt_server_count: int = 0
     winrt_method_count: int = 0
     winrt_risk_tier: str = ""
-    has_aslr: bool = False
-    has_dep: bool = False
-    has_cfg: bool = False
     named_function_pct: float = 0.0
     class_count: int = 0
     dangerous_api_count: int = 0
@@ -195,9 +192,6 @@ class ModuleCharacteristics:
             "security_density": self.security_density,
             "crypto_density": self.crypto_density,
             "dispatch_density": self.dispatch_density,
-            "has_aslr": self.has_aslr,
-            "has_dep": self.has_dep,
-            "has_cfg": self.has_cfg,
             "named_function_pct": self.named_function_pct,
             "class_count": self.class_count,
             "dangerous_api_count": self.dangerous_api_count,
@@ -259,12 +253,6 @@ def get_module_characteristics(db_path: str) -> ModuleCharacteristics:
             if fi:
                 chars.file_name = fi.file_name or ""
                 chars.file_description = fi.file_description or ""
-
-                # Security features
-                security = parse_json_safe(fi.security_features) or {}
-                chars.has_aslr = _get_security_flag(security, "aslr")
-                chars.has_dep = _get_security_flag(security, "dep")
-                chars.has_cfg = _get_security_flag(security, "cfg")
 
                 # RPC index enrichment
                 if rpc_idx and rpc_idx.loaded and chars.file_name:
@@ -374,14 +362,6 @@ def get_module_characteristics(db_path: str) -> ModuleCharacteristics:
                     chars.dangerous_api_count += len(dangerous)
 
     return chars
-
-
-def _get_security_flag(security: dict, name: str) -> bool:
-    """Extract a boolean security feature flag."""
-    val = security.get(name)
-    if isinstance(val, dict):
-        return bool(val.get("enabled"))
-    return bool(val)
 
 
 # ---------------------------------------------------------------------------

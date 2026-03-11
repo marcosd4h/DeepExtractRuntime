@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from typing import Optional
 
+_CALL_RE = re.compile(r"\b([a-zA-Z_]\w*)\s*\(")
+
 _DEFAULT_KEYWORDS = frozenset(
     {
         "if",
@@ -91,11 +93,10 @@ def extract_function_calls(
     """
     calls: list[dict] = []
     lines = code.splitlines()
-    _call_re = re.compile(r"\b([a-zA-Z_]\w*)\s*\(")
 
     for line_idx, line in enumerate(lines):
         stripped = line.strip()
-        for match in _call_re.finditer(stripped):
+        for match in _CALL_RE.finditer(stripped):
             func_name = match.group(1)
             if func_name in keywords:
                 continue
@@ -163,7 +164,7 @@ def discover_calls_with_xrefs(
 
     _CALL_XREF_TYPES = frozenset({
         "Call Near", "Call_Near_Call", "Code_Near_Call", "Call",
-        "Call Near", "call", "Code Near Call",
+        "call", "Code Near Call",
     })
 
     for x in xrefs:

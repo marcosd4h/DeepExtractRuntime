@@ -162,7 +162,6 @@ module:
   md5_hash / sha256_hash:   Content hashes
   file_size_bytes:          File size
   total_functions:          Total functions in the DB
-  security_features:        ASLR/DEP/CFG/SEH status
 attack_surface_summary:
   total_entry_points:       Count of discovered entry points
   entry_point_coverage:     Percentage of all functions that are entry points

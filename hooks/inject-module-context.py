@@ -50,6 +50,7 @@ from hooks._scanners import (  # noqa: E402
     load_module_list_sidecar,
     save_module_list_sidecar,
 )
+from hooks._context_builder import build_context, _is_level_enabled  # noqa: E402
 from hooks._context_builder import build_context  # noqa: E402
 from hooks._readme_loader import (  # noqa: E402
     load_skills_readme_overview,
@@ -95,11 +96,6 @@ def _normalize_context_level(value: str | None) -> str:
         return _DEFAULT_CONTEXT_LEVEL
     level = str(value).strip().lower()
     return level if level in _CONTEXT_LEVELS else _DEFAULT_CONTEXT_LEVEL
-
-
-def _is_level_enabled(context_level: str, required_level: str) -> bool:
-    order = {"minimal": 0, "standard": 1, "full": 2}
-    return order.get(context_level, 1) >= order.get(required_level, 1)
 
 
 def _read_hook_input() -> dict:

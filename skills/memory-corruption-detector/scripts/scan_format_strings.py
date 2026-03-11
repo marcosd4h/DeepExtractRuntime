@@ -39,7 +39,7 @@ from _common import (
     status_message,
     validate_function_id,
 )
-from helpers.errors import safe_parse_args
+from helpers.errors import ErrorCode, safe_parse_args
 
 
 # ---------------------------------------------------------------------------
@@ -302,7 +302,7 @@ def main() -> None:
     if args.function_name and args.function_id is None:
         rec = load_function_record(db_path, function_name=args.function_name)
         if rec is None:
-            emit_error(f"Function '{args.function_name}' not found", "NOT_FOUND")
+            emit_error(f"Function '{args.function_name}' not found", ErrorCode.NOT_FOUND)
         args.function_id = rec["function_id"]
 
     if args.function_id is not None:

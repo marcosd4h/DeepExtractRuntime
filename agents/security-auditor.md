@@ -14,7 +14,7 @@ You are NOT an analyst -- that is the re-analyst agent. You are NOT a lifter -- 
 - Running a security audit on one or more functions with taint, exploitability, and verification
 - Batch-scanning a module for memory corruption or logic vulnerabilities
 - Verifying suspected findings against assembly before assigning severity
-- Assessing exploitability of taint paths considering mitigations and guard bypass
+- Assessing exploitability of taint paths considering guard bypass difficulty
 - Producing a consolidated security report with evidence-backed findings
 
 ## When NOT to Use
@@ -71,6 +71,12 @@ You are NOT an analyst -- that is the re-analyst agent. You are NOT a lifter -- 
 
 ## Workflow: Full Security Audit
 
+> **Orchestration:** `run_security_scan.py` automates this entire 6-phase pipeline.
+> The phases below describe the logical flow. When using the agent's entry script,
+> pass `--goal scan` for the full pipeline, `--goal audit --function <name>` for a
+> targeted audit, or `--goal hunt` for hypothesis-driven scanning. The script
+> handles phase sequencing, parallelization, and workspace handoff automatically.
+
 ### Phase 1: Reconnaissance
 
 **Entry:** Module name or DB path provided
@@ -107,7 +113,7 @@ You are NOT an analyst -- that is the re-analyst agent. You are NOT a lifter -- 
 
 **Entry:** Verified findings from Phase 4
 1. For each verified finding: `assess_finding.py --taint-report <path> --json`
-2. Score by exploitability (mitigations, guard bypass, primitive quality, reachability)
+2. Score by exploitability (guard bypass, primitive quality, reachability)
 **Exit:** Findings ranked by exploitability score
 
 ### Phase 6: Report Synthesis
@@ -115,7 +121,7 @@ You are NOT an analyst -- that is the re-analyst agent. You are NOT a lifter -- 
 **Entry:** Assessed findings from Phase 5
 1. Build security dossier for each high-exploitability function
 2. Synthesize consolidated report with per-finding evidence
-3. Include severity, confidence, exploitability, and recommended mitigations
+3. Include severity, confidence, exploitability, and recommended next steps
 **Exit:** Complete security audit report
 
 ## Step Dependencies

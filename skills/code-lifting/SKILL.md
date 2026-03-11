@@ -1,6 +1,8 @@
 ---
 name: code-lifting
 description: Lift and rewrite IDA Pro decompiled C/C++ functions into clean, readable, 100% functionally equivalent code using both decompiled output and assembly as ground truth. Defines the 11-step lifting workflow that the code-lifter agent follows. Use when the user asks to lift, rewrite, clean up, reconstruct, or improve decompiled functions, wants to make decompiled code readable while preserving exact behavior, or mentions code lifting.
+cacheable: false
+depends_on: ["decompiled-code-extractor", "reconstruct-types"]
 ---
 
 # Code Lifting

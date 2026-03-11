@@ -82,7 +82,7 @@ if str(_RUNTIME_ROOT) not in sys.path:
 from helpers.db_paths import _auto_workspace_root  # noqa: E402
 _WORKSPACE_ROOT = _auto_workspace_root()
 
-from helpers.errors import ErrorCode, log_warning  # noqa: E402
+from helpers.errors import ErrorCode, emit_error, log_warning, safe_parse_args  # noqa: E402
 from helpers.json_output import emit_json  # noqa: E402
 from helpers.progress import status_message  # noqa: E402
 from helpers.individual_analysis_db import open_individual_analysis_db, parse_json_safe, escape_like, LIKE_ESCAPE  # noqa: E402
@@ -862,40 +862,14 @@ def _highlight_match(text: str, query: str,
 def _extract_class_from_mangled(mangled: str) -> Optional[str]:
     """Extract a class name from an IDA mangled name.
 
-    Common patterns:
-        ??0ClassName@@...    -> ClassName (constructor)
-        ??1ClassName@@...    -> ClassName (destructor)
-        ??_7ClassName@@6B@   -> ClassName (vftable)
-        ?Method@ClassName@@  -> ClassName
+    Delegates to the canonical parser in ``helpers.mangled_names``.
     """
-    if not mangled or not mangled.startswith("?"):
+    from helpers.mangled_names import parse_class_from_mangled
+
+    result = parse_class_from_mangled(mangled)
+    if result is None:
         return None
-
-    # Constructor/destructor: ??0Name@@ or ??1Name@@
-    if mangled.startswith("??0") or mangled.startswith("??1"):
-        rest = mangled[3:]
-        at_idx = rest.find("@@")
-        if at_idx > 0:
-            return rest[:at_idx]
-
-    # Vftable: ??_7Name@@6B@
-    if mangled.startswith("??_7"):
-        rest = mangled[4:]
-        at_idx = rest.find("@@")
-        if at_idx > 0:
-            return rest[:at_idx]
-
-    # Method: ?Method@ClassName@@
-    if mangled.startswith("?") and not mangled.startswith("??"):
-        rest = mangled[1:]
-        at_idx = rest.find("@")
-        if at_idx > 0:
-            rest2 = rest[at_idx + 1:]
-            at2_idx = rest2.find("@@")
-            if at2_idx > 0:
-                return rest2[:at2_idx]
-
-    return None
+    return result.get("class_name")
 
 
 def _extract_classes_from_vtable(
@@ -1115,10 +1089,10 @@ def main() -> None:
     parser.add_argument("--sort", choices=["score", "name", "id"],
                         default="score",
                         help="Sort order within each dimension (default: score)")
-    args = parser.parse_args()
+    args = safe_parse_args(parser)
 
     if not args.db_path and not args.all:
-        parser.error("Provide a db_path or use --all to search all modules")
+        emit_error("Provide a db_path or use --all to search all modules", ErrorCode.INVALID_ARGS)
 
     # Resolve match mode from --mode / --regex / --fuzzy
     if args.regex:
@@ -1133,8 +1107,8 @@ def main() -> None:
         requested = tuple(d.strip().lower() for d in args.dimensions.split(","))
         invalid = [d for d in requested if d not in ALL_DIMENSIONS]
         if invalid:
-            parser.error(f"Invalid dimensions: {', '.join(invalid)}. "
-                         f"Valid: {', '.join(ALL_DIMENSIONS)}")
+            emit_error(f"Invalid dimensions: {', '.join(invalid)}. "
+                       f"Valid: {', '.join(ALL_DIMENSIONS)}", ErrorCode.INVALID_ARGS)
         dimensions = requested
 
     search_kwargs = dict(mode=mode, fuzzy_threshold=args.threshold,

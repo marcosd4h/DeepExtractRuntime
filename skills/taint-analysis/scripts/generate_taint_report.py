@@ -25,7 +25,7 @@ if _AGENT_DIR not in sys.path:
     sys.path.insert(0, _AGENT_DIR)
 
 from helpers.calling_conventions import param_name_for  # noqa: E402
-from helpers.errors import emit_error, safe_parse_args  # noqa: E402
+from helpers.errors import ErrorCode, emit_error, safe_parse_args  # noqa: E402
 from helpers.json_output import emit_json  # noqa: E402
 
 
@@ -261,20 +261,20 @@ def main() -> None:
             with open(args.forward, "r", encoding="utf-8") as fh:
                 forward_data = json.load(fh)
         except FileNotFoundError:
-            emit_error(f"Forward trace file not found: {args.forward}", "NOT_FOUND")
+            emit_error(f"Forward trace file not found: {args.forward}", ErrorCode.NOT_FOUND)
             return
         except (json.JSONDecodeError, OSError) as exc:
-            emit_error(f"Failed to read forward trace: {exc}", "PARSE_ERROR")
+            emit_error(f"Failed to read forward trace: {exc}", ErrorCode.PARSE_ERROR)
             return
     if args.backward:
         try:
             with open(args.backward, "r", encoding="utf-8") as fh:
                 backward_data = json.load(fh)
         except FileNotFoundError:
-            emit_error(f"Backward trace file not found: {args.backward}", "NOT_FOUND")
+            emit_error(f"Backward trace file not found: {args.backward}", ErrorCode.NOT_FOUND)
             return
         except (json.JSONDecodeError, OSError) as exc:
-            emit_error(f"Failed to read backward trace: {exc}", "PARSE_ERROR")
+            emit_error(f"Failed to read backward trace: {exc}", ErrorCode.PARSE_ERROR)
             return
 
     report = build_report(forward_data, backward_data, direction=args.direction)

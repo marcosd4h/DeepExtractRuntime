@@ -1379,7 +1379,7 @@ Labels: high (>=0.70), medium (>=0.40), low (<0.40).
 2. **Discover** -- Find target function (via index, search, grep)
 3. **Analyze** -- Read and understand (parse header, read body, map struct access, identify API calls)
 4. **Cross-reference** -- Trace call chains, check imports, search for `sub_XXXX`
-5. **Contextualize** -- Understand binary role (security_features, entry_points, exports, rich_header)
+5. **Contextualize** -- Understand binary role (entry_points, exports, rich_header)
 
 **IDA naming patterns:** `a1`/`a2` (parameters), `v1`/`v2` (locals), `sub_XXXX` (unnamed functions), `off_XXXX` (global pointer data), `dword_XXXX` (global DWORD data), `??0ClassName` (constructor), `??1ClassName` (destructor).
 
@@ -2236,7 +2236,7 @@ EOF## 5. Commands Reference
 2. **Merge/Deduplicate** -- Normalize to common schema, cross-reference intersections
 3. **Verify** -- `verify_findings.py` for memory + logic; apply FALSE_POSITIVE/UNCERTAIN adjustments
 4. **Score Exploitability** -- `assess_finding.py` / `batch_assess.py` for CRITICAL/HIGH
-5. **Synthesize** -- Executive summary, top findings, pipeline breakdown, mitigations, recommendations
+5. **Synthesize** -- Executive summary, top findings, pipeline breakdown, recommendations
 6. (Optional) **Auto-audit** -- `/audit` pipeline on top 3 CRITICAL/HIGH
 
 **Skills:** memory-corruption-detector, logic-vulnerability-detector, taint-analysis, map-attack-surface, exploitability-assessment, decompiled-code-extractor.
@@ -2937,7 +2937,7 @@ All cacheable skills accept `--no-cache` to force recomputation. Cache uses 24h 
 | **Lifting** | Rewriting decompiled code into clean, readable C++ while preserving exact functional equivalence with the original binary. |
 | **Manifest** | JSON file in workspace run directories tracking per-step status, summary paths, and error information. |
 | **Module** | A single Windows PE binary (DLL/EXE) that has been extracted and analyzed by DeepExtractIDA. |
-| **Module profile** | Pre-computed fingerprint (`module_profile.json`) containing function counts, noise ratio, technology flags, canary coverage, and classification distribution. |
+| **Module profile** | Pre-computed fingerprint (`module_profile.json`) containing function counts, noise ratio, technology flags, and classification distribution. |
 | **Run directory** | Workspace directory under `.agent/workspace/` used for filesystem handoff in multi-step workflows. Contains step subdirectories, `manifest.json`, and summaries. |
 | **Scratchpad** | Session-scoped markdown file (`.agent/hooks/scratchpads/{session_id}.md`) used by the grind-loop protocol to track multi-item task progress. |
 | **Skill** | A self-contained analysis capability with optional Python scripts, a SKILL.md definition, and defined inputs/outputs. |

@@ -120,7 +120,6 @@ Complete dossier as a JSON object:
     "local_vars_size": 288,
     "args_size": 40,
     "saved_regs_size": 8,
-    "has_canary": true,
     "has_exception_handler": false,
     "frame_pointer_present": false,
     "string_count": 5,
@@ -148,14 +147,6 @@ Complete dossier as a JSON object:
     ],
     "direct_caller_count": 3
   },
-  "module_security": {
-    "aslr": true,
-    "dep": true,
-    "cfg": true,
-    "seh": true,
-    "cet": null,
-    "xfg": null
-  },
   "data_quality": {
     "has_issues": false,
     "analysis_errors": [],
@@ -177,7 +168,6 @@ Complete dossier as a JSON object:
 | code_injection APIs                   | Process injection capability                              | Critical |
 | privilege APIs                        | Privilege escalation surface                              | High     |
 | Global writes + external reachability | Attacker-controlled state mutation                        | High     |
-| No canary + large stack frame         | Stack buffer overflow risk                                | Medium   |
 | High cyclomatic complexity (>10)      | Complex control flow, higher bug probability              | Medium   |
 | Sync operations                       | Potential deadlock or race conditions                     | Medium   |
 | `has_syscall = true`                  | Direct syscall detected -- potential security hook evasion | High     |
@@ -210,12 +200,11 @@ with open_individual_analysis_db("extracted_dbs/module.db") as db:
     func.parsed_simple_inbound_xrefs   # list of xref dicts
     func.parsed_global_var_accesses    # list of {address, name, access_type}
     func.parsed_loop_analysis          # {loops: [...], loop_count: N}
-    func.parsed_stack_frame            # {local_vars_size, has_canary, ...}
+    func.parsed_stack_frame            # {local_vars_size, ...}
 
     # File-level data
     file_info = db.get_file_info()
     file_info.parsed_exports           # list of export dicts
-    file_info.parsed_security_features # {aslr_enabled, dep_enabled, ...}
 ```
 
 See [data_format_reference.md](../../docs/data_format_reference.md) for full field documentation.

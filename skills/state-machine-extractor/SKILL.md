@@ -1,6 +1,8 @@
 ---
 name: state-machine-extractor
 description: Extract state machines, dispatch tables, and switch/case command dispatchers from IDA Pro decompiled binaries. Use when the user asks to find dispatch tables, extract switch/case mappings, reconstruct state machines, identify command handlers, map case values to handler functions, generate state diagrams, or analyze command dispatchers in decompiled Windows PE binaries.
+cacheable: true
+depends_on: ["decompiled-code-extractor"]
 ---
 
 # State Machine & Dispatch Table Extraction
@@ -8,6 +10,14 @@ description: Extract state machines, dispatch tables, and switch/case command di
 ## Purpose
 
 Detect and reconstruct command dispatchers, switch/case dispatch tables, and state machines from DeepExtractIDA analysis databases. Scans decompiled code for switch statements and if-else chains, correlates with jump table targets from outbound xrefs, and uses loop analysis to identify state machine patterns. Produces structured dispatch tables (case value -> handler function) and state transition models with Mermaid/DOT diagram output.
+
+## When NOT to Use
+
+- Tracing data flow through function parameters or global variables -- use **data-flow-tracer**
+- Tracing call chains from dispatch handler functions -- use **callgraph-tracer**
+- Scanning for vulnerabilities in dispatcher functions -- use **memory-corruption-detector** or **logic-vulnerability-detector**
+- General function explanation or understanding decompiled code -- use **re-analyst** or `/explain`
+- Classifying functions by purpose (not just identifying dispatchers) -- use **classify-functions**
 
 ## Data Sources
 

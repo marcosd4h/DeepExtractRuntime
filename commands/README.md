@@ -3,7 +3,7 @@
 Reusable analysis workflows triggered with `/` in the Cursor chat input. In an
 installed workspace they live under `.agent/commands/` inside a
 `DeepExtractIDA_output_root`; in this source checkout they live in `commands/`.
-The live registry currently defines 36 commands.
+The live registry (`registry.json`) is the source of truth for the current command set.
 
 **Registry**: `registry.json` in this directory is the machine-readable source of truth for all commands -- listing purpose, referenced skills, agents, parameters, grind-loop usage, and workspace-protocol usage. It is loaded by `inject-module-context.py` at session start and validated by the infrastructure test suite.
 
@@ -159,7 +159,7 @@ When module is optional and omitted, commands should:
 **What it does**:
 
 1. Resolves the module to its analysis database
-2. Extracts binary identity and security posture (ASLR/DEP/CFG)
+2. Extracts binary identity
 3. Classifies all functions by purpose (file I/O, registry, crypto, security, etc.)
 4. Computes call graph topology (hubs, connectivity, roots/leaves)
 5. Discovers and ranks all entry points by attack value
@@ -193,8 +193,6 @@ When module is optional and omitted, commands should:
 **Agents used**: security-auditor (verification subagent)
 
 **Skills used**: decompiled-code-extractor, security-dossier, map-attack-surface, data-flow-tracer, verify-decompiled, callgraph-tracer, classify-functions, taint-analysis
-
----
 
 ---
 
@@ -253,10 +251,9 @@ When module is optional and omitted, commands should:
 3. Finds shared function calls between module pairs
 4. Compares import/export API surfaces
 5. Compares function classification distributions
-6. Compares security postures side-by-side
-7. Traces the most interesting cross-module call chains
-8. Generates a Mermaid inter-module dependency diagram
-9. Synthesizes a comparison report with architectural observations
+6. Traces the most interesting cross-module call chains
+7. Generates a Mermaid inter-module dependency diagram
+8. Synthesizes a comparison report with architectural observations
 
 **Output**: Cross-module comparison report with side-by-side profiles, dependency diagrams, shared function calls, capability differences, and recommended cross-boundary audit targets.
 

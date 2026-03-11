@@ -63,11 +63,7 @@ The scan produces a consolidated report with:
    - Logic: auth bypass, state errors, TOCTOU, missing checks
    - Taint: attacker-reachable sinks with guard/bypass analysis
 
-5. **Mitigation Analysis**
-   - Which mitigations (ASLR/DEP/CFG/CET/canary) protect which findings
-   - Logic bugs that bypass all hardware mitigations (flagged prominently)
-
-6. **Recommended Next Steps**
+5. **Recommended Next Steps**
    - `/audit <module> <function>` — deep audit on CRITICAL/HIGH findings
    - `/taint <module> <function> --cross-module` — cross-module impact
    - `/hunt-plan hypothesis <type> <module>` — hypothesis-driven investigation

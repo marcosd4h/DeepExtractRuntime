@@ -16,14 +16,13 @@ Typical usage::
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 from typing import Any
 
 from .config import get_config_value
+from .db_paths import DB_HASH_SUFFIX_RE as _DB_HASH_SUFFIX_RE
 from .errors import log_warning
-
-_DB_HASH_SUFFIX_RE = re.compile(r"_[0-9a-f]{6,}$")
+from .progress import status_message
 
 PROFILE_FILENAME = "module_profile.json"
 
@@ -78,7 +77,6 @@ def load_all_profiles(
     """
     if max_modules is None:
         max_modules = get_config_value("scale.max_modules_cross_scan", 0)
-    import sys
     profiles: dict[str, dict[str, Any]] = {}
     if not extracted_code_dir.is_dir():
         return profiles
@@ -89,10 +87,7 @@ def load_all_profiles(
         if max_modules and max_modules > 0 and loaded >= max_modules:
             break
         if total >= 500 and i % 500 == 0:
-            print(
-                f"  load_all_profiles: {i}/{total} modules...",
-                file=sys.stderr,
-            )
+            status_message(f"load_all_profiles: {i}/{total} modules...")
         profile = load_module_profile(module_dir)
         if profile is not None:
             profiles[module_dir.name] = profile
@@ -159,6 +154,3 @@ def get_technology_flags(profile: dict[str, Any]) -> dict[str, bool]:
     }
 
 
-def get_canary_coverage(profile: dict[str, Any]) -> float | None:
-    """Return stack canary coverage percentage, or ``None`` if unavailable."""
-    return profile.get("security_posture", {}).get("canary_coverage_pct")

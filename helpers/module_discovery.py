@@ -18,17 +18,17 @@ Typical usage::
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
+
+from .db_paths import DB_HASH_SUFFIX_RE as _DB_HASH_SUFFIX_RE
+from .db_paths import normalize_module_name
 
 
 TRACKING_DB_NAME = "analyzed_files.db"
 FILE_INFO_JSON = "file_info.json"
 FUNCTION_INDEX_JSON = "function_index.json"
-
-_DB_HASH_SUFFIX_RE = re.compile(r"_[0-9a-f]{6,}$", re.IGNORECASE)
 
 
 # ---------------------------------------------------------------------------
@@ -179,12 +179,7 @@ def dir_name_to_file_name(dir_name: str) -> str:
     return dir_name
 
 
-def normalize_module_name(name: str) -> str:
-    """Normalize a module name for tolerant matching.
-
-    Lowercases and replaces non-alphanumeric runs with underscores.
-    """
-    return re.sub(r"[^a-z0-9]+", "_", name.strip().lower()).strip("_")
+# normalize_module_name is re-exported from db_paths (imported above).
 
 
 def get_tracking_db_path(extracted_dbs_dir: Path) -> Optional[Path]:

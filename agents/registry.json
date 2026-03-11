@@ -20,7 +20,7 @@
         {"script": "analyze_module.py", "accepts": {"db_path": "required", "--goal": "required", "--function": "optional", "--json": "flag", "--timeout": "optional", "--workspace-run-dir": "optional"}},
         {"script": "generate_analysis_plan.py", "accepts": {"db_path": "required", "--goal": "required", "--function": "optional", "--json": "flag"}}
       ],
-      "skills_used": ["classify-functions", "map-attack-surface", "callgraph-tracer", "security-dossier", "reconstruct-types", "deep-research-prompt", "com-interface-reconstruction", "state-machine-extractor", "decompiled-code-extractor", "taint-analysis", "import-export-resolver"],
+      "skills_used": ["analyze-ida-decompiled", "classify-functions", "map-attack-surface", "callgraph-tracer", "data-flow-tracer", "security-dossier", "generate-re-report", "reconstruct-types", "deep-research-prompt", "com-interface-reconstruction", "state-machine-extractor", "decompiled-code-extractor", "taint-analysis", "import-export-resolver", "batch-lift", "verify-decompiled"],
       "json_output": true
     },
     "code-lifter": {
@@ -48,7 +48,7 @@
       "purpose": "Dedicated security assessment: vulnerability scanning, exploitability analysis, and finding verification",
       "type": "analyst",
       "entry_scripts": [
-        {"script": "run_security_scan.py", "accepts": {"db_path": "required", "--goal": "optional", "--function": "optional", "--top": "optional", "--json": "flag", "--timeout": "optional"}}
+        {"script": "run_security_scan.py", "accepts": {"db_path": "required", "--goal": "optional", "--function": "optional", "--top": "optional", "--json": "flag", "--timeout": "optional", "--workspace-run-dir": "optional", "--max-workers": "optional", "--no-cache": "flag"}}
       ],
       "skills_used": ["decompiled-code-extractor", "classify-functions", "map-attack-surface", "security-dossier", "taint-analysis", "exploitability-assessment", "memory-corruption-detector", "logic-vulnerability-detector"],
       "methodologies_referenced": ["adversarial-reasoning", "finding-verification"],

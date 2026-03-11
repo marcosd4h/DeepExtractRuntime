@@ -23,7 +23,7 @@ from _common import (
     resolve_tracking_db,
     status_message,
 )
-from helpers.errors import safe_parse_args
+from helpers.errors import ErrorCode, emit_error, safe_parse_args
 
 
 def resolve_forwarders(
@@ -158,9 +158,9 @@ def main() -> None:
     args = safe_parse_args(parser)
 
     if not args.module:
-        parser.error("--module is required")
+        emit_error("--module is required", ErrorCode.INVALID_ARGS)
     if not args.function and not args.all_forwarded:
-        parser.error("Provide --function or --all")
+        emit_error("Provide --function or --all", ErrorCode.INVALID_ARGS)
 
     result = resolve_forwarders(
         args.tracking_db_path,

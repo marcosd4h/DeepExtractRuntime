@@ -10,6 +10,7 @@ description: >-
   security review, or needs to understand complex decompiled code with
   many branches, casts, and indirect calls.
 depends_on: ["decompiled-code-extractor", "classify-functions", "callgraph-tracer", "data-flow-tracer", "map-attack-surface"]
+cacheable: false
 ---
 
 # Deep Context Builder

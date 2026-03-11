@@ -15,7 +15,6 @@ from helpers.module_profile import (
     load_all_profiles,
     get_noise_ratio,
     get_technology_flags,
-    get_canary_coverage,
 )
 
 
@@ -153,14 +152,3 @@ class TestTechnologyFlags:
         assert isinstance(flags, dict)
 
 
-class TestCanaryCoverage:
-
-    def test_with_coverage(self, sample_profile):
-        _, profile = sample_profile
-        coverage = get_canary_coverage(profile)
-        assert coverage == pytest.approx(0.85)
-
-    def test_missing_section(self):
-        profile = {}
-        coverage = get_canary_coverage(profile)
-        assert coverage is None

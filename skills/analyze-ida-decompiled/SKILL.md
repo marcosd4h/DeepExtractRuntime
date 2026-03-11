@@ -1,6 +1,8 @@
 ---
 name: analyze-ida-decompiled
 description: Analyze, explain, and navigate IDA Pro decompiled C/C++ code extracted by DeepExtractIDA from Windows PE binaries. Use when the user asks to understand, annotate, trace, or explain decompiled functions, needs help cross-referencing functions, wants to know what a function does, asks about control flow, imports, exports, or security features of an extracted module, or references .cpp files and file_info.json from an extraction output.
+cacheable: false
+depends_on: []
 ---
 
 # Analyze IDA Decompiled Code
@@ -84,11 +86,9 @@ Use `file_info.json` for all programmatic lookups. Key sections:
 | `imports`             | Imported DLLs and functions (includes delay-load, API-set resolution) |
 | `exports`             | Exported symbols with ordinals and forwarder info                     |
 | `sections`            | PE section table (names, addresses, sizes, permissions)               |
-| `security_features`   | ASLR, DEP, CFG, SEH status                                            |
 | `dll_characteristics` | Raw and decoded DllCharacteristics flags                              |
 | `rich_header`         | Compiler/linker toolchain metadata                                    |
 | `tls_callbacks`       | TLS callbacks with threat analysis                                    |
-| `load_config`         | SEH/CFG guard tables                                                  |
 | `function_summary`    | Categorized function index (class methods + standalone)               |
 
 ### function_summary Structure
@@ -214,7 +214,6 @@ To find a called function's implementation:
 
 Use metadata to ground the analysis:
 
-- `security_features` -- what mitigations are enabled (ASLR, DEP, CFG)
 - `entry_points` -- which functions are exported/entry points
 - `exports` -- what API surface does this module expose
 - `rich_header` -- what toolchain built this binary

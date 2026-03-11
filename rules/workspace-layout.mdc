@@ -11,7 +11,7 @@ alwaysApply: true
 | `extracted_code/{module}/reports/` | Saved reports, visualizations, and analysis artifacts (.md, .html, .h) |
 | `extracted_dbs/` | SQLite analysis DBs (assembly, xrefs, strings, loops) |
 | `.agent/helpers/` | Shared Python library (30+ modules) -- **use for all script development** |
-| `.agent/docs/` | Data format references (data_format_reference.md, file_info_format_reference.md) |
+| `.agent/docs/` | Architecture, authoring guides, format references, testing, onboarding, and more |
 | `.agent/skills/` | Analysis skills with helper scripts in scripts/ subdirs |
 | `.agent/agents/` | Subagent definitions and scripts |
 | `.agent/commands/` | Slash command definitions (.md files) |

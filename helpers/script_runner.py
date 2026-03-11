@@ -24,20 +24,17 @@ from types import ModuleType
 from typing import Any, Optional
 
 from .errors import log_error, log_warning
+from .progress import status_message
 
 # ---------------------------------------------------------------------------
 # Workspace / directory resolution
 # ---------------------------------------------------------------------------
-# helpers/ sits directly under the runtime root (e.g. DeepExtractRuntime/helpers/).
-# When deployed inside a `.agent/` directory the root is two levels up;
-# otherwise (standalone repo layout) it is one level up.
+
+from .db_paths import _auto_workspace_root
+
 _HELPERS_DIR = Path(__file__).resolve().parent
 _RUNTIME_ROOT = _HELPERS_DIR.parent
-_WORKSPACE_ROOT = (
-    _RUNTIME_ROOT.parent
-    if _RUNTIME_ROOT.name == ".agent"
-    else _RUNTIME_ROOT
-)
+_WORKSPACE_ROOT = _auto_workspace_root()
 
 
 def get_workspace_root() -> Path:
@@ -111,11 +108,11 @@ def run_skill_script(
     skill_name: str,
     script_name: str,
     args: list[str],
-    timeout: int = 120,
+    timeout: int | None = None,
     json_output: bool = False,
     workspace_dir: str | None = None,
     workspace_step: str | None = None,
-    max_retries: int = 0,
+    max_retries: int | None = None,
 ) -> dict:
     """Run a skill script as a subprocess and capture output.
 
@@ -123,7 +120,8 @@ def run_skill_script(
         skill_name: Name of the skill directory (e.g. ``'classify-functions'``).
         script_name: Script filename (e.g. ``'triage_summary.py'``).
         args: Command-line arguments to pass to the script.
-        timeout: Subprocess timeout in seconds.
+        timeout: Subprocess timeout in seconds.  When ``None``, uses
+            ``script_runner.default_timeout_seconds`` from config (default 180).
         json_output: If ``True``, append ``--json`` to the argument list and
             attempt to parse stdout as JSON.
         workspace_dir: Optional run workspace directory to pass through via
@@ -131,13 +129,21 @@ def run_skill_script(
         workspace_step: Optional per-step key for workspace result
             partitioning via ``--workspace-step``.
         max_retries: Number of automatic retries for transient errors
-            (DB locks, I/O errors).  Default ``0`` (no retries).
+            (DB locks, I/O errors).  When ``None``, uses
+            ``script_runner.max_retries`` from config (default 0).
             Maximum value clamped to ``2``.
 
     Returns:
         A dict with keys ``success``, ``stdout``, ``stderr``, ``json_data``,
         ``exit_code``, and ``error``.
     """
+    from helpers.config import get_config_value
+
+    if timeout is None:
+        timeout = int(get_config_value("script_runner.default_timeout_seconds", 180))
+    if max_retries is None:
+        max_retries = int(get_config_value("script_runner.max_retries", 0))
+
     script_path = find_skill_script(skill_name, script_name)
     if script_path is None:
         return {
@@ -174,7 +180,7 @@ def run_skill_script(
 
             if result.stderr.strip():
                 for line in result.stderr.strip().splitlines():
-                    print(f"  [{script_name}] {line}", file=sys.stderr)
+                    status_message(f"[{script_name}] {line}")
 
             json_data = None
             json_error = None

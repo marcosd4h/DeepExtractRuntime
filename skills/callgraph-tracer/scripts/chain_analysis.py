@@ -49,7 +49,7 @@ from _common import (
     search_index,
     validate_function_id,
 )
-from helpers.errors import ErrorCode, db_error_handler, safe_parse_args
+from helpers.errors import ErrorCode, db_error_handler, emit_error, safe_parse_args
 from helpers.json_output import emit_json
 
 
@@ -530,7 +530,7 @@ def main() -> None:
     analyzer = ChainAnalyzer(tracking_db=args.tracking_db)
 
     if not args.function_name and args.function_id is None:
-        parser.error("Provide a function name or --id")
+        emit_error("Provide a function name or --id", ErrorCode.INVALID_ARGS)
 
     if args.json:
         if args.summary:

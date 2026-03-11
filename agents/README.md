@@ -35,7 +35,7 @@ Subagents **cannot launch other subagents**. The parent agent orchestrates all d
 - Understanding what a function or module does
 - Explaining IDA Pro naming conventions and decompiler artifacts
 - Answering Windows internals questions in context of decompiled code
-- Getting a quick module overview (identity, classes, exports, security features)
+- Getting a quick module overview (identity, classes, exports)
 - Any "explain this" or "what does this do" query about extracted binaries
 
 **Scripts:**
@@ -48,7 +48,7 @@ Subagents **cannot launch other subagents**. The parent agent orchestrates all d
 **re_query.py** -- 5 query modes, all with optional `--json`:
 
 ```bash
-# Module overview (identity, stats, classes, import DLLs, security features)
+# Module overview (identity, stats, classes, import DLLs)
 python .agent/agents/re-analyst/scripts/re_query.py <db_path> --overview
 
 # Function with full context (classification + strings + outbound calls + callers)
@@ -244,7 +244,7 @@ python .agent/agents/type-reconstructor/scripts/merge_evidence.py --scan-output 
 - Running a security audit on one or more functions with taint, exploitability, and verification
 - Batch-scanning a module for memory corruption or logic vulnerabilities
 - Verifying suspected findings against assembly before assigning severity
-- Assessing exploitability of taint paths considering mitigations and guard bypass
+- Assessing exploitability of taint paths considering guard bypass difficulty
 
 **When NOT to use:**
 - Explaining what a function does -- use **re-analyst**
@@ -509,7 +509,7 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list
 
 Each module's `extracted_code/{module}/function_index.json` maps function names to their `.cpp` files and library tags. Use `load_function_index_for_db(db_path)` to load the index directly from a DB path.
 
-Each module also has `extracted_code/{module}/module_profile.json` with pre-computed metrics (library noise ratio, dangerous API categories, complexity stats, canary coverage). Use `load_profile_for_db(db_path)` to load the profile from a DB path. The session context also includes a compact "Module Profiles" section with this data.
+Each module also has `extracted_code/{module}/module_profile.json` with pre-computed metrics (library noise ratio, dangerous API categories, complexity stats). Use `load_profile_for_db(db_path)` to load the profile from a DB path. The session context also includes a compact "Module Profiles" section with this data.
 
 ## Files
 

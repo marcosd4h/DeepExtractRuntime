@@ -36,12 +36,11 @@ from _common import (
 
 sys.path.insert(0, str(WORKSPACE_ROOT / ".agent"))
 from helpers import (
-    emit_error,
     load_function_index_for_db,
     open_individual_analysis_db,
     resolve_function,
 )
-from helpers.errors import ErrorCode, db_error_handler, safe_parse_args
+from helpers.errors import ErrorCode, db_error_handler, emit_error, safe_parse_args
 from helpers.json_output import emit_json
 from helpers.script_runner import get_workspace_args
 
@@ -490,8 +489,7 @@ def extract_and_display(
         )
         if err:
             if "Multiple matches" in err:
-                print(err)
-                return
+                emit_error(err, ErrorCode.AMBIGUOUS)
             emit_error(f"[{Path(db_path).stem}] {err}", ErrorCode.NOT_FOUND)
 
         assert func is not None
@@ -535,7 +533,7 @@ def main() -> None:
     db_path = resolve_db_path(args.db_path)
 
     if args.function_id is None and args.function_name is None:
-        parser.error("Provide a function name or --id")
+        emit_error("Provide a function name or --id", ErrorCode.INVALID_ARGS)
 
     with db_error_handler(db_path, "extracting basic blocks"):
         extract_and_display(

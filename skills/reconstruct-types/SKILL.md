@@ -1,6 +1,8 @@
 ---
 name: reconstruct-types
 description: Reconstruct C/C++ struct and class definitions from IDA Pro decompiled code by scanning memory access patterns, vtable contexts, and mangled names across all functions in a module. Use when the user asks to reconstruct types, build struct layouts, extract class hierarchies, generate header files, improve type information for code lifting, or analyze struct/class definitions from decompiled binaries.
+cacheable: true
+depends_on: ["decompiled-code-extractor"]
 ---
 
 # Reconstruct Types
@@ -14,6 +16,14 @@ Assembly is the **ground truth** -- it provides exact field sizes from instructi
 This skill feeds directly into code lifting -- once you have accurate structs, every subsequent lift replaces raw pointer arithmetic with readable field access.
 
 **This is NOT security analysis.** The goal is faithful type reconstruction, not vulnerability research.
+
+## When NOT to Use
+
+- Lifting or rewriting decompiled functions to clean code -- use **code-lifting** or **batch-lift**
+- Scanning for vulnerabilities in functions that use reconstructed types -- use **memory-corruption-detector** or **logic-vulnerability-detector**
+- Understanding COM interfaces from vtable layouts -- use **com-interface-reconstruction**
+- Tracing data flow through struct fields across functions -- use **data-flow-tracer**
+- General function explanation -- use **re-analyst** or `/explain`
 
 ## Data Sources
 

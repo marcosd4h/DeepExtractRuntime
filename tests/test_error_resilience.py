@@ -550,9 +550,6 @@ class TestPipelineStepParallelGroup:
         chars.named_function_pct = 80
         chars.class_count = 5
         chars.dangerous_api_count = 10
-        chars.has_aslr = True
-        chars.has_dep = True
-        chars.has_cfg = False
         chars.com_density = 0
         chars.rpc_density = 0
         chars.security_density = 0

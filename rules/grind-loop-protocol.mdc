@@ -48,16 +48,16 @@ IN_PROGRESS
 ## Managing the Scratchpad
 
 1. **Check off items** as you complete them: change `[ ]` to `[x]`
-2. **When all items are done**, set Status to `DONE`
+2. **When all items are done**, set Status to `DONE` (or `COMPLETE` -- both are accepted)
 3. **If you finish early** or the user cancels, set Status to `DONE` to stop the loop
-4. The hook deletes the scratchpad automatically once Status is `DONE` or all items are checked
+4. The hook deletes the scratchpad automatically once Status is `DONE`/`COMPLETE` or all items are checked
 
 ## What Happens at Stop
 
 When the agent loop ends (you run out of things to say), the stop hook:
 - Resolves the session ID from environment variables or stdin metadata (platform-agnostic: works with Cursor and Claude Code)
 - Reads the session-scoped scratchpad at `.agent/hooks/scratchpads/{session_id}.md`
-- If unchecked items remain and Status is not `DONE`, sends a **followup message** listing remaining items
+- If unchecked items remain and Status is not `DONE` or `COMPLETE`, sends a **followup message** listing remaining items
 - The agent is re-invoked automatically to continue
 - This repeats up to **10 times** (configured `loop_limit` in hooks.json)
 

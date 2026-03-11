@@ -75,7 +75,7 @@ All saved files must include a provenance header: generation date, starting modu
 **Follow-up suggestions**:
 
 - `/audit <module> <function>` -- full security audit (includes cross-module resolution).
-- `/audit <module> <function>` -- security audit on functions in the cross-module flow path.
+- `/taint <module> <function>` -- targeted taint trace on functions in the cross-module flow path.
 
 ## Error Handling
 

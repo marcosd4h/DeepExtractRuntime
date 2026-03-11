@@ -25,7 +25,7 @@ from _common import (
     resolve_tracking_db,
     status_message,
 )
-from helpers.errors import safe_parse_args
+from helpers.errors import ErrorCode, emit_error, safe_parse_args
 
 
 def analyze_deps(
@@ -193,7 +193,7 @@ def main() -> None:
     args = safe_parse_args(parser)
 
     if args.consumers and not args.module:
-        parser.error("--consumers requires --module")
+        emit_error("--consumers requires --module", ErrorCode.INVALID_ARGS)
 
     result = analyze_deps(
         args.tracking_db_path,
