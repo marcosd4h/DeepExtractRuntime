@@ -50,7 +50,7 @@ REGISTRY_PATH = SKILL_REGISTRY_PATH
 
 # Directories that are infrastructure, not actual skills/agents
 SKILL_INFRASTRUCTURE_DIRS = {"_shared", "__pycache__"}
-AGENT_INFRASTRUCTURE_DIRS = {"__pycache__"}
+AGENT_INFRASTRUCTURE_DIRS = {"_shared", "__pycache__"}
 
 # Skills that are documentation-only (no scripts/ directory expected)
 DOCUMENTATION_ONLY_SKILLS = {"adversarial-reasoning", "analyze-ida-decompiled", "brainstorming", "code-lifting", "finding-verification", "deep-context-builder"}

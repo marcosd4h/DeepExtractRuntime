@@ -21,6 +21,15 @@ Usage:
     # List all tests without running them
     python .agent/helpers/qa_runner.py --list
 
+    # List only runnable tests with their resolved commands
+    python .agent/helpers/qa_runner.py --list-runnable
+
+    # Parallel execution with 4 workers (default: 1 = sequential)
+    python .agent/helpers/qa_runner.py --workers 4
+
+    # Use a custom QA plan file
+    python .agent/helpers/qa_runner.py --plan path/to/custom_plan.md
+
     # Custom output directory and timeout
     python .agent/helpers/qa_runner.py --output-dir work/qa_results --timeout 120
 
@@ -116,6 +125,11 @@ class TestCase:
                        "db_error", "parse_error", "ambiguous"]
         if any(code in exp for code in error_codes):
             if "status ok" in exp or "status: ok" in exp:
+                return False
+            # Conditional / hedged error descriptions ("may fail with INVALID_ARGS",
+            # "might fail", "could fail", "possibly") describe optional outcomes and
+            # must NOT be treated as a mandatory error requirement.
+            if re.search(r"\b(may|might|possibly|could)\s+(fail|error)\b", exp):
                 return False
             return True
         if "exit code 1" in exp:

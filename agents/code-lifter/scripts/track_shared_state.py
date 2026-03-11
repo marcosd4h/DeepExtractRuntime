@@ -311,9 +311,7 @@ def mark_lifted(class_name: Optional[str], func_identifier: str, as_json: bool =
         emit_error("No active state. Run --init first.", ErrorCode.NOT_FOUND)
 
     with atomic_update_state(class_name) as state:
-        functions = state.get("functions", {})
-        if not functions:
-            emit_error(f"No state found for '{class_name}'.", ErrorCode.NOT_FOUND)
+        functions = state.setdefault("functions", {})
 
         matched = False
         for fid_str, fdata in functions.items():
@@ -330,12 +328,16 @@ def mark_lifted(class_name: Optional[str], func_identifier: str, as_json: bool =
                 break
 
         if not matched:
+            # Function not in the pre-populated list (e.g. state was initialized via
+            # --init without a batch extract). Auto-add a new entry so that
+            # --mark-lifted works as a standalone recording operation.
+            new_key = func_identifier
+            functions[new_key] = {"function_name": func_identifier, "lifted": True}
             if as_json:
-                emit_error(f"Function '{func_identifier}' not found in state.", ErrorCode.NOT_FOUND)
+                emit_json({"marked": True, "function_name": func_identifier,
+                           "function_id": new_key, "class_name": class_name})
             else:
-                print(f"Warning: Function '{func_identifier}' not found in state. "
-                      f"Available: {[f.get('function_name') for f in functions.values()]}",
-                      file=sys.stderr)
+                print(f"Marked as lifted (new entry): {func_identifier}")
 
 
 def record_signature(
@@ -369,15 +371,30 @@ def record_signature(
                   file=sys.stderr)
 
 
-def init_state(class_name: str) -> None:
-    """Initialize empty state for a class."""
+def init_state(class_name: str, as_json: bool = False) -> None:
+    """Initialize empty state for a class.
+
+    Idempotent: if state already exists, reports the existing path and exits
+    successfully (exit 0). Use --reset to start fresh from scratch.
+    """
     state_path = get_state_file_path(class_name)
     if state_path.exists():
-        emit_error(f"State already exists at {state_path}. Use --reset to clear it.", ErrorCode.INVALID_ARGS)
+        if as_json:
+            emit_json({"class_name": class_name, "created": False,
+                       "message": "State already exists (use --reset to reinitialize)",
+                       "path": str(state_path)})
+        else:
+            print(f"State already exists for '{class_name}' at {state_path} (use --reset to reinitialize)")
+        return
 
     state = create_initial_state(class_name, "", "", [], [])
     save_state(class_name, state)
-    print(f"Initialized empty state for '{class_name}' at {state_path}")
+    if as_json:
+        emit_json({"class_name": class_name, "created": True,
+                   "message": f"Initialized empty state for '{class_name}'",
+                   "path": str(state_path)})
+    else:
+        print(f"Initialized empty state for '{class_name}' at {state_path}")
 
 
 def reset_state(class_name: str) -> None:
@@ -506,7 +523,7 @@ def main() -> None:
         if args.list_states:
             list_states(as_json=force_json)
         elif args.init_class:
-            init_state(args.init_class)
+            init_state(args.init_class, as_json=force_json)
         elif args.reset_class:
             reset_state(args.reset_class)
         elif args.dump:

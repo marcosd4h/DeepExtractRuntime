@@ -45,16 +45,16 @@ skips the test suite for speed.
 |---|---|
 | **Location** | This document (test cases below) |
 | **Runner** | `.agent/helpers/qa_runner.py` |
-| **Typical runtime** | ~3-6 minutes (181 runnable tests) |
+| **Typical runtime** | ~3-6 minutes (182 runnable tests) |
 
 Integration tests exercise full skill scripts, agent entry points, pipeline
 validation, lifecycle hooks, and infrastructure conventions end-to-end
 against real analysis databases. Each test case specifies a concrete command,
 expected behavior, and the conventions it validates.
 
-Of the 359 test cases in this document, 178 are directly runnable by the QA
+Of the 359 test cases in this document, 182 are directly runnable by the QA
 test runner (skill scripts, agent scripts, pipelines, hooks, infrastructure).
-The remaining 181 are slash commands and multi-step workflows that require
+The remaining 177 are slash commands and multi-step workflows that require
 agent-level orchestration.
 
 Run them:
@@ -143,6 +143,12 @@ python .agent/helpers/qa_runner.py --list-runnable
 # Custom output directory and timeout
 python .agent/helpers/qa_runner.py --output-dir work/qa_results --timeout 180
 
+# Parallel execution with 4 workers
+python .agent/helpers/qa_runner.py --workers 4
+
+# Use a custom QA plan file
+python .agent/helpers/qa_runner.py --plan path/to/custom_plan.md
+
 # JSON summary to stdout (for programmatic consumption)
 python .agent/helpers/qa_runner.py --prefix TEST-SKILL --json
 ```
@@ -157,14 +163,21 @@ python .agent/helpers/qa_runner.py --prefix TEST-SKILL --json
 3. **Resolves** `<db:appinfo>`, `<db:shell32>`, `<db:winstorage>` and
    similar variables by querying `find_module_db.py --list --json`.
 4. **Executes** each command via `subprocess.run()` with configurable
-   timeout (default 120s).
+   timeout (default 120s). With `--workers N`, tests run in parallel
+   using a process pool (default: 1 = sequential).
 5. **Validates** the result:
    - If the command has `--json`: checks stdout is a single JSON dict
      with `"status"` equal to `"ok"` or `"error"`.
    - If the Expected field mentions error codes: verifies structured
      JSON error on stderr with the expected code.
+   - If the Expected field mentions both "NO_DATA" and "result", a
+     `NO_DATA` error exit is treated as an acceptable pass (the script
+     ran correctly but the target data was absent).
    - Non-zero exit codes are failures unless the test expects an error.
-   - stderr output on otherwise-passing tests is captured as a warning.
+   - Stderr on otherwise-passing tests triggers a warning only when it
+     contains specific error patterns (`Traceback`, `{"error"`,
+     `Exception`, `CRITICAL:`, `FAILED`). Benign `[status]` progress
+     messages are ignored.
 6. **Persists** results: failing and warning tests get a directory under
    the output dir with `command.txt`, `result.json`, `stdout.txt`,
    `stderr.txt`, and optionally `warnings.txt`.
@@ -4990,7 +5003,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 
 | Component | Total | Tested | Coverage |
 |-----------|-------|--------|----------|
-| Commands | 36 | 36 | 100% |
+| Commands | 35 | 35 | 100% |
 | Command flags/subcommands | ~85 | ~85 | 100% |
 | Skills | 29 | 29 | 100% |
 | Skill scripts | ~122 | ~122 | 100% |

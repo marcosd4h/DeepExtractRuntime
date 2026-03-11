@@ -569,12 +569,15 @@ def validate_file_info_consistency(
         json_file_version = version_info.get("file_version")
         json_product_version = version_info.get("product_version")
 
-        db_file_name = row["file_name"] if "file_name" in row else None
-        db_md5 = row["md5_hash"] if "md5_hash" in row else None
-        db_sha256 = row["sha256_hash"] if "sha256_hash" in row else None
-        db_file_version = row["file_version"] if "file_version" in row else None
+        # sqlite3.Row.__contains__ checks *values*, not column names, so
+        # use row.keys() for reliable column-name membership tests.
+        row_cols = set(row.keys())
+        db_file_name = row["file_name"] if "file_name" in row_cols else None
+        db_md5 = row["md5_hash"] if "md5_hash" in row_cols else None
+        db_sha256 = row["sha256_hash"] if "sha256_hash" in row_cols else None
+        db_file_version = row["file_version"] if "file_version" in row_cols else None
         db_product_version = (
-            row["product_version"] if "product_version" in row else None
+            row["product_version"] if "product_version" in row_cols else None
         )
 
         def _compare(

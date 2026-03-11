@@ -18,6 +18,8 @@ Modules:
     module_discovery    -- Canonical module/DB directory scanning (iter_module_dirs, iter_module_dbs)
     workspace           -- Workspace run-directory I/O primitives (create_run_dir, list_runs, write_results, ...)
     workspace_bootstrap -- Convenience wrappers for workspace step setup (prepare_step, complete_step)
+    sql_utils           -- SQL LIKE escaping (escape_like, LIKE_ESCAPE), used by
+                           individual_analysis_db and analyzed_files_db
 
 Standalone scripts:
     unified_search.py   -- Multi-dimension search across a module DB.

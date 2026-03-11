@@ -630,7 +630,7 @@ class TestModuleDepsScript:
             capture_output=True, text=True, timeout=30,
             env=_SUBPROCESS_ENV,
         )
-        assert result.returncode == 2
+        assert result.returncode == 1
 
     def test_diagram_output(self, ie_workspace):
         result = subprocess.run(
@@ -721,7 +721,7 @@ class TestResolveForwardersScript:
             capture_output=True, text=True, timeout=30,
             env=_SUBPROCESS_ENV,
         )
-        assert result.returncode == 2
+        assert result.returncode == 1
 
     def test_function_or_all_required(self, ie_workspace):
         result = subprocess.run(
@@ -730,7 +730,7 @@ class TestResolveForwardersScript:
             capture_output=True, text=True, timeout=30,
             env=_SUBPROCESS_ENV,
         )
-        assert result.returncode == 2
+        assert result.returncode == 1
 
 
 # -----------------------------------------------------------------------

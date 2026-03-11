@@ -31,7 +31,7 @@ spec = importlib.util.spec_from_file_location("inject_context", _HOOK_PATH)
 _inject_mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(_inject_mod)
 
-from hooks._context_builder import build_context as _build_context, _CONTEXT_TRUNCATION_THRESHOLD
+from hooks._context_builder import build_context as _build_context
 _deadline_exceeded = _inject_mod._deadline_exceeded
 
 
