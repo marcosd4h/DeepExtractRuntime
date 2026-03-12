@@ -6,9 +6,9 @@ name: quick-triage
 
 # The string "all" resolves every module with a COMPLETE analysis DB.
 modules:
-  - appinfo.dll
-  - shell32.dll
-  - windows.storage.dll
+  - srvsvc.dll
+  - svchost.exe
+  - clusapi.dll
 
 steps:
   # The "quick" flag is accepted for compatibility with the proposed schema.

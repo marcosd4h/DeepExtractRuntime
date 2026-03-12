@@ -5,8 +5,8 @@
 > **integration test plan** (test cases spanning commands, skills, agents,
 > pipelines, hooks, and infrastructure conventions).
 >
-> **Test targets**: `windows.storage.dll`, `shell32.dll`, `appinfo.dll` --
-> the ShellExecuteExW call chain.
+> **Test targets**: `srvsvc.dll`, `svchost.exe`, `clusapi.dll` --
+> the Lanman Server service stack.
 
 ---
 
@@ -84,10 +84,10 @@ python .agent/helpers/qa_runner.py
 
 | Symbol | Meaning |
 |--------|---------|
-| `<db:appinfo>` | `extracted_dbs/appinfo_dll_f2bbf324a1.db` |
-| `<db:shell32>` | `extracted_dbs/shell32_dll_06438e9405.db` |
-| `<db:winstorage>` | `extracted_dbs/windows_storage_dll_5cb93af0c6.db` |
-| `<uuid>` | Substitute a real RPC interface UUID from `/rpc appinfo.dll` output |
+| `<db:srvsvc>` | `extracted_dbs/srvsvc_dll_7af81c0428.db` |
+| `<db:svchost>` | `extracted_dbs/svchost_exe_b1c5636ec0.db` |
+| `<db:clusapi>` | `extracted_dbs/clusapi_dll_11dbc777c0.db` |
+| `<uuid>` | Substitute a real RPC interface UUID from `/rpc srvsvc.dll` output |
 | `<run_id>` | Substitute a real run ID from `/runs` output |
 | `<path>` | Substitute the actual filesystem path produced by a prior step |
 
@@ -160,7 +160,7 @@ python .agent/helpers/qa_runner.py --prefix TEST-SKILL --json
 2. **Classifies** each test as runnable or skip. Tests with `python ...`
    commands are runnable. Slash commands (`/triage`, `/scan`, etc.) and
    manual steps are skipped automatically.
-3. **Resolves** `<db:appinfo>`, `<db:shell32>`, `<db:winstorage>` and
+3. **Resolves** `<db:srvsvc>`, `<db:svchost>`, `<db:clusapi>` and
    similar variables by querying `find_module_db.py --list --json`.
 4. **Executes** each command via `subprocess.run()` with configurable
    timeout (default 120s). With `--workers N`, tests run in parallel
@@ -292,10 +292,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: initialization
 - **Component**: command
 - **Component-Name**: /quickstart
-- **Target-Module**: windows.storage.dll
+- **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `/quickstart windows.storage.dll`
-- **Expected**: Runs triage on windows.storage.dll, shows top functions including CShellExecute and CInvokeCreateProcessVerb methods
+- **Command**: `/quickstart clusapi.dll`
+- **Expected**: Runs triage on clusapi.dll, shows top functions including ClusterADLdap and ClusNode methods
 - **Validates**: Explicit module targeting, DB path resolution
 - **Flags-Tested**: module argument
 - **Protocol**: none
@@ -348,9 +348,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: reconnaissance
 - **Component**: command
 - **Component-Name**: /triage
-- **Target-Module**: windows.storage.dll
+- **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `/triage windows.storage.dll`
+- **Command**: `/triage clusapi.dll`
 - **Expected**: Binary identity, function classification, call graph topology, entry point surface, recommendations
 - **Validates**: Full triage pipeline, workspace protocol
 - **Flags-Tested**: module argument
@@ -361,9 +361,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: reconnaissance
 - **Component**: command
 - **Component-Name**: /triage
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/triage appinfo.dll --with-security`
+- **Command**: `/triage srvsvc.dll --with-security`
 - **Expected**: Standard triage plus lightweight taint scan on top 3-5 entry points
 - **Validates**: --with-security flag triggers taint analysis
 - **Flags-Tested**: --with-security
@@ -374,9 +374,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: reconnaissance
 - **Component**: command
 - **Component-Name**: /full-report
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/full-report appinfo.dll`
+- **Command**: `/full-report srvsvc.dll`
 - **Expected**: 6-phase multi-step report: identity, classification, attack surface, topology, specialized, synthesis
 - **Validates**: Grind-loop scratchpad creation, 6-phase execution, workspace run dir
 - **Flags-Tested**: none (default)
@@ -387,9 +387,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: reconnaissance
 - **Component**: command
 - **Component-Name**: /full-report
-- **Target-Module**: shell32.dll
+- **Target-Module**: svchost.exe
 - **Target-Function**: N/A
-- **Command**: `/full-report shell32.dll --brief`
+- **Command**: `/full-report svchost.exe --brief`
 - **Expected**: Abbreviated report with fewer phases
 - **Validates**: --brief flag reduces output scope
 - **Flags-Tested**: --brief
@@ -401,9 +401,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component**: command
 - **Component-Name**: /explain
 - **Target-Module**: N/A
-- **Target-Function**: ShellExecuteExW
-- **Command**: `/explain ShellExecuteExW`
-- **Expected**: Finds ShellExecuteExW in shell32.dll, explains purpose, parameters, return value, execution sequence
+- **Target-Function**: ServiceMain
+- **Command**: `/explain ServiceMain`
+- **Expected**: Finds ServiceMain in svchost.exe, explains purpose, parameters, return value, execution sequence
 - **Validates**: Cross-module function search, re-analyst subagent
 - **Flags-Tested**: none (default)
 - **Protocol**: none
@@ -413,9 +413,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: reconnaissance
 - **Component**: command
 - **Component-Name**: /explain
-- **Target-Module**: windows.storage.dll
-- **Target-Function**: CInvokeCreateProcessVerb::Execute
-- **Command**: `/explain windows.storage.dll CInvokeCreateProcessVerb::Execute --depth 2`
+- **Target-Module**: clusapi.dll
+- **Target-Function**: ClusNode::ConfigureNode
+- **Command**: `/explain clusapi.dll ClusNode::ConfigureNode --depth 2`
 - **Expected**: Explanation includes 2 levels of callee code
 - **Validates**: --depth parameter controls callee inclusion depth
 - **Flags-Tested**: --depth
@@ -426,9 +426,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: reconnaissance
 - **Component**: command
 - **Component-Name**: /explain
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/explain appinfo.dll --search LaunchProcess`
+- **Command**: `/explain srvsvc.dll --search LaunchProcess`
 - **Expected**: Finds functions matching pattern, explains best match or prompts disambiguation
 - **Validates**: --search flag pattern matching
 - **Flags-Tested**: --search
@@ -439,9 +439,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: reconnaissance
 - **Component**: command
 - **Component-Name**: /explain
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/explain appinfo.dll AiLaunchProcess --depth 0`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/explain srvsvc.dll SsServerFsControl --depth 0`
 - **Expected**: Explanation without any callee code
 - **Validates**: --depth 0 suppresses callee expansion
 - **Flags-Tested**: --depth 0
@@ -452,9 +452,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: reconnaissance
 - **Component**: command
 - **Component-Name**: /explain
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/explain appinfo.dll AiLaunchProcess --no-assembly`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/explain srvsvc.dll SsServerFsControl --no-assembly`
 - **Expected**: Explanation without assembly listing
 - **Validates**: --no-assembly flag omits asm
 - **Flags-Tested**: --no-assembly
@@ -467,7 +467,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: /search
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `/search CreateProcess`
+- **Command**: `/search LanmanServer`
 - **Expected**: Substring matches across all modules, all dimensions
 - **Validates**: Default substring mode, cross-module search
 - **Flags-Tested**: none (default)
@@ -478,9 +478,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: reconnaissance
 - **Component**: command
 - **Component-Name**: /search
-- **Target-Module**: windows.storage.dll
+- **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `/search windows.storage.dll --dimensions name,api Execute`
+- **Command**: `/search clusapi.dll --dimensions name,api Execute`
 - **Expected**: Results restricted to name and api dimensions
 - **Validates**: --dimensions filter
 - **Flags-Tested**: --dimensions
@@ -491,10 +491,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: reconnaissance
 - **Component**: command
 - **Component-Name**: /search
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/search appinfo.dll --regex "^Ai.*Process$"`
-- **Expected**: Regex matches like AiLaunchProcess, AiCreateProcess
+- **Command**: `/search srvsvc.dll --regex "^Netr.*Enum$"`
+- **Expected**: Regex matches like NetrShareEnum, NetrSessionEnum
 - **Validates**: --regex mode
 - **Flags-Tested**: --regex
 - **Protocol**: none
@@ -506,8 +506,8 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: /search
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `/search --fuzzy CreateProces`
-- **Expected**: Fuzzy matches including CreateProcess variants
+- **Command**: `/search --fuzzy LanmanServe`
+- **Expected**: Fuzzy matches including LanmanServer variants
 - **Validates**: --fuzzy mode with SequenceMatcher
 - **Flags-Tested**: --fuzzy
 - **Protocol**: none
@@ -517,9 +517,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: reconnaissance
 - **Component**: command
 - **Component-Name**: /search
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/search appinfo.dll CreateProcess --sort score --limit 5`
+- **Command**: `/search srvsvc.dll LanmanServer --sort score --limit 5`
 - **Expected**: Top 5 results sorted by relevance score
 - **Validates**: --sort and --limit flags
 - **Flags-Tested**: --sort, --limit
@@ -533,7 +533,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Target-Module**: N/A
 - **Target-Function**: N/A
 - **Command**: `/search --all registry`
-- **Expected**: Results from all 195 modules containing "registry"
+- **Expected**: Results from all 43 modules containing "registry"
 - **Validates**: --all cross-module mode
 - **Flags-Tested**: --all
 - **Protocol**: none
@@ -543,9 +543,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: reconnaissance
 - **Component**: command
 - **Component-Name**: /search
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/search appinfo.dll CreateProcess --threshold 0.8 --limit 5`
+- **Command**: `/search srvsvc.dll LanmanServer --threshold 0.8 --limit 5`
 - **Expected**: Only results with relevance >= 0.8
 - **Validates**: --threshold filter
 - **Flags-Tested**: --threshold, --limit
@@ -556,10 +556,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: reconnaissance
 - **Component**: command
 - **Component-Name**: /xref
-- **Target-Module**: shell32.dll
-- **Target-Function**: ShellExecuteExW
-- **Command**: `/xref shell32.dll ShellExecuteExW`
-- **Expected**: Callers and callees table for ShellExecuteExW
+- **Target-Module**: svchost.exe
+- **Target-Function**: ServiceMain
+- **Command**: `/xref svchost.exe ServiceMain`
+- **Expected**: Callers and callees table for ServiceMain
 - **Validates**: Basic xref lookup
 - **Flags-Tested**: none (default)
 - **Protocol**: none
@@ -570,9 +570,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component**: command
 - **Component-Name**: /xref
 - **Target-Module**: N/A
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/xref AiLaunchProcess`
-- **Expected**: Auto-detects appinfo.dll, shows callers/callees
+- **Target-Function**: SsServerFsControl
+- **Command**: `/xref SsServerFsControl`
+- **Expected**: Auto-detects srvsvc.dll, shows callers/callees
 - **Validates**: Cross-module function search for xref
 - **Flags-Tested**: none (auto-detect)
 - **Protocol**: none
@@ -582,9 +582,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: reconnaissance
 - **Component**: command
 - **Component-Name**: /xref
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/xref appinfo.dll AiLaunchProcess --depth 2`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/xref srvsvc.dll SsServerFsControl --depth 2`
 - **Expected**: 2 levels of callers and callees
 - **Validates**: --depth parameter for extended xref
 - **Flags-Tested**: --depth
@@ -595,10 +595,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: reconnaissance
 - **Component**: command
 - **Component-Name**: /xref
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/xref appinfo.dll --search "Check*"`
-- **Expected**: Xrefs for all functions matching Check*
+- **Command**: `/xref srvsvc.dll --search "Ss*"`
+- **Expected**: Xrefs for all functions matching Ss*
 - **Validates**: --search pattern for xref
 - **Flags-Tested**: --search
 - **Protocol**: none
@@ -612,9 +612,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /callgraph
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/callgraph appinfo.dll`
+- **Command**: `/callgraph srvsvc.dll`
 - **Expected**: Node count, edge count, hub functions, density metrics
 - **Validates**: Module-wide callgraph statistics
 - **Flags-Tested**: none (default)
@@ -625,9 +625,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /callgraph
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/callgraph appinfo.dll --scc`
+- **Command**: `/callgraph srvsvc.dll --scc`
 - **Expected**: Strongly connected components listed
 - **Validates**: --scc flag
 - **Flags-Tested**: --scc
@@ -638,9 +638,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /callgraph
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/callgraph appinfo.dll --roots`
+- **Command**: `/callgraph srvsvc.dll --roots`
 - **Expected**: Functions with no callers (entry points)
 - **Validates**: --roots flag
 - **Flags-Tested**: --roots
@@ -651,9 +651,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /callgraph
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/callgraph appinfo.dll --leaves`
+- **Command**: `/callgraph srvsvc.dll --leaves`
 - **Expected**: Functions that call nothing (leaf nodes)
 - **Validates**: --leaves flag
 - **Flags-Tested**: --leaves
@@ -664,10 +664,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /callgraph
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/callgraph appinfo.dll AiLaunchProcess`
-- **Expected**: Immediate callers and callees of AiLaunchProcess
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/callgraph srvsvc.dll SsServerFsControl`
+- **Expected**: Immediate callers and callees of SsServerFsControl
 - **Validates**: Function-scoped neighborhood
 - **Flags-Tested**: function argument
 - **Protocol**: none
@@ -677,9 +677,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /callgraph
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/callgraph appinfo.dll AiLaunchProcess --diagram`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/callgraph srvsvc.dll SsServerFsControl --diagram`
 - **Expected**: Mermaid diagram of call neighborhood
 - **Validates**: --diagram flag generates Mermaid output
 - **Flags-Tested**: --diagram
@@ -690,9 +690,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /callgraph
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/callgraph appinfo.dll --path AiLaunchProcess AiCheckSecureApplicationDirectory`
+- **Command**: `/callgraph srvsvc.dll --path SsServerFsControl SsCheckAccess`
 - **Expected**: Shortest path between the two functions
 - **Validates**: --path flag with two function args
 - **Flags-Tested**: --path
@@ -703,10 +703,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /callgraph
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/callgraph appinfo.dll --reachable AiLaunchProcess`
-- **Expected**: All functions reachable from AiLaunchProcess
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/callgraph srvsvc.dll --reachable SsServerFsControl`
+- **Expected**: All functions reachable from SsServerFsControl
 - **Validates**: --reachable transitive closure
 - **Flags-Tested**: --reachable
 - **Protocol**: none
@@ -716,9 +716,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /data-flow
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/data-flow forward appinfo.dll AiLaunchProcess --param 1`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/data-flow forward srvsvc.dll SsServerFsControl --param 1`
 - **Expected**: Parameter 1 forward flow to callees
 - **Validates**: Forward trace mode with --param
 - **Flags-Tested**: forward, --param
@@ -729,9 +729,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /data-flow
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/data-flow forward appinfo.dll AiLaunchProcess --param 1 --depth 3 --assembly`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/data-flow forward srvsvc.dll SsServerFsControl --param 1 --depth 3 --assembly`
 - **Expected**: Deeper trace with assembly annotations
 - **Validates**: --depth and --assembly flags
 - **Flags-Tested**: --depth, --assembly
@@ -742,10 +742,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /data-flow
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/data-flow backward appinfo.dll AiLaunchProcess --target CreateProcessW`
-- **Expected**: Argument origins for CreateProcessW calls
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/data-flow backward srvsvc.dll SsServerFsControl --target NtFsControlFile`
+- **Expected**: Argument origins for NtFsControlFile calls
 - **Validates**: Backward trace mode with --target
 - **Flags-Tested**: backward, --target
 - **Protocol**: none
@@ -755,9 +755,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /data-flow
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/data-flow backward appinfo.dll AiLaunchProcess --target CreateProcessW --arg 1 --callers`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/data-flow backward srvsvc.dll SsServerFsControl --target NtFsControlFile --arg 1 --callers`
 - **Expected**: Specific arg origin traced through callers
 - **Validates**: --arg and --callers flags
 - **Flags-Tested**: --arg, --callers
@@ -768,10 +768,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /data-flow
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/data-flow string appinfo.dll --string "CreateProcess"`
-- **Expected**: Functions referencing the string "CreateProcess"
+- **Command**: `/data-flow string srvsvc.dll --string "LanmanServer"`
+- **Expected**: Functions referencing the string "LanmanServer"
 - **Validates**: String trace mode with --string
 - **Flags-Tested**: string, --string
 - **Protocol**: none
@@ -781,10 +781,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /data-flow
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/data-flow string appinfo.dll --function AiLaunchProcess`
-- **Expected**: Strings used by AiLaunchProcess
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/data-flow string srvsvc.dll --function SsServerFsControl`
+- **Expected**: Strings used by SsServerFsControl
 - **Validates**: String trace scoped to function
 - **Flags-Tested**: string, --function
 - **Protocol**: none
@@ -794,9 +794,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /data-flow
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/data-flow globals appinfo.dll`
+- **Command**: `/data-flow globals srvsvc.dll`
 - **Expected**: Global variable reader/writer map
 - **Validates**: Globals mode
 - **Flags-Tested**: globals
@@ -807,9 +807,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /data-flow-cross
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/data-flow-cross forward appinfo.dll AiLaunchProcess --param 1`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/data-flow-cross forward srvsvc.dll SsServerFsControl --param 1`
 - **Expected**: Parameter traced across DLL boundaries
 - **Validates**: Cross-module forward trace
 - **Flags-Tested**: forward, --param
@@ -820,9 +820,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /data-flow-cross
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/data-flow-cross backward appinfo.dll AiLaunchProcess --target CreateProcessW --depth 2`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/data-flow-cross backward srvsvc.dll SsServerFsControl --target NtFsControlFile --depth 2`
 - **Expected**: Argument origins traced across modules
 - **Validates**: Cross-module backward trace with depth
 - **Flags-Tested**: backward, --target, --depth
@@ -833,10 +833,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /imports
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/imports appinfo.dll`
-- **Expected**: Import/export summary for appinfo.dll
+- **Command**: `/imports srvsvc.dll`
+- **Expected**: Import/export summary for srvsvc.dll
 - **Validates**: Basic import summary
 - **Flags-Tested**: none (default)
 - **Protocol**: none
@@ -847,9 +847,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component**: command
 - **Component-Name**: /imports
 - **Target-Module**: N/A
-- **Target-Function**: CreateProcessW
-- **Command**: `/imports --function CreateProcessW`
-- **Expected**: Which module(s) export and import CreateProcessW
+- **Target-Function**: NtFsControlFile
+- **Command**: `/imports --function NtFsControlFile`
+- **Expected**: Which module(s) export and import NtFsControlFile
 - **Validates**: --function cross-module lookup
 - **Flags-Tested**: --function
 - **Protocol**: none
@@ -859,10 +859,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /imports
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/imports appinfo.dll --consumers`
-- **Expected**: Modules that depend on appinfo.dll
+- **Command**: `/imports srvsvc.dll --consumers`
+- **Expected**: Modules that depend on srvsvc.dll
 - **Validates**: --consumers flag
 - **Flags-Tested**: --consumers
 - **Protocol**: none
@@ -872,9 +872,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /imports
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/imports appinfo.dll --diagram`
+- **Command**: `/imports srvsvc.dll --diagram`
 - **Expected**: Mermaid dependency diagram
 - **Validates**: --diagram flag
 - **Flags-Tested**: --diagram
@@ -885,10 +885,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /imports
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/imports --forwarders appinfo.dll`
-- **Expected**: All forwarded export chains for appinfo.dll (requires --all with --module)
+- **Command**: `/imports --forwarders srvsvc.dll`
+- **Expected**: All forwarded export chains for srvsvc.dll (requires --all with --module)
 - **Validates**: --forwarders flag
 - **Flags-Tested**: --forwarders
 - **Protocol**: none
@@ -911,9 +911,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /strings
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/strings appinfo.dll`
+- **Command**: `/strings srvsvc.dll`
 - **Expected**: Categorized string literals for entire module
 - **Validates**: Module-wide string analysis
 - **Flags-Tested**: none (default)
@@ -924,9 +924,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /strings
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/strings appinfo.dll --top 20`
+- **Command**: `/strings srvsvc.dll --top 20`
 - **Expected**: Top 20 security-relevant strings
 - **Validates**: --top limit
 - **Flags-Tested**: --top
@@ -937,9 +937,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /strings
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/strings appinfo.dll --category credentials`
+- **Command**: `/strings srvsvc.dll --category credentials`
 - **Expected**: Only credential-related strings
 - **Validates**: --category filter
 - **Flags-Tested**: --category
@@ -950,9 +950,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /strings
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/strings appinfo.dll --category format_string`
+- **Command**: `/strings srvsvc.dll --category format_string`
 - **Expected**: Only format string patterns
 - **Validates**: --category with format_string value
 - **Flags-Tested**: --category
@@ -963,10 +963,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /strings
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/strings appinfo.dll AiLaunchProcess`
-- **Expected**: Strings referenced by AiLaunchProcess only
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/strings srvsvc.dll SsServerFsControl`
+- **Expected**: Strings referenced by SsServerFsControl only
 - **Validates**: Function-scoped string analysis
 - **Flags-Tested**: function argument
 - **Protocol**: none
@@ -976,9 +976,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /state-machines
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/state-machines appinfo.dll`
+- **Command**: `/state-machines srvsvc.dll`
 - **Expected**: Dispatch tables and state machines found in module
 - **Validates**: Module-wide state machine scan
 - **Flags-Tested**: none (default)
@@ -989,9 +989,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /state-machines
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/state-machines appinfo.dll --detect`
+- **Command**: `/state-machines srvsvc.dll --detect`
 - **Expected**: List of all dispatcher functions detected
 - **Validates**: --detect flag
 - **Flags-Tested**: --detect
@@ -1002,9 +1002,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /state-machines
-- **Target-Module**: windows.storage.dll
-- **Target-Function**: CInvokeCreateProcessVerb::Execute
-- **Command**: `/state-machines windows.storage.dll CInvokeCreateProcessVerb::Execute`
+- **Target-Module**: clusapi.dll
+- **Target-Function**: ClusNode::ConfigureNode
+- **Command**: `/state-machines clusapi.dll ClusNode::ConfigureNode`
 - **Expected**: Dispatch table or state machine for the function
 - **Validates**: Single-function extraction
 - **Flags-Tested**: function argument
@@ -1015,9 +1015,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /state-machines
-- **Target-Module**: windows.storage.dll
-- **Target-Function**: CInvokeCreateProcessVerb::Execute
-- **Command**: `/state-machines windows.storage.dll CInvokeCreateProcessVerb::Execute --diagram`
+- **Target-Module**: clusapi.dll
+- **Target-Function**: ClusNode::ConfigureNode
+- **Command**: `/state-machines clusapi.dll ClusNode::ConfigureNode --diagram`
 - **Expected**: Mermaid state diagram
 - **Validates**: --diagram flag
 - **Flags-Tested**: --diagram
@@ -1028,9 +1028,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /compare-modules
-- **Target-Module**: shell32.dll, windows.storage.dll
+- **Target-Module**: svchost.exe, clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `/compare-modules shell32.dll windows.storage.dll`
+- **Command**: `/compare-modules svchost.exe clusapi.dll`
 - **Expected**: API overlap, classification distribution, dependency comparison
 - **Validates**: Two-module comparison
 - **Flags-Tested**: two module arguments
@@ -1041,9 +1041,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /compare-modules
-- **Target-Module**: appinfo.dll, shell32.dll, windows.storage.dll
+- **Target-Module**: srvsvc.dll, svchost.exe, clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `/compare-modules appinfo.dll shell32.dll windows.storage.dll`
+- **Command**: `/compare-modules srvsvc.dll svchost.exe clusapi.dll`
 - **Expected**: Three-way comparison matrix
 - **Validates**: Multi-module comparison
 - **Flags-Tested**: three module arguments
@@ -1054,10 +1054,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /audit
-- **Target-Module**: shell32.dll
-- **Target-Function**: ShellExecuteExW
-- **Command**: `/audit shell32.dll ShellExecuteExW --diagram`
-- **Expected**: Full security audit with Mermaid call graph diagram from ShellExecuteExW
+- **Target-Module**: svchost.exe
+- **Target-Function**: ServiceMain
+- **Command**: `/audit svchost.exe ServiceMain --diagram`
+- **Expected**: Full security audit with Mermaid call graph diagram from ServiceMain
 - **Validates**: --diagram flag on audit pipeline
 - **Flags-Tested**: --diagram
 - **Protocol**: workspace
@@ -1067,9 +1067,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /audit
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/audit appinfo.dll AiLaunchProcess`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/audit srvsvc.dll SsServerFsControl`
 - **Expected**: Security audit with cross-module callee resolution table (default behavior)
 - **Validates**: Cross-module resolution in audit pipeline
 - **Flags-Tested**: none (cross-module is default)
@@ -1080,9 +1080,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /audit
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/audit appinfo.dll AiLaunchProcess --diagram`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/audit srvsvc.dll SsServerFsControl --diagram`
 - **Expected**: Full audit with Mermaid diagram and cross-module transitions
 - **Validates**: --diagram flag (cross-module is always included)
 - **Flags-Tested**: --diagram
@@ -1093,9 +1093,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: structural
 - **Component**: command
 - **Component-Name**: /diff
-- **Target-Module**: shell32.dll, windows.storage.dll
+- **Target-Module**: svchost.exe, clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `/diff shell32.dll windows.storage.dll`
+- **Command**: `/diff svchost.exe clusapi.dll`
 - **Expected**: Function deltas, classification shifts, attack surface changes
 - **Validates**: Module differential analysis
 - **Flags-Tested**: two module arguments
@@ -1110,10 +1110,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: interface
 - **Component**: command
 - **Component-Name**: /com
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/com appinfo.dll`
-- **Expected**: COM servers, interfaces, CLSIDs for appinfo.dll
+- **Command**: `/com srvsvc.dll`
+- **Expected**: COM servers, interfaces, CLSIDs for srvsvc.dll
 - **Validates**: Default COM enumeration
 - **Flags-Tested**: module argument
 - **Protocol**: none
@@ -1136,10 +1136,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: interface
 - **Component**: command
 - **Component-Name**: /com
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/com surface appinfo.dll`
-- **Expected**: COM attack surface for appinfo.dll only (module name is a positional argument, not --module)
+- **Command**: `/com surface srvsvc.dll`
+- **Expected**: COM attack surface for srvsvc.dll only (module name is a positional argument, not --module)
 - **Validates**: surface subcommand with module scope
 - **Flags-Tested**: surface, module
 - **Protocol**: none
@@ -1149,9 +1149,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: interface
 - **Component**: command
 - **Component-Name**: /com
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/com methods appinfo.dll`
+- **Command**: `/com methods srvsvc.dll`
 - **Expected**: COM methods listed
 - **Validates**: methods subcommand
 - **Flags-Tested**: methods
@@ -1162,9 +1162,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: interface
 - **Component**: command
 - **Component-Name**: /com
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/com methods appinfo.dll --show-pseudo-idl`
+- **Command**: `/com methods srvsvc.dll --show-pseudo-idl`
 - **Expected**: Methods with pseudo-IDL syntax
 - **Validates**: --show-pseudo-idl flag
 - **Flags-Tested**: methods, --show-pseudo-idl
@@ -1175,9 +1175,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: interface
 - **Component**: command
 - **Component-Name**: /com
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/com classify appinfo.dll`
+- **Command**: `/com classify srvsvc.dll`
 - **Expected**: Semantic classification of COM entry points
 - **Validates**: classify subcommand
 - **Flags-Tested**: classify
@@ -1188,9 +1188,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: interface
 - **Component**: command
 - **Component-Name**: /com
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/com audit appinfo.dll`
+- **Command**: `/com audit srvsvc.dll`
 - **Expected**: COM security audit (permissions, elevation, marshalling)
 - **Validates**: audit subcommand
 - **Flags-Tested**: audit
@@ -1227,9 +1227,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: interface
 - **Component**: command
 - **Component-Name**: /rpc
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/rpc appinfo.dll`
+- **Command**: `/rpc srvsvc.dll`
 - **Expected**: RPC interfaces, UUIDs, procedures, endpoints
 - **Validates**: Default RPC enumeration
 - **Flags-Tested**: module argument
@@ -1253,10 +1253,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: interface
 - **Component**: command
 - **Component-Name**: /rpc
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/rpc surface appinfo.dll`
-- **Expected**: RPC attack surface for appinfo.dll
+- **Command**: `/rpc surface srvsvc.dll`
+- **Expected**: RPC attack surface for srvsvc.dll
 - **Validates**: surface with module scope
 - **Flags-Tested**: surface, module
 - **Protocol**: none
@@ -1266,9 +1266,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: interface
 - **Component**: command
 - **Component-Name**: /rpc
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/rpc audit appinfo.dll`
+- **Command**: `/rpc audit srvsvc.dll`
 - **Expected**: RPC security audit (script expects DB path, not module name)
 - **Validates**: audit subcommand
 - **Flags-Tested**: audit
@@ -1279,9 +1279,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: interface
 - **Component**: command
 - **Component-Name**: /rpc
-- **Target-Module**: appinfo.dll
-- **Target-Function**: RAiLaunchAdminProcess
-- **Command**: `/rpc trace appinfo.dll RAiLaunchAdminProcess`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: NetrShareAdd
+- **Command**: `/rpc trace srvsvc.dll NetrShareAdd`
 - **Expected**: RPC handler data flow trace (function name uses --function flag)
 - **Validates**: trace subcommand
 - **Flags-Tested**: trace, function
@@ -1318,10 +1318,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: interface
 - **Component**: command
 - **Component-Name**: /rpc
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/rpc topology appinfo.dll`
-- **Expected**: Topology scoped to appinfo.dll (module is a positional argument, not --module)
+- **Command**: `/rpc topology srvsvc.dll`
+- **Expected**: Topology scoped to srvsvc.dll (module is a positional argument, not --module)
 - **Validates**: topology with module scope
 - **Flags-Tested**: topology, module
 - **Protocol**: none
@@ -1331,9 +1331,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: interface
 - **Component**: command
 - **Component-Name**: /rpc
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/rpc blast-radius appinfo.dll`
+- **Command**: `/rpc blast-radius srvsvc.dll`
 - **Expected**: Co-hosted interface impact analysis
 - **Validates**: blast-radius subcommand
 - **Flags-Tested**: blast-radius
@@ -1357,9 +1357,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: interface
 - **Component**: command
 - **Component-Name**: /winrt
-- **Target-Module**: windows.storage.dll
+- **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `/winrt windows.storage.dll`
+- **Command**: `/winrt clusapi.dll`
 - **Expected**: WinRT server classes, interfaces, methods
 - **Validates**: Default WinRT enumeration
 - **Flags-Tested**: module argument
@@ -1383,9 +1383,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: interface
 - **Component**: command
 - **Component-Name**: /winrt
-- **Target-Module**: windows.storage.dll
+- **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `/winrt methods windows.storage.dll`
+- **Command**: `/winrt methods clusapi.dll`
 - **Expected**: WinRT methods listed
 - **Validates**: methods subcommand
 - **Flags-Tested**: methods
@@ -1396,9 +1396,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: interface
 - **Component**: command
 - **Component-Name**: /winrt
-- **Target-Module**: windows.storage.dll
+- **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `/winrt classify windows.storage.dll`
+- **Command**: `/winrt classify clusapi.dll`
 - **Expected**: Semantic classification of WinRT entry points
 - **Validates**: classify subcommand
 - **Flags-Tested**: classify
@@ -1409,9 +1409,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: interface
 - **Component**: command
 - **Component-Name**: /winrt
-- **Target-Module**: windows.storage.dll
+- **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `/winrt audit windows.storage.dll`
+- **Command**: `/winrt audit clusapi.dll`
 - **Expected**: WinRT security audit (script expects DB path, not module name)
 - **Validates**: audit subcommand
 - **Flags-Tested**: audit
@@ -1439,9 +1439,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /scan
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/scan appinfo.dll`
+- **Command**: `/scan srvsvc.dll`
 - **Expected**: Memory + logic + taint + verification + exploitability scoring
 - **Validates**: Full scan pipeline with grind loop
 - **Flags-Tested**: none (default)
@@ -1452,9 +1452,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /scan
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/scan appinfo.dll --top 15`
+- **Command**: `/scan srvsvc.dll --top 15`
 - **Expected**: Findings capped at 15 per category
 - **Validates**: --top limit
 - **Flags-Tested**: --top
@@ -1465,9 +1465,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /scan
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/scan appinfo.dll --memory-only`
+- **Command**: `/scan srvsvc.dll --memory-only`
 - **Expected**: Only memory corruption findings
 - **Validates**: --memory-only restriction
 - **Flags-Tested**: --memory-only
@@ -1478,9 +1478,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /scan
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/scan appinfo.dll --logic-only`
+- **Command**: `/scan srvsvc.dll --logic-only`
 - **Expected**: Only logic vulnerability findings
 - **Validates**: --logic-only restriction
 - **Flags-Tested**: --logic-only
@@ -1491,9 +1491,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /scan
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/scan appinfo.dll --taint-only`
+- **Command**: `/scan srvsvc.dll --taint-only`
 - **Expected**: Only taint analysis on entry points
 - **Validates**: --taint-only restriction
 - **Flags-Tested**: --taint-only
@@ -1504,9 +1504,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /scan
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/scan appinfo.dll AiLaunchProcess`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/scan srvsvc.dll SsServerFsControl`
 - **Expected**: All detectors on single function
 - **Validates**: Function-scoped scan
 - **Flags-Tested**: function argument
@@ -1517,9 +1517,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /scan
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/scan appinfo.dll --auto-audit`
+- **Command**: `/scan srvsvc.dll --auto-audit`
 - **Expected**: Auto-audits top 3 CRITICAL/HIGH findings
 - **Validates**: --auto-audit flag
 - **Flags-Tested**: --auto-audit
@@ -1530,9 +1530,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /memory-scan
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/memory-scan appinfo.dll`
+- **Command**: `/memory-scan srvsvc.dll`
 - **Expected**: Buffer overflow, integer, UAF, format string findings
 - **Validates**: Full memory scan
 - **Flags-Tested**: none (default)
@@ -1543,9 +1543,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /memory-scan
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/memory-scan appinfo.dll AiLaunchProcess`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/memory-scan srvsvc.dll SsServerFsControl`
 - **Expected**: Memory scan on single function
 - **Validates**: Function-scoped memory scan
 - **Flags-Tested**: function argument
@@ -1556,9 +1556,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /memory-scan
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/memory-scan appinfo.dll --top 20`
+- **Command**: `/memory-scan srvsvc.dll --top 20`
 - **Expected**: Top 20 findings
 - **Validates**: --top limit
 - **Flags-Tested**: --top
@@ -1569,9 +1569,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /logic-scan
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/logic-scan appinfo.dll`
+- **Command**: `/logic-scan srvsvc.dll`
 - **Expected**: Auth bypass, state errors, TOCTOU, confused deputy findings
 - **Validates**: Full logic scan
 - **Flags-Tested**: none (default)
@@ -1582,9 +1582,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /logic-scan
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/logic-scan appinfo.dll AiLaunchProcess`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/logic-scan srvsvc.dll SsServerFsControl`
 - **Expected**: Logic scan on single function
 - **Validates**: Function-scoped logic scan
 - **Flags-Tested**: function argument
@@ -1595,9 +1595,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /logic-scan
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/logic-scan appinfo.dll --top 10`
+- **Command**: `/logic-scan srvsvc.dll --top 10`
 - **Expected**: Top 10 findings
 - **Validates**: --top limit
 - **Flags-Tested**: --top
@@ -1608,9 +1608,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /logic-scan
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/logic-scan appinfo.dll --id 42`
+- **Command**: `/logic-scan srvsvc.dll --id 42`
 - **Expected**: Logic scan on function with ID 42
 - **Validates**: --id flag
 - **Flags-Tested**: --id
@@ -1621,9 +1621,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /taint
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/taint appinfo.dll AiLaunchProcess`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/taint srvsvc.dll SsServerFsControl`
 - **Expected**: Forward taint of all parameters to sinks
 - **Validates**: Default forward taint
 - **Flags-Tested**: none (default)
@@ -1634,9 +1634,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /taint
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/taint appinfo.dll AiLaunchProcess --params 1,3`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/taint srvsvc.dll SsServerFsControl --params 1,3`
 - **Expected**: Only params 1 and 3 traced
 - **Validates**: --params filter
 - **Flags-Tested**: --params
@@ -1647,9 +1647,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /taint
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/taint appinfo.dll AiLaunchProcess --params 1 --depth 3`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/taint srvsvc.dll SsServerFsControl --params 1 --depth 3`
 - **Expected**: Deeper recursion trace
 - **Validates**: --depth parameter
 - **Flags-Tested**: --params, --depth
@@ -1660,9 +1660,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /taint
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/taint appinfo.dll AiLaunchProcess --direction both`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/taint srvsvc.dll SsServerFsControl --direction both`
 - **Expected**: Forward and backward taint combined
 - **Validates**: --direction both
 - **Flags-Tested**: --direction both
@@ -1673,9 +1673,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /taint
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/taint appinfo.dll AiLaunchProcess --direction backward`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/taint srvsvc.dll SsServerFsControl --direction backward`
 - **Expected**: Caller origins only
 - **Validates**: --direction backward
 - **Flags-Tested**: --direction backward
@@ -1686,9 +1686,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /taint
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/taint appinfo.dll AiLaunchProcess --cross-module`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/taint srvsvc.dll SsServerFsControl --cross-module`
 - **Expected**: Taint traced across DLL boundaries
 - **Validates**: --cross-module flag
 - **Flags-Tested**: --cross-module
@@ -1699,9 +1699,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /taint
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/taint appinfo.dll AiLaunchProcess --cross-module --cross-depth 3`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/taint srvsvc.dll SsServerFsControl --cross-module --cross-depth 3`
 - **Expected**: Deeper cross-module taint
 - **Validates**: --cross-depth parameter
 - **Flags-Tested**: --cross-module, --cross-depth
@@ -1712,9 +1712,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /taint
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/taint appinfo.dll AiLaunchProcess --no-trust-analysis --no-com-resolve`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/taint srvsvc.dll SsServerFsControl --no-trust-analysis --no-com-resolve`
 - **Expected**: Taint without trust boundary or COM resolution
 - **Validates**: --no-trust-analysis and --no-com-resolve flags
 - **Flags-Tested**: --no-trust-analysis, --no-com-resolve
@@ -1725,9 +1725,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /taint
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/taint appinfo.dll --from-entrypoints`
+- **Command**: `/taint srvsvc.dll --from-entrypoints`
 - **Expected**: Auto-discovers top entry points and taints each
 - **Validates**: --from-entrypoints mode
 - **Flags-Tested**: --from-entrypoints
@@ -1738,9 +1738,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vulnerability
 - **Component**: command
 - **Component-Name**: /taint
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/taint appinfo.dll --from-entrypoints --top 10 --min-score 0.4`
+- **Command**: `/taint srvsvc.dll --from-entrypoints --top 10 --min-score 0.4`
 - **Expected**: Top 10 entry points above score 0.4
 - **Validates**: --top and --min-score with entrypoints mode
 - **Flags-Tested**: --from-entrypoints, --top, --min-score
@@ -1755,9 +1755,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: security
 - **Component**: command
 - **Component-Name**: /audit
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/audit appinfo.dll AiLaunchProcess`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/audit srvsvc.dll SsServerFsControl`
 - **Expected**: Security dossier, taint trace, verification, risk assessment
 - **Validates**: Full audit pipeline with workspace protocol
 - **Flags-Tested**: module, function
@@ -1769,8 +1769,8 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component**: command
 - **Component-Name**: /audit
 - **Target-Module**: N/A
-- **Target-Function**: AiCheckSecureApplicationDirectory
-- **Command**: `/audit AiCheckSecureApplicationDirectory`
+- **Target-Function**: SsCheckAccess
+- **Command**: `/audit SsCheckAccess`
 - **Expected**: Auto-detects module, runs full audit
 - **Validates**: Cross-module function resolution for audit
 - **Flags-Tested**: function only
@@ -1781,9 +1781,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: security
 - **Component**: command
 - **Component-Name**: /audit
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/audit appinfo.dll --search CheckSecurity`
+- **Command**: `/audit srvsvc.dll --search SsCheck`
 - **Expected**: Finds matching function, audits it
 - **Validates**: --search pattern matching
 - **Flags-Tested**: --search
@@ -1794,9 +1794,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: security
 - **Component**: command
 - **Component-Name**: /batch-audit
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/batch-audit appinfo.dll`
+- **Command**: `/batch-audit srvsvc.dll`
 - **Expected**: Audits top 5 entry points with grind loop
 - **Validates**: Default batch audit with grind loop
 - **Flags-Tested**: none (default)
@@ -1807,9 +1807,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: security
 - **Component**: command
 - **Component-Name**: /batch-audit
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/batch-audit appinfo.dll --top 10`
+- **Command**: `/batch-audit srvsvc.dll --top 10`
 - **Expected**: Audits top 10 entry points
 - **Validates**: --top flag
 - **Flags-Tested**: --top
@@ -1820,9 +1820,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: security
 - **Component**: command
 - **Component-Name**: /batch-audit
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/batch-audit appinfo.dll --top 10 --min-score 0.4`
+- **Command**: `/batch-audit srvsvc.dll --top 10 --min-score 0.4`
 - **Expected**: Only entry points with attack score >= 0.4
 - **Validates**: --min-score filter
 - **Flags-Tested**: --top, --min-score
@@ -1833,9 +1833,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: security
 - **Component**: command
 - **Component-Name**: /batch-audit
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/batch-audit appinfo.dll --privilege-boundary`
+- **Command**: `/batch-audit srvsvc.dll --privilege-boundary`
 - **Expected**: Audits RPC/COM/WinRT handlers
 - **Validates**: --privilege-boundary flag
 - **Flags-Tested**: --privilege-boundary
@@ -1846,9 +1846,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: security
 - **Component**: command
 - **Component-Name**: /batch-audit
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/batch-audit appinfo.dll --privilege-boundary --top 8`
+- **Command**: `/batch-audit srvsvc.dll --privilege-boundary --top 8`
 - **Expected**: Top 8 privilege-boundary handlers
 - **Validates**: --privilege-boundary with --top
 - **Flags-Tested**: --privilege-boundary, --top
@@ -1859,9 +1859,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: security
 - **Component**: command
 - **Component-Name**: /batch-audit
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess, AiCheckSecureApplicationDirectory
-- **Command**: `/batch-audit appinfo.dll AiLaunchProcess AiCheckSecureApplicationDirectory`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl, SsCheckAccess
+- **Command**: `/batch-audit srvsvc.dll SsServerFsControl SsCheckAccess`
 - **Expected**: Audits exactly the named functions
 - **Validates**: Explicit function list
 - **Flags-Tested**: function arguments
@@ -1872,9 +1872,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: security
 - **Component**: command
 - **Component-Name**: /prioritize
-- **Target-Module**: appinfo.dll, shell32.dll
+- **Target-Module**: srvsvc.dll, svchost.exe
 - **Target-Function**: N/A
-- **Command**: `/prioritize --modules appinfo.dll shell32.dll`
+- **Command**: `/prioritize --modules srvsvc.dll svchost.exe`
 - **Expected**: Cross-module finding prioritization
 - **Validates**: --modules flag with multiple modules
 - **Flags-Tested**: --modules
@@ -1915,9 +1915,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vr-campaign
 - **Component**: command
 - **Component-Name**: /hunt-plan
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/hunt-plan appinfo.dll`
+- **Command**: `/hunt-plan srvsvc.dll`
 - **Expected**: Structured VR campaign plan with hypotheses
 - **Validates**: Default campaign mode
 - **Flags-Tested**: none (default)
@@ -1928,9 +1928,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vr-campaign
 - **Component**: command
 - **Component-Name**: /hunt-plan
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/hunt-plan hypothesis TOCTOU appinfo.dll`
+- **Command**: `/hunt-plan hypothesis TOCTOU srvsvc.dll`
 - **Expected**: TOCTOU-specific hypothesis with verification strategy
 - **Validates**: hypothesis mode with vulnerability class
 - **Flags-Tested**: hypothesis, type
@@ -1941,9 +1941,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vr-campaign
 - **Component**: command
 - **Component-Name**: /hunt-plan
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/hunt-plan variant junction appinfo.dll`
+- **Command**: `/hunt-plan variant junction srvsvc.dll`
 - **Expected**: Junction-based attack variant analysis
 - **Validates**: variant mode with pattern
 - **Flags-Tested**: variant, pattern
@@ -1954,9 +1954,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vr-campaign
 - **Component**: command
 - **Component-Name**: /hunt-plan
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/hunt-plan validate appinfo.dll AiLaunchProcess`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/hunt-plan validate srvsvc.dll SsServerFsControl`
 - **Expected**: Validation strategy for suspected finding
 - **Validates**: validate mode with function
 - **Flags-Tested**: validate, function
@@ -1967,9 +1967,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vr-campaign
 - **Component**: command
 - **Component-Name**: /hunt-plan
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/hunt-plan surface appinfo.dll`
+- **Command**: `/hunt-plan surface srvsvc.dll`
 - **Expected**: Trust boundary mapping
 - **Validates**: surface mode
 - **Flags-Tested**: surface
@@ -1980,9 +1980,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vr-campaign
 - **Component**: command
 - **Component-Name**: /hunt-execute
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/hunt-execute appinfo.dll`
+- **Command**: `/hunt-execute srvsvc.dll`
 - **Expected**: Executes most recent hunt plan with confidence scores
 - **Validates**: Hunt plan execution with grind loop
 - **Flags-Tested**: module
@@ -2006,9 +2006,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: vr-campaign
 - **Component**: command
 - **Component-Name**: /brainstorm
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/brainstorm privilege escalation in appinfo.dll`
+- **Command**: `/brainstorm privilege escalation in srvsvc.dll`
 - **Expected**: Interactive strategy dialogue
 - **Validates**: Brainstorming skill engagement
 - **Flags-Tested**: topic
@@ -2024,8 +2024,8 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component**: command
 - **Component-Name**: /verify
 - **Target-Module**: N/A
-- **Target-Function**: AiCheckSecureApplicationDirectory
-- **Command**: `/verify AiCheckSecureApplicationDirectory`
+- **Target-Function**: SsCheckAccess
+- **Command**: `/verify SsCheckAccess`
 - **Expected**: Auto-detects module, verifies decompiler accuracy
 - **Validates**: Cross-module function resolution for verify
 - **Flags-Tested**: function only
@@ -2036,9 +2036,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: code-quality
 - **Component**: command
 - **Component-Name**: /verify
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/verify appinfo.dll AiLaunchProcess`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/verify srvsvc.dll SsServerFsControl`
 - **Expected**: Instruction-by-instruction verification
 - **Validates**: Deep function verification
 - **Flags-Tested**: module, function
@@ -2049,9 +2049,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: code-quality
 - **Component**: command
 - **Component-Name**: /verify
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/verify appinfo.dll`
+- **Command**: `/verify srvsvc.dll`
 - **Expected**: Heuristic scan of entire module
 - **Validates**: Module-wide verification scan
 - **Flags-Tested**: module only
@@ -2062,9 +2062,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: code-quality
 - **Component**: command
 - **Component-Name**: /verify
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/verify appinfo.dll --top 10`
+- **Command**: `/verify srvsvc.dll --top 10`
 - **Expected**: Top 10 decompiler issues
 - **Validates**: --top limit for module scan
 - **Flags-Tested**: --top
@@ -2075,9 +2075,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: code-quality
 - **Component**: command
 - **Component-Name**: /verify-batch
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiCheckSecureApplicationDirectory, AiLaunchProcess
-- **Command**: `/verify-batch appinfo.dll AiCheckSecureApplicationDirectory AiLaunchProcess`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsCheckAccess, SsServerFsControl
+- **Command**: `/verify-batch srvsvc.dll SsCheckAccess SsServerFsControl`
 - **Expected**: Parallel verification of both functions
 - **Validates**: Batch verification with grind loop
 - **Flags-Tested**: function list
@@ -2088,9 +2088,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: code-quality
 - **Component**: command
 - **Component-Name**: /lift-class
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/lift-class appinfo.dll --list`
+- **Command**: `/lift-class srvsvc.dll --list`
 - **Expected**: All detected classes listed
 - **Validates**: --list flag
 - **Flags-Tested**: --list
@@ -2101,9 +2101,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: code-quality
 - **Component**: command
 - **Component-Name**: /lift-class
-- **Target-Module**: windows.storage.dll
+- **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `/lift-class windows.storage.dll CInvokeCreateProcessVerb`
+- **Command**: `/lift-class clusapi.dll ClusNode`
 - **Expected**: All methods lifted with shared context
 - **Validates**: Full class lifting pipeline
 - **Flags-Tested**: class argument
@@ -2116,7 +2116,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: /lift-class
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `/lift-class CInvokeCreateProcessVerb`
+- **Command**: `/lift-class ClusNode`
 - **Expected**: Auto-detects module, lifts class
 - **Validates**: Cross-module class resolution
 - **Flags-Tested**: class only
@@ -2127,9 +2127,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: code-quality
 - **Component**: command
 - **Component-Name**: /reconstruct-types
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/reconstruct-types appinfo.dll`
+- **Command**: `/reconstruct-types srvsvc.dll`
 - **Expected**: All types reconstructed with confidence scores
 - **Validates**: Full type reconstruction
 - **Flags-Tested**: module only
@@ -2140,9 +2140,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: code-quality
 - **Component**: command
 - **Component-Name**: /reconstruct-types
-- **Target-Module**: windows.storage.dll
+- **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `/reconstruct-types windows.storage.dll CInvokeCreateProcessVerb`
+- **Command**: `/reconstruct-types clusapi.dll ClusNode`
 - **Expected**: Single class type reconstruction
 - **Validates**: Class-scoped reconstruction
 - **Flags-Tested**: class argument
@@ -2153,9 +2153,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: code-quality
 - **Component**: command
 - **Component-Name**: /reconstruct-types
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/reconstruct-types appinfo.dll --include-com`
+- **Command**: `/reconstruct-types srvsvc.dll --include-com`
 - **Expected**: Types with COM interface reconstruction included
 - **Validates**: --include-com flag
 - **Flags-Tested**: --include-com
@@ -2166,9 +2166,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: code-quality
 - **Component**: command
 - **Component-Name**: /reconstruct-types
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/reconstruct-types appinfo.dll --validate`
+- **Command**: `/reconstruct-types srvsvc.dll --validate`
 - **Expected**: Types validated against assembly
 - **Validates**: --validate flag
 - **Flags-Tested**: --validate
@@ -2196,10 +2196,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: ops
 - **Component**: command
 - **Component-Name**: /runs
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/runs list appinfo.dll`
-- **Expected**: Recent runs filtered to appinfo.dll
+- **Command**: `/runs list srvsvc.dll`
+- **Expected**: Recent runs filtered to srvsvc.dll
 - **Validates**: Module filter
 - **Flags-Tested**: list, module
 - **Protocol**: none
@@ -2222,10 +2222,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: ops
 - **Component**: command
 - **Component-Name**: /runs
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/runs latest appinfo.dll`
-- **Expected**: Reopens newest run for appinfo.dll
+- **Command**: `/runs latest srvsvc.dll`
+- **Expected**: Reopens newest run for srvsvc.dll
 - **Validates**: latest subcommand
 - **Flags-Tested**: latest, module
 - **Protocol**: none
@@ -2248,10 +2248,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: ops
 - **Component**: command
 - **Component-Name**: /cache-manage
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/cache-manage clear appinfo.dll`
-- **Expected**: Cache cleared for appinfo.dll
+- **Command**: `/cache-manage clear srvsvc.dll`
+- **Expected**: Cache cleared for srvsvc.dll
 - **Validates**: clear subcommand with module
 - **Flags-Tested**: clear, module
 - **Protocol**: none
@@ -2261,9 +2261,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: ops
 - **Component**: command
 - **Component-Name**: /cache-manage
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/cache-manage refresh appinfo.dll`
+- **Command**: `/cache-manage refresh srvsvc.dll`
 - **Expected**: Clear and re-run common analysis
 - **Validates**: refresh subcommand
 - **Flags-Tested**: refresh, module
@@ -2339,10 +2339,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: ops
 - **Component**: command
 - **Component-Name**: /pipeline
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/pipeline run .agent/config/pipelines/security-sweep.yaml --modules appinfo.dll`
-- **Expected**: Pipeline runs only on appinfo.dll
+- **Command**: `/pipeline run .agent/config/pipelines/security-sweep.yaml --modules srvsvc.dll`
+- **Expected**: Pipeline runs only on srvsvc.dll
 - **Validates**: --modules override
 - **Flags-Tested**: run, --modules
 - **Protocol**: none
@@ -2369,9 +2369,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: decompiled-code-extractor/find_module_db.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll --json`
+- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py srvsvc.dll --json`
 - **Expected**: JSON with db_path field
 - **Validates**: Single module lookup
 - **Flags-Tested**: module, --json
@@ -2395,9 +2395,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: decompiled-code-extractor/list_functions.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/list_functions.py <db:appinfo> --search "Launch" --json`
+- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/list_functions.py <db:srvsvc> --search "Share" --json`
 - **Expected**: JSON with matching functions
 - **Validates**: --search pattern matching
 - **Flags-Tested**: --search, --json
@@ -2408,9 +2408,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: decompiled-code-extractor/list_functions.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/list_functions.py <db:appinfo> --has-decompiled --with-signatures --limit 10 --json`
+- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/list_functions.py <db:srvsvc> --has-decompiled --with-signatures --limit 10 --json`
 - **Expected**: 10 functions with signatures, all having decompiled code
 - **Validates**: --has-decompiled, --with-signatures, --limit
 - **Flags-Tested**: --has-decompiled, --with-signatures, --limit, --json
@@ -2421,9 +2421,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: decompiled-code-extractor/extract_function_data.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db:appinfo> AiLaunchProcess --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db:srvsvc> SsServerFsControl --json`
 - **Expected**: Full function data: decompiled code, assembly, xrefs, strings
 - **Validates**: Function extraction by name
 - **Flags-Tested**: function, --json
@@ -2434,9 +2434,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: decompiled-code-extractor/extract_function_data.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db:appinfo> --search "ShellExecute" --json`
+- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db:srvsvc> --search "NetrShare" --json`
 - **Expected**: Search results as JSON
 - **Validates**: --search with --json
 - **Flags-Tested**: --search, --json
@@ -2448,9 +2448,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component**: skill-script
 - **Component-Name**: function-index/lookup_function.py
 - **Target-Module**: N/A
-- **Target-Function**: ShellExecuteExW
-- **Command**: `python .agent/skills/function-index/scripts/lookup_function.py ShellExecuteExW`
-- **Expected**: Module and .cpp file path for ShellExecuteExW
+- **Target-Function**: ServiceMain
+- **Command**: `python .agent/skills/function-index/scripts/lookup_function.py ServiceMain`
+- **Expected**: Module and .cpp file path for ServiceMain
 - **Validates**: Cross-module function lookup
 - **Flags-Tested**: function name
 - **Protocol**: none
@@ -2462,7 +2462,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: function-index/lookup_function.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/function-index/scripts/lookup_function.py --search "Ai.*Process" --regex --json`
+- **Command**: `python .agent/skills/function-index/scripts/lookup_function.py --search "Netr.*Enum" --regex --json`
 - **Expected**: All matching functions across modules
 - **Validates**: --search --regex mode
 - **Flags-Tested**: --search, --regex, --json
@@ -2473,10 +2473,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: function-index/lookup_function.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/function-index/scripts/index_functions.py appinfo.dll --app-only --json`
-- **Expected**: Only application functions in appinfo.dll (uses index_functions for listing)
+- **Command**: `python .agent/skills/function-index/scripts/index_functions.py srvsvc.dll --app-only --json`
+- **Expected**: Only application functions in srvsvc.dll (uses index_functions for listing)
 - **Validates**: Module function listing with --app-only filter
 - **Flags-Tested**: --module, --app-only, --json
 - **Protocol**: none
@@ -2486,9 +2486,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: function-index/index_functions.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/function-index/scripts/index_functions.py appinfo.dll --stats --json`
+- **Command**: `python .agent/skills/function-index/scripts/index_functions.py srvsvc.dll --stats --json`
 - **Expected**: Function count statistics
 - **Validates**: --stats mode
 - **Flags-Tested**: --stats, --json
@@ -2512,9 +2512,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: function-index/index_functions.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/function-index/scripts/index_functions.py appinfo.dll --by-file --json`
+- **Command**: `python .agent/skills/function-index/scripts/index_functions.py srvsvc.dll --by-file --json`
 - **Expected**: Functions grouped by .cpp file
 - **Validates**: --by-file grouping
 - **Flags-Tested**: --by-file, --json
@@ -2526,9 +2526,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component**: skill-script
 - **Component-Name**: function-index/resolve_function_file.py
 - **Target-Module**: N/A
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/function-index/scripts/resolve_function_file.py AiLaunchProcess --json`
-- **Expected**: Absolute file path for AiLaunchProcess
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/function-index/scripts/resolve_function_file.py SsServerFsControl --json`
+- **Expected**: Absolute file path for SsServerFsControl
 - **Validates**: Single function file resolution
 - **Flags-Tested**: function, --json
 - **Protocol**: none
@@ -2540,7 +2540,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: function-index/resolve_function_file.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/function-index/scripts/resolve_function_file.py --names "AiLaunchProcess,AiCheckLUA" --json`
+- **Command**: `python .agent/skills/function-index/scripts/resolve_function_file.py --names "SsServerFsControl,SsImpersonateClient" --json`
 - **Expected**: File paths for both functions
 - **Validates**: --names batch resolution
 - **Flags-Tested**: --names, --json
@@ -2551,9 +2551,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: classify-functions/triage_summary.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:appinfo> --top 5 --json`
+- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --top 5 --json`
 - **Expected**: Top 5 classification categories with counts
 - **Validates**: Classification triage with --top
 - **Flags-Tested**: --top, --json
@@ -2564,9 +2564,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: classify-functions/triage_summary.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:appinfo> --app-only --json`
+- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --app-only --json`
 - **Expected**: Only application function classifications
 - **Validates**: --app-only filter
 - **Flags-Tested**: --app-only, --json
@@ -2577,9 +2577,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: classify-functions/triage_summary.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:appinfo> --json --no-cache`
+- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --json --no-cache`
 - **Expected**: Fresh computation, no cache hit
 - **Validates**: --no-cache bypass
 - **Flags-Tested**: --json, --no-cache
@@ -2590,9 +2590,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: classify-functions/classify_module.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/classify_module.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/classify-functions/scripts/classify_module.py <db:srvsvc> --json`
 - **Expected**: Complete categorized function index
 - **Validates**: Full module classification
 - **Flags-Tested**: --json
@@ -2603,9 +2603,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: classify-functions/classify_module.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/classify_module.py <db:appinfo> --category security --min-interest 5 --no-telemetry --no-compiler --json`
+- **Command**: `python .agent/skills/classify-functions/scripts/classify_module.py <db:srvsvc> --category security --min-interest 5 --no-telemetry --no-compiler --json`
 - **Expected**: Only security category, interest >= 5, no telemetry/compiler
 - **Validates**: --category, --min-interest, --no-telemetry, --no-compiler
 - **Flags-Tested**: --category, --min-interest, --no-telemetry, --no-compiler, --json
@@ -2616,9 +2616,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: classify-functions/classify_function.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/classify-functions/scripts/classify_function.py <db:appinfo> AiLaunchProcess --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/classify-functions/scripts/classify_function.py <db:srvsvc> SsServerFsControl --json`
 - **Expected**: Detailed classification for single function
 - **Validates**: Single function classification
 - **Flags-Tested**: function, --json
@@ -2629,9 +2629,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: classify-functions/classify_function.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/classify_function.py <db:appinfo> --search "Launch" --json`
+- **Command**: `python .agent/skills/classify-functions/scripts/classify_function.py <db:srvsvc> --search "Share" --json`
 - **Expected**: Classification for matching functions
 - **Validates**: --search with classify
 - **Flags-Tested**: --search, --json
@@ -2642,9 +2642,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: callgraph-tracer/build_call_graph.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db:appinfo> --stats --json`
+- **Command**: `python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db:srvsvc> --stats --json`
 - **Expected**: Node/edge counts, hub functions, density
 - **Validates**: --stats mode
 - **Flags-Tested**: --stats, --json
@@ -2655,9 +2655,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: callgraph-tracer/build_call_graph.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db:appinfo> --scc --json`
+- **Command**: `python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db:srvsvc> --scc --json`
 - **Expected**: Strongly connected components
 - **Validates**: --scc flag
 - **Flags-Tested**: --scc, --json
@@ -2668,9 +2668,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: callgraph-tracer/build_call_graph.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db:appinfo> --path AiLaunchProcess AiCheckSecureApplicationDirectory --json`
+- **Command**: `python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db:srvsvc> --path SsServerFsControl SsCheckAccess --json`
 - **Expected**: Shortest path between functions
 - **Validates**: --path flag
 - **Flags-Tested**: --path, --json
@@ -2681,9 +2681,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: callgraph-tracer/build_call_graph.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db:appinfo> --reachable AiLaunchProcess --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db:srvsvc> --reachable SsServerFsControl --json`
 - **Expected**: Transitive closure of reachable functions
 - **Validates**: --reachable flag
 - **Flags-Tested**: --reachable, --json
@@ -2694,9 +2694,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: callgraph-tracer/build_call_graph.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db:appinfo> --neighbors AiLaunchProcess --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db:srvsvc> --neighbors SsServerFsControl --json`
 - **Expected**: Immediate callers and callees
 - **Validates**: --neighbors flag
 - **Flags-Tested**: --neighbors, --json
@@ -2707,9 +2707,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: callgraph-tracer/build_call_graph.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db:appinfo> --stats --json --no-cache`
+- **Command**: `python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db:srvsvc> --stats --json --no-cache`
 - **Expected**: Fresh computation bypassing cache
 - **Validates**: --no-cache for cacheable script
 - **Flags-Tested**: --stats, --json, --no-cache
@@ -2720,9 +2720,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: callgraph-tracer/chain_analysis.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db:appinfo> AiLaunchProcess --depth 3 --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db:srvsvc> SsServerFsControl --depth 3 --json`
 - **Expected**: Cross-module chain analysis to depth 3
 - **Validates**: Chain analysis with depth
 - **Flags-Tested**: function, --depth, --json
@@ -2733,9 +2733,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: callgraph-tracer/chain_analysis.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db:appinfo> AiLaunchProcess --summary --no-code --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db:srvsvc> SsServerFsControl --summary --no-code --json`
 - **Expected**: Compact summary without code
 - **Validates**: --summary and --no-code flags
 - **Flags-Tested**: --summary, --no-code, --json
@@ -2747,8 +2747,8 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component**: skill-script
 - **Component-Name**: callgraph-tracer/cross_module_resolve.py
 - **Target-Module**: N/A
-- **Target-Function**: ShellExecuteExW
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/cross_module_resolve.py ShellExecuteExW --json`
+- **Target-Function**: ServiceMain
+- **Command**: `python .agent/skills/callgraph-tracer/scripts/cross_module_resolve.py ServiceMain --json`
 - **Expected**: Resolution to target module (stderr warnings about tracking DB are expected behavior)
 - **Validates**: Simple function resolution
 - **Flags-Tested**: function, --json
@@ -2759,9 +2759,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: callgraph-tracer/cross_module_resolve.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/cross_module_resolve.py --resolve-all <db:appinfo> AiLaunchProcess --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/callgraph-tracer/scripts/cross_module_resolve.py --resolve-all <db:srvsvc> SsServerFsControl --json`
 - **Expected**: All external calls resolved
 - **Validates**: --resolve-all mode
 - **Flags-Tested**: --resolve-all, --json
@@ -2785,10 +2785,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: callgraph-tracer/module_dependencies.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/module_dependencies.py --module appinfo.dll --json`
-- **Expected**: Dependencies for appinfo.dll
+- **Command**: `python .agent/skills/callgraph-tracer/scripts/module_dependencies.py --module srvsvc.dll --json`
+- **Expected**: Dependencies for srvsvc.dll
 - **Validates**: --module mode
 - **Flags-Tested**: --module, --json
 - **Protocol**: none
@@ -2798,9 +2798,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: callgraph-tracer/analyze_detailed_xrefs.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/analyze_detailed_xrefs.py <db:appinfo> --function AiLaunchProcess --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/callgraph-tracer/scripts/analyze_detailed_xrefs.py <db:srvsvc> --function SsServerFsControl --json`
 - **Expected**: Detailed xref structures
 - **Validates**: Function-scoped xref analysis
 - **Flags-Tested**: --function, --json
@@ -2811,9 +2811,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: callgraph-tracer/generate_diagram.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/generate_diagram.py <db:appinfo> --function AiLaunchProcess --format mermaid --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/callgraph-tracer/scripts/generate_diagram.py <db:srvsvc> --function SsServerFsControl --format mermaid --json`
 - **Expected**: Mermaid diagram syntax
 - **Validates**: Diagram generation
 - **Flags-Tested**: --function, --format mermaid, --json
@@ -2824,9 +2824,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: data-flow-tracer/forward_trace.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/data-flow-tracer/scripts/forward_trace.py <db:appinfo> AiLaunchProcess --param 1 --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/data-flow-tracer/scripts/forward_trace.py <db:srvsvc> SsServerFsControl --param 1 --json`
 - **Expected**: Forward parameter flow
 - **Validates**: Forward trace
 - **Flags-Tested**: function, --param, --json
@@ -2837,9 +2837,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: data-flow-tracer/forward_trace.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/data-flow-tracer/scripts/forward_trace.py <db:appinfo> AiLaunchProcess --param 1 --depth 3 --assembly --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/data-flow-tracer/scripts/forward_trace.py <db:srvsvc> SsServerFsControl --param 1 --depth 3 --assembly --json`
 - **Expected**: Deeper trace with assembly annotations
 - **Validates**: --depth and --assembly
 - **Flags-Tested**: --param, --depth, --assembly, --json
@@ -2850,10 +2850,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: data-flow-tracer/backward_trace.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/data-flow-tracer/scripts/backward_trace.py <db:appinfo> AiLaunchProcess --target CreateProcessAsUserW --json`
-- **Expected**: Argument origins for CreateProcessAsUserW (AiLaunchProcess calls CreateProcessAsUserW, not CreateProcessW). Depends on multi-line call parsing support in `decompiled_parser.py` and xref-first discovery via `discover_calls_with_xrefs()`.
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: NetrShareEnum
+- **Command**: `python .agent/skills/data-flow-tracer/scripts/backward_trace.py <db:srvsvc> NetrShareEnum --target RpcImpersonateClient --json`
+- **Expected**: Argument origins for RpcImpersonateClient. Depends on multi-line call parsing support in `decompiled_parser.py` and xref-first discovery via `discover_calls_with_xrefs()`.
 - **Validates**: Backward trace with --target, xref-first call discovery
 - **Flags-Tested**: function, --target, --json
 - **Protocol**: none
@@ -2863,10 +2863,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: data-flow-tracer/backward_trace.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/data-flow-tracer/scripts/backward_trace.py <db:appinfo> AiLaunchProcess --target CreateProcessAsUserW --arg 1 --callers --json`
-- **Expected**: Origin traced through callers (AiLaunchProcess calls CreateProcessAsUserW, not CreateProcessW). Depends on multi-line call parsing support in `decompiled_parser.py` and xref-first discovery via `discover_calls_with_xrefs()`.
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: NetrShareEnum
+- **Command**: `python .agent/skills/data-flow-tracer/scripts/backward_trace.py <db:srvsvc> NetrShareEnum --target RpcImpersonateClient --arg 1 --callers --json`
+- **Expected**: Origin traced through callers. Depends on multi-line call parsing support in `decompiled_parser.py` and xref-first discovery via `discover_calls_with_xrefs()`.
 - **Validates**: --arg and --callers, xref-first call discovery
 - **Flags-Tested**: --target, --arg, --callers, --json
 - **Protocol**: none
@@ -2876,9 +2876,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: data-flow-tracer/global_state_map.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/data-flow-tracer/scripts/global_state_map.py <db:appinfo> --summary --json`
+- **Command**: `python .agent/skills/data-flow-tracer/scripts/global_state_map.py <db:srvsvc> --summary --json`
 - **Expected**: Global variable reader/writer summary
 - **Validates**: Global state mapping
 - **Flags-Tested**: --summary, --json
@@ -2889,9 +2889,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: data-flow-tracer/global_state_map.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/data-flow-tracer/scripts/global_state_map.py <db:appinfo> --shared-only --writers-only --json`
+- **Command**: `python .agent/skills/data-flow-tracer/scripts/global_state_map.py <db:srvsvc> --shared-only --writers-only --json`
 - **Expected**: Only shared globals with writers
 - **Validates**: --shared-only, --writers-only
 - **Flags-Tested**: --shared-only, --writers-only, --json
@@ -2902,9 +2902,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: data-flow-tracer/string_trace.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/data-flow-tracer/scripts/string_trace.py <db:appinfo> --string "CreateProcess" --json`
+- **Command**: `python .agent/skills/data-flow-tracer/scripts/string_trace.py <db:srvsvc> --string "LanmanServer" --json`
 - **Expected**: Functions referencing the string
 - **Validates**: --string search
 - **Flags-Tested**: --string, --json
@@ -2915,10 +2915,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: data-flow-tracer/string_trace.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/data-flow-tracer/scripts/string_trace.py <db:appinfo> --function AiLaunchProcess --json`
-- **Expected**: Strings used by AiLaunchProcess
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/data-flow-tracer/scripts/string_trace.py <db:srvsvc> --function SsServerFsControl --json`
+- **Expected**: Strings used by SsServerFsControl
 - **Validates**: --function mode
 - **Flags-Tested**: --function, --json
 - **Protocol**: none
@@ -2928,9 +2928,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: data-flow-tracer/string_trace.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/data-flow-tracer/scripts/string_trace.py <db:appinfo> --list-strings --limit 20 --json`
+- **Command**: `python .agent/skills/data-flow-tracer/scripts/string_trace.py <db:srvsvc> --list-strings --limit 20 --json`
 - **Expected**: Top 20 strings
 - **Validates**: --list-strings, --limit
 - **Flags-Tested**: --list-strings, --limit, --json
@@ -2941,9 +2941,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: map-attack-surface/discover_entrypoints.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/map-attack-surface/scripts/discover_entrypoints.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/map-attack-surface/scripts/discover_entrypoints.py <db:srvsvc> --json`
 - **Expected**: Entry points categorized by type
 - **Validates**: Entry point discovery
 - **Flags-Tested**: --json
@@ -2954,9 +2954,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: map-attack-surface/discover_entrypoints.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/map-attack-surface/scripts/discover_entrypoints.py <db:appinfo> --json --no-cache`
+- **Command**: `python .agent/skills/map-attack-surface/scripts/discover_entrypoints.py <db:srvsvc> --json --no-cache`
 - **Expected**: Fresh computation
 - **Validates**: --no-cache bypass
 - **Flags-Tested**: --json, --no-cache
@@ -2967,9 +2967,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: map-attack-surface/rank_entrypoints.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/map-attack-surface/scripts/rank_entrypoints.py <db:appinfo> --top 10 --json`
+- **Command**: `python .agent/skills/map-attack-surface/scripts/rank_entrypoints.py <db:srvsvc> --top 10 --json`
 - **Expected**: Top 10 ranked by attack value
 - **Validates**: Entry point ranking
 - **Flags-Tested**: --top, --json
@@ -2980,9 +2980,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: map-attack-surface/generate_entrypoints_json.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/map-attack-surface/scripts/generate_entrypoints_json.py <db:appinfo> -o entrypoints.json --top 10`
+- **Command**: `python .agent/skills/map-attack-surface/scripts/generate_entrypoints_json.py <db:srvsvc> -o entrypoints.json --top 10`
 - **Expected**: CRS-compatible entrypoints.json written to output file (stdout is empty when using -o flag)
 - **Validates**: JSON export
 - **Flags-Tested**: -o, --top
@@ -2993,9 +2993,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: security-dossier/build_dossier.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/security-dossier/scripts/build_dossier.py <db:appinfo> AiLaunchProcess --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/security-dossier/scripts/build_dossier.py <db:srvsvc> SsServerFsControl --json`
 - **Expected**: 8-section security context dossier
 - **Validates**: Dossier construction
 - **Flags-Tested**: function, --json
@@ -3006,9 +3006,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: security-dossier/build_dossier.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/security-dossier/scripts/build_dossier.py <db:appinfo> AiLaunchProcess --callee-depth 2 --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/security-dossier/scripts/build_dossier.py <db:srvsvc> SsServerFsControl --callee-depth 2 --json`
 - **Expected**: Dossier with deeper callee context
 - **Validates**: --callee-depth
 - **Flags-Tested**: --callee-depth, --json
@@ -3019,9 +3019,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: taint-analysis/taint_function.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/taint-analysis/scripts/taint_function.py <db:appinfo> AiLaunchProcess --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/taint-analysis/scripts/taint_function.py <db:srvsvc> SsServerFsControl --json`
 - **Expected**: Taint trace results with sinks and guards
 - **Validates**: Core taint analysis
 - **Flags-Tested**: function, --json
@@ -3032,9 +3032,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: taint-analysis/taint_function.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/taint-analysis/scripts/taint_function.py <db:appinfo> AiLaunchProcess --params 1,3 --depth 3 --direction both --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/taint-analysis/scripts/taint_function.py <db:srvsvc> SsServerFsControl --params 1,3 --depth 3 --direction both --json`
 - **Expected**: Bidirectional taint on specific params
 - **Validates**: --params, --depth, --direction both
 - **Flags-Tested**: --params, --depth, --direction, --json
@@ -3045,9 +3045,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: taint-analysis/trace_taint_forward.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/taint-analysis/scripts/trace_taint_forward.py <db:appinfo> AiLaunchProcess --params 1 --depth 2 --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/taint-analysis/scripts/trace_taint_forward.py <db:srvsvc> SsServerFsControl --params 1 --depth 2 --json`
 - **Expected**: Forward taint trace
 - **Validates**: Dedicated forward trace
 - **Flags-Tested**: --params, --depth, --json
@@ -3058,9 +3058,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: taint-analysis/trace_taint_backward.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/taint-analysis/scripts/trace_taint_backward.py <db:appinfo> AiLaunchProcess --params 1 --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/taint-analysis/scripts/trace_taint_backward.py <db:srvsvc> SsServerFsControl --params 1 --json`
 - **Expected**: Backward taint trace
 - **Validates**: Dedicated backward trace
 - **Flags-Tested**: --params, --json
@@ -3071,9 +3071,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: taint-analysis/trace_taint_cross_module.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/taint-analysis/scripts/trace_taint_cross_module.py <db:appinfo> AiLaunchProcess --cross-depth 2 --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/taint-analysis/scripts/trace_taint_cross_module.py <db:srvsvc> SsServerFsControl --cross-depth 2 --json`
 - **Expected**: Cross-module taint propagation
 - **Validates**: Cross-module taint
 - **Flags-Tested**: function, --cross-depth, --json
@@ -3084,9 +3084,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: taint-analysis/trace_taint_cross_module.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/taint-analysis/scripts/trace_taint_cross_module.py <db:appinfo> --from-entrypoints --top 5 --min-score 0.3 --json`
+- **Command**: `python .agent/skills/taint-analysis/scripts/trace_taint_cross_module.py <db:srvsvc> --from-entrypoints --top 5 --min-score 0.3 --json`
 - **Expected**: Entry point auto-discovery with taint
 - **Validates**: --from-entrypoints mode
 - **Flags-Tested**: --from-entrypoints, --top, --min-score, --json
@@ -3097,9 +3097,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: taint-analysis/trace_taint_cross_module.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/taint-analysis/scripts/trace_taint_cross_module.py <db:appinfo> AiLaunchProcess --no-trust-analysis --no-com-resolve --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/taint-analysis/scripts/trace_taint_cross_module.py <db:srvsvc> SsServerFsControl --no-trust-analysis --no-com-resolve --json`
 - **Expected**: Taint without trust/COM analysis
 - **Validates**: --no-trust-analysis, --no-com-resolve
 - **Flags-Tested**: --no-trust-analysis, --no-com-resolve, --json
@@ -3123,9 +3123,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: memory-corruption-detector/scan_buffer_overflows.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/memory-corruption-detector/scripts/scan_buffer_overflows.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/memory-corruption-detector/scripts/scan_buffer_overflows.py <db:srvsvc> --json`
 - **Expected**: Buffer overflow findings
 - **Validates**: Buffer overflow scanner
 - **Flags-Tested**: --json
@@ -3136,9 +3136,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: memory-corruption-detector/scan_buffer_overflows.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/memory-corruption-detector/scripts/scan_buffer_overflows.py <db:appinfo> --top 10 --json --no-cache`
+- **Command**: `python .agent/skills/memory-corruption-detector/scripts/scan_buffer_overflows.py <db:srvsvc> --top 10 --json --no-cache`
 - **Expected**: Fresh scan, top 10
 - **Validates**: --top, --no-cache
 - **Flags-Tested**: --top, --json, --no-cache
@@ -3149,9 +3149,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: memory-corruption-detector/scan_integer_issues.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/memory-corruption-detector/scripts/scan_integer_issues.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/memory-corruption-detector/scripts/scan_integer_issues.py <db:srvsvc> --json`
 - **Expected**: Integer overflow/truncation findings
 - **Validates**: Integer issue scanner
 - **Flags-Tested**: --json
@@ -3162,9 +3162,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: memory-corruption-detector/scan_use_after_free.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/memory-corruption-detector/scripts/scan_use_after_free.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/memory-corruption-detector/scripts/scan_use_after_free.py <db:srvsvc> --json`
 - **Expected**: Use-after-free findings
 - **Validates**: UAF scanner
 - **Flags-Tested**: --json
@@ -3175,9 +3175,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: memory-corruption-detector/scan_format_strings.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/memory-corruption-detector/scripts/scan_format_strings.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/memory-corruption-detector/scripts/scan_format_strings.py <db:srvsvc> --json`
 - **Expected**: Format string findings
 - **Validates**: Format string scanner
 - **Flags-Tested**: --json
@@ -3188,9 +3188,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: memory-corruption-detector/verify_findings.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/memory-corruption-detector/scripts/verify_findings.py --findings <path> --db-path <db:appinfo> --json`
+- **Command**: `python .agent/skills/memory-corruption-detector/scripts/verify_findings.py --findings <path> --db-path <db:srvsvc> --json`
 - **Expected**: NOT_FOUND or PARSE_ERROR because placeholder path has no valid data
 - **Validates**: Graceful handling of missing or empty findings file
 - **Flags-Tested**: --findings, --db-path, --json
@@ -3201,9 +3201,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: logic-vulnerability-detector/scan_auth_bypass.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/logic-vulnerability-detector/scripts/scan_auth_bypass.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/logic-vulnerability-detector/scripts/scan_auth_bypass.py <db:srvsvc> --json`
 - **Expected**: Authorization bypass findings
 - **Validates**: Auth bypass scanner
 - **Flags-Tested**: --json
@@ -3214,9 +3214,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: logic-vulnerability-detector/scan_auth_bypass.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/logic-vulnerability-detector/scripts/scan_auth_bypass.py <db:appinfo> --top 10 --json --no-cache`
+- **Command**: `python .agent/skills/logic-vulnerability-detector/scripts/scan_auth_bypass.py <db:srvsvc> --top 10 --json --no-cache`
 - **Expected**: Fresh scan, top 10
 - **Validates**: --top, --no-cache
 - **Flags-Tested**: --top, --json, --no-cache
@@ -3227,9 +3227,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: logic-vulnerability-detector/scan_state_errors.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/logic-vulnerability-detector/scripts/scan_state_errors.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/logic-vulnerability-detector/scripts/scan_state_errors.py <db:srvsvc> --json`
 - **Expected**: JSON with status ok and state-machine issue findings (may be empty)
 - **Validates**: State issue scanner
 - **Flags-Tested**: --json
@@ -3240,9 +3240,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: logic-vulnerability-detector/scan_logic_flaws.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/logic-vulnerability-detector/scripts/scan_logic_flaws.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/logic-vulnerability-detector/scripts/scan_logic_flaws.py <db:srvsvc> --json`
 - **Expected**: TOCTOU, path leakage findings
 - **Validates**: Logic flaw scanner
 - **Flags-Tested**: --json
@@ -3253,9 +3253,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: logic-vulnerability-detector/scan_api_misuse.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/logic-vulnerability-detector/scripts/scan_api_misuse.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/logic-vulnerability-detector/scripts/scan_api_misuse.py <db:srvsvc> --json`
 - **Expected**: API misuse findings
 - **Validates**: API misuse scanner
 - **Flags-Tested**: --json
@@ -3266,9 +3266,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: logic-vulnerability-detector/verify_findings.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/logic-vulnerability-detector/scripts/verify_findings.py --findings <path> --db-path <db:appinfo> --json`
+- **Command**: `python .agent/skills/logic-vulnerability-detector/scripts/verify_findings.py --findings <path> --db-path <db:srvsvc> --json`
 - **Expected**: NOT_FOUND or PARSE_ERROR because placeholder path has no valid data
 - **Validates**: Graceful handling of missing or empty findings file
 - **Flags-Tested**: --findings, --db-path, --json
@@ -3292,9 +3292,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: exploitability-assessment/assess_finding.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/exploitability-assessment/scripts/assess_finding.py --taint-report <path> --module-db <db:appinfo> --json`
+- **Command**: `python .agent/skills/exploitability-assessment/scripts/assess_finding.py --taint-report <path> --module-db <db:srvsvc> --json`
 - **Expected**: NOT_FOUND or PARSE_ERROR because placeholder path has no valid data
 - **Validates**: Graceful handling of missing or empty taint report
 - **Flags-Tested**: --taint-report, --module-db, --json
@@ -3305,9 +3305,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: exploitability-assessment/batch_assess.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/exploitability-assessment/scripts/batch_assess.py <db:appinfo> --top 10 --min-score 0.3 --json`
+- **Command**: `python .agent/skills/exploitability-assessment/scripts/batch_assess.py <db:srvsvc> --top 10 --min-score 0.3 --json`
 - **Expected**: Batch findings sorted by exploitability
 - **Validates**: Batch assessment
 - **Flags-Tested**: --top, --min-score, --json
@@ -3318,9 +3318,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: verify-decompiled/scan_module.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/verify-decompiled/scripts/scan_module.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/verify-decompiled/scripts/scan_module.py <db:srvsvc> --json`
 - **Expected**: Decompiler accuracy scan results
 - **Validates**: Module-wide verification scan
 - **Flags-Tested**: --json
@@ -3331,9 +3331,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: verify-decompiled/scan_module.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/verify-decompiled/scripts/scan_module.py <db:appinfo> --top 10 --min-severity medium --app-only --json --no-cache`
+- **Command**: `python .agent/skills/verify-decompiled/scripts/scan_module.py <db:srvsvc> --top 10 --min-severity medium --app-only --json --no-cache`
 - **Expected**: Top 10 medium+ severity issues, app-only
 - **Validates**: --top, --min-severity, --app-only, --no-cache
 - **Flags-Tested**: --top, --min-severity, --app-only, --json, --no-cache
@@ -3344,9 +3344,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: verify-decompiled/verify_function.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/verify-decompiled/scripts/verify_function.py <db:appinfo> AiLaunchProcess --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/verify-decompiled/scripts/verify_function.py <db:srvsvc> SsServerFsControl --json`
 - **Expected**: Instruction-level verification
 - **Validates**: Single function verification
 - **Flags-Tested**: function, --json
@@ -3357,9 +3357,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: string-intelligence/analyze_strings_deep.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/string-intelligence/scripts/analyze_strings_deep.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/string-intelligence/scripts/analyze_strings_deep.py <db:srvsvc> --json`
 - **Expected**: Categorized string intelligence
 - **Validates**: String analysis
 - **Flags-Tested**: --json
@@ -3370,9 +3370,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: string-intelligence/analyze_strings_deep.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/string-intelligence/scripts/analyze_strings_deep.py <db:appinfo> --function AiLaunchProcess --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/string-intelligence/scripts/analyze_strings_deep.py <db:srvsvc> --function SsServerFsControl --json`
 - **Expected**: Strings for single function
 - **Validates**: --function scope
 - **Flags-Tested**: --function, --json
@@ -3383,9 +3383,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: string-intelligence/analyze_strings_deep.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/string-intelligence/scripts/analyze_strings_deep.py <db:appinfo> --top 20 --category credentials --json`
+- **Command**: `python .agent/skills/string-intelligence/scripts/analyze_strings_deep.py <db:srvsvc> --top 20 --category credentials --json`
 - **Expected**: Top 20 credential strings
 - **Validates**: --top, --category
 - **Flags-Tested**: --top, --category, --json
@@ -3396,9 +3396,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: state-machine-extractor/detect_dispatchers.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/state-machine-extractor/scripts/detect_dispatchers.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/state-machine-extractor/scripts/detect_dispatchers.py <db:srvsvc> --json`
 - **Expected**: Dispatch table locations
 - **Validates**: Dispatcher detection
 - **Flags-Tested**: --json
@@ -3409,9 +3409,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: state-machine-extractor/detect_dispatchers.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/state-machine-extractor/scripts/detect_dispatchers.py <db:appinfo> --min-cases 5 --with-loops --app-only --json`
+- **Command**: `python .agent/skills/state-machine-extractor/scripts/detect_dispatchers.py <db:srvsvc> --min-cases 5 --with-loops --app-only --json`
 - **Expected**: Filtered dispatchers
 - **Validates**: --min-cases, --with-loops, --app-only
 - **Flags-Tested**: --min-cases, --with-loops, --app-only, --json
@@ -3422,9 +3422,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: state-machine-extractor/extract_dispatch_table.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/state-machine-extractor/scripts/extract_dispatch_table.py <db:appinfo> AiLaunchProcess --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/state-machine-extractor/scripts/extract_dispatch_table.py <db:srvsvc> SsServerFsControl --json`
 - **Expected**: Case-to-handler mappings
 - **Validates**: Dispatch table extraction
 - **Flags-Tested**: function, --json
@@ -3435,10 +3435,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: state-machine-extractor/extract_state_machine.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/state-machine-extractor/scripts/extract_state_machine.py <db:appinfo> AiLaunchProcess --with-code --json`
-- **Expected**: NO_DATA result (AiLaunchProcess has no state machine pattern); or state transitions with code if a dispatcher function is used instead
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/state-machine-extractor/scripts/extract_state_machine.py <db:srvsvc> SsServerFsControl --with-code --json`
+- **Expected**: NO_DATA result (SsServerFsControl has no state machine pattern); or state transitions with code if a dispatcher function is used instead
 - **Validates**: State machine extraction
 - **Flags-Tested**: function, --with-code, --json
 - **Protocol**: none
@@ -3448,9 +3448,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: state-machine-extractor/generate_state_diagram.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/state-machine-extractor/scripts/generate_state_diagram.py <db:appinfo> --function AiLaunchProcess --mode dispatch --format mermaid`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/state-machine-extractor/scripts/generate_state_diagram.py <db:srvsvc> --function SsServerFsControl --mode dispatch --format mermaid`
 - **Expected**: Mermaid state diagram
 - **Validates**: Diagram generation
 - **Flags-Tested**: --function, --mode, --format
@@ -3461,9 +3461,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: generate-re-report/generate_report.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/generate-re-report/scripts/generate_report.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/generate-re-report/scripts/generate_report.py <db:srvsvc> --json`
 - **Expected**: 10-section RE report
 - **Validates**: Full report generation
 - **Flags-Tested**: --json
@@ -3474,9 +3474,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: generate-re-report/generate_report.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/generate-re-report/scripts/generate_report.py <db:appinfo> --summary --top 10 --json --no-cache`
+- **Command**: `python .agent/skills/generate-re-report/scripts/generate_report.py <db:srvsvc> --summary --top 10 --json --no-cache`
 - **Expected**: Summary report, fresh computation
 - **Validates**: --summary, --top, --no-cache
 - **Flags-Tested**: --summary, --top, --json, --no-cache
@@ -3487,9 +3487,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: generate-re-report/analyze_imports.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/generate-re-report/scripts/analyze_imports.py <db:appinfo> --exports --include-delay-load --json`
+- **Command**: `python .agent/skills/generate-re-report/scripts/analyze_imports.py <db:srvsvc> --exports --include-delay-load --json`
 - **Expected**: Import/export analysis with delay-load
 - **Validates**: --exports, --include-delay-load
 - **Flags-Tested**: --exports, --include-delay-load, --json
@@ -3500,9 +3500,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: generate-re-report/analyze_complexity.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/generate-re-report/scripts/analyze_complexity.py <db:appinfo> --top 10 --app-only --json`
+- **Command**: `python .agent/skills/generate-re-report/scripts/analyze_complexity.py <db:srvsvc> --top 10 --app-only --json`
 - **Expected**: Top 10 complex functions, app only
 - **Validates**: Complexity ranking
 - **Flags-Tested**: --top, --app-only, --json
@@ -3513,9 +3513,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: generate-re-report/analyze_topology.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/generate-re-report/scripts/analyze_topology.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/generate-re-report/scripts/analyze_topology.py <db:srvsvc> --json`
 - **Expected**: Call graph topology metrics
 - **Validates**: Topology analysis
 - **Flags-Tested**: --json
@@ -3526,9 +3526,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: generate-re-report/analyze_strings.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/generate-re-report/scripts/analyze_strings.py <db:appinfo> --top 20 --category security --json`
+- **Command**: `python .agent/skills/generate-re-report/scripts/analyze_strings.py <db:srvsvc> --top 20 --category security --json`
 - **Expected**: Security-relevant strings
 - **Validates**: String analysis for report
 - **Flags-Tested**: --top, --category, --json
@@ -3539,9 +3539,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: generate-re-report/analyze_decompilation_quality.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/generate-re-report/scripts/analyze_decompilation_quality.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/generate-re-report/scripts/analyze_decompilation_quality.py <db:srvsvc> --json`
 - **Expected**: Decompiler accuracy metrics
 - **Validates**: Quality analysis
 - **Flags-Tested**: --json
@@ -3553,9 +3553,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component**: skill-script
 - **Component-Name**: import-export-resolver/query_function.py
 - **Target-Module**: N/A
-- **Target-Function**: CreateProcessW
-- **Command**: `python .agent/skills/import-export-resolver/scripts/query_function.py --function CreateProcessW --direction both --json`
-- **Expected**: Export and import data for CreateProcessW
+- **Target-Function**: NtFsControlFile
+- **Command**: `python .agent/skills/import-export-resolver/scripts/query_function.py --function NtFsControlFile --direction both --json`
+- **Expected**: Export and import data for NtFsControlFile
 - **Validates**: Function query
 - **Flags-Tested**: --function, --direction, --json
 - **Protocol**: none
@@ -3578,9 +3578,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: import-export-resolver/module_deps.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/import-export-resolver/scripts/module_deps.py --module appinfo.dll --consumers --diagram --json`
+- **Command**: `python .agent/skills/import-export-resolver/scripts/module_deps.py --module srvsvc.dll --consumers --diagram --json`
 - **Expected**: Dependency graph with consumers and diagram
 - **Validates**: --module, --consumers, --diagram
 - **Flags-Tested**: --module, --consumers, --diagram, --json
@@ -3591,9 +3591,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: import-export-resolver/resolve_forwarders.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/import-export-resolver/scripts/resolve_forwarders.py --module appinfo.dll --all --json`
+- **Command**: `python .agent/skills/import-export-resolver/scripts/resolve_forwarders.py --module srvsvc.dll --all --json`
 - **Expected**: All forwarder chains resolved
 - **Validates**: Forwarder resolution
 - **Flags-Tested**: --module, --all, --json
@@ -3604,9 +3604,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: com-interface-analysis/resolve_com_server.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/com-interface-analysis/scripts/resolve_com_server.py appinfo.dll --json`
+- **Command**: `python .agent/skills/com-interface-analysis/scripts/resolve_com_server.py srvsvc.dll --json`
 - **Expected**: COM servers and CLSIDs
 - **Validates**: COM server resolution
 - **Flags-Tested**: module, --json
@@ -3630,9 +3630,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: com-interface-analysis/enumerate_com_methods.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/com-interface-analysis/scripts/enumerate_com_methods.py appinfo.dll --show-pseudo-idl --json`
+- **Command**: `python .agent/skills/com-interface-analysis/scripts/enumerate_com_methods.py srvsvc.dll --show-pseudo-idl --json`
 - **Expected**: COM methods with pseudo-IDL
 - **Validates**: Method enumeration with IDL
 - **Flags-Tested**: module, --show-pseudo-idl, --json
@@ -3656,9 +3656,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: com-interface-reconstruction/scan_com_interfaces.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/com-interface-reconstruction/scripts/scan_com_interfaces.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/com-interface-reconstruction/scripts/scan_com_interfaces.py <db:srvsvc> --json`
 - **Expected**: COM interface implementations found
 - **Validates**: COM interface scanning
 - **Flags-Tested**: --json
@@ -3669,9 +3669,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: com-interface-reconstruction/decode_wrl_templates.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/com-interface-reconstruction/scripts/decode_wrl_templates.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/com-interface-reconstruction/scripts/decode_wrl_templates.py <db:srvsvc> --json`
 - **Expected**: WRL template structures
 - **Validates**: WRL decoding
 - **Flags-Tested**: --json
@@ -3682,9 +3682,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: com-interface-reconstruction/generate_idl.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/com-interface-reconstruction/scripts/generate_idl.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/com-interface-reconstruction/scripts/generate_idl.py <db:srvsvc> --json`
 - **Expected**: IDL output for reconstructed interfaces
 - **Validates**: IDL generation
 - **Flags-Tested**: --json
@@ -3695,9 +3695,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: rpc-interface-analysis/resolve_rpc_interface.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py appinfo.dll --with-stubs --json`
+- **Command**: `python .agent/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py srvsvc.dll --with-stubs --json`
 - **Expected**: RPC interfaces with stub data
 - **Validates**: RPC resolution
 - **Flags-Tested**: module, --with-stubs, --json
@@ -3708,9 +3708,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: rpc-interface-analysis/map_rpc_surface.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/rpc-interface-analysis/scripts/map_rpc_surface.py appinfo.dll --with-blast-radius --json`
+- **Command**: `python .agent/skills/rpc-interface-analysis/scripts/map_rpc_surface.py srvsvc.dll --with-blast-radius --json`
 - **Expected**: RPC surface with blast-radius
 - **Validates**: Surface mapping with blast-radius
 - **Flags-Tested**: module, --with-blast-radius, --json
@@ -3734,10 +3734,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: winrt-interface-analysis/resolve_winrt_server.py
-- **Target-Module**: windows.storage.dll
+- **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/winrt-interface-analysis/scripts/resolve_winrt_server.py windows.storage.dll --json`
-- **Expected**: WinRT servers for windows.storage.dll
+- **Command**: `python .agent/skills/winrt-interface-analysis/scripts/resolve_winrt_server.py clusapi.dll --json`
+- **Expected**: WinRT servers for clusapi.dll
 - **Validates**: WinRT server resolution
 - **Flags-Tested**: module, --json
 - **Protocol**: none
@@ -3760,9 +3760,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: batch-lift/collect_functions.py
-- **Target-Module**: windows.storage.dll
+- **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/batch-lift/scripts/collect_functions.py <db:winstorage> --class CInvokeCreateProcessVerb --json`
+- **Command**: `python .agent/skills/batch-lift/scripts/collect_functions.py <db:clusapi> --class ClusNode --json`
 - **Expected**: All methods of the class collected
 - **Validates**: Class collection
 - **Flags-Tested**: --class, --json
@@ -3773,9 +3773,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: batch-lift/collect_functions.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/batch-lift/scripts/collect_functions.py <db:appinfo> --chain AiLaunchProcess --depth 3 --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/batch-lift/scripts/collect_functions.py <db:srvsvc> --chain SsServerFsControl --depth 3 --json`
 - **Expected**: Call chain functions collected
 - **Validates**: --chain mode
 - **Flags-Tested**: --chain, --depth, --json
@@ -3786,9 +3786,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: batch-lift/collect_functions.py
-- **Target-Module**: shell32.dll
-- **Target-Function**: ShellExecuteExW
-- **Command**: `python .agent/skills/batch-lift/scripts/collect_functions.py <db:shell32> --export ShellExecuteExW --json`
+- **Target-Module**: svchost.exe
+- **Target-Function**: ServiceMain
+- **Command**: `python .agent/skills/batch-lift/scripts/collect_functions.py <db:svchost> --export ServiceMain --json`
 - **Expected**: Export subtree collected
 - **Validates**: --export mode
 - **Flags-Tested**: --export, --json
@@ -3812,9 +3812,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: reconstruct-types/list_types.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/reconstruct-types/scripts/list_types.py <db:appinfo> --with-vtables --json`
+- **Command**: `python .agent/skills/reconstruct-types/scripts/list_types.py <db:srvsvc> --with-vtables --json`
 - **Expected**: Detected types with vtable info
 - **Validates**: Type listing
 - **Flags-Tested**: --with-vtables, --json
@@ -3825,9 +3825,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: reconstruct-types/extract_class_hierarchy.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/reconstruct-types/scripts/extract_class_hierarchy.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/reconstruct-types/scripts/extract_class_hierarchy.py <db:srvsvc> --json`
 - **Expected**: Class inheritance and method mappings
 - **Validates**: Hierarchy extraction
 - **Flags-Tested**: --json
@@ -3838,9 +3838,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: reconstruct-types/scan_struct_fields.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py <db:appinfo> --all-classes --app-only --json`
+- **Command**: `python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py <db:srvsvc> --all-classes --app-only --json`
 - **Expected**: Field boundaries for all app classes
 - **Validates**: Struct field scanning
 - **Flags-Tested**: --all-classes, --app-only, --json
@@ -3851,9 +3851,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: reconstruct-types/generate_header.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/reconstruct-types/scripts/generate_header.py <db:appinfo> --all --output all_types.h`
+- **Command**: `python .agent/skills/reconstruct-types/scripts/generate_header.py <db:srvsvc> --all --output all_types.h`
 - **Expected**: Compilable C++ header written to output file (stdout is empty when using --output flag)
 - **Validates**: Header generation
 - **Flags-Tested**: --all, --output
@@ -3864,9 +3864,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: deep-research-prompt/gather_function_context.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/deep-research-prompt/scripts/gather_function_context.py <db:appinfo> AiLaunchProcess --depth 2 --with-code --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/deep-research-prompt/scripts/gather_function_context.py <db:srvsvc> SsServerFsControl --depth 2 --with-code --json`
 - **Expected**: Multi-skill context aggregation
 - **Validates**: Function context gathering
 - **Flags-Tested**: function, --depth, --with-code, --json
@@ -3877,9 +3877,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: deep-research-prompt/gather_module_context.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/deep-research-prompt/scripts/gather_module_context.py <db:appinfo> --top 10 --json`
+- **Command**: `python .agent/skills/deep-research-prompt/scripts/gather_module_context.py <db:srvsvc> --top 10 --json`
 - **Expected**: Module-level metrics aggregation
 - **Validates**: Module context gathering
 - **Flags-Tested**: --top, --json
@@ -3890,9 +3890,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: deep-research-prompt/generate_research_prompt.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/skills/deep-research-prompt/scripts/generate_research_prompt.py <db:appinfo> AiLaunchProcess --area security --detail full`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/skills/deep-research-prompt/scripts/generate_research_prompt.py <db:srvsvc> SsServerFsControl --area security --detail full`
 - **Expected**: Structured research prompt
 - **Validates**: Research prompt generation
 - **Flags-Tested**: function, --area, --detail
@@ -3903,10 +3903,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: com-interface-analysis/audit_com_security.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/com-interface-analysis/scripts/audit_com_security.py appinfo.dll --json`
-- **Expected**: COM security audit findings for appinfo.dll
+- **Command**: `python .agent/skills/com-interface-analysis/scripts/audit_com_security.py srvsvc.dll --json`
+- **Expected**: COM security audit findings for srvsvc.dll
 - **Validates**: COM security permission auditing
 - **Flags-Tested**: module, --json
 - **Protocol**: none
@@ -3916,9 +3916,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: com-interface-analysis/classify_com_entrypoints.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/com-interface-analysis/scripts/classify_com_entrypoints.py appinfo.dll --json`
+- **Command**: `python .agent/skills/com-interface-analysis/scripts/classify_com_entrypoints.py srvsvc.dll --json`
 - **Expected**: COM entry points classified by attack value
 - **Validates**: COM entry point classification
 - **Flags-Tested**: module, --json
@@ -3929,9 +3929,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: com-interface-reconstruction/map_class_interfaces.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/com-interface-reconstruction/scripts/map_class_interfaces.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/com-interface-reconstruction/scripts/map_class_interfaces.py <db:srvsvc> --json`
 - **Expected**: COM class-to-interface mappings
 - **Validates**: Class interface mapping
 - **Flags-Tested**: --json
@@ -3942,9 +3942,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: rpc-interface-analysis/audit_rpc_security.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/rpc-interface-analysis/scripts/audit_rpc_security.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/rpc-interface-analysis/scripts/audit_rpc_security.py <db:srvsvc> --json`
 - **Expected**: RPC security descriptor audit findings
 - **Validates**: RPC interface security auditing
 - **Flags-Tested**: --json
@@ -3957,7 +3957,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: rpc-interface-analysis/find_rpc_clients.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/rpc-interface-analysis/scripts/find_rpc_clients.py 0497b57d-2e66-424f-a0c6-157cd5d41700 --json`
+- **Command**: `python .agent/skills/rpc-interface-analysis/scripts/find_rpc_clients.py 4b324fc8-1670-01d3-1278-5a47bf6ee188 --json`
 - **Expected**: Modules that are RPC clients for the given UUID
 - **Validates**: RPC client discovery
 - **Flags-Tested**: uuid, --json
@@ -3968,9 +3968,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: rpc-interface-analysis/trace_rpc_chain.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: RAiLaunchAdminProcess
-- **Command**: `python .agent/skills/rpc-interface-analysis/scripts/trace_rpc_chain.py <db:appinfo> --function RAiLaunchAdminProcess --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: NetrShareAdd
+- **Command**: `python .agent/skills/rpc-interface-analysis/scripts/trace_rpc_chain.py <db:srvsvc> --function NetrShareAdd --json`
 - **Expected**: RPC handler call chain trace
 - **Validates**: RPC handler chain tracing
 - **Flags-Tested**: --function, --json
@@ -3981,9 +3981,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: winrt-interface-analysis/audit_winrt_security.py
-- **Target-Module**: windows.storage.dll
+- **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/winrt-interface-analysis/scripts/audit_winrt_security.py <db:winstorage> --json`
+- **Command**: `python .agent/skills/winrt-interface-analysis/scripts/audit_winrt_security.py <db:clusapi> --json`
 - **Expected**: WinRT server security audit findings
 - **Validates**: WinRT security property auditing
 - **Flags-Tested**: --json
@@ -3994,9 +3994,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: winrt-interface-analysis/classify_winrt_entrypoints.py
-- **Target-Module**: windows.storage.dll
+- **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/winrt-interface-analysis/scripts/classify_winrt_entrypoints.py windows.storage.dll --json`
+- **Command**: `python .agent/skills/winrt-interface-analysis/scripts/classify_winrt_entrypoints.py clusapi.dll --json`
 - **Expected**: WinRT entry points classified by attack value
 - **Validates**: WinRT entry point classification
 - **Flags-Tested**: module, --json
@@ -4007,9 +4007,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: skill-script
 - **Component**: skill-script
 - **Component-Name**: winrt-interface-analysis/enumerate_winrt_methods.py
-- **Target-Module**: windows.storage.dll
+- **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/winrt-interface-analysis/scripts/enumerate_winrt_methods.py windows.storage.dll --json`
+- **Command**: `python .agent/skills/winrt-interface-analysis/scripts/enumerate_winrt_methods.py clusapi.dll --json`
 - **Expected**: WinRT server methods enumerated
 - **Validates**: WinRT method enumeration
 - **Flags-Tested**: module, --json
@@ -4037,9 +4037,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: re-analyst/re_query.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/re-analyst/scripts/re_query.py <db:appinfo> --overview --json`
+- **Command**: `python .agent/agents/re-analyst/scripts/re_query.py <db:srvsvc> --overview --json`
 - **Expected**: Module overview with key metrics
 - **Validates**: re-analyst overview mode
 - **Flags-Tested**: --overview, --json
@@ -4050,9 +4050,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: re-analyst/re_query.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/agents/re-analyst/scripts/re_query.py <db:appinfo> --function AiLaunchProcess --context --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/agents/re-analyst/scripts/re_query.py <db:srvsvc> --function SsServerFsControl --context --json`
 - **Expected**: Full function context
 - **Validates**: --function --context mode
 - **Flags-Tested**: --function, --context, --json
@@ -4063,9 +4063,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: re-analyst/re_query.py
-- **Target-Module**: windows.storage.dll
+- **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/re-analyst/scripts/re_query.py <db:winstorage> --class CInvokeCreateProcessVerb --json`
+- **Command**: `python .agent/agents/re-analyst/scripts/re_query.py <db:clusapi> --class ClusNode --json`
 - **Expected**: Class methods and metadata
 - **Validates**: --class mode
 - **Flags-Tested**: --class, --json
@@ -4076,9 +4076,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: re-analyst/re_query.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/re-analyst/scripts/re_query.py <db:appinfo> --exports --with-classification --json`
+- **Command**: `python .agent/agents/re-analyst/scripts/re_query.py <db:srvsvc> --exports --with-classification --json`
 - **Expected**: Exports with classification data
 - **Validates**: --exports --with-classification mode
 - **Flags-Tested**: --exports, --with-classification, --json
@@ -4089,9 +4089,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: re-analyst/re_query.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/re-analyst/scripts/re_query.py <db:appinfo> --search "Launch" --json`
+- **Command**: `python .agent/agents/re-analyst/scripts/re_query.py <db:srvsvc> --search "Share" --json`
 - **Expected**: Search results
 - **Validates**: --search mode
 - **Flags-Tested**: --search, --json
@@ -4102,9 +4102,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: re-analyst/explain_function.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/agents/re-analyst/scripts/explain_function.py <db:appinfo> AiLaunchProcess --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/agents/re-analyst/scripts/explain_function.py <db:srvsvc> SsServerFsControl --json`
 - **Expected**: Structured function explanation
 - **Validates**: Function explanation
 - **Flags-Tested**: function, --json
@@ -4115,9 +4115,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: re-analyst/explain_function.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/agents/re-analyst/scripts/explain_function.py <db:appinfo> AiLaunchProcess --depth 2 --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/agents/re-analyst/scripts/explain_function.py <db:srvsvc> SsServerFsControl --depth 2 --json`
 - **Expected**: Explanation with 2 levels of callees
 - **Validates**: --depth
 - **Flags-Tested**: --depth, --json
@@ -4128,9 +4128,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: re-analyst/explain_function.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/agents/re-analyst/scripts/explain_function.py <db:appinfo> AiLaunchProcess --no-assembly --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/agents/re-analyst/scripts/explain_function.py <db:srvsvc> SsServerFsControl --no-assembly --json`
 - **Expected**: Explanation without assembly
 - **Validates**: --no-assembly
 - **Flags-Tested**: --no-assembly, --json
@@ -4141,9 +4141,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: triage-coordinator/analyze_module.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/triage-coordinator/scripts/analyze_module.py <db:appinfo> --goal triage --json`
+- **Command**: `python .agent/agents/triage-coordinator/scripts/analyze_module.py <db:srvsvc> --goal triage --json`
 - **Expected**: Triage pipeline results
 - **Validates**: triage goal
 - **Flags-Tested**: --goal triage, --json
@@ -4154,9 +4154,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: triage-coordinator/analyze_module.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/triage-coordinator/scripts/analyze_module.py <db:appinfo> --goal security --json`
+- **Command**: `python .agent/agents/triage-coordinator/scripts/analyze_module.py <db:srvsvc> --goal security --json`
 - **Expected**: Security pipeline results
 - **Validates**: security goal
 - **Flags-Tested**: --goal security, --json
@@ -4167,9 +4167,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: triage-coordinator/analyze_module.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/triage-coordinator/scripts/analyze_module.py <db:appinfo> --goal full --json`
+- **Command**: `python .agent/agents/triage-coordinator/scripts/analyze_module.py <db:srvsvc> --goal full --json`
 - **Expected**: Full analysis pipeline
 - **Validates**: full goal
 - **Flags-Tested**: --goal full, --json
@@ -4180,9 +4180,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: triage-coordinator/analyze_module.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/agents/triage-coordinator/scripts/analyze_module.py <db:appinfo> --goal understand-function --function AiLaunchProcess --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/agents/triage-coordinator/scripts/analyze_module.py <db:srvsvc> --goal understand-function --function SsServerFsControl --json`
 - **Expected**: Function understanding pipeline
 - **Validates**: understand-function goal with --function
 - **Flags-Tested**: --goal understand-function, --function, --json
@@ -4193,9 +4193,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: triage-coordinator/analyze_module.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/triage-coordinator/scripts/analyze_module.py <db:appinfo> --goal types --json`
+- **Command**: `python .agent/agents/triage-coordinator/scripts/analyze_module.py <db:srvsvc> --goal types --json`
 - **Expected**: Type reconstruction pipeline
 - **Validates**: types goal
 - **Flags-Tested**: --goal types, --json
@@ -4206,9 +4206,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: triage-coordinator/analyze_module.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/triage-coordinator/scripts/analyze_module.py <db:appinfo> --goal triage --quick --no-cache --json`
+- **Command**: `python .agent/agents/triage-coordinator/scripts/analyze_module.py <db:srvsvc> --goal triage --quick --no-cache --json`
 - **Expected**: Quick triage without cache
 - **Validates**: --quick and --no-cache flags
 - **Flags-Tested**: --goal triage, --quick, --no-cache, --json
@@ -4219,9 +4219,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: triage-coordinator/generate_analysis_plan.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/triage-coordinator/scripts/generate_analysis_plan.py <db:appinfo> --goal triage --json`
+- **Command**: `python .agent/agents/triage-coordinator/scripts/generate_analysis_plan.py <db:srvsvc> --goal triage --json`
 - **Expected**: Phased plan JSON without execution
 - **Validates**: Plan generation for triage
 - **Flags-Tested**: --goal triage, --json
@@ -4232,9 +4232,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: triage-coordinator/generate_analysis_plan.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/triage-coordinator/scripts/generate_analysis_plan.py <db:appinfo> --goal security --json`
+- **Command**: `python .agent/agents/triage-coordinator/scripts/generate_analysis_plan.py <db:srvsvc> --goal security --json`
 - **Expected**: Security plan
 - **Validates**: Plan generation for security
 - **Flags-Tested**: --goal security, --json
@@ -4245,9 +4245,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: triage-coordinator/generate_analysis_plan.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/triage-coordinator/scripts/generate_analysis_plan.py <db:appinfo> --goal full --json`
+- **Command**: `python .agent/agents/triage-coordinator/scripts/generate_analysis_plan.py <db:srvsvc> --goal full --json`
 - **Expected**: Full plan
 - **Validates**: Plan generation for full
 - **Flags-Tested**: --goal full, --json
@@ -4258,9 +4258,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: security-auditor/run_security_scan.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/security-auditor/scripts/run_security_scan.py <db:appinfo> --json`
+- **Command**: `python .agent/agents/security-auditor/scripts/run_security_scan.py <db:srvsvc> --json`
 - **Expected**: Full security scan pipeline
 - **Validates**: Default scan goal
 - **Flags-Tested**: --json
@@ -4271,9 +4271,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: security-auditor/run_security_scan.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/agents/security-auditor/scripts/run_security_scan.py <db:appinfo> --goal audit --function AiLaunchProcess --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/agents/security-auditor/scripts/run_security_scan.py <db:srvsvc> --goal audit --function SsServerFsControl --json`
 - **Expected**: Function-scoped audit
 - **Validates**: audit goal with --function
 - **Flags-Tested**: --goal audit, --function, --json
@@ -4284,9 +4284,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: security-auditor/run_security_scan.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/security-auditor/scripts/run_security_scan.py <db:appinfo> --goal hunt --json`
+- **Command**: `python .agent/agents/security-auditor/scripts/run_security_scan.py <db:srvsvc> --goal hunt --json`
 - **Expected**: Hunt-mode security scan
 - **Validates**: hunt goal
 - **Flags-Tested**: --goal hunt, --json
@@ -4297,9 +4297,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: security-auditor/run_security_scan.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/security-auditor/scripts/run_security_scan.py <db:appinfo> --top 5 --no-cache --json`
+- **Command**: `python .agent/agents/security-auditor/scripts/run_security_scan.py <db:srvsvc> --top 5 --no-cache --json`
 - **Expected**: Top 5, fresh computation
 - **Validates**: --top and --no-cache
 - **Flags-Tested**: --top, --no-cache, --json
@@ -4310,9 +4310,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: code-lifter/batch_extract.py
-- **Target-Module**: windows.storage.dll
+- **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/code-lifter/scripts/batch_extract.py <db:winstorage> --class CInvokeCreateProcessVerb --init-state --json`
+- **Command**: `python .agent/agents/code-lifter/scripts/batch_extract.py <db:clusapi> --class ClusNode --init-state --json`
 - **Expected**: Class methods extracted, state initialized
 - **Validates**: Class extraction with state init
 - **Flags-Tested**: --class, --init-state, --json
@@ -4323,9 +4323,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: code-lifter/batch_extract.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/agents/code-lifter/scripts/batch_extract.py <db:appinfo> --functions AiLaunchProcess --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/agents/code-lifter/scripts/batch_extract.py <db:srvsvc> --functions SsServerFsControl --json`
 - **Expected**: Specific function extracted
 - **Validates**: --functions mode
 - **Flags-Tested**: --functions, --json
@@ -4338,7 +4338,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: code-lifter/track_shared_state.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/code-lifter/scripts/track_shared_state.py --init CInvokeCreateProcessVerb --json`
+- **Command**: `python .agent/agents/code-lifter/scripts/track_shared_state.py --init ClusNode --json`
 - **Expected**: Empty state file created (may fail with INVALID_ARGS if state already exists from a prior test; use --reset to reinitialize)
 - **Validates**: --init
 - **Flags-Tested**: --init, --json
@@ -4376,8 +4376,8 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component**: agent-script
 - **Component-Name**: code-lifter/track_shared_state.py
 - **Target-Module**: N/A
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/agents/code-lifter/scripts/track_shared_state.py --mark-lifted "CInvokeCreateProcessVerb::Execute" --class CInvokeCreateProcessVerb --json`
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/agents/code-lifter/scripts/track_shared_state.py --mark-lifted "ClusNode::ConfigureNode" --class ClusNode --json`
 - **Expected**: Function marked as lifted in state
 - **Validates**: --mark-lifted
 - **Flags-Tested**: --mark-lifted, --class, --json
@@ -4388,9 +4388,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: type-reconstructor/reconstruct_all.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db:appinfo> --json`
+- **Command**: `python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db:srvsvc> --json`
 - **Expected**: Full type reconstruction pipeline
 - **Validates**: Default pipeline
 - **Flags-Tested**: --json
@@ -4401,9 +4401,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: type-reconstructor/reconstruct_all.py
-- **Target-Module**: windows.storage.dll
+- **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db:winstorage> --class CInvokeCreateProcessVerb --include-com --json`
+- **Command**: `python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db:clusapi> --class ClusNode --include-com --json`
 - **Expected**: Class reconstruction with COM
 - **Validates**: --class and --include-com
 - **Flags-Tested**: --class, --include-com, --json
@@ -4427,9 +4427,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: type-reconstructor/validate_layout.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/type-reconstructor/scripts/validate_layout.py <db:appinfo> --header types.h --json`
+- **Command**: `python .agent/agents/type-reconstructor/scripts/validate_layout.py <db:srvsvc> --header types.h --json`
 - **Expected**: NOT_FOUND structured error because types.h does not exist
 - **Validates**: Graceful handling of missing header file
 - **Flags-Tested**: --header, --json
@@ -4440,9 +4440,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: verifier/compare_lifted.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/agents/verifier/scripts/compare_lifted.py <db:appinfo> AiLaunchProcess --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/agents/verifier/scripts/compare_lifted.py <db:srvsvc> SsServerFsControl --json`
 - **Expected**: INVALID_ARGS error because --lifted or --lifted-stdin is required
 - **Validates**: Argparse validation for required lifted code source
 - **Flags-Tested**: function, --json
@@ -4453,9 +4453,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: verifier/compare_lifted.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/agents/verifier/scripts/compare_lifted.py <db:appinfo> AiLaunchProcess --lifted lifted.cpp --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/agents/verifier/scripts/compare_lifted.py <db:srvsvc> SsServerFsControl --lifted lifted.cpp --json`
 - **Expected**: NOT_FOUND structured error because lifted.cpp does not exist
 - **Validates**: Graceful handling of missing lifted code file
 - **Flags-Tested**: --lifted, --json
@@ -4466,9 +4466,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: agent
 - **Component**: agent-script
 - **Component-Name**: verifier/extract_basic_blocks.py
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `python .agent/agents/verifier/scripts/extract_basic_blocks.py <db:appinfo> AiLaunchProcess --json`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `python .agent/agents/verifier/scripts/extract_basic_blocks.py <db:srvsvc> SsServerFsControl --json`
 - **Expected**: Assembly parsed into basic blocks
 - **Validates**: Basic block extraction
 - **Flags-Tested**: function, --json
@@ -4496,9 +4496,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: workflow
 - **Component**: workflow
 - **Component-Name**: module-triage-initialization
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/quickstart appinfo.dll` then `/triage appinfo.dll` then `/scan appinfo.dll` then `/prioritize --modules appinfo.dll`
+- **Command**: `/quickstart srvsvc.dll` then `/triage srvsvc.dll` then `/scan srvsvc.dll` then `/prioritize --modules srvsvc.dll`
 - **Expected**: Each stage completes and feeds into the next; final output is ranked findings
 - **Validates**: Full triage initialization workflow from technical_reference.md
 - **Flags-Tested**: N/A
@@ -4509,9 +4509,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: workflow
 - **Component**: workflow
 - **Component-Name**: comprehensive-security-audit
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/triage appinfo.dll --with-security` then `/batch-audit appinfo.dll --top 10` then `/prioritize --modules appinfo.dll` then `/audit appinfo.dll <top_function>`
+- **Command**: `/triage srvsvc.dll --with-security` then `/batch-audit srvsvc.dll --top 10` then `/prioritize --modules srvsvc.dll` then `/audit srvsvc.dll <top_function>`
 - **Expected**: Baseline -> batch evaluation -> ranking -> deep inspection
 - **Validates**: Full security audit workflow
 - **Flags-Tested**: --with-security, --top
@@ -4522,9 +4522,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: workflow
 - **Component**: workflow
 - **Component-Name**: hypothesis-driven-investigation
-- **Target-Module**: appinfo.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/hunt-plan appinfo.dll` then `/hunt-execute appinfo.dll` then `/audit appinfo.dll <confirmed_function>`
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/hunt-plan srvsvc.dll` then `/hunt-execute srvsvc.dll` then `/audit srvsvc.dll <confirmed_function>`
 - **Expected**: Plan -> execute -> validate confirmed findings
 - **Validates**: Full VR investigation workflow
 - **Flags-Tested**: N/A
@@ -4535,9 +4535,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: workflow
 - **Component**: workflow
 - **Component-Name**: export-dependency-tracing
-- **Target-Module**: shell32.dll
-- **Target-Function**: ShellExecuteExW
-- **Command**: `/audit shell32.dll ShellExecuteExW --diagram` then `/taint shell32.dll ShellExecuteExW --cross-module` then `/verify shell32.dll ShellExecuteExW`
+- **Target-Module**: svchost.exe
+- **Target-Function**: ServiceMain
+- **Command**: `/audit svchost.exe ServiceMain --diagram` then `/taint svchost.exe ServiceMain --cross-module` then `/verify svchost.exe ServiceMain`
 - **Expected**: Audit with diagram -> taint -> verify along execution path
 - **Validates**: Full export tracing workflow
 - **Flags-Tested**: --cross-module
@@ -4548,9 +4548,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: workflow
 - **Component**: workflow
 - **Component-Name**: cross-boundary-impact
-- **Target-Module**: appinfo.dll, shell32.dll, windows.storage.dll
-- **Target-Function**: AiLaunchProcess
-- **Command**: `/imports appinfo.dll --diagram` then `/data-flow-cross forward appinfo.dll AiLaunchProcess --param 1` then `/compare-modules shell32.dll windows.storage.dll`
+- **Target-Module**: srvsvc.dll, svchost.exe, clusapi.dll
+- **Target-Function**: SsServerFsControl
+- **Command**: `/imports srvsvc.dll --diagram` then `/data-flow-cross forward srvsvc.dll SsServerFsControl --param 1` then `/compare-modules svchost.exe clusapi.dll`
 - **Expected**: Dependency graph -> cross-module data flow -> comparative analysis
 - **Validates**: Full cross-boundary workflow
 - **Flags-Tested**: --diagram, --param
@@ -4563,7 +4563,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: interface-attack-surface
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `/com surface` and `/rpc surface` and `/winrt surface` then `/com privesc --top 10` then `/batch-audit appinfo.dll --privilege-boundary`
+- **Command**: `/com surface` and `/rpc surface` and `/winrt surface` then `/com privesc --top 10` then `/batch-audit srvsvc.dll --privilege-boundary`
 - **Expected**: Surface discovery -> privesc identification -> handler evaluation
 - **Validates**: Full interface mapping workflow
 - **Flags-Tested**: surface, privesc, --privilege-boundary
@@ -4574,9 +4574,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: workflow
 - **Component**: workflow
 - **Component-Name**: code-reconstruction
-- **Target-Module**: windows.storage.dll
+- **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `/reconstruct-types windows.storage.dll CInvokeCreateProcessVerb` then `/lift-class windows.storage.dll CInvokeCreateProcessVerb` then `/verify-batch windows.storage.dll CInvokeCreateProcessVerb`
+- **Command**: `/reconstruct-types clusapi.dll ClusNode` then `/lift-class clusapi.dll ClusNode` then `/verify-batch clusapi.dll ClusNode`
 - **Expected**: Type resolution -> lifting -> batch verification
 - **Validates**: Full code reconstruction workflow
 - **Flags-Tested**: class
@@ -4718,7 +4718,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: error-handling
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py nonexistent_db.db AiLaunchProcess --json`
+- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py nonexistent_db.db SsServerFsControl --json`
 - **Expected**: Structured JSON error on stderr: `{"error": "...", "code": "NOT_FOUND"}`, exit code 1
 - **Validates**: NOT_FOUND error code
 - **Flags-Tested**: --json
@@ -4742,9 +4742,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: infrastructure
 - **Component**: infrastructure
 - **Component-Name**: error-handling
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db:appinfo> --search "Check" --json`
+- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db:srvsvc> --search "Check" --json`
 - **Expected**: JSON with status ok containing match_count and matches array for the search results
 - **Validates**: Search listing returns structured matches
 - **Flags-Tested**: --search, --json
@@ -4755,9 +4755,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: infrastructure
 - **Component**: infrastructure
 - **Component-Name**: error-handling
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/list_functions.py <db:appinfo> --search "ZZZZNONEXISTENT" --json`
+- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/list_functions.py <db:srvsvc> --search "ZZZZNONEXISTENT" --json`
 - **Expected**: NO_DATA result for zero matches
 - **Validates**: NO_DATA handling
 - **Flags-Tested**: --search, --json
@@ -4794,9 +4794,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: infrastructure
 - **Component**: infrastructure
 - **Component-Name**: json-output-contract
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:appinfo> --json`
+- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --json`
 - **Expected**: Exactly one JSON dict on stdout with "status" key
 - **Validates**: JSON output convention -- single dict with status
 - **Flags-Tested**: --json
@@ -4807,9 +4807,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: infrastructure
 - **Component**: infrastructure
 - **Component-Name**: json-output-contract
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:appinfo> --json 2>stderr.txt`
+- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --json 2>stderr.txt`
 - **Expected**: stdout is pure JSON, stderr has progress messages only
 - **Validates**: stdout/stderr separation
 - **Flags-Tested**: --json
@@ -4820,9 +4820,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: infrastructure
 - **Component**: infrastructure
 - **Component-Name**: json-output-contract
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:appinfo> --top 5`
+- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --top 5`
 - **Expected**: Formatted table output, line widths under 120 chars
 - **Validates**: Human-readable output convention
 - **Flags-Tested**: --top (no --json)
@@ -4833,9 +4833,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: infrastructure
 - **Component**: infrastructure
 - **Component-Name**: cache-behavior
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:appinfo> --json` (run twice)
+- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --json` (run twice)
 - **Expected**: First run creates cache file in .agent/cache/, second run hits cache
 - **Validates**: Cache file creation and hit
 - **Flags-Tested**: --json
@@ -4846,9 +4846,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: infrastructure
 - **Component**: infrastructure
 - **Component-Name**: cache-behavior
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:appinfo> --json --no-cache`
+- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --json --no-cache`
 - **Expected**: Fresh computation regardless of existing cache
 - **Validates**: --no-cache bypass
 - **Flags-Tested**: --json, --no-cache
@@ -4859,9 +4859,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: infrastructure
 - **Component**: infrastructure
 - **Component-Name**: workspace-pattern
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/triage appinfo.dll` (or any workspace-protocol command)
+- **Command**: `/triage srvsvc.dll` (or any workspace-protocol command)
 - **Expected**: Run dir created under .agent/workspace/ with manifest.json
 - **Validates**: Workspace directory creation
 - **Flags-Tested**: N/A
@@ -4872,7 +4872,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: infrastructure
 - **Component**: infrastructure
 - **Component-Name**: workspace-pattern
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
 - **Command**: After workspace command, inspect run dir
 - **Expected**: manifest.json with step statuses, each step has results.json and summary.json
@@ -4887,7 +4887,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: grind-loop-protocol
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `/full-report appinfo.dll` (grind-loop command)
+- **Command**: `/full-report srvsvc.dll` (grind-loop command)
 - **Expected**: Scratchpad created at .agent/hooks/scratchpads/{session_id}.md
 - **Validates**: Scratchpad creation for multi-item tasks
 - **Flags-Tested**: N/A
@@ -4924,7 +4924,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: infrastructure
 - **Component**: infrastructure
 - **Component-Name**: missing-dependency
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
 - **Command**: Run cross-module command when tracking DB is absent
 - **Expected**: Warning logged, single-module analysis continues
@@ -4937,7 +4937,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: infrastructure
 - **Component**: infrastructure
 - **Component-Name**: missing-dependency
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
 - **Command**: Run analysis when analysis DB is absent but extracted_code exists
 - **Expected**: Falls back to function_index.json, reports unavailable features
@@ -4976,9 +4976,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Category**: infrastructure
 - **Component**: infrastructure
 - **Component-Name**: unified_search.py
-- **Target-Module**: appinfo.dll
+- **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/helpers/unified_search.py <db:appinfo> --query "CreateProcess" --json`
+- **Command**: `python .agent/helpers/unified_search.py <db:srvsvc> --query "LanmanServer" --json`
 - **Expected**: JSON with status ok containing search results across dimensions
 - **Validates**: Standalone unified_search.py CLI with --json output
 - **Flags-Tested**: --query, --json

@@ -5,7 +5,7 @@
 name: function-deep-dive
 
 modules:
-  - appinfo.dll
+  - srvsvc.dll
 
 steps:
   - entrypoints:

@@ -229,12 +229,12 @@ def resolve_db_paths(workspace: Path) -> dict[str, str]:
     """Discover DB path aliases by running find_module_db.py.
 
     Builds two tiers of aliases per module so that exact matches always win
-    over substring fallback.  For a module named ``appinfo.dll`` whose DB
-    is ``appinfo_dll_f2bbf324a1.db`` we register:
+    over substring fallback.  For a module named ``srvsvc.dll`` whose DB
+    is ``srvsvc_dll_7af81c0428.db`` we register:
 
-    * ``appinfo_dll`` -> exact key (derived from ``file_name`` with dots/dashes
+    * ``srvsvc_dll`` -> exact key (derived from ``file_name`` with dots/dashes
       replaced by underscores)
-    * ``appinfo``     -> short key (the stem before the first dot in
+    * ``srvsvc``     -> short key (the stem before the first dot in
       ``file_name``).  Only registered when there is no collision with
       another module's short key.
     """

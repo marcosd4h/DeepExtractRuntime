@@ -7,9 +7,9 @@
 name: security-sweep
 
 modules:
-  - appinfo.dll
-  - shell32.dll
-  - windows.storage.dll
+  - srvsvc.dll
+  - svchost.exe
+  - clusapi.dll
 
 steps:
   - triage: {}

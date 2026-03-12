@@ -5,8 +5,8 @@
 name: full-analysis
 
 modules:
-  - appinfo.dll
-  - shell32.dll
+  - srvsvc.dll
+  - svchost.exe
 
 steps:
   - triage: {}
