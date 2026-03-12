@@ -41,7 +41,7 @@ validation strategies that guide the agent (or researcher) through VR workflows.
 
 1. State your hypothesis: "I suspect TOCTOU in the path handler of AiLaunchProcess"
 2. The skill classifies it, identifies confirmation/refutation criteria
-3. Receive a focused plan: `/verify` the decompiled code, `/taint` the
+3. Receive a focused plan: `/verify-decompiler` the decompiled code, `/taint` the
    file path parameter, `/data-flow forward` to trace the path usage
 
 ### Variant Mode
@@ -113,7 +113,7 @@ The [reference.md](reference.md) companion document (951 lines) contains:
 | Missing access check | `/audit`, `/taint` | security-dossier, taint-analysis |
 | TOCTOU / file race | `/data-flow forward`, `/audit` | data-flow-tracer, security-dossier |
 | Symlink/junction | `/search CreateFileW`, `/data-flow forward` | data-flow-tracer, classify-functions |
-| Integer overflow | `/verify`, `/taint` | verify-decompiled, taint-analysis |
+| Integer overflow | `/verify-decompiler`, `/taint` | verify-decompiled, taint-analysis |
 | COM privilege escalation | `/reconstruct-types`, `/audit --diagram` | com-interface-reconstruction, callgraph-tracer |
 | Named pipe impersonation | `/search CreateNamedPipe`, `/taint` | taint-analysis, map-attack-surface |
 | RPC auth bypass | `/search RpcImpersonate`, `/audit` | security-dossier, taint-analysis |

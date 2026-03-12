@@ -71,7 +71,7 @@ If validation fails, report the errors and stop. On success, use `result.resolve
    - **Most Interesting Functions (Top 10)**: table with name, category, interest score, dangerous APIs, reason
    - **Attack Surface Summary**: entry point types/counts, top 5 ranked by attack score, hidden entry points
    - **Quick Security Findings** (when `--with-security` was used): top taint findings from entry points, severity distribution, recommended `/audit` targets
-   - **Recommended Next Steps**: suggest `/explain` or `/verify` for quick follow-ups, `/audit`, `/lift-class`, or `/full-report` for deep analysis, `/scan` for comprehensive vulnerability scanning, and `/search` for targeted exploration
+   - **Recommended Next Steps**: suggest `/explain` or `/verify-decompiler` for quick follow-ups, `/audit`, `/lift-class`, or `/full-report` for deep analysis, `/scan` for comprehensive vulnerability scanning, and `/search` for targeted exploration
 
 ## Step Dependencies
 

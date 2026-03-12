@@ -134,7 +134,7 @@ IN_PROGRESS
 **Who creates the scratchpad:**
 
 - The agent, guided by `.agent/rules/grind-loop-protocol.mdc` (always-on rule)
-- Grind-loop commands such as `/lift-class`, `/full-report`, `/verify-batch`, `/hunt-execute`, `/batch-audit`, and `/scan`
+- Grind-loop commands such as `/lift-class`, `/full-report`, `/verify-decompiler-batch`, `/hunt-execute`, `/batch-audit`, and `/scan`
 - Skills `batch-lift` and `verify-decompiled` reference the protocol at their iteration points
 
 **Timeout:** 5s

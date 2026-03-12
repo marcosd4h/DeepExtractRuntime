@@ -719,7 +719,7 @@ Executes interactive scope definition logic prior to implementation.
 
 ## Code Quality Operations
 
-### verify
+### verify-decompiler
 Executes comparative assessment of control flow equivalence.
 - **Parameters**: module name, function name, limit integer.
 - **Execution Sequence**:
@@ -727,7 +727,17 @@ Executes comparative assessment of control flow equivalence.
   - Computes the differential severity based on control flow discrepancies versus cosmetic alterations.
 - **Composed Elements**: verify-decompiled, function-index.
 
-### verify-batch
+### verify-finding
+Verifies suspected vulnerability findings against assembly ground truth.
+- **Parameters**: module name, function name, findings path, batch flag.
+- **Execution Sequence**:
+  - Gathers findings from scan output, taint results, or by running scanners on the target.
+  - Restates each claim; routes to Standard or Deep verification.
+  - Verifies data flow path, attacker control, and argues devil's advocate per finding.
+  - Renders TRUE POSITIVE or FALSE POSITIVE verdicts with evidence.
+- **Composed Elements**: finding-verification, taint-analysis, data-flow-tracer, callgraph-tracer, security-dossier, decompiled-code-extractor.
+
+### verify-decompiler-batch
 Executes parallel assessment instances across function arrays.
 - **Parameters**: module name, function enumeration array, class restriction string.
 - **Execution Sequence**:
@@ -893,8 +903,8 @@ The shared Python library operates at the foundational tier, exposing core progr
 - **taint**: taint-analysis, function-index, decompiled-code-extractor
 - **audit**: decompiled-code-extractor, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, classify-functions, taint-analysis, import-export-resolver, function-index
 - **triage**: decompiled-code-extractor, generate-re-report, classify-functions, callgraph-tracer, map-attack-surface, taint-analysis, function-index
-- **verify**: verify-decompiled, function-index
-- **verify-batch**: verify-decompiled, function-index, reconstruct-types, decompiled-code-extractor
+- **verify-decompiler**: verify-decompiled, function-index
+- **verify-decompiler-batch**: verify-decompiled, function-index, reconstruct-types, decompiled-code-extractor
 - **winrt**: winrt-interface-analysis, decompiled-code-extractor, map-attack-surface
 - **xref**: callgraph-tracer, function-index
 
@@ -914,7 +924,7 @@ The following operations mandate the instantiation of a scratchpad artifact:
 - **scan**
 - **batch-audit**
 - **hunt-execute**
-- **verify-batch**
+- **verify-decompiler-batch**
 - **lift-class**
 
 ## Cache Target Execution

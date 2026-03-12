@@ -134,7 +134,8 @@ entry points include:
 | `/explain [module] <function>`       | Fast structured explanation of a function                                                           |
 | `/audit [module] <function>`         | Deep security audit with dossier, verification, call chain, and taint context                       |
 | `/scan <module>`                     | Unified memory, logic, and taint vulnerability scan                                                 |
-| `/verify-batch <module>`             | Batch decompiler verification across a class or function set                                        |
+| `/verify-decompiler-batch <module>`  | Batch decompiler verification across a class or function set                                        |
+| `/verify-finding <module> <function>` | Verify suspected vulnerability findings against assembly ground truth                              |
 | `/lift-class [module] <class>`       | Batch-lift all methods of a class with shared state                                                 |
 | `/batch-audit <module>`              | Breadth-first audit of top-ranked functions                                                         |
 | `/rpc <module>`                      | RPC surface analysis                                                                                |

@@ -48,9 +48,9 @@
       "grind_loop": false,
       "workspace_protocol": true
     },
-    "verify": {
+    "verify-decompiler": {
       "purpose": "Verify decompiler accuracy for a function or scan a module for issues",
-      "file": "verify.md",
+      "file": "verify-decompiler.md",
       "skills_used": ["decompiled-code-extractor", "verify-decompiled", "function-index"],
       "agents_used": [],
       "parameters": "[module] [function]",
@@ -130,13 +130,22 @@
       "grind_loop": false,
       "workspace_protocol": true
     },
-    "verify-batch": {
+    "verify-decompiler-batch": {
       "purpose": "Verify decompiler accuracy for a batch of functions or an entire class",
-      "file": "verify-batch.md",
+      "file": "verify-decompiler-batch.md",
       "skills_used": ["decompiled-code-extractor", "verify-decompiled"],
       "agents_used": ["verifier"],
       "parameters": "<module> <function1> [function2 ...] | <module> --class <name>",
       "grind_loop": true,
+      "workspace_protocol": true
+    },
+    "verify-finding": {
+      "purpose": "Verify suspected vulnerability findings against assembly ground truth to confirm or reject as true/false positive",
+      "file": "verify-finding.md",
+      "skills_used": ["finding-verification", "taint-analysis", "data-flow-tracer", "callgraph-tracer", "security-dossier", "decompiled-code-extractor"],
+      "agents_used": ["verifier", "security-auditor"],
+      "parameters": "<module> <function> [--findings <path>] [--batch]",
+      "grind_loop": false,
       "workspace_protocol": true
     },
     "health": {

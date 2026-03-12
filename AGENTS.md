@@ -38,7 +38,7 @@ helper modules.
 2. **Triage a module**: `/triage <module>` -- identity, classification, call graph, attack surface, recommendations.
 3. **Drill into a function**: `/explain <module> <function>` for quick understanding, `/audit <module> <function>` for security assessment.
 
-Use lightweight commands (`/explain`, `/verify`, `/search`) for quick answers;
+Use lightweight commands (`/explain`, `/verify-decompiler`, `/search`) for quick answers;
 heavyweight commands (`/audit`, `/lift-class`, `/full-report`) for deep analysis. Run `/health` to diagnose workspace issues.
 
 For a guided walkthrough, read `docs/ONBOARDING.md`.

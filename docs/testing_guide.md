@@ -2022,10 +2022,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 
 - **Category**: code-quality
 - **Component**: command
-- **Component-Name**: /verify
+- **Component-Name**: /verify-decompiler
 - **Target-Module**: N/A
 - **Target-Function**: SsCheckAccess
-- **Command**: `/verify SsCheckAccess`
+- **Command**: `/verify-decompiler SsCheckAccess`
 - **Expected**: Auto-detects module, verifies decompiler accuracy
 - **Validates**: Cross-module function resolution for verify
 - **Flags-Tested**: function only
@@ -2035,10 +2035,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 
 - **Category**: code-quality
 - **Component**: command
-- **Component-Name**: /verify
+- **Component-Name**: /verify-decompiler
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `/verify srvsvc.dll SsServerFsControl`
+- **Command**: `/verify-decompiler srvsvc.dll SsServerFsControl`
 - **Expected**: Instruction-by-instruction verification
 - **Validates**: Deep function verification
 - **Flags-Tested**: module, function
@@ -2048,10 +2048,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 
 - **Category**: code-quality
 - **Component**: command
-- **Component-Name**: /verify
+- **Component-Name**: /verify-decompiler
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/verify srvsvc.dll`
+- **Command**: `/verify-decompiler srvsvc.dll`
 - **Expected**: Heuristic scan of entire module
 - **Validates**: Module-wide verification scan
 - **Flags-Tested**: module only
@@ -2061,10 +2061,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 
 - **Category**: code-quality
 - **Component**: command
-- **Component-Name**: /verify
+- **Component-Name**: /verify-decompiler
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/verify srvsvc.dll --top 10`
+- **Command**: `/verify-decompiler srvsvc.dll --top 10`
 - **Expected**: Top 10 decompiler issues
 - **Validates**: --top limit for module scan
 - **Flags-Tested**: --top
@@ -2074,14 +2074,27 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 
 - **Category**: code-quality
 - **Component**: command
-- **Component-Name**: /verify-batch
+- **Component-Name**: /verify-decompiler-batch
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsCheckAccess, SsServerFsControl
-- **Command**: `/verify-batch srvsvc.dll SsCheckAccess SsServerFsControl`
+- **Command**: `/verify-decompiler-batch srvsvc.dll SsCheckAccess SsServerFsControl`
 - **Expected**: Parallel verification of both functions
 - **Validates**: Batch verification with grind loop
 - **Flags-Tested**: function list
 - **Protocol**: grind-loop, workspace
+
+### TEST-QUAL-005b: Verify finding single function
+
+- **Category**: code-quality
+- **Component**: command
+- **Component-Name**: /verify-finding
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: SsCheckAccess
+- **Command**: `/verify-finding srvsvc.dll SsCheckAccess`
+- **Expected**: Runs scanners, restates claims, verifies data flow and attacker control, renders TRUE/FALSE POSITIVE verdicts
+- **Validates**: Finding verification workflow with gate review
+- **Flags-Tested**: module, function
+- **Protocol**: workspace
 
 ### TEST-QUAL-006: Lift class list
 
@@ -4537,7 +4550,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: export-dependency-tracing
 - **Target-Module**: svchost.exe
 - **Target-Function**: ServiceMain
-- **Command**: `/audit svchost.exe ServiceMain --diagram` then `/taint svchost.exe ServiceMain --cross-module` then `/verify svchost.exe ServiceMain`
+- **Command**: `/audit svchost.exe ServiceMain --diagram` then `/taint svchost.exe ServiceMain --cross-module` then `/verify-decompiler svchost.exe ServiceMain`
 - **Expected**: Audit with diagram -> taint -> verify along execution path
 - **Validates**: Full export tracing workflow
 - **Flags-Tested**: --cross-module
@@ -4576,7 +4589,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: code-reconstruction
 - **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `/reconstruct-types clusapi.dll ClusNode` then `/lift-class clusapi.dll ClusNode` then `/verify-batch clusapi.dll ClusNode`
+- **Command**: `/reconstruct-types clusapi.dll ClusNode` then `/lift-class clusapi.dll ClusNode` then `/verify-decompiler-batch clusapi.dll ClusNode`
 - **Expected**: Type resolution -> lifting -> batch verification
 - **Validates**: Full code reconstruction workflow
 - **Flags-Tested**: class

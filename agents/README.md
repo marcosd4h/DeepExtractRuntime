@@ -165,7 +165,7 @@ Phase 3   dossier_{func} x5       security-dossier/build_dossier.py  (top-5 rank
 Phase 4   taint_{func} x3        taint-analysis/taint_function.py   (top-3 ranked entries)
 ```
 
-Output includes: category distribution, ranked entry points with attack scores, security dossiers per top entry, taint sink reachability with guard bypass analysis, and prioritized next steps (`/verify`, `/explain`, `/audit`, `/taint`, `/search`).
+Output includes: category distribution, ranked entry points with attack scores, security dossiers per top entry, taint sink reachability with guard bypass analysis, and prioritized next steps (`/verify-decompiler`, `/explain`, `/audit`, `/taint`, `/search`).
 
 **Plan generation mode** produces structured JSON describing parallel/sequential phases for the parent agent to orchestrate:
 
@@ -573,7 +573,7 @@ Each module also has `extracted_code/{module}/module_profile.json` with pre-comp
 | Generate C++ header files from a binary | **type-reconstructor** | `reconstruct_all.py --output types.h` |
 | Lift all methods of a C++ class | **code-lifter** | `/lift-class` launches as subagent |
 | Lift related functions with shared context | **code-lifter** | Launched as subagent with shared state |
-| Verify lifted code is correct | **verifier** | `/verify-batch`, `/lift-class` launch as subagent |
+| Verify lifted code is correct | **verifier** | `/verify-decompiler-batch`, `/lift-class` launch as subagent |
 | Check decompiler accuracy | **verifier** | Launched as subagent with `readonly: true` |
 
 ## Subagent vs Skill

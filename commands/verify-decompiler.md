@@ -4,11 +4,11 @@
 
 Quickly verify whether Hex-Rays decompiled output is accurate for a specific function, or scan an entire module for decompiler issues -- without running a full `/audit` pipeline.
 
-The text after `/verify` specifies the **function name** and optionally the **module**:
-- `/verify AiCheckSecureApplicationDirectory` -- searches all modules
-- `/verify appinfo.dll AiCheckSecureApplicationDirectory` -- targets specific module
-- `/verify appinfo.dll` -- scans the entire module for decompiler issues (no function = module scan)
-- `/verify appinfo.dll --top 10` -- module scan, show top 10 results
+The text after `/verify-decompiler` specifies the **function name** and optionally the **module**:
+- `/verify-decompiler AiCheckSecureApplicationDirectory` -- searches all modules
+- `/verify-decompiler appinfo.dll AiCheckSecureApplicationDirectory` -- targets specific module
+- `/verify-decompiler appinfo.dll` -- scans the entire module for decompiler issues (no function = module scan)
+- `/verify-decompiler appinfo.dll --top 10` -- module scan, show top 10 results
 
 If a function is specified, runs per-function deep verification. If only a module is specified, runs a module-wide scan ranking functions by issue severity.
 
@@ -27,7 +27,7 @@ If a function is specified, runs per-function deep verification. If only a modul
 
 ### Step 0: Preflight Validation
 
-Validate arguments using `helpers.command_validation.validate_command_args("verify", {"module": "<module>"})`.
+Validate arguments using `helpers.command_validation.validate_command_args("verify-decompiler", {"module": "<module>"})`.
 If validation fails, report the errors and stop. On success, use `result.resolved["db_path"]` for subsequent script calls.
 
 1. **Locate the target**
@@ -80,7 +80,7 @@ If validation fails, report the errors and stop. On success, use `result.resolve
    **For module-wide scan**, present:
    - **Scan Summary**: total functions scanned, issue distribution by severity
    - **Top Issues**: ranked list of functions with the most/worst decompiler issues
-   - **Recommended Next Steps**: suggest `/verify <module> <function>` for the top hits, or `/audit` for security-critical functions
+   - **Recommended Next Steps**: suggest `/verify-decompiler <module> <function>` for the top hits, or `/audit` for security-critical functions
 
 ## Output
 
@@ -89,7 +89,7 @@ Present the verification report in chat. This is a lightweight retrieval command
 **Follow-up suggestions**:
 - `/audit <module> <function>` -- full security audit on functions with CRITICAL issues
 - `/explain <module> <function>` -- understand what a flagged function does
-- `/verify <module> <function>` -- deep-dive a specific function from a module scan
+- `/verify-decompiler <module> <function>` -- deep-dive a specific function from a module scan
 
 ## Error Handling
 

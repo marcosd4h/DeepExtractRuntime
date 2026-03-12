@@ -103,7 +103,7 @@ Each module has:
 ```
 /reconstruct-types appinfo.dll        # Discover structs/classes
 /lift-class appinfo.dll CMyClass      # Lift all class methods
-/verify appinfo.dll <method>          # Verify lifted code accuracy
+/verify-decompiler appinfo.dll <method>          # Verify lifted code accuracy
 ```
 
 ### Full Analysis Workflow
@@ -122,8 +122,8 @@ Each module has:
 | `/explain <module> <function>`    | Explain what a function does              |
 | `/search <module> <term>`         | Search functions, strings, APIs           |
 | `/audit <module> <function>`      | Security audit with dossier               |
-| `/verify <module> <function>`     | Check decompiler accuracy                 |
-| `/verify-batch <module>`          | Batch verify all functions                |
+| `/verify-decompiler <module> <function>`     | Check decompiler accuracy                 |
+| `/verify-decompiler-batch <module>`          | Batch verify all functions                |
 | `/lift-class <module> <class>`    | Lift C++ class methods                    |
 | `/audit <module> <export> --diagram` | Audit with call graph from export      |
 | `/data-flow <module> <function>`  | Trace data flow (forward/backward)        |

@@ -83,9 +83,9 @@ class TestTaintCommandRegistryIntegration:
         )
 
     @pytest.mark.parametrize("cmd", [
-        "lift-class", "compare-modules", "verify", "explain",
+        "lift-class", "compare-modules", "verify-decompiler", "explain",
         "search", "reconstruct-types", "data-flow", "state-machines",
-        "cache-manage", "data-flow-cross", "verify-batch", "health", "brainstorm",
+        "cache-manage", "data-flow-cross", "verify-decompiler-batch", "health", "brainstorm",
     ])
     def test_unrelated_command_does_not_list_taint(self, cmd):
         skills = self.reg[cmd].get("skills_used", [])

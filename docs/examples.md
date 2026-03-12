@@ -6,7 +6,7 @@
 /triage appinfo.dll
 /audit appinfo.dll AiLaunchProcess
 /explain appinfo.dll AiCheckSecureApplicationDirectory
-/verify appinfo.dll AiLaunchProcess
+/verify-decompiler appinfo.dll AiLaunchProcess
 /scan appinfo.dll --top 15
 /compare-modules appinfo.dll consent.exe
 /health
@@ -121,14 +121,14 @@ Producing clean, readable code from decompiled output.
 ```text
 /reconstruct-types appinfo.dll CSecurityDescriptor --validate  # struct layout from memory patterns
 /lift-class appinfo.dll CSecurityDescriptor                    # batch-lift all methods (grind loop)
-/verify-batch appinfo.dll --class CSecurityDescriptor          # verify decompiler accuracy per method
+/verify-decompiler-batch appinfo.dll --class CSecurityDescriptor          # verify decompiler accuracy per method
 ```
 
-Progression: `/reconstruct-types` -> `/lift-class` -> `/verify-batch`.
+Progression: `/reconstruct-types` -> `/lift-class` -> `/verify-decompiler-batch`.
 
 Run type reconstruction first so lifts use correct struct layouts. `/lift-class`
 uses the grind loop to process each method sequentially, producing a single
-`.cpp` file. `/verify-batch` catches decompiler issues the lifter may have inherited.
+`.cpp` file. `/verify-decompiler-batch` catches decompiler issues the lifter may have inherited.
 
 ---
 
@@ -180,7 +180,7 @@ Processing multiple functions or modules at scale.
 ```text
 /batch-audit appinfo.dll --top 10                          # audit top 10 entry points
 /batch-audit appinfo.dll --class CSecurityDescriptor       # audit all methods of a class
-/verify-batch appinfo.dll --top 20                         # verify decompiler accuracy, top 20
+/verify-decompiler-batch appinfo.dll --top 20                         # verify decompiler accuracy, top 20
 ```
 
 All three use the grind loop (one checkbox per function, auto-continues until done).

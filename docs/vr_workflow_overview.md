@@ -1775,8 +1775,8 @@ EOF## 5. Commands Reference
 | **VR Campaigns** | `/hunt-plan` | VR planning | no |
 | | `/hunt-execute` | Execute hunt plan | yes |
 | | `/brainstorm` | Research planning | no |
-| **Code Quality** | `/verify` | Verify decompiler accuracy | no |
-| | `/verify-batch` | Batch verify | yes |
+| **Code Quality** | `/verify-decompiler` | Verify decompiler accuracy | no |
+| | `/verify-decompiler-batch` | Batch verify | yes |
 | | `/lift-class` | Batch-lift class methods | yes* |
 | | `/reconstruct-types` | Reconstruct types | no |
 | **Reporting & Ops** | `/prioritize` | Cross-module prioritization | no |
@@ -2468,7 +2468,7 @@ EOF## 5. Commands Reference
 
 ### 5.8 Code Quality
 
-#### `/verify`
+#### `/verify-decompiler`
 
 **Purpose:** Verify decompiler accuracy for a function or module scan.
 
@@ -2488,7 +2488,7 @@ EOF## 5. Commands Reference
 
 ---
 
-#### `/verify-batch`
+#### `/verify-decompiler-batch`
 
 **Purpose:** Batch verify decompiler accuracy for multiple functions or a class.
 
@@ -2845,7 +2845,7 @@ For producing readable C++ from decompiled code:
 [verifier agent]                      Independent verification
     │                                 (fresh context, assembly comparison)
     ▼
-/verify-batch <module> <ClassName>    Batch verify all methods
+/verify-decompiler-batch <module> <ClassName>    Batch verify all methods
 ```
 
 ---
@@ -2888,8 +2888,8 @@ For producing readable C++ from decompiled code:
 | `/taint` | taint-analysis, function-index, decompiled-code-extractor |
 | `/audit` | decompiled-code-extractor, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, classify-functions, taint-analysis, import-export-resolver, function-index |
 | `/triage` | decompiled-code-extractor, generate-re-report, classify-functions, callgraph-tracer, map-attack-surface, taint-analysis, function-index |
-| `/verify` | verify-decompiled, function-index |
-| `/verify-batch` | verify-decompiled, function-index, reconstruct-types, decompiled-code-extractor |
+| `/verify-decompiler` | verify-decompiled, function-index |
+| `/verify-decompiler-batch` | verify-decompiled, function-index, reconstruct-types, decompiled-code-extractor |
 | `/winrt` | winrt-interface-analysis, decompiled-code-extractor, map-attack-surface |
 | `/xref` | callgraph-tracer, function-index |
 
@@ -2912,7 +2912,7 @@ For producing readable C++ from decompiled code:
 | `/scan` | One per phase (5-6 phases) |
 | `/batch-audit` | One per function |
 | `/hunt-execute` | One per hypothesis |
-| `/verify-batch` | One per function |
+| `/verify-decompiler-batch` | One per function |
 | `/lift-class` | One per method (fallback only) |
 
 ### Cacheable Skills

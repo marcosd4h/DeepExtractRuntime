@@ -56,7 +56,7 @@
 **Workspace commands:**
 
 - `/data-flow forward <module> <func>` -- trace the path variable to see if it is revalidated
-- `/verify <module> <func>` -- confirm decompiler accurately represents the two operations
+- `/verify-decompiler <module> <func>` -- confirm decompiler accurately represents the two operations
 - `/audit <module> <func>` -- check if the function operates at elevated privilege
 
 **Red flags:** Time-sensitive operations on user-writable paths. Functions that stat/check a file, then open it in a separate API call. Registry queries that assume the value did not change between size query and data query.
@@ -125,7 +125,7 @@
 
 **Workspace commands:**
 
-- `/verify <module> <func>` -- check for uninitialized variable issues
+- `/verify-decompiler <module> <func>` -- check for uninitialized variable issues
 - `/search <module> "%p"` or `/search <module> "%s"` -- find format strings that may leak data
 - `/data-flow forward <module> <func>` -- trace what data reaches the output buffer
 
@@ -150,7 +150,7 @@
 
 - `/search <module> WaitForSingleObject` -- find lock operations, check for INFINITE timeout
 - `/taint <module> <func>` -- check if allocation sizes are attacker-controlled
-- `/verify <module> <func>` -- confirm exception handling structure
+- `/verify-decompiler <module> <func>` -- confirm exception handling structure
 
 **Red flags:** RPC/COM handler with no exception handling. Recursive function with no depth limit. Allocation size derived from client parameter without cap.
 
@@ -216,7 +216,7 @@
 
 **Workspace commands:**
 
-- `/verify <module> <func>` -- check decompiler accuracy for buffer sizes
+- `/verify-decompiler <module> <func>` -- check decompiler accuracy for buffer sizes
 - `/taint <module> <func>` -- trace input to the copy operation
 - `/audit <module> <func>` -- check `local_vars_size`
 
@@ -238,7 +238,7 @@
 **Workspace commands:**
 
 - `/data-flow forward <module> <func>` -- trace object pointer from allocation through use and free
-- `/verify <module> <func>` -- confirm decompiler correctly represents free/use ordering
+- `/verify-decompiler <module> <func>` -- confirm decompiler correctly represents free/use ordering
 - `/audit <module> <export> --diagram` -- map object lifetime across call chain
 
 **Red flags:** Destructor pattern (`~ClassName`) called from error handler while object is still referenced by caller. Allocation and free in different functions without clear ownership protocol.
@@ -258,7 +258,7 @@
 
 **Workspace commands:**
 
-- `/verify <module> <func>` -- check assembly for overflow checks (`jo`, `jc` instructions)
+- `/verify-decompiler <module> <func>` -- check assembly for overflow checks (`jo`, `jc` instructions)
 - `/taint <module> <func> --params <size_param>` -- trace the size value to allocation
 - `/search <module> HeapAlloc` -- find all allocations, cross-reference with taint data
 
@@ -280,7 +280,7 @@
 **Workspace commands:**
 
 - `/reconstruct-types <module> <class>` -- verify struct layout and vtable
-- `/verify <module> <func>` -- confirm decompiler type annotations
+- `/verify-decompiler <module> <func>` -- confirm decompiler type annotations
 - `/search <module> QueryInterface` -- find COM interface casts
 
 **Red flags:** Function accepts `void*` and casts based on a flag parameter without validation. COM method called on interface pointer without prior `QueryInterface` success check. Union accessed with member from different variant case.
@@ -300,7 +300,7 @@
 
 **Workspace commands:**
 
-- `/verify <module> <func>` -- decompiler verification catches many uninitialized variable issues
+- `/verify-decompiler <module> <func>` -- decompiler verification catches many uninitialized variable issues
 - `/data-flow forward <module> <func>` -- trace the variable to see if all paths initialize it
 
 **Red flags:** Large local struct partially filled by multiple branches. Error/early-return paths that skip initialization. Output buffer returned to caller without `memset`.
@@ -339,7 +339,7 @@
 
 **Workspace commands:**
 
-- `/verify <module> <func>` -- compare loop bounds in decompiled vs assembly
+- `/verify-decompiler <module> <func>` -- compare loop bounds in decompiled vs assembly
 - `/taint <module> <func>` -- trace the count/size value through the loop
 
 **Red flags:** Loop iterates `<= N` instead of `< N`. Buffer sized by `strlen` without `+1`. Character-count and byte-count mixed in the same expression.
@@ -503,7 +503,7 @@
 
 ```
 /data-flow forward <module> <func>         # trace path variable through both operations
-/verify <module> <func>                    # confirm two separate file operations
+/verify-decompiler <module> <func>         # confirm two separate file operations
 /search <module> GetFileAttributes         # find check-before-use patterns
 /audit <module> <func>                     # privilege level and entry reachability
 ```
@@ -718,7 +718,7 @@
 2. **Check for TOCTOU pattern:**
 
    ```
-   /verify <module> <func>                  # are there two file operations?
+   /verify-decompiler <module> <func>       # are there two file operations?
    ```
 
    Look for: stat-then-open, check-then-write, or create-then-use patterns.
@@ -782,7 +782,7 @@
 
    ```
    /audit <module> <parser_func>            # instruction count, loops, complexity
-   /verify <module> <parser_func>           # decompiler accuracy
+   /verify-decompiler <module> <parser_func> # decompiler accuracy
    ```
 
 2. **Trace all input parameters:**
@@ -1030,7 +1030,7 @@ HYPOTHESIS:  An attacker can modify <resource> between the check and the use,
 BECAUSE:     The two operations are not atomic, and <resource> is in a location
              writable by a <attacker_level> attacker.
 TEST:        /data-flow forward <module> <func> --param <resource_param>
-             /verify <module> <func>
+             /verify-decompiler <module> <func>
 REFUTES IF:  The resource is opened exclusively (no FILE_SHARE_WRITE/DELETE) at
              check time and the handle is reused, or the path is not user-writable.
 CONFIRMS IF: Two separate opens on the same path with a time gap between them,
@@ -1048,7 +1048,7 @@ HYPOTHESIS:  An attacker can supply values that cause <size_expr> to overflow,
              a heap buffer overflow.
 BECAUSE:     The multiplication/addition is performed without safe-math wrappers
              (no ULongMult/SizeTMult/overflow check in assembly).
-TEST:        /verify <module> <func>    (check assembly for overflow guards)
+TEST:        /verify-decompiler <module> <func>    (check assembly for overflow guards)
              /taint <module> <func> --params <param>
 REFUTES IF:  Assembly shows `jo`/`jc` branch after the arithmetic, or a safe-math
              wrapper is used, or the parameter has a hard upper-bound check.

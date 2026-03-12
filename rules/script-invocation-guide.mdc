@@ -24,8 +24,25 @@ pattern, or a partial path.
 python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list --json
 ```
 
-Each entry in the `modules` array has an `analysis_db_path` field. Prefix
-it with `extracted_dbs/` to form the full path.
+The `--list --json` output schema is:
+
+```json
+{
+  "status": "ok",
+  "modules": [
+    {
+      "file_name": "appinfo.dll",
+      "file_extension": ".dll",
+      "status": "COMPLETE",
+      "analysis_db_path": "appinfo_dll_abc123.db"
+    }
+  ]
+}
+```
+
+Key fields: **`file_name`** (module name, e.g. `srvsvc.dll`),
+**`analysis_db_path`** (DB filename -- prefix with `extracted_dbs/` to
+form the full path). There is **no** `module_name` field.
 
 **Option B -- From a module name directly:**
 
@@ -50,6 +67,7 @@ recognizable substring.
 | `script.py --json 2>&1 \| python -c "..."` | `2>&1` merges stderr warnings into stdout JSON, causing "Extra data" parse errors | Use `--json` output directly; never merge streams before JSON parsing |
 | `extract_function_data.py <db_path> --search "Foo"` without `--json` when piping | `--search` without `--json` outputs a human-readable table, not JSON | Always add `--json` when machine-consuming: `extract_function_data.py <db_path> --search "Foo" --json` |
 | `chain_analysis.py <db_path> --function "Foo"` before this patch | `--function` didn't exist; argparse matched `--f` to `--function-id` (int) | All scripts now accept `--function <name>` or bare positional: `chain_analysis.py <db_path> --function "Foo"` or `chain_analysis.py <db_path> Foo` |
+| `find_module_db.py --list --json \| python -c "...m['module_name']..."` | (1) Piping through `python -c` violates JSON output convention; (2) field is `file_name`, not `module_name` | Read `--json` output directly; use documented field names from the schema above |
 
 ## Function Lookup When Module Is Unknown
 
@@ -204,6 +222,26 @@ trace_rpc_chain.py          <db_path> --function <name> [--depth N] [--json]    
 find_rpc_clients.py         <interface_uuid> [--json]
 rpc_topology.py             [<module>] [--top N] [--json]
 ```
+
+## Module-Wide Vulnerability Scanning
+
+When the user asks to "scan for vulnerabilities", "find bugs", "run security
+scanners", or any similar module-wide request, use the `/scan` command (which
+runs `run_security_scan.py` with all 6 phases including auto-verification and
+deduplication):
+
+```bash
+python .agent/agents/security-auditor/scripts/run_security_scan.py <db_path> --goal scan --json
+```
+
+Do **NOT** run individual scanner scripts (`scan_auth_bypass.py`,
+`scan_logic_flaws.py`, `scan_buffer_overflows.py`, etc.) directly for
+module-wide sweeps -- those produce unverified, unfiltered output with high
+false-positive rates.  Individual scripts are appropriate only for:
+
+- Targeted single-function analysis (`--function <name>` or `--id <N>`)
+- When the user explicitly asks for a specific scanner by name
+- When debugging or developing scanner improvements
 
 #### WinRT interface analysis
 

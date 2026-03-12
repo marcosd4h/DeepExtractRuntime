@@ -6,8 +6,8 @@ Verify Hex-Rays decompiled output for a list of specific functions or an entire 
 
 Usage:
 
-- `/verify-batch appinfo.dll AiCheckSecureApplicationDirectory AiCreateApplicationContext` -- specific functions
-- `/verify-batch appinfo.dll CSecurityDescriptor` -- all methods of a class
+- `/verify-decompiler-batch appinfo.dll AiCheckSecureApplicationDirectory AiCreateApplicationContext` -- specific functions
+- `/verify-decompiler-batch appinfo.dll CSecurityDescriptor` -- all methods of a class
 
 ## IMPORTANT: Execution Model
 
@@ -33,7 +33,7 @@ This command orchestrates N verifier subagent launches:
 
 ### Step 0: Preflight Validation
 
-Validate arguments using `helpers.command_validation.validate_command_args("verify-batch", {"module": "<module>"})`.
+Validate arguments using `helpers.command_validation.validate_command_args("verify-decompiler-batch", {"module": "<module>"})`.
 If validation fails, report the errors and stop. On success, use `result.resolved["db_path"]` for subsequent script calls.
 
 1. **Initialize the verification batch**

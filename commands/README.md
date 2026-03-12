@@ -18,7 +18,7 @@ Documentation: https://cursor.com/docs/context/commands
 | `/lift-class`        | `lift-class.md`        | Batch-lift all methods of a C++ class with shared struct context into a cohesive `.cpp` file        |
 | `/full-report`       | `full-report.md`       | End-to-end multi-phase analysis: RE report, classification, attack surface, topology, specialized   |
 | `/compare-modules`   | `compare-modules.md`   | Cross-module comparison: dependencies, API overlap, classification distributions, call chains       |
-| `/verify`            | `verify.md`            | Verify decompiler accuracy for a function or scan a module for decompiler issues                    |
+| `/verify-decompiler` | `verify-decompiler.md` | Verify decompiler accuracy for a function or scan a module for decompiler issues                    |
 | `/explain`           | `explain.md`           | Quick structured explanation of what a function does: purpose, parameters, APIs, call context       |
 | `/search`            | `search.md`            | Cross-dimensional search: function names, signatures, strings, APIs, classes, exports               |
 | `/reconstruct-types` | `reconstruct-types.md` | Reconstruct C/C++ struct and class definitions from memory access patterns                          |
@@ -27,7 +27,8 @@ Documentation: https://cursor.com/docs/context/commands
 | `/cache-manage`      | `cache-manage.md`      | View cache stats, clear, or refresh cached analysis results                                        |
 | `/runs`              | `runs.md`              | List, inspect, and reopen prior workspace runs and step summaries                                  |
 | `/data-flow-cross`   | `data-flow-cross.md`   | Trace data flow across module boundaries (cross-DLL parameter and argument tracking)               |
-| `/verify-batch`      | `verify-batch.md`      | Verify decompiler accuracy for a batch of functions or an entire class                             |
+| `/verify-decompiler-batch` | `verify-decompiler-batch.md` | Verify decompiler accuracy for a batch of functions or an entire class                      |
+| `/verify-finding`    | `verify-finding.md`    | Verify suspected vulnerability findings against assembly ground truth (TRUE/FALSE POSITIVE)        |
 | `/health`            | `health.md`            | Pre-flight workspace validation: check extraction data, DBs, skills, and config                   |
 | `/taint`             | `taint.md`             | Trace attacker-controlled inputs to dangerous sinks with guard/bypass analysis                     |
 | `/brainstorm`        | `brainstorm.md`        | Strategic VR planning: campaign strategy, cross-module campaigns, post-analysis re-planning, tool/skill design |
@@ -74,7 +75,8 @@ flowchart TD
     Function --> Search["/search module term"]
     Function --> Strings["/strings module"]
 
-    Security --> VerifySec["/verify module func -- check decompiler first"]
+    Security --> VerifySec["/verify-decompiler module func -- check decompiler first"]
+    Security --> VerifyFinding["/verify-finding module func -- confirm a vulnerability"]
     Security --> Audit["/audit module func"]
     Security --> BatchAudit["/batch-audit module --top N or --privilege-boundary"]
     Security --> Taint["/taint module func"]
@@ -89,7 +91,7 @@ flowchart TD
     Recon --> Callgraph["/callgraph module"]
     Recon --> Imports["/imports module"]
 
-    Code --> Verify["/verify module func"]
+    Code --> Verify["/verify-decompiler module func"]
     Code --> LiftClass["/lift-class module class"]
     Code --> ReconstructTypes["/reconstruct-types module"]
 
@@ -113,7 +115,8 @@ Type `/` in the Cursor chat input to see all available commands, then select one
 /lift-class appinfo.dll CSecurityDescriptor
 /full-report cmd.exe
 /compare-modules appinfo.dll cmd.exe
-/verify appinfo.dll AiCheckSecureApplicationDirectory
+/verify-decompiler appinfo.dll AiCheckSecureApplicationDirectory
+/verify-finding srvsvc.dll ClientCertificatesAccessCheck
 /explain appinfo.dll AiLaunchProcess
 /search CreateProcess
 /runs latest appinfo.dll
@@ -166,7 +169,7 @@ When module is optional and omitted, commands should:
 6. Optionally runs a lightweight taint pass over top-ranked entry points when `--with-security` is present
 7. Synthesizes a triage report with prioritized function list and recommended next steps
 
-**Output**: Structured triage report in chat. With `--with-security`, adds a quick security findings section based on lightweight taint results. Suggests `/explain` or `/verify` for quick follow-ups, and `/audit`, `/lift-class`, `/scan`, or `/full-report` for deeper analysis.
+**Output**: Structured triage report in chat. With `--with-security`, adds a quick security findings section based on lightweight taint results. Suggests `/explain` or `/verify-decompiler` for quick follow-ups, and `/audit`, `/lift-class`, `/scan`, or `/full-report` for deeper analysis.
 
 **Agents used**: triage-coordinator (`analyze_module.py --goal triage` script)
 
@@ -261,9 +264,9 @@ When module is optional and omitted, commands should:
 
 ---
 
-### `/verify` -- Verify Decompiler Accuracy
+### `/verify-decompiler` -- Verify Decompiler Accuracy
 
-**Input**: `/verify [module] [function_name]` (e.g., `/verify appinfo.dll AiCheckSecureApplicationDirectory`)
+**Input**: `/verify-decompiler [module] [function_name]` (e.g., `/verify-decompiler appinfo.dll AiCheckSecureApplicationDirectory`)
 
 **What it does**:
 
@@ -544,6 +547,26 @@ Examples:
 
 ---
 
+### `/verify-finding` -- Verify Vulnerability Findings
+
+**Input**: `/verify-finding <module> <function>` or `/verify-finding <module> --findings <path>`
+
+**What it does**:
+
+1. Gathers findings to verify (from scan output, taint results, or by running scanners on the target function)
+2. Restates each claim in precise terms (half of false positives collapse at this step)
+3. Routes each finding to Standard or Deep verification
+4. Verifies data flow, attacker control, and argues devil's advocate for each finding
+5. Renders TRUE POSITIVE or FALSE POSITIVE verdicts with evidence
+
+**Output**: Verification report with per-finding verdicts, evidence summaries, and confidence levels. Saved to `extracted_code/<module>/reports/verify_finding_<target>_<timestamp>.md`.
+
+**Skills used**: finding-verification, taint-analysis, data-flow-tracer, callgraph-tracer, security-dossier, decompiled-code-extractor
+
+**Agents used**: verifier (for deep verification), security-auditor
+
+---
+
 ## Design
 
 ### Hybrid Skill References
@@ -566,7 +589,7 @@ The current registry marks these commands as grind-loop workflows:
 
 - `/lift-class`
 - `/full-report`
-- `/verify-batch`
+- `/verify-decompiler-batch`
 - `/hunt-execute`
 - `/batch-audit`
 - `/scan`
@@ -581,7 +604,7 @@ automatically, bounded by `loop_limit: 10` in root-level `hooks.json`. See
 
 ### Recommended Workflow
 
-Start broad, then drill down. Use lightweight commands (`/explain`, `/verify`, `/search`) for quick answers, and heavyweight commands (`/audit`, `/lift-class`) for deep analysis:
+Start broad, then drill down. Use lightweight commands (`/explain`, `/verify-decompiler`, `/search`) for quick answers, and heavyweight commands (`/audit`, `/lift-class`) for deep analysis:
 
 ```
 /hunt-plan appinfo.dll           # Strategic: plan a hypothesis-driven VR campaign
@@ -589,7 +612,7 @@ Start broad, then drill down. Use lightweight commands (`/explain`, `/verify`, `
   |
   |-- Quick (lightweight, single-step) --
   +--> /explain appinfo.dll FuncX          # What does this function do?
-  +--> /verify appinfo.dll FuncX           # Is the decompiler output accurate?
+  +--> /verify-decompiler appinfo.dll FuncX  # Is the decompiler output accurate?
   +--> /search appinfo.dll "token"         # Find everything related to a term
   |
   |-- Deep (multi-step pipelines) --
@@ -617,7 +640,7 @@ Shows a representative core integration map for the most commonly chained
 commands (abbreviated headers for width; `/types` = `/reconstruct-types`,
 `/states` = `/state-machines`):
 
-| Skill                        | `/triage` | `/audit` | `/lift-class` | `/full-report` | `/compare-modules` | `/verify` | `/explain` | `/search` | `/hunt-plan` |
+| Skill                        | `/triage` | `/audit` | `/lift-class` | `/full-report` | `/compare-modules` | `/verify-decompiler` | `/explain` | `/search` | `/hunt-plan` |
 | ---------------------------- | :-------: | :------: | :-----------: | :------------: | :----------------: | :-------: | :--------: | :-------: | :----------: |
 | decompiled-code-extractor    |     x     |    x     |       x       |       x        |         x          |           |            |           |         |
 | generate-re-report           |     x     |          |               |       x        |         x          |           |            |           |         |
@@ -657,6 +680,7 @@ Some commands reference **methodology skills** -- documentation-only skills that
 | `/hunt-plan`     | adversarial-reasoning    | Hypothesis generation, attack pattern matching, and variant analysis guide research planning |
 | `/hunt-execute`  | finding-verification     | Each hypothesis is validated against evidence with confidence scoring                       |
 | `/scan`          | finding-verification     | Detected vulnerabilities are verified to eliminate false positives before reporting          |
+| `/verify-finding` | finding-verification    | Dedicated command for verifying findings with full gate review workflow                      |
 | `/brainstorm`    | brainstorming, adversarial-reasoning | Strategic planning with pipeline templates; reads adversarial-reasoning on demand for VR campaigns |
 
 ## Vulnerability Scanning: `/scan` vs Focused Commands
@@ -671,6 +695,7 @@ Some commands reference **methodology skills** -- documentation-only skills that
 | Only taint analysis (source-to-sink tracing) | `/taint <module> <function>` |
 | Breadth-first audit of top entry points | `/batch-audit <module>` -- dossier + taint + exploitability per function |
 | Deep single-function audit | `/audit <module> <function>` -- full pipeline with backward trace, verification, call chain |
+| Verify specific findings are real (not false positives) | `/verify-finding <module> <function>` -- gate review with data flow + attacker control + devil's advocate |
 
 `/batch-audit` trades depth for breadth: it runs dossier + taint + exploitability + classification for each function, but omits the full `/audit` pipeline (backward trace, decompiler verification, call chain analysis). Use `/batch-audit` to prioritize targets, then `/audit` for the most interesting ones.
 
@@ -718,7 +743,8 @@ No two commands are redundant -- each occupies a distinct point on the depth/bre
   lift-class.md             # /lift-class
   full-report.md            # /full-report
   compare-modules.md        # /compare-modules
-  verify.md                 # /verify
+  verify-decompiler.md      # /verify-decompiler
+  verify-finding.md         # /verify-finding
   explain.md                # /explain
   search.md                 # /search
   reconstruct-types.md      # /reconstruct-types
@@ -727,7 +753,7 @@ No two commands are redundant -- each occupies a distinct point on the depth/bre
   cache-manage.md           # /cache-manage
   runs.md                   # /runs
   data-flow-cross.md        # /data-flow-cross
-  verify-batch.md           # /verify-batch
+  verify-decompiler-batch.md # /verify-decompiler-batch
   health.md                 # /health
   taint.md                  # /taint
   brainstorm.md             # /brainstorm

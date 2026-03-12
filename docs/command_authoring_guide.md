@@ -491,7 +491,7 @@ Write the formula out so it's reproducible.
 ## 13. Severity & Finding Assignment
 
 *Applies to commands that report findings with severity levels (e.g., `/audit`,
-`/verify`). Each command should define severity criteria appropriate to its domain.*
+`/verify-decompiler`). Each command should define severity criteria appropriate to its domain.*
 
 ### 13.1 Define strict severity criteria
 

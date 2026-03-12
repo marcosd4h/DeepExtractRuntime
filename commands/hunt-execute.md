@@ -78,7 +78,7 @@ Execute the commands specified in the hunt plan. Common patterns:
 |----------------|----------------|
 | Missing access check | `/audit <module> <func>` -> `/taint <module> <func>` |
 | TOCTOU / file race | `/data-flow forward <module> <func>` -> `/audit <module> <func>` |
-| Integer overflow | `/verify <module> <func>` -> `/taint <module> <func>` |
+| Integer overflow | `/verify-decompiler <module> <func>` -> `/taint <module> <func>` |
 | COM privilege escalation | `/reconstruct-types <module> <class>` -> `/audit <module> <export> --diagram` |
 | Variant of known CVE | `/search <module> <pattern>` -> `/taint <module> <candidate>` |
 

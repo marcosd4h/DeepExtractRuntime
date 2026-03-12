@@ -55,7 +55,7 @@ class TestDeepContextBuilderRegistry:
 
     def test_unrelated_commands_not_affected(self):
         registry = _load_json("commands/registry.json")
-        for cmd_name in ("triage", "search", "verify", "xref", "brainstorm"):
+        for cmd_name in ("triage", "search", "verify-decompiler", "xref", "brainstorm"):
             cmd = registry["commands"][cmd_name]
             all_skills = cmd.get("skills_used", []) + cmd.get("methodologies_used", [])
             assert "deep-context-builder" not in all_skills, (

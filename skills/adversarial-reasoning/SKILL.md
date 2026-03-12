@@ -95,7 +95,7 @@ The researcher found something suspicious and needs to confirm/refute it and pla
 **Workflow:**
 
 1. Capture: which function, what pattern was observed, what makes it suspicious
-2. Check decompiler accuracy first -- `/verify` the function to ensure the code is trustworthy
+2. Check decompiler accuracy first -- `/verify-decompiler` the function to ensure the code is trustworthy
 3. Apply the validation strategy matrix for the suspected vulnerability class
 4. Determine: static confirmation possible? dynamic testing needed? what would a PoC look like?
 5. Produce: confirmation checklist, PoC skeleton, and severity assessment guidance
@@ -260,13 +260,13 @@ Focus on hypotheses scoring >= 45 first (e.g., 5x3x3x1 = 45). Hypotheses scoring
 | Vulnerability Class | Static Validation (commands) | Dynamic Validation Approach | PoC Skeleton |
 |---|---|---|---|
 | Auth/access bypass | `/audit` (dossier + verify), `/taint` (param to sink) | Call the entry point from a lower-privilege context; check if operation succeeds | Craft RPC/COM call with unprivileged token |
-| TOCTOU / race | `/data-flow` (file path tracking), `/verify` (decompiler accuracy) | Create junction/oplock, trigger operation, observe race | Oplock callback + junction swap tool |
+| TOCTOU / race | `/data-flow` (file path tracking), `/verify-decompiler` (decompiler accuracy) | Create junction/oplock, trigger operation, observe race | Oplock callback + junction swap tool |
 | Symlink/junction | `/search` (path strings), `/data-flow forward` (path param flow) | Create junction in target directory, trigger privileged write | `CreateMountPoint` + trigger mechanism |
 | Privilege escalation | `/audit` (full dossier), `/audit --diagram` (entry to sink) | Trigger from medium-IL process, observe elevated operation | Service trigger + token check |
-| Integer overflow | `/verify` (assembly size check), `/taint` (size param flow) | Provide large size values, observe allocation behavior | Craft input with boundary size values |
-| Type confusion | `/reconstruct-types` (struct layout), `/verify` (cast correctness) | Pass wrong-typed object through the confused interface | COM proxy with alternate vtable |
+| Integer overflow | `/verify-decompiler` (assembly size check), `/taint` (size param flow) | Provide large size values, observe allocation behavior | Craft input with boundary size values |
+| Type confusion | `/reconstruct-types` (struct layout), `/verify-decompiler` (cast correctness) | Pass wrong-typed object through the confused interface | COM proxy with alternate vtable |
 | UAF / lifetime | `/data-flow` (object lifetime tracking), `/audit --diagram` (free path) | Trigger free, then trigger use from a different entry | Race the free/use paths |
-| Stack overflow | `/verify` (buffer size vs copy), `/taint` (length param) | Provide oversized input to the vulnerable parameter | Input with length > buffer size |
+| Stack overflow | `/verify-decompiler` (buffer size vs copy), `/taint` (length param) | Provide oversized input to the vulnerable parameter | Input with length > buffer size |
 
 ## Workspace Integration
 
@@ -277,9 +277,9 @@ Map each hypothesis type to the exact workspace commands for investigation.
 | Missing access check | `/audit <module> <func>`, `/taint <module> <func>` | security-dossier, taint-analysis |
 | TOCTOU / file race | `/data-flow forward <module> <func>`, `/audit <module> <func>` | data-flow-tracer, security-dossier |
 | Symlink/junction attack | `/search <module> CreateFileW`, `/data-flow forward <module> <func>` | data-flow-tracer, classify-functions |
-| Integer overflow | `/verify <module> <func>`, `/taint <module> <func>` | verify-decompiled, taint-analysis |
+| Integer overflow | `/verify-decompiler <module> <func>`, `/taint <module> <func>` | verify-decompiled, taint-analysis |
 | COM privilege escalation | `/reconstruct-types <module> <class>`, `/audit <module> <export> --diagram` | com-interface-reconstruction, callgraph-tracer |
-| Type confusion | `/verify <module> <func>`, `/reconstruct-types <module> <class>` | verify-decompiled, reconstruct-types |
+| Type confusion | `/verify-decompiler <module> <func>`, `/reconstruct-types <module> <class>` | verify-decompiled, reconstruct-types |
 | UAF / lifetime error | `/data-flow forward <module> <func>`, `/audit <module> <export> --diagram` | data-flow-tracer, callgraph-tracer |
 | Variant of known CVE | `/search <module> <api_pattern>`, `/triage <module>` | classify-functions, map-attack-surface |
 | Named pipe impersonation | `/search <module> CreateNamedPipe`, `/taint <module> <handler>` | taint-analysis, map-attack-surface |

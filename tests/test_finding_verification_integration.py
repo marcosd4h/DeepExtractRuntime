@@ -56,7 +56,7 @@ class TestFindingVerificationRegistry:
 
     def test_unrelated_commands_not_affected(self):
         registry = _load_json("commands/registry.json")
-        for cmd_name in ("triage", "explain", "search", "verify", "xref"):
+        for cmd_name in ("triage", "explain", "search", "verify-decompiler", "xref"):
             cmd = registry["commands"][cmd_name]
             all_skills = cmd.get("skills_used", []) + cmd.get("methodologies_used", [])
             assert "finding-verification" not in all_skills, (

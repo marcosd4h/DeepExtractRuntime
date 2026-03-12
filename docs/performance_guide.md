@@ -198,7 +198,7 @@ and `cross_module_index_warn_threshold`.
 These commands operate on a single module and are always safe:
 
 - `/triage <module>`, `/explain <module> <function>`, `/audit <module> <function>`
-- `/verify <module> <function>`, `/lift-class <module> <class>`
+- `/verify-decompiler <module> <function>`, `/lift-class <module> <class>`
 - `/audit <module> <export> --diagram`, `/data-flow <module> <function>`
 - `/reconstruct-types <module>`, `/state-machines <module>`
 - `/search <module> <term>` (single-module search)

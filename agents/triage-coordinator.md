@@ -293,7 +293,7 @@ These commands exist and can be recommended as next steps:
 | `/full-report <module>`           | Complete 6-phase analysis report |
 | `/compare-modules <a> <b>`        | Cross-module comparison          |
 | `/taint <module> <function>`      | Trace tainted params to sinks    |
-| `/verify [module] [function]`     | Verify decompiler accuracy       |
+| `/verify-decompiler [module] [function]` | Verify decompiler accuracy  |
 | `/explain [module] <function>`    | Quick function explanation        |
 | `/search [module] <term>`         | Cross-dimensional search         |
 

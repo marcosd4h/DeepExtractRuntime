@@ -70,7 +70,7 @@ Match researcher goals to end-to-end workflows. Each template covers the full li
 | Find bugs broadly | Broad detection | `/triage` -> `/scan --auto-audit` -> `/prioritize` |
 | Test a hypothesis | Hypothesis hunt | `/triage` -> `/hunt-plan` -> `/hunt-execute` -> `/audit` confirmed |
 | Audit IPC handlers | Privilege boundary | `/triage` -> `/com`/`/rpc`/`/winrt` -> `/batch-audit --privilege-boundary` |
-| Deep single function | Deep audit | `/explain` -> deep-context-builder -> `/audit` -> `/verify` |
+| Deep single function | Deep audit | `/explain` -> deep-context-builder -> `/audit` -> `/verify-decompiler` |
 | Cross-DLL taint | Cross-module taint | per-module `/triage` -> `/imports` -> `/data-flow-cross` -> `/taint --cross-module` |
 | Find bug variants | Variant hunt | `/hunt-plan variant` per module -> `/taint` candidates -> `/prioritize` |
 

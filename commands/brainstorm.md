@@ -289,7 +289,7 @@ Single-function deep dive with comprehension phase.
 /explain <module> <function>              # Structural understanding
 -> Apply deep-context-builder methodology for complex functions
 /audit <module> <function>                # Full security audit
-/verify <module> <function>               # Decompiler accuracy check
+/verify-decompiler <module> <function>    # Decompiler accuracy check
 -> If finding confirmed: /taint for full path, exploitability assessment
 ```
 
@@ -315,7 +315,7 @@ Searching for siblings of a known bug pattern across modules.
 /hunt-plan variant <pattern> <module>     # Decompose pattern, design search
 -> Review: candidate list from search queries
 /taint <module> <candidate>               # Verify taint path matches pattern
-/verify <module> <candidate>              # Decompiler accuracy on candidates
+/verify-decompiler <module> <candidate>   # Decompiler accuracy on candidates
 -> Repeat across modules if cross-module variant hunt
 /prioritize --all                         # Rank all variant candidates
 ```
@@ -336,7 +336,7 @@ When proposing approaches, map research needs to the full toolkit:
 | **Surface** | Dispatch/command handlers | `/state-machines` | state-machine-extractor |
 | **Comprehension** | Function understanding | `/explain` | analyze-ida-decompiled, deep-context-builder |
 | **Comprehension** | Deep pre-audit context | `/explain --depth 3` | deep-context-builder, deep-research-prompt |
-| **Comprehension** | Decompiler verification | `/verify` | verify-decompiled |
+| **Comprehension** | Decompiler verification | `/verify-decompiler` | verify-decompiled |
 | **Comprehension** | Type/struct recovery | `/reconstruct-types` | reconstruct-types, com-interface-reconstruction |
 | **Comprehension** | Code lifting | `/lift-class` | code-lifting, batch-lift |
 | **Investigation** | Call chain tracing | `/audit --diagram`, `/callgraph` | callgraph-tracer |
