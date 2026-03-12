@@ -13,7 +13,7 @@ import helpers.function_index.index as function_index_mod
 def test_load_function_index_reuses_cached_parse_when_mtime_is_unchanged(tmp_path, monkeypatch):
     index_path = tmp_path / "function_index.json"
     index_path.write_text(
-        json.dumps({"FuncA": {"function_id": 1, "file": "f.cpp"}}),
+        json.dumps({"FuncA": {"function_id": 1, "files": ["f.cpp"]}}),
         encoding="utf-8",
     )
     monkeypatch.setattr(
@@ -37,7 +37,7 @@ def test_load_function_index_reuses_cached_parse_when_mtime_is_unchanged(tmp_pat
 def test_load_function_index_invalidates_cache_when_file_mtime_changes(tmp_path, monkeypatch):
     index_path = tmp_path / "function_index.json"
     index_path.write_text(
-        json.dumps({"FuncA": {"function_id": 1, "file": "a.cpp"}}),
+        json.dumps({"FuncA": {"function_id": 1, "files": ["a.cpp"]}}),
         encoding="utf-8",
     )
     monkeypatch.setattr(
@@ -48,7 +48,7 @@ def test_load_function_index_invalidates_cache_when_file_mtime_changes(tmp_path,
 
     first = function_index_mod.load_function_index("mod")
     index_path.write_text(
-        json.dumps({"FuncB": {"function_id": 2, "file": "b.cpp"}}),
+        json.dumps({"FuncB": {"function_id": 2, "files": ["b.cpp"]}}),
         encoding="utf-8",
     )
     # Force a distinct mtime_ns so the cache sees a change even when the
@@ -87,7 +87,7 @@ def test_load_function_index_skips_malformed_entries(tmp_path, monkeypatch):
     index_path.write_text(
         json.dumps(
             {
-                "FuncA": {"function_id": 1, "file": "a.cpp"},
+                "FuncA": {"function_id": 1, "files": ["a.cpp"]},
                 "FuncB": "not-an-entry",
             }
         ),
@@ -101,7 +101,7 @@ def test_load_function_index_skips_malformed_entries(tmp_path, monkeypatch):
 
     result = function_index_mod.load_function_index("mod")
 
-    assert result == {"FuncA": {"function_id": 1, "file": "a.cpp"}}
+    assert result == {"FuncA": {"function_id": 1, "files": ["a.cpp"]}}
 
 
 def test_list_extracted_modules_invalidates_when_function_index_is_added(
@@ -122,7 +122,7 @@ def test_list_extracted_modules_invalidates_when_function_index_is_added(
 
     index_path = module_dir / function_index_mod.FUNCTION_INDEX_FILENAME
     index_path.write_text(
-        json.dumps({"FuncA": {"function_id": 1, "file": "a.cpp"}}),
+        json.dumps({"FuncA": {"function_id": 1, "files": ["a.cpp"]}}),
         encoding="utf-8",
     )
 

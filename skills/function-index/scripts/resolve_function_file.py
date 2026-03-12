@@ -41,7 +41,9 @@ import json
 import sys
 
 from _common import (
+    get_files,
     get_function_id,
+    get_primary_file,
     has_assembly,
     has_decompiled,
     list_extracted_modules,
@@ -67,15 +69,17 @@ def resolve_single(
         if function_name in index:
             entry = index[function_name]
             mod_dir = resolve_module_dir(mod)
-            file_name = entry.get("file")
-            if file_name is None:
+            entry_files = get_files(entry)
+            primary = entry_files[0] if entry_files else None
+            if primary is None:
                 file_path = None
             else:
-                file_path = str(mod_dir / file_name) if mod_dir else file_name
+                file_path = str(mod_dir / primary) if mod_dir else primary
             results.append({
                 "function_name": function_name,
                 "module": mod,
-                "file": file_name,
+                "files": entry_files,
+                "file": primary,
                 "file_path": file_path,
                 "library": entry.get("library"),
                 "function_id": get_function_id(entry),
@@ -101,15 +105,17 @@ def resolve_batch(
         for name in names:
             if name in index:
                 entry = index[name]
-                file_name = entry.get("file")
-                if file_name is None:
+                entry_files = get_files(entry)
+                primary = entry_files[0] if entry_files else None
+                if primary is None:
                     file_path = None
                 else:
-                    file_path = str(mod_dir / file_name) if mod_dir else file_name
+                    file_path = str(mod_dir / primary) if mod_dir else primary
                 results.append({
                     "function_name": name,
                     "module": mod,
-                    "file": file_name,
+                    "files": entry_files,
+                    "file": primary,
                     "file_path": file_path,
                     "library": entry.get("library"),
                     "function_id": get_function_id(entry),
@@ -133,10 +139,11 @@ def resolve_by_file(
 
     results: list[dict] = []
     for func_name, entry in index.items():
-        if entry.get("file") == cpp_file:
+        if cpp_file in get_files(entry):
             results.append({
                 "function_name": func_name,
                 "module": module_name,
+                "files": get_files(entry),
                 "file": cpp_file,
                 "file_path": file_path,
                 "library": entry.get("library"),

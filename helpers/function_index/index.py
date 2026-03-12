@@ -150,7 +150,8 @@ def load_function_index(
     """Load function_index.json for a module.
 
     Returns the parsed dict mapping function names to:
-    {file, library, function_id, has_decompiled, has_assembly},
+    {files, library, function_id, has_decompiled, has_assembly}
+    (legacy format uses ``file`` instead of ``files``),
     or None if the module or index file is not found.
 
     Set *warn_on_missing* to ``False`` to suppress the warning when the
@@ -284,7 +285,8 @@ def load_all_function_indexes(
         negative value to load all (use with caution at scale).
 
     Returns dict: module_name ->
-    {function_name -> {file, library, function_id, has_decompiled, has_assembly}}.
+    {function_name -> {files, library, function_id, has_decompiled, has_assembly}}
+    (legacy format uses ``file`` instead of ``files``).
 
     Uses a disk-cached consolidated index (keyed on a fingerprint of all
     module mtimes) to avoid re-reading 195+ individual JSON files on every
@@ -348,9 +350,28 @@ def get_library_tag(entry: dict[str, Any]) -> Optional[str]:
     return entry.get("library")
 
 
+def get_files(entry: dict[str, Any]) -> list[str]:
+    """Return list of .cpp files for a function index entry.
+
+    Handles both the new ``"files"`` array format and the legacy
+    ``"file"`` string format transparently.
+    """
+    files = entry.get("files")
+    if isinstance(files, list):
+        return files
+    f = entry.get("file")
+    return [f] if isinstance(f, str) else []
+
+
+def get_primary_file(entry: dict[str, Any]) -> str | None:
+    """Return the primary .cpp file for a function, or None."""
+    files = get_files(entry)
+    return files[0] if files else None
+
+
 def has_decompiled(entry: dict[str, Any]) -> bool:
     """Check if a function_index entry has valid decompiled output."""
-    return bool(entry.get("has_decompiled", entry.get("file") is not None))
+    return bool(entry.get("has_decompiled", len(get_files(entry)) > 0))
 
 
 def has_assembly(entry: dict[str, Any]) -> bool:
@@ -467,12 +488,19 @@ def filter_by_library(
 def group_by_file(index: dict[str, dict[str, Any]]) -> dict[Optional[str], list[str]]:
     """Group function names by the .cpp file they belong to.
 
+    Functions that appear in multiple files are listed under each file.
+    Functions with no files are grouped under ``None``.
+
     Returns dict: filename-or-None -> [function_name, ...].
     """
     groups: dict[Optional[str], list[str]] = {}
     for func_name, entry in index.items():
-        fname = entry.get("file")
-        groups.setdefault(fname, []).append(func_name)
+        files = get_files(entry)
+        if files:
+            for fname in files:
+                groups.setdefault(fname, []).append(func_name)
+        else:
+            groups.setdefault(None, []).append(func_name)
     return groups
 
 
@@ -543,8 +571,11 @@ def lookup_function(
         When *module_name* is ``None``, limit the number of modules searched.
         Defaults to ``scale.max_modules_search_all`` from config.
 
-    Returns list of dicts with: function_name, module, file, file_path, library,
-    function_id, has_decompiled, has_assembly.
+    Returns list of dicts with: function_name, module, files, file, file_path,
+    library, function_id, has_decompiled, has_assembly.
+
+    ``file`` is the primary (first) filename for backward compatibility;
+    ``files`` is the full list.
     """
     results: list[dict[str, Any]] = []
     if module_name:
@@ -563,15 +594,17 @@ def lookup_function(
         if function_name in index:
             entry = index[function_name]
             mod_dir = resolve_module_dir(mod)
-            file_name = entry.get("file")
-            if file_name is None:
+            entry_files = get_files(entry)
+            primary = entry_files[0] if entry_files else None
+            if primary is None:
                 file_path = None
             else:
-                file_path = str(mod_dir / file_name) if mod_dir else file_name
+                file_path = str(mod_dir / primary) if mod_dir else primary
             results.append({
                 "function_name": function_name,
                 "module": mod,
-                "file": file_name,
+                "files": entry_files,
+                "file": primary,
                 "file_path": file_path,
                 "library": entry.get("library"),
                 "function_id": get_function_id(entry),

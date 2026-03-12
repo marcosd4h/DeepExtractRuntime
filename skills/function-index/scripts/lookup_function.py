@@ -37,7 +37,9 @@ import sys
 from _common import (
     EXTRACTED_CODE_DIR,
     filter_by_library,
+    get_files,
     get_function_id,
+    get_primary_file,
     has_assembly,
     has_decompiled,
     list_extracted_modules,
@@ -63,15 +65,17 @@ def lookup_exact(
         if function_name in index:
             entry = index[function_name]
             mod_dir = resolve_module_dir(mod)
-            file_name = entry.get("file")
-            if file_name is None:
+            entry_files = get_files(entry)
+            primary = entry_files[0] if entry_files else None
+            if primary is None:
                 file_path = None
             else:
-                file_path = str(mod_dir / file_name) if mod_dir else file_name
+                file_path = str(mod_dir / primary) if mod_dir else primary
             results.append({
                 "function_name": function_name,
                 "module": mod,
-                "file": file_name,
+                "files": entry_files,
+                "file": primary,
                 "file_path": file_path,
                 "library": entry.get("library"),
                 "function_id": get_function_id(entry),
@@ -118,15 +122,17 @@ def search_functions(
                     continue
 
             mod_dir = resolve_module_dir(mod)
-            file_name = entry.get("file")
-            if file_name is None:
+            entry_files = get_files(entry)
+            primary = entry_files[0] if entry_files else None
+            if primary is None:
                 file_path = None
             else:
-                file_path = str(mod_dir / file_name) if mod_dir else file_name
+                file_path = str(mod_dir / primary) if mod_dir else primary
             results.append({
                 "function_name": func_name,
                 "module": mod,
-                "file": file_name,
+                "files": entry_files,
+                "file": primary,
                 "file_path": file_path,
                 "library": entry.get("library"),
                 "function_id": get_function_id(entry),

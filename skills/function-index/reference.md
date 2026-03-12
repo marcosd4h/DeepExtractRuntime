@@ -3,14 +3,14 @@
 ## function_index.json Schema
 
 Each module directory (`extracted_code/{module}/`) contains a `function_index.json`
-that maps every extracted function to its generated `.cpp` file and metadata.
+that maps every extracted function to its generated `.cpp` file(s) and metadata.
 
 ### Entry Format
 
 ```json
 {
   "<function_name>": {
-    "file": "string | null",
+    "files": ["string", ...],
     "library": "WIL | STL | WRL | CRT | ETW/TraceLogging | null",
     "function_id": 123,
     "has_decompiled": true,
@@ -19,12 +19,16 @@ that maps every extracted function to its generated `.cpp` file and metadata.
 }
 ```
 
+> **Legacy format**: Older extraction outputs use `"file": "string | null"` instead
+> of `"files"`. The helper API (`get_files()`, `get_primary_file()`) handles both
+> transparently.
+
 ### Field Reference
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `function_name` (key) | string | Extracted function name matching `functions.function_name` in the DB. Includes C++ class methods (`Class::Method`), thunks, and demangled names. |
-| `file` | string or null | The `.cpp` filename containing the function, located in the same directory as the index. `null` when decompilation failed. |
+| `files` | list of strings | The `.cpp` filename(s) containing the function, located in the same directory as the index. Empty list (`[]`) when decompilation failed. Most functions appear in a single file (one-element list). |
 | `library` | string or null | Library boilerplate tag (see Library Tag Detection below). `null` = application code. |
 | `function_id` | int | Primary key from `functions.function_id` in the analysis database. Stable across queries. |
 | `has_decompiled` | bool | `true` if Hex-Rays decompiled output was available and emitted to a `.cpp` file. |
@@ -36,7 +40,7 @@ Application function (standalone):
 
 ```json
 "IsFamilyProvisioned": {
-  "file": "appinfo_dll_standalone_group_50.cpp",
+  "files": ["appinfo_dll_standalone_group_50.cpp"],
   "library": null,
   "function_id": 861,
   "has_decompiled": true,
@@ -48,7 +52,7 @@ Class method:
 
 ```json
 "CSyncMLDPU::AppendAlertStatus": {
-  "file": "coredpus_dll_CSyncMLDPU_group_1.cpp",
+  "files": ["coredpus_dll_CSyncMLDPU_group_1.cpp"],
   "library": null,
   "function_id": 1732,
   "has_decompiled": true,
@@ -60,7 +64,7 @@ Library boilerplate (WIL):
 
 ```json
 "wil::details_abi::ProcessLocalStorageData<...>::MakeAndInitialize": {
-  "file": "appinfo_dll_standalone_group_1.cpp",
+  "files": ["appinfo_dll_standalone_group_1.cpp"],
   "library": "WIL",
   "function_id": 37,
   "has_decompiled": true,
@@ -72,7 +76,7 @@ Failed decompilation:
 
 ```json
 "SomeFailedFunc": {
-  "file": null,
+  "files": [],
   "library": null,
   "function_id": 42,
   "has_decompiled": false,
@@ -156,14 +160,14 @@ by_file = group_by_file(load_function_index("appinfo_dll"))
 ### Duplicate Function Names
 
 If a function name appears in multiple `.cpp` files (rare, can happen with
-template instantiations), the index retains the **first occurrence** and
-discards later duplicates. A warning is logged during extraction. The index
-is deterministic.
+template instantiations or duplicate demangled names across grouping
+boundaries), all files are recorded in the `"files"` list and a warning
+is logged during extraction.
 
 ### Failed Decompilation
 
 Functions where Hex-Rays decompilation failed or was unavailable are
-included in the index with `"file": null` and `"has_decompiled": false`.
+included in the index with `"files": []` and `"has_decompiled": false`.
 This ensures the index is a complete map of all functions in the analysis
 database, not just successfully decompiled ones.
 
@@ -173,7 +177,7 @@ C++ template instantiations appear with their full demangled name:
 
 ```json
 "wil::details_abi::ProcessLocalStorageData<WilStaging_Struct>::MakeAndInitialize": {
-  "file": "appinfo_dll_standalone_group_1.cpp",
+  "files": ["appinfo_dll_standalone_group_1.cpp"],
   "library": "WIL",
   "function_id": 37,
   "has_decompiled": true,
@@ -259,6 +263,8 @@ Available via `from helpers import ...` or `from helpers.function_index import .
 | `resolve_module_dir(mod)` | `Path` or `None` | Module name to its extracted_code/ directory |
 | `function_index_path(mod)` | `Path` or `None` | Absolute path to a module's function_index.json |
 | `list_extracted_modules()` | `list[str]` | All module folders containing function_index.json |
+| `get_files(entry)` | `list[str]` | List of .cpp files (handles both `files` and legacy `file`) |
+| `get_primary_file(entry)` | `str` or `None` | Primary (first) .cpp file, or None |
 | `filter_by_library(idx, ...)` | `dict` | Filter entries by library/app_only/lib_only |
 | `is_application_function(entry)` | `bool` | True when library tag is null |
 | `is_library_function(entry)` | `bool` | True when library tag is set |

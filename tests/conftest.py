@@ -368,23 +368,23 @@ def sample_function_index():
     """Function index dict matching sample_db functions (realistic format)."""
     return {
         "DllMain": {
-            "function_id": 1, "file": "test_dll_standalone_group_0.cpp",
+            "function_id": 1, "files": ["test_dll_standalone_group_0.cpp"],
             "has_decompiled": True, "has_assembly": True, "library": None,
         },
         "WppAutoLogTrace": {
-            "function_id": 2, "file": "test_dll_wil_group_0.cpp",
+            "function_id": 2, "files": ["test_dll_wil_group_0.cpp"],
             "has_decompiled": True, "has_assembly": True, "library": "WIL",
         },
         "sub_140001000": {
-            "function_id": 3, "file": "test_dll_standalone_group_0.cpp",
+            "function_id": 3, "files": ["test_dll_standalone_group_0.cpp"],
             "has_decompiled": False, "has_assembly": True, "library": None,
         },
         "sub_140002000": {
-            "function_id": 4, "file": "test_dll_standalone_group_0.cpp",
+            "function_id": 4, "files": ["test_dll_standalone_group_0.cpp"],
             "has_decompiled": True, "has_assembly": True, "library": None,
         },
         "STLHelper": {
-            "function_id": 100, "file": "test_dll_stl_group_0.cpp",
+            "function_id": 100, "files": ["test_dll_stl_group_0.cpp"],
             "has_decompiled": False, "has_assembly": False, "library": "STL",
         },
     }

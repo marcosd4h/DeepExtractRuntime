@@ -270,7 +270,7 @@ class TestValidateFunctionIndexEdgeCases:
         assert result.ok
 
     def test_missing_function_id_warning(self, tmp_path):
-        index = {"func1": {"file": "test.cpp"}}
+        index = {"func1": {"files": ["test.cpp"]}}
         path = tmp_path / "function_index.json"
         path.write_text(json.dumps(index), encoding="utf-8")
         result = validate_function_index(str(path))

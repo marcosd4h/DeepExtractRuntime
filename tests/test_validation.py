@@ -142,8 +142,8 @@ def test_validate_analysis_db_missing_required_file_info_columns(tmp_path):
 def test_validate_function_index_valid(tmp_path):
     index_path = tmp_path / "function_index.json"
     index_path.write_text(json.dumps({
-        "Foo": {"function_id": 1, "file": "foo.cpp", "has_assembly": True},
-        "Bar": {"function_id": 2, "file": "bar.cpp", "has_assembly": True},
+        "Foo": {"function_id": 1, "files": ["foo.cpp"], "has_assembly": True},
+        "Bar": {"function_id": 2, "files": ["bar.cpp"], "has_assembly": True},
     }))
     result = validate_function_index(str(index_path))
     assert result.ok
@@ -200,8 +200,8 @@ def test_validate_function_id_consistency_id_mismatch(sample_db, tmp_path):
 
     # DllMain has function_id 99 in index but 1 in DB
     index_data = {
-        "DllMain": {"function_id": 99, "file": "test.cpp", "has_assembly": True},
-        "WppAutoLogTrace": {"function_id": 2, "file": "test.cpp", "has_assembly": True},
+        "DllMain": {"function_id": 99, "files": ["test.cpp"], "has_assembly": True},
+        "WppAutoLogTrace": {"function_id": 2, "files": ["test.cpp"], "has_assembly": True},
     }
     (ext_dir / "function_index.json").write_text(json.dumps(index_data))
 
@@ -229,8 +229,8 @@ def test_validate_function_id_consistency_in_index_not_db(sample_db, tmp_path):
 
     # STLHelper is in index but not in sample_db
     index_data = {
-        "DllMain": {"function_id": 1, "file": "test.cpp", "has_assembly": True},
-        "NonexistentFunc": {"function_id": 999, "file": "test.cpp", "has_assembly": True},
+        "DllMain": {"function_id": 1, "files": ["test.cpp"], "has_assembly": True},
+        "NonexistentFunc": {"function_id": 999, "files": ["test.cpp"], "has_assembly": True},
     }
     (ext_dir / "function_index.json").write_text(json.dumps(index_data))
 
@@ -248,10 +248,10 @@ def test_validate_function_id_consistency_mangled_name_match(sample_db, tmp_path
     # DB has function_name="sub_140001000", mangled_name="??0CFoo@@QEAA@XZ"
     # Index uses mangled name as key and includes the remaining DB functions.
     index_data = {
-        "DllMain": {"function_id": 1, "file": "test.cpp", "has_assembly": True},
-        "WppAutoLogTrace": {"function_id": 2, "file": "test.cpp", "has_assembly": True},
-        "??0CFoo@@QEAA@XZ": {"function_id": 3, "file": "test.cpp", "has_assembly": True},
-        "sub_140002000": {"function_id": 4, "file": "test.cpp", "has_assembly": True},
+        "DllMain": {"function_id": 1, "files": ["test.cpp"], "has_assembly": True},
+        "WppAutoLogTrace": {"function_id": 2, "files": ["test.cpp"], "has_assembly": True},
+        "??0CFoo@@QEAA@XZ": {"function_id": 3, "files": ["test.cpp"], "has_assembly": True},
+        "sub_140002000": {"function_id": 4, "files": ["test.cpp"], "has_assembly": True},
     }
     (ext_dir / "function_index.json").write_text(json.dumps(index_data))
 
@@ -383,7 +383,7 @@ def test_validate_extraction_db_consistency_function_mismatch_fails(
     ext_dir.mkdir(parents=True)
 
     (ext_dir / "function_index.json").write_text(json.dumps({
-        "DllMain": {"function_id": 999, "file": "x.cpp", "has_assembly": True},
+        "DllMain": {"function_id": 999, "files": ["x.cpp"], "has_assembly": True},
     }))
     file_info_json = {
         "basic_file_info": {"file_name": "test.dll", "md5_hash": "f2bbf324a1176c01101bc75d017633bc",

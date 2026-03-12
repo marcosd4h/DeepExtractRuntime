@@ -48,6 +48,8 @@ from _common import (
     compute_stats,
     filter_decompiled,
     filter_by_library,
+    get_files,
+    get_primary_file,
     group_by_file,
     group_by_library,
     has_assembly,
@@ -83,7 +85,7 @@ def print_function_list(
 ) -> None:
     if file_filter:
         matching = {
-            k: v for k, v in index.items() if v.get("file") == file_filter
+            k: v for k, v in index.items() if file_filter in get_files(v)
         }
         if not matching:
             print(f"No functions found in file '{file_filter}'.")
@@ -115,7 +117,7 @@ def print_function_list(
         entry = index[name]
         lib = entry.get("library")
         tag = f"  [{lib}]" if lib else ""
-        file_display = entry.get("file") or "(no file)"
+        file_display = get_primary_file(entry) or "(no file)"
         decomp = "decompiled" if has_decompiled(entry) else "no-decompiled"
         assembly = "asm" if has_assembly(entry) else "no-asm"
         print(f"  {name}{tag}  [{decomp}; {assembly}]  ->  {file_display}")
