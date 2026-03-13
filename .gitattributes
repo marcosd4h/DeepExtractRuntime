@@ -1,0 +1,2 @@
+# Exclude auto-generated C# RPC client stubs from language statistics
+config/assets/rpc_data/rpc_clients_26200_7840/*.cs linguist-generated=true
