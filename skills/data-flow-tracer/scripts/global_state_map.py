@@ -208,13 +208,18 @@ def print_summary(global_map: dict[str, dict]) -> None:
             print(f"  {name:<40} writers: {writers}{extra}")
 
 
+def filter_by_name(global_map: dict[str, dict], name_filter: str) -> dict[str, dict]:
+    """Return globals whose name or address matches *name_filter* (substring, case-insensitive)."""
+    needle = name_filter.lower()
+    return {
+        k: v for k, v in global_map.items()
+        if needle in k.lower() or needle in v.get("address", "").lower()
+    }
+
+
 def print_filtered(global_map: dict[str, dict], name_filter: str) -> None:
     """Print globals matching a name/address filter."""
-    matches = {
-        k: v for k, v in global_map.items()
-        if name_filter.lower() in k.lower()
-        or name_filter.lower() in v.get("address", "").lower()
-    }
+    matches = filter_by_name(global_map, name_filter)
     if not matches:
         print(f"No global matching '{name_filter}' found.")
         print(f"Available globals ({len(global_map)}):")
@@ -291,10 +296,21 @@ def main() -> None:
     global_map = build_global_map(db_path, app_only=args.app_only, no_cache=args.no_cache)
     status_message(f"Found {len(global_map)} global variables.")
 
+    if args.global_filter:
+        global_map = filter_by_name(global_map, args.global_filter)
+    if args.shared_only:
+        global_map = {k: v for k, v in global_map.items() if v["writers"] and v["readers"]}
+    if args.writers_only:
+        global_map = {k: v for k, v in global_map.items() if v["writers"]}
+
     if args.json:
         emit_json(global_map)
     elif args.global_filter:
-        print_filtered(global_map, args.global_filter)
+        if not global_map:
+            print(f"No global matching '{args.global_filter}' found.")
+            return
+        for name, info in sorted(global_map.items()):
+            print_global_detail(name, info)
     elif args.summary:
         print_summary(global_map)
     elif args.shared_only:

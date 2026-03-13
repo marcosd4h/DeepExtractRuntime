@@ -68,6 +68,8 @@ recognizable substring.
 | `extract_function_data.py <db_path> --search "Foo"` without `--json` when piping | `--search` without `--json` outputs a human-readable table, not JSON | Always add `--json` when machine-consuming: `extract_function_data.py <db_path> --search "Foo" --json` |
 | `chain_analysis.py <db_path> --function "Foo"` before this patch | `--function` didn't exist; argparse matched `--f` to `--function-id` (int) | All scripts now accept `--function <name>` or bare positional: `chain_analysis.py <db_path> --function "Foo"` or `chain_analysis.py <db_path> Foo` |
 | `find_module_db.py --list --json \| python -c "...m['module_name']..."` | (1) Piping through `python -c` violates JSON output convention; (2) field is `file_name`, not `module_name` | Read `--json` output directly; use documented field names from the schema above |
+| `extract_function_data.py <db_path> --function X --json` to get module metadata (file_size, exports, hashes) | Returns function-level data only; has no module-level fields | Read `file_info.json` or `module_profile.json` via Read tool, or use coordinator `module_identity` output |
+| Shell pipeline (`cat file.json \| python -c "..."`) to extract fields from static JSON files | Shell is for running scripts that compute something; static files should be read directly | Use the Read tool on the JSON file path; for large files needing a specific key, use `python .agent/helpers/json_extract.py <file> <key>` |
 
 ## Function Lookup When Module Is Unknown
 

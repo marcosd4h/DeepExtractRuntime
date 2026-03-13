@@ -406,6 +406,7 @@ Run directly from the command line (not imported as modules):
 | `health_check.py` | Validate workspace data, DBs, registries, and config | `python .agent/helpers/health_check.py [--quick|--full] [--json]` |
 | `select_audit_callees.py` | Select callees for deep extraction during /audit (Steps 3h+3i) | `python .agent/helpers/select_audit_callees.py <db> --dossier <path> [--attack-surface <path>] [--json]` |
 | `select_backward_traces.py` | Select backward trace targets for /audit Step 3c | `python .agent/helpers/select_backward_traces.py --dossier <path> [--extract-callee <path>] [--json]` |
+| `json_extract.py` | Extract specific keys or search within large JSON files | `python .agent/helpers/json_extract.py <file> <key> [--grep <pattern>] [--keys]` |
 
 > **Programmatic search**: Skill scripts that need to combine search with other
 > logic should import `run_search` directly instead of spawning a subprocess:

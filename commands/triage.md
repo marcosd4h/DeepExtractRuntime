@@ -57,14 +57,15 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 
 3. **Quick security scan** (conditional -- only when `--with-security` is specified)
    Run `taint_function.py` from the **taint-analysis** skill on the top 3-5 ranked entry points from Step 2:
+
    ```bash
    python .agent/skills/taint-analysis/scripts/taint_function.py <db_path> --id <fid> --depth 2 --json
    ```
+
    Collect any CRITICAL or HIGH severity findings. This is intentionally lightweight -- a quick signal of exploitable issues, not a comprehensive scan. For full vulnerability scanning, use `/scan`.
 
 4. **Synthesize triage report**
    Combine all findings into a structured report:
-
    - **Binary Identity**: name, size, hashes, compiler, PDB
    - **Capability Profile**: import categories, export count, primary purpose
    - **Scale & Complexity**: total functions, named vs `sub_*`, category breakdown, noise ratio. `module_profile.json` provides pre-computed noise ratio, library breakdown (WIL/STL/WRL/CRT/ETW), and complexity stats (loop counts, assembly sizes). `compute_stats()` from function_index provides additional decompiled/assembly availability counts (including entries with `file: null` when decompilation failed).

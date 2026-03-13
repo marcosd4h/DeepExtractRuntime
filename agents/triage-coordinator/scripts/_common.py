@@ -387,6 +387,61 @@ def get_module_code_dir(module_name: str) -> Optional[Path]:
     return None
 
 
+def load_module_identity(module_name: str) -> dict[str, Any]:
+    """Load module identity and security posture from file_info.json and module_profile.json.
+
+    Returns a flat dict suitable for merging into coordinator output as
+    ``module_identity``.  Missing files or fields are silently skipped --
+    the returned dict contains only what was successfully loaded.
+    """
+    identity: dict[str, Any] = {}
+    code_dir = get_module_code_dir(module_name)
+    if code_dir is None:
+        return identity
+
+    # -- file_info.json --
+    fi_path = code_dir / "file_info.json"
+    if fi_path.is_file():
+        try:
+            fi = json.loads(fi_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            fi = {}
+
+        basic = fi.get("basic_file_info", {})
+        if basic:
+            identity["file_path"] = basic.get("file_path", "")
+            identity["file_size_bytes"] = basic.get("size_bytes")
+            identity["md5_hash"] = basic.get("md5_hash", "")
+            identity["sha256_hash"] = basic.get("sha256_hash", "")
+
+        ver = fi.get("pe_version_info", {})
+        if ver:
+            identity["file_version"] = ver.get("file_version", "")
+            identity["company_name"] = ver.get("company_name", "")
+            identity["product_name"] = ver.get("product_name", "")
+            identity["file_description"] = ver.get("file_description", "")
+
+        meta = fi.get("pe_metadata", {})
+        if meta:
+            identity["pdb_path"] = meta.get("pdb_path", "")
+            identity["compilation_timestamp"] = meta.get("compilation_timestamp", "")
+
+    # -- module_profile.json --
+    mp_path = code_dir / "module_profile.json"
+    if mp_path.is_file():
+        try:
+            mp = json.loads(mp_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            mp = {}
+
+        posture = {k: v for k, v in mp.get("security_posture", {}).items()
+                   if k != "canary_coverage_pct"}
+        if posture:
+            identity["security_posture"] = posture
+
+    return identity
+
+
 def truncate(text: str, max_len: int = 120) -> str:
     """Truncate a string with ellipsis."""
     if len(text) <= max_len:

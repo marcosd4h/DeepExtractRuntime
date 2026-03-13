@@ -97,8 +97,10 @@ alwaysApply: true
 5. **Never pipe `--json` output through `python -c` or other inline
    post-processing filters.** The `--json` flag already produces a complete,
    well-structured JSON document with every field the script supports. If you
-   need a subset of fields, parse the full JSON in your own logic after the
-   command completes -- do not filter it mid-pipe.
+   need a subset of fields, read the Shell output directly. For large JSON
+   files (agent-tools output, workspace results), use
+   `python .agent/helpers/json_extract.py <file> <key>` to extract specific
+   keys without inline Python.
 
 ## Common Invocation Mistakes
 

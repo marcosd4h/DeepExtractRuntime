@@ -1232,10 +1232,54 @@ def _callback_category_to_type(category: str) -> EntryPointType:
 # Output Formatting
 # ===========================================================================
 
+def _build_compact_summary(entries: list[EntryPoint]) -> dict:
+    """Build a domain-specific compact summary for workspace handoff.
+
+    This becomes the content of summary.json (via the ``_summary`` opt-in
+    mechanism in helpers.workspace.summarize_json_payload), replacing the
+    auto-generated structural metadata that would otherwise only carry key
+    names and counts.  Downstream triage steps can read this small file
+    instead of loading the full (potentially large) results.json.
+    """
+    by_type: dict[str, int] = {}
+    interfaces: list[str] = []
+    seen_ifaces: set[str] = set()
+
+    for ep in entries:
+        key = ep.type_label or ep.entry_type.name
+        by_type[key] = by_type.get(key, 0) + 1
+        for iface_id in (ep.rpc_interface_id, ep.com_clsid):
+            if iface_id and iface_id not in seen_ifaces:
+                seen_ifaces.add(iface_id)
+                interfaces.append(iface_id)
+
+    top_entries = sorted(entries, key=lambda e: e.param_risk_score, reverse=True)[:10]
+    return {
+        "total": len(entries),
+        "by_type": by_type,
+        "interfaces": interfaces,
+        "top10_by_param_risk": [
+            {
+                "name": e.function_name,
+                "type": e.type_label,
+                "param_risk": round(e.param_risk_score, 3),
+                "rpc_opnum": e.rpc_opnum,
+                "interface_id": e.rpc_interface_id or e.com_clsid or "",
+                "signature": (e.signature or "")[:120],
+            }
+            for e in top_entries
+        ],
+    }
+
+
 def print_results(entries: list[EntryPoint], as_json: bool = False) -> None:
     """Print discovered entry points."""
     if as_json:
-        emit_json_list("entrypoints", [ep.to_dict() for ep in entries])
+        emit_json_list(
+            "entrypoints",
+            [ep.to_dict() for ep in entries],
+            extra={"_summary": _build_compact_summary(entries)},
+        )
         return
 
     # Group by type

@@ -1,0 +1,45 @@
+---
+description: Decision-point checklist for Shell commands and data access -- prevents common anti-patterns
+alwaysApply: true
+---
+
+# Agent Tool Guardrails
+
+## Before Every Shell Command
+
+Stop and verify all five:
+
+1. **Check the shell type.** Read the `Shell:` field from the session's
+   user_info (e.g. `Shell: bash`, `Shell: powershell`, `Shell: cmd`).
+   Use syntax that matches the detected shell:
+   - **bash**: `var=$(cmd)`, `mkdir -p`, `[ -d ... ] &&`, `date +%Y%m%d`
+   - **powershell**: `$var = Get-Date`, `New-Item -ItemType Directory`, `Out-Null`
+   - **cmd**: `set var=...`, `mkdir`, `if not exist ... ()`
+   Never mix syntaxes. When in doubt, default to **bash** (POSIX-compatible).
+2. **No `2>/dev/null`** -- stderr carries structured error JSON; suppressing it hides failures.
+3. **No `| python -c`** -- `--json` output is already a complete document. Run the command standalone and read the output directly from the Shell result.
+4. **No `2>&1 |`** -- merging stderr into stdout breaks JSON parsing with "Extra data" errors.
+5. **Is Shell the right tool?** If the data already exists as a static file (JSON metadata, decompiled code, workspace results), use the Read tool instead.
+
+## Data Access Decision Tree
+
+Before fetching any data, determine which tool to use:
+
+| What you need | How to get it |
+|---|---|
+| Static file on disk (file_info.json, module_profile.json, .cpp files) | **Read tool** on the file path |
+| Computed analysis (classification, taint, call graph, etc.) | **Shell** -- run the skill script with `--json`, read output from Shell result |
+| Workspace step results from a prior pipeline run | **Read tool** on `<run_dir>/<step>/results.json` |
+| Module identity (file size, hashes, PDB, security posture) | Already in coordinator output `module_identity` dict (triage/security/full goals) |
+| Specific field from a large JSON file (agent-tools output, workspace results) | `python .agent/helpers/json_extract.py <file> <key>`, or Read tool with line range, or Grep tool |
+
+## Positive Alternatives
+
+| Instead of... | Do this... |
+|---|---|
+| `script.py --json 2>/dev/null` | `script.py --json` (let stderr flow) |
+| `script.py --json \| python -c "..."` | `script.py --json` then read Shell output directly |
+| Extract specific data from large JSON output | `python .agent/helpers/json_extract.py <file> <key>` or `Grep` tool on the file |
+| `script.py --json 2>&1 \| ...` | `script.py --json` (streams stay separate automatically) |
+| Shell to read a JSON file | Read tool on the file path |
+| `extract_function_data.py` for module metadata | Read `file_info.json` or `module_profile.json`, or use coordinator `module_identity` |

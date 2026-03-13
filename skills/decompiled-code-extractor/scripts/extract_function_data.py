@@ -42,6 +42,12 @@ from helpers.errors import ErrorCode, db_error_handler, emit_error, safe_parse_a
 from helpers.json_output import emit_json
 
 
+def _strip_keys(obj, keys):
+    if isinstance(obj, dict):
+        return {k: v for k, v in obj.items() if k not in keys}
+    return obj
+
+
 def _format_json(obj: object) -> str:
     if obj is None:
         return "(none)"
@@ -128,7 +134,7 @@ def _build_function_dict(func, db_path: str) -> dict:
         "inbound_xrefs": parse_json_safe(func.simple_inbound_xrefs),
         "vtable_contexts": parse_json_safe(func.vtable_contexts),
         "global_var_accesses": parse_json_safe(func.global_var_accesses),
-        "stack_frame": parse_json_safe(func.stack_frame),
+        "stack_frame": _strip_keys(parse_json_safe(func.stack_frame), {"has_canary"}),
         "loop_analysis": parse_json_safe(func.loop_analysis),
         "db_path": db_path,
     }

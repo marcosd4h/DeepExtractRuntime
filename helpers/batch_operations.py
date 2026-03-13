@@ -25,6 +25,12 @@ from .individual_analysis_db import (
 )
 
 
+def _strip_keys(obj, keys):
+    if isinstance(obj, dict):
+        return {k: v for k, v in obj.items() if k not in keys}
+    return obj
+
+
 # ------------------------------------------------------------------
 # Batch extract: full lifting-ready dicts for multiple functions
 # ------------------------------------------------------------------
@@ -64,7 +70,7 @@ def _record_to_lifting_dict(func: FunctionRecord) -> dict[str, Any]:
         "vtable_contexts": parse_json_safe(func.vtable_contexts),
         "global_var_accesses": parse_json_safe(func.global_var_accesses),
         "dangerous_api_calls": parse_json_safe(func.dangerous_api_calls),
-        "stack_frame": parse_json_safe(func.stack_frame),
+        "stack_frame": _strip_keys(parse_json_safe(func.stack_frame), {"has_canary"}),
         "loop_analysis": parse_json_safe(func.loop_analysis),
     }
 

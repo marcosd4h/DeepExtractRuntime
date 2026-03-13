@@ -533,6 +533,13 @@ def update_manifest(
 
 def summarize_json_payload(payload: Any) -> dict[str, Any]:
     if isinstance(payload, dict):
+        # If the script provides its own domain-specific compact summary, use it
+        # directly instead of auto-generating structural metadata.  Scripts opt in
+        # by including a ``"_summary"`` key whose value is a plain dict.  The key
+        # is stripped from the summary so consumers only see domain fields.
+        if isinstance(payload.get("_summary"), dict):
+            return payload["_summary"]
+
         keys = list(payload.keys())
         summary: dict[str, Any] = {
             "kind": "object",

@@ -45,6 +45,7 @@ from _common import (
     create_run_dir,
     get_module_characteristics,
     get_module_code_dir,
+    load_module_identity,
     read_results,
     resolve_db_path,
     run_skill_script,
@@ -749,12 +750,16 @@ def run_pipeline(
             f"(continuing with partial results)"
         )
 
+    # Merge module identity from file_info.json + module_profile.json
+    module_identity = load_module_identity(chars.file_name) if chars.file_name else {}
+
     return {
         "status": "ok",
         "pipeline_complete": failed == 0,
         "goal": goal,
         "db_path": db_path,
         "module": chars.to_dict(),
+        "module_identity": module_identity,
         "workspace_run_dir": workspace_run_dir,
         "workspace_manifest": str(Path(workspace_run_dir) / "manifest.json"),
         "pipeline_summary": {
@@ -933,9 +938,32 @@ def print_text_summary(data: dict) -> None:
     print(f"  Elapsed: {data.get('total_elapsed_seconds', 0)}s")
     print(f"{'=' * 80}\n")
 
+    # Module identity (from file_info.json + module_profile.json)
+    identity = data.get("module_identity", {})
+    if identity:
+        print(f"  Module: {identity.get('file_description', module.get('file_name', '?'))}")
+        print(f"  Path: {identity.get('file_path', '?')}")
+        size = identity.get("file_size_bytes")
+        if size is not None:
+            print(f"  Size: {size:,} bytes ({size / 1024:.1f} KB)")
+        print(f"  Version: {identity.get('file_version', '?')}")
+        print(f"  Company: {identity.get('company_name', '?')}")
+        print(f"  PDB: {identity.get('pdb_path', '?')}")
+        md5 = identity.get("md5_hash", "")
+        sha256 = identity.get("sha256_hash", "")
+        if md5:
+            print(f"  MD5: {md5}")
+        if sha256:
+            print(f"  SHA256: {sha256}")
+        posture = identity.get("security_posture", {})
+        if posture:
+            flags = [f for f, v in posture.items() if v is True]
+            print(f"  Mitigations: {', '.join(flags).upper()}")
+    else:
+        print(f"  Module: {module.get('file_name', '?')} -- "
+              f"{module.get('file_description', '')}")
+
     # Module characteristics
-    print(f"  Module: {module.get('file_name', '?')} -- "
-          f"{module.get('file_description', '')}")
     print(f"  Functions: {module.get('total_functions', 0)} | "
           f"Exports: {module.get('export_count', 0)} | "
           f"Imports: {module.get('import_count', 0)}")
