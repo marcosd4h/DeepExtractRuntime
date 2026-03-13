@@ -25,7 +25,7 @@ arguments, dependencies, and caching contracts for each skill.
 | [code-lifting](#code-lifting) | code_generation | Lifting workflow for rewriting decompiled functions | -- | No | decompiled-code-extractor, reconstruct-types, verify-decompiled |
 | [com-interface-reconstruction](#com-interface-reconstruction) | reconstruction | Reconstruct COM/WRL interfaces from vtable patterns | 4 | Yes | decompiled-code-extractor |
 | [data-flow-tracer](#data-flow-tracer) | analysis | Trace parameter flow, argument origins, global state | 4 | Yes | decompiled-code-extractor |
-| [decompiled-code-extractor](#decompiled-code-extractor) | foundation | Extract function data from analysis databases | 3 | No | -- |
+| [decompiled-code-extractor](#decompiled-code-extractor) | foundation | Extract function data from analysis databases | 4 | No | -- |
 | [deep-research-prompt](#deep-research-prompt) | meta | Generate research prompts from multi-skill context | 3 | Yes | classify-functions, callgraph-tracer, data-flow-tracer, generate-re-report, state-machine-extractor, com-interface-reconstruction, reconstruct-types, taint-analysis |
 | [function-index](#function-index) | index | Fast function-to-file resolution and library filtering | 3 | No | -- |
 | [generate-re-report](#generate-re-report) | reporting | Comprehensive RE reports (identity, security, architecture) | 6 | Yes | decompiled-code-extractor |

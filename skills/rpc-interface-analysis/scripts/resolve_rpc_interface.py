@@ -4,6 +4,7 @@
 Usage:
     python resolve_rpc_interface.py <module_name>
     python resolve_rpc_interface.py appinfo.dll --json
+    python resolve_rpc_interface.py --workspace --json
 """
 
 from __future__ import annotations
@@ -16,16 +17,46 @@ _SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(_SCRIPT_DIR))
 
 from _common import emit_json, require_rpc_index
-from helpers.errors import safe_parse_args
+from helpers.errors import safe_parse_args, emit_error
+
+
+def _handle_workspace(as_json: bool) -> None:
+    """Show workspace modules that implement RPC interfaces."""
+    from helpers.ipc_workspace import discover_workspace_ipc_servers
+    result = discover_workspace_ipc_servers(ipc_types=["rpc"])
+    if as_json:
+        emit_json(result)
+    else:
+        rpc = result.get("rpc", {})
+        count = result.get("summary", {}).get("rpc_modules", 0)
+        print(f"\n=== Workspace RPC Interfaces ({count} module(s)) ===\n")
+        if not rpc:
+            print("  No workspace modules implement RPC interfaces.\n")
+            return
+        for module, info in sorted(rpc.items()):
+            print(f"  {module}: {info['interface_count']} interface(s)")
+            for iface in info["interfaces"]:
+                remote = " [REMOTE]" if iface["is_remote_reachable"] else ""
+                print(f"    {iface['uuid']} v{iface['version']}  risk={iface['risk_tier']}{remote}")
+        print()
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="List RPC interfaces for a module.")
-    parser.add_argument("module", help="Module name (e.g. appinfo.dll)")
+    parser.add_argument("module", nargs="?", help="Module name (e.g. appinfo.dll)")
+    parser.add_argument("--workspace", action="store_true",
+                        help="Show workspace modules that implement RPC interfaces")
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("--with-stubs", action="store_true",
                         help="Include procedure signatures from parsed C# stubs")
     args = safe_parse_args(parser)
+
+    if args.workspace:
+        _handle_workspace(args.json)
+        return
+
+    if not args.module:
+        emit_error("Provide a module name or use --workspace", "INVALID_ARGS")
 
     idx = require_rpc_index()
     ifaces = idx.get_interfaces_for_module(args.module)

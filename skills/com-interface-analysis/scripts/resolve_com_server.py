@@ -5,6 +5,7 @@ Usage:
     python resolve_com_server.py wuapi.dll --json
     python resolve_com_server.py bfe18e9c-6d87-4450-b37c-e02f0b373803 --json
     python resolve_com_server.py wbengine.exe --context medium_il_privileged --json
+    python resolve_com_server.py --workspace --json
 """
 
 from __future__ import annotations
@@ -17,15 +18,45 @@ _SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(_SCRIPT_DIR))
 
 from _common import emit_json, is_clsid, parse_context, require_com_index
-from helpers.errors import safe_parse_args
+from helpers.errors import safe_parse_args, emit_error
+
+
+def _handle_workspace(as_json: bool) -> None:
+    """Show workspace modules that implement COM servers."""
+    from helpers.ipc_workspace import discover_workspace_ipc_servers
+    result = discover_workspace_ipc_servers(ipc_types=["com"])
+    if as_json:
+        emit_json(result)
+    else:
+        com = result.get("com", {})
+        count = result.get("summary", {}).get("com_modules", 0)
+        print(f"\n=== Workspace COM Servers ({count} module(s)) ===\n")
+        if not com:
+            print("  No workspace modules implement COM servers.\n")
+            return
+        for module, info in sorted(com.items()):
+            print(f"  {module}: {info['server_count']} server(s)")
+            for srv in info["servers"]:
+                ctxs = ", ".join(srv["access_contexts"])
+                print(f"    {srv['clsid']} {srv['name'] or '(unnamed)'}  [{ctxs}]")
+        print()
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="List COM servers for a module or CLSID.")
-    parser.add_argument("module_or_clsid", help="Module name or CLSID GUID")
+    parser.add_argument("module_or_clsid", nargs="?", help="Module name or CLSID GUID")
+    parser.add_argument("--workspace", action="store_true",
+                        help="Show workspace modules that implement COM servers")
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("--context", help="Filter by access context")
     args = safe_parse_args(parser)
+
+    if args.workspace:
+        _handle_workspace(args.json)
+        return
+
+    if not args.module_or_clsid:
+        emit_error("Provide a module name, CLSID, or use --workspace", "INVALID_ARGS")
 
     idx = require_com_index()
     ctx = parse_context(args.context)

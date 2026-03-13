@@ -100,6 +100,7 @@ class IndividualAnalysisDB:
         self._db_path = self._resolve_db_path(db_path)
         self._conn: Optional[sqlite3.Connection] = None
         self._open_lock = threading.Lock()
+        self._query_lock = threading.Lock()
         self._file_info_columns: set[str] | None = None
 
     def __enter__(self) -> "IndividualAnalysisDB":
@@ -147,8 +148,9 @@ class IndividualAnalysisDB:
                 return self._file_info_columns
             self._ensure_open()
             assert self._conn is not None
-            cursor = self._conn.execute(f"PRAGMA table_info({FILE_INFO_TABLE})")
-            cols = {row[1] for row in cursor.fetchall()}
+            with self._query_lock:
+                cursor = self._conn.execute(f"PRAGMA table_info({FILE_INFO_TABLE})")
+                cols = {row[1] for row in cursor.fetchall()}
             self._file_info_columns = cols
             return cols
 
@@ -832,9 +834,10 @@ class IndividualAnalysisDB:
 
         assert self._conn is not None
         try:
-            row = self._conn.execute(
-                f"SELECT MAX(version) FROM {SCHEMA_VERSION_TABLE}"
-            ).fetchone()
+            with self._query_lock:
+                row = self._conn.execute(
+                    f"SELECT MAX(version) FROM {SCHEMA_VERSION_TABLE}"
+                ).fetchone()
         except sqlite3.OperationalError:
             with _VALIDATED_PATHS_LOCK:
                 _VALIDATED_PATHS.add(db_path_str)
@@ -852,11 +855,12 @@ class IndividualAnalysisDB:
     def _fetch_rows(self, query: str, params: Iterable[Any]) -> list[sqlite3.Row]:
         self._ensure_open()
         assert self._conn is not None
-        try:
-            cursor = self._conn.execute(query, tuple(params))
-            return cursor.fetchall()
-        except sqlite3.Error as e:
-            raise RuntimeError(f"Query failed on analysis DB {self._db_path}: {e}") from e
+        with self._query_lock:
+            try:
+                cursor = self._conn.execute(query, tuple(params))
+                return cursor.fetchall()
+            except sqlite3.Error as e:
+                raise RuntimeError(f"Query failed on analysis DB {self._db_path}: {e}") from e
 
     def _fetch_one_file_info(self, query: str, params: Iterable[Any]) -> Optional[FileInfoRecord]:
         rows = self._fetch_rows(query, params)

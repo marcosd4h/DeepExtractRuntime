@@ -11,6 +11,7 @@ The text after `/winrt` is the **module name** and optional **subcommand** (e.g.
 | Subcommand | Usage | Purpose |
 |------------|-------|---------|
 | *(default)* | `/winrt <module>` | Enumerate WinRT server classes, interfaces, methods |
+| `workspace` | `/winrt workspace` | Discover which workspace modules implement WinRT servers |
 | `surface` | `/winrt surface [module]` | Risk-ranked WinRT attack surface (module or system-wide) |
 | `methods` | `/winrt methods <module_or_class>` | List methods with optional pseudo-IDL |
 | `classify` | `/winrt classify <module>` | Semantic classification of WinRT entry points |
@@ -42,6 +43,13 @@ If no servers are found, report this and suggest checking module name spelling o
 ### Step 1: Subcommand Dispatch
 
 Based on the parsed subcommand:
+
+**Workspace (discovery):**
+```bash
+python .agent/skills/winrt-interface-analysis/scripts/resolve_winrt_server.py --workspace --json
+```
+
+Show which workspace modules implement WinRT servers with access contexts and security metadata. Use this as a discovery step before drilling into a specific module. Only `resolve_winrt_server.py` supports `--workspace`; do NOT use `--workspace` on `map_winrt_surface.py` (use `--system-wide` there instead).
 
 **Default (module enumeration):**
 ```bash

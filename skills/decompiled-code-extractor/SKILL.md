@@ -151,6 +151,17 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module
 python .agent/skills/decompiled-code-extractor/scripts/list_functions.py <db_path> --has-decompiled --json
 ```
 
+### discover_workspace_ipc.py -- Discover Workspace IPC Servers
+
+Intersect workspace modules with the COM, RPC, and WinRT indexes to find
+which modules implement IPC servers.
+
+```bash
+python .agent/skills/decompiled-code-extractor/scripts/discover_workspace_ipc.py --json
+python .agent/skills/decompiled-code-extractor/scripts/discover_workspace_ipc.py --type com --json
+python .agent/skills/decompiled-code-extractor/scripts/discover_workspace_ipc.py --type rpc --type winrt --json
+```
+
 ## Direct Helper Module Access
 
 For advanced queries not covered by the scripts, use the `.agent/helpers/` Python modules directly:

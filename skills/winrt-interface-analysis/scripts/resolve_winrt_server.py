@@ -5,6 +5,7 @@ Usage:
     python resolve_winrt_server.py <module_name>
     python resolve_winrt_server.py TaskFlowDataEngine.dll --json
     python resolve_winrt_server.py TaskFlowDataEngine.dll --context medium_il_privileged --json
+    python resolve_winrt_server.py --workspace --json
 """
 
 from __future__ import annotations
@@ -17,15 +18,45 @@ _SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(_SCRIPT_DIR))
 
 from _common import emit_json, parse_context, require_winrt_index
-from helpers.errors import safe_parse_args
+from helpers.errors import safe_parse_args, emit_error
+
+
+def _handle_workspace(as_json: bool) -> None:
+    """Show workspace modules that implement WinRT servers."""
+    from helpers.ipc_workspace import discover_workspace_ipc_servers
+    result = discover_workspace_ipc_servers(ipc_types=["winrt"])
+    if as_json:
+        emit_json(result)
+    else:
+        winrt = result.get("winrt", {})
+        count = result.get("summary", {}).get("winrt_modules", 0)
+        print(f"\n=== Workspace WinRT Servers ({count} module(s)) ===\n")
+        if not winrt:
+            print("  No workspace modules implement WinRT servers.\n")
+            return
+        for module, info in sorted(winrt.items()):
+            print(f"  {module}: {info['server_count']} server(s)")
+            for srv in info["servers"]:
+                ctxs = ", ".join(srv["access_contexts"])
+                print(f"    {srv['class_name']}  [{ctxs}]")
+        print()
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="List WinRT servers for a module.")
-    parser.add_argument("module", help="Module name (e.g. TaskFlowDataEngine.dll)")
+    parser.add_argument("module", nargs="?", help="Module name (e.g. TaskFlowDataEngine.dll)")
+    parser.add_argument("--workspace", action="store_true",
+                        help="Show workspace modules that implement WinRT servers")
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("--context", help="Filter by access context")
     args = safe_parse_args(parser)
+
+    if args.workspace:
+        _handle_workspace(args.json)
+        return
+
+    if not args.module:
+        emit_error("Provide a module name or use --workspace", "INVALID_ARGS")
 
     idx = require_winrt_index()
     servers = idx.get_servers_for_module(args.module)

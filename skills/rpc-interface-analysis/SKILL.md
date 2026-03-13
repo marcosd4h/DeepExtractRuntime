@@ -50,18 +50,22 @@ client stub parameter signatures and procedure semantic classification.
 ### `resolve_rpc_interface.py` (Start Here)
 
 List all RPC interfaces for a module with full metadata and optional stub
-signatures.
+signatures. Use `--workspace` to discover which workspace modules implement
+RPC interfaces.
 
 ```bash
 python .agent/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py appinfo.dll
 python .agent/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py appinfo.dll --json
 python .agent/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py spoolsv.exe --with-stubs --json
+python .agent/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py --workspace --json
 ```
 
 ### `map_rpc_surface.py`
 
 Risk-ranked RPC attack surface, per module or system-wide.  Includes optional
-blast-radius analysis.
+blast-radius analysis. Use `--system-wide` to rank the full RPC index. This
+script does **not** support `--workspace` -- to discover which workspace modules
+implement RPC interfaces, use `resolve_rpc_interface.py --workspace` above.
 
 ```bash
 python .agent/skills/rpc-interface-analysis/scripts/map_rpc_surface.py appinfo.dll --json

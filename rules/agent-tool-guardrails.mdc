@@ -7,7 +7,7 @@ alwaysApply: true
 
 ## Before Every Shell Command
 
-Stop and verify all five:
+Stop and verify all six:
 
 1. **Check the shell type.** Read the `Shell:` field from the session's
    user_info (e.g. `Shell: bash`, `Shell: powershell`, `Shell: cmd`).
@@ -20,6 +20,10 @@ Stop and verify all five:
 3. **No `| python -c`** -- `--json` output is already a complete document. Run the command standalone and read the output directly from the Shell result.
 4. **No `2>&1 |`** -- merging stderr into stdout breaks JSON parsing with "Extra data" errors.
 5. **Is Shell the right tool?** If the data already exists as a static file (JSON metadata, decompiled code, workspace results), use the Read tool instead.
+6. **Quote all file paths.** In bash, unquoted backslash paths are silently
+   mangled (`C:\Users\teto` becomes `C:Usersteto`). Always wrap paths in
+   double quotes or use forward slashes. This is critical for agent-tools
+   output paths on Windows.
 
 ## Data Access Decision Tree
 
@@ -43,3 +47,4 @@ Before fetching any data, determine which tool to use:
 | `script.py --json 2>&1 \| ...` | `script.py --json` (streams stay separate automatically) |
 | Shell to read a JSON file | Read tool on the file path |
 | `extract_function_data.py` for module metadata | Read `file_info.json` or `module_profile.json`, or use coordinator `module_identity` |
+| Unquoted backslash path: `json_extract.py C:\path\file` | Quoted: `json_extract.py "C:\path\file"` or forward slashes: `json_extract.py C:/path/file` |

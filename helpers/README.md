@@ -267,7 +267,18 @@ Key query methods on `RpcIndex`:
 - `is_rpc_procedure(module, func)` -- exact match against known procedures
 - `get_interface_for_procedure(module, func)` -- returns the owning `RpcInterface`
 - `get_interfaces_for_module(module)` -- all interfaces registered in a binary
+- `get_all_modules()` -- all module names that host RPC interfaces
 - `compute_blast_radius(uuid)` -- co-hosted sibling interfaces in same process
+
+### ipc_workspace
+
+Cross-references workspace modules (from `extracted_code/`) against the COM,
+RPC, and WinRT indexes to discover which workspace modules implement IPC
+servers. Handles folder-name-to-filename normalization via `file_info.json`.
+
+| Symbol | Type | Description |
+|--------|------|-------------|
+| `discover_workspace_ipc_servers(ipc_types)` | function | Intersect workspace modules with IPC indexes; returns per-type results with access contexts and summary counts |
 
 ### Error Handling and Output
 

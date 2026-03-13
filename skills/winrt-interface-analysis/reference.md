@@ -54,6 +54,20 @@
   "servers": [{ ...WinrtServer.to_dict(), "risk_tier": "..." }] }
 ```
 
+### resolve_winrt_server.py --workspace
+
+```json
+{ "status": "ok",
+  "workspace_modules": ["mod1.dll", "mod2.dll", ...],
+  "winrt": { "<module>": { "server_count": N,
+    "servers": [{ "class_name": "...", "activation_type": "...",
+      "access_contexts": [...], "trust_level": "...", "runs_as_system": bool,
+      "service_name": "...", "interface_count": N, "method_count": N }] } },
+  "summary": { "total_workspace_modules": N, "winrt_modules": N } }
+```
+
+The module list key is **`workspace_modules`** (not `modules`).
+
 ### map_winrt_surface.py
 
 ```json

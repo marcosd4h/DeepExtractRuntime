@@ -11,6 +11,7 @@ The text after `/com` is the **module name or CLSID** and optional **subcommand*
 | Subcommand | Usage | Purpose |
 |------------|-------|---------|
 | *(default)* | `/com <module_or_clsid>` | Enumerate COM servers, interfaces, methods |
+| `workspace` | `/com workspace` | Discover which workspace modules implement COM servers |
 | `surface` | `/com surface [module]` | Risk-ranked COM attack surface (module or system-wide) |
 | `methods` | `/com methods <module_or_clsid>` | List methods with optional pseudo-IDL |
 | `classify` | `/com classify <module>` | Semantic classification of COM entry points |
@@ -42,6 +43,13 @@ If no servers are found, report this and suggest checking module name spelling o
 ### Step 1: Subcommand Dispatch
 
 Based on the parsed subcommand:
+
+**Workspace (discovery):**
+```bash
+python .agent/skills/com-interface-analysis/scripts/resolve_com_server.py --workspace --json
+```
+
+Show which workspace modules implement COM servers with access contexts and security metadata. Use this as a discovery step before drilling into a specific module. Only `resolve_com_server.py` supports `--workspace`; do NOT use `--workspace` on `map_com_surface.py` (use `--system-wide` there instead).
 
 **Default (module/CLSID enumeration):**
 ```bash

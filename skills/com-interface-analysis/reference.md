@@ -62,6 +62,21 @@
   "servers": [{ ...ComServer.to_dict(), "risk_tier": "..." }] }
 ```
 
+### resolve_com_server.py --workspace
+
+```json
+{ "status": "ok",
+  "workspace_modules": ["mod1.dll", "mod2.dll", ...],
+  "com": { "<module>": { "server_count": N,
+    "servers": [{ "clsid": "...", "name": "...", "server_type": "...",
+      "access_contexts": [...], "runs_as_system": bool, "can_elevate": bool,
+      "is_service": bool, "service_name": "...", "interface_count": N,
+      "method_count": N }] } },
+  "summary": { "total_workspace_modules": N, "com_modules": N } }
+```
+
+The module list key is **`workspace_modules`** (not `modules`).
+
 ### map_com_surface.py
 
 ```json

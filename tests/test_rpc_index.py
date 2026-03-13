@@ -394,6 +394,17 @@ class TestRpcIndex:
         assert s["with_services"] == 2
         assert s["with_complex_types"] == 1
 
+    def test_get_all_modules(self, loaded_index):
+        modules = loaded_index.get_all_modules()
+        assert isinstance(modules, list)
+        assert len(modules) == 2
+        assert modules == sorted(modules)
+        assert "svc.dll" in modules
+
+    def test_get_all_modules_empty(self):
+        idx = RpcIndex()
+        assert idx.get_all_modules() == []
+
 
 class TestDistributeProcedures:
     """Tests for the procedure distribution logic."""

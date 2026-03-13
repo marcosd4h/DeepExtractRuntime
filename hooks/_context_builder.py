@@ -101,6 +101,9 @@ def build_context(
         )
     lines.append("")
 
+    if _is_level_enabled(context_level, "standard"):
+        _build_ipc_summary_line(lines)
+
     if not _is_level_enabled(context_level, "standard"):
         _build_minimal_component_list(lines, skills, agent_names, command_names)
 
@@ -173,6 +176,29 @@ def _build_minimal_component_list(
         )
     if skills or agent_names or command_names:
         lines.append("")
+
+
+def _build_ipc_summary_line(lines: list[str]) -> None:
+    """Add a one-line IPC server summary for workspace modules."""
+    try:
+        from helpers.ipc_workspace import discover_workspace_ipc_servers
+        result = discover_workspace_ipc_servers()
+        summary = result.get("summary", {})
+        com_n = summary.get("com_modules", 0)
+        rpc_n = summary.get("rpc_modules", 0)
+        winrt_n = summary.get("winrt_modules", 0)
+        if com_n or rpc_n or winrt_n:
+            parts = []
+            if rpc_n:
+                parts.append(f"**{rpc_n} module(s) with RPC**")
+            if com_n:
+                parts.append(f"**{com_n} module(s) with COM**")
+            if winrt_n:
+                parts.append(f"**{winrt_n} module(s) with WinRT**")
+            lines.append(" | ".join(parts))
+            lines.append("")
+    except Exception:
+        pass
 
 
 def _build_module_section(

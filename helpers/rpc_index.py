@@ -369,6 +369,10 @@ class RpcIndex:
         """Return interfaces reachable via an ALPC endpoint."""
         return list(self._by_alpc.get(alpc_name.lower(), []))
 
+    def get_all_modules(self) -> list[str]:
+        """Return all module names that host RPC interfaces."""
+        return sorted(self._by_module.keys())
+
     def compute_blast_radius(self, interface_uuid: str) -> dict[str, Any]:
         """Compute co-hosted interfaces that share a process with *interface_uuid*.
 

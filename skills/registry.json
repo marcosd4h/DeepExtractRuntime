@@ -144,7 +144,8 @@
       "entry_scripts": [
         {"script": "find_module_db.py", "accepts": {"module_name": "optional", "--ext": "optional", "--list": "flag", "--db": "optional", "--json": "optional"}, "note": "One of module_name, --ext, or --list is required"},
         {"script": "list_functions.py", "accepts": {"db_path": "required", "--search": "optional", "--has-decompiled": "flag", "--limit": "optional", "--json": "optional"}},
-        {"script": "extract_function_data.py", "accepts": {"db_path": "required", "function_name": "optional", "--id": "optional", "--search": "optional", "--json": "optional"}}
+        {"script": "extract_function_data.py", "accepts": {"db_path": "required", "function_name": "optional", "--id": "optional", "--search": "optional", "--json": "optional"}},
+        {"script": "discover_workspace_ipc.py", "accepts": {"--type": "optional", "--json": "flag"}, "note": "Discover workspace modules that implement COM/RPC/WinRT servers"}
       ],
       "depends_on": [],
       "cacheable": false,

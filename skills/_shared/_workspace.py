@@ -278,7 +278,7 @@ _ORIG_EXCEPTHOOK = sys.excepthook
 
 
 def _extract_workspace_args(args: Any) -> tuple[Optional[str], Optional[str], list[str]]:
-    shim = argparse.ArgumentParser(add_help=False)
+    shim = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
     shim.add_argument("--workspace-dir", dest="_workspace_dir")
     shim.add_argument("--workspace-step", dest="_workspace_step")
     known, remaining = shim.parse_known_args(args)

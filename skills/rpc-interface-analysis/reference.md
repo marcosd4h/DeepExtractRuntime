@@ -75,6 +75,20 @@ Co-hosted interfaces share a process; compromising one exposes all siblings.
   "all_procedures": ["proc1", "proc2", ...] }
 ```
 
+### resolve_rpc_interface.py --workspace
+
+```json
+{ "status": "ok",
+  "workspace_modules": ["mod1.dll", "mod2.dll", ...],
+  "rpc": { "<module>": { "interface_count": N,
+    "interfaces": [{ "uuid": "...", "version": "...", "procedure_count": N,
+      "procedure_names": [...], "risk_tier": "...", "is_remote_reachable": bool,
+      "service_name": "...", "pipe_names": [...] }] } },
+  "summary": { "total_workspace_modules": N, "rpc_modules": N } }
+```
+
+The module list key is **`workspace_modules`** (not `modules`).
+
 ### map_rpc_surface.py
 
 ```json

@@ -361,7 +361,11 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     "ComAccessContext": (".com_index", None),
     "get_com_index": (".com_index", None),
     "invalidate_com_index": (".com_index", None),
+    # ipc_workspace
+    "discover_workspace_ipc_servers": (".ipc_workspace", None),
 }
+# Standalone CLI scripts (not importable library modules):
+#   json_extract -- run via: python .agent/helpers/json_extract.py <file> <key>
 
 __all__ = list(_LAZY_IMPORTS.keys())
 

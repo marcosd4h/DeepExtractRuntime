@@ -11,6 +11,7 @@ The text after `/rpc` is the **module name** and optional **subcommand** (e.g., 
 | Subcommand | Usage | Purpose |
 |------------|-------|---------|
 | *(default)* | `/rpc <module>` | Enumerate all RPC interfaces, procedures, endpoints |
+| `workspace` | `/rpc workspace` | Discover which workspace modules implement RPC interfaces |
 | `surface` | `/rpc surface [module]` | Risk-ranked RPC attack surface (module or system-wide) |
 | `audit` | `/rpc audit <module>` | RPC-specific security audit |
 | `trace` | `/rpc trace <module> <function>` | Trace RPC handler data flow to sinks |
@@ -43,7 +44,17 @@ Parse the subcommand and arguments:
 
 For `audit` and `trace` subcommands, resolve the module name to its analysis DB path using `helpers.command_validation.validate_command_args("rpc", {"module": "<module>"})`.
 
-### Step 1: `/rpc <module>` -- Enumerate Interfaces
+### Step 1: `/rpc workspace` -- Workspace Discovery
+
+Show which workspace modules implement RPC interfaces with UUIDs, risk tiers, and procedure counts:
+
+```bash
+python .agent/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py --workspace --json
+```
+
+Use this as a discovery step before drilling into a specific module. Only `resolve_rpc_interface.py` supports `--workspace`; do NOT use `--workspace` on `map_rpc_surface.py` (use `--system-wide` there instead).
+
+### Step 2: `/rpc <module>` -- Enumerate Interfaces
 
 Use the **rpc-interface-analysis** skill:
 

@@ -58,16 +58,21 @@ process privilege.
 ### `resolve_winrt_server.py` (Start Here)
 
 List all WinRT server classes for a module with full metadata.
+Use `--workspace` to discover which workspace modules implement WinRT servers.
 
 ```bash
 python .agent/skills/winrt-interface-analysis/scripts/resolve_winrt_server.py TaskFlowDataEngine.dll
 python .agent/skills/winrt-interface-analysis/scripts/resolve_winrt_server.py TaskFlowDataEngine.dll --json
 python .agent/skills/winrt-interface-analysis/scripts/resolve_winrt_server.py TaskFlowDataEngine.dll --context medium_il_privileged --json
+python .agent/skills/winrt-interface-analysis/scripts/resolve_winrt_server.py --workspace --json
 ```
 
 ### `map_winrt_surface.py`
 
-Risk-ranked WinRT attack surface, per module or system-wide.
+Risk-ranked WinRT attack surface, per module or system-wide. Use `--system-wide`
+to rank the full WinRT index. This script does **not** support `--workspace` --
+to discover which workspace modules implement WinRT servers, use
+`resolve_winrt_server.py --workspace` above.
 
 ```bash
 python .agent/skills/winrt-interface-analysis/scripts/map_winrt_surface.py --system-wide --top 20

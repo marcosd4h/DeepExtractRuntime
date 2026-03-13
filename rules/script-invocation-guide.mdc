@@ -44,6 +44,27 @@ Key fields: **`file_name`** (module name, e.g. `srvsvc.dll`),
 **`analysis_db_path`** (DB filename -- prefix with `extracted_dbs/` to
 form the full path). There is **no** `module_name` field.
 
+**IPC workspace discovery** (`resolve_com_server.py --workspace --json`,
+`resolve_rpc_interface.py --workspace --json`,
+`resolve_winrt_server.py --workspace --json`) all delegate to
+`helpers.ipc_workspace.discover_workspace_ipc_servers()` and share this
+output schema:
+
+```json
+{
+  "status": "ok",
+  "workspace_modules": ["mod1.dll", "mod2.dll"],
+  "com": { "<module>": { "server_count": N, "servers": [...] } },
+  "rpc": { "<module>": { "interface_count": N, "interfaces": [...] } },
+  "winrt": { "<module>": { "server_count": N, "servers": [...] } },
+  "summary": { "total_workspace_modules": N, "com_modules": N, "rpc_modules": N, "winrt_modules": N }
+}
+```
+
+Only the requested IPC types appear (e.g. COM-only omits `rpc`/`winrt`).
+Key field for the module list is **`workspace_modules`** -- there is
+**no** `modules` key.
+
 **Option B -- From a module name directly:**
 
 ```bash
@@ -70,6 +91,11 @@ recognizable substring.
 | `find_module_db.py --list --json \| python -c "...m['module_name']..."` | (1) Piping through `python -c` violates JSON output convention; (2) field is `file_name`, not `module_name` | Read `--json` output directly; use documented field names from the schema above |
 | `extract_function_data.py <db_path> --function X --json` to get module metadata (file_size, exports, hashes) | Returns function-level data only; has no module-level fields | Read `file_info.json` or `module_profile.json` via Read tool, or use coordinator `module_identity` output |
 | Shell pipeline (`cat file.json \| python -c "..."`) to extract fields from static JSON files | Shell is for running scripts that compute something; static files should be read directly | Use the Read tool on the JSON file path; for large files needing a specific key, use `python .agent/helpers/json_extract.py <file> <key>` |
+| `discover_workspace_ipc.py` under a guessed skill folder (e.g. `ipc-discovery`) | The script lives in `decompiled-code-extractor/scripts/`, not its own skill | `.agent/skills/decompiled-code-extractor/scripts/discover_workspace_ipc.py` |
+| Unquoted backslash path in bash: `json_extract.py C:\path\file` | Bash strips backslashes from unquoted args; `C:\Users` becomes `C:Users` | Quote the path: `json_extract.py "C:\path\file"` or use forward slashes |
+| `map_com_surface.py --workspace --json` (or `map_rpc_surface.py --workspace`) | `--workspace` only exists on `resolve_*` scripts, not `map_*` scripts | Use `resolve_com_server.py --workspace --json` to discover workspace COM modules; use `map_com_surface.py --system-wide --json` for risk-ranked surface across the full COM index |
+| IPC script under wrong skill folder (e.g. `decompiled-code-extractor/scripts/resolve_com_server.py`) | IPC scripts live in their own skill folders, not in `decompiled-code-extractor` | COM: `com-interface-analysis/scripts/`, RPC: `rpc-interface-analysis/scripts/`, WinRT: `winrt-interface-analysis/scripts/` |
+| `json_extract.py <file> modules` on `--workspace` output | Field is `workspace_modules`, not `modules`; see IPC workspace schema above | `json_extract.py <file> workspace_modules` -- or use `summary`, `com`, `rpc`, `winrt` |
 
 ## Function Lookup When Module Is Unknown
 
@@ -98,6 +124,10 @@ lookup. Both forms are equivalent.
 
 ### Core (decompiled-code-extractor, classify-functions, security-dossier, taint-analysis)
 
+All scripts in this section live under their respective skill's `scripts/`
+directory. Invoke with the full relative path, e.g.
+`.agent/skills/decompiled-code-extractor/scripts/find_module_db.py`.
+
 ```
 find_module_db.py           <module_name> | --list | --ext <ext>  [--json]
 list_functions.py           <db_path> [--search "<pattern>"] [--with-signatures] [--has-decompiled] [--limit N] [--json]
@@ -108,6 +138,7 @@ verify_function.py          <db_path> --function <name> | --id <N> | --search "<
 taint_function.py           <db_path> --function <name> | --id <N>  [--depth N] [--json]
 triage_summary.py           <db_path> [--top N] [--app-only] [--json]
 discover_entrypoints.py     <db_path> [--json]
+discover_workspace_ipc.py   [--type com|rpc|winrt] [--json]          # in decompiled-code-extractor
 ```
 
 ### Callgraph tracer
@@ -203,10 +234,20 @@ IPC scripts take a **module name** (e.g. `wuapi.dll`) or an IPC identifier
 (CLSID, UUID, WinRT class name) as the first positional argument -- never
 a `<db_path>`. Exceptions are noted below.
 
+**Each IPC type lives in its own skill folder** -- NOT in
+`decompiled-code-extractor`. Use the full path shown in each subsection.
+
 #### COM interface analysis
 
+Scripts live in `.agent/skills/com-interface-analysis/scripts/`.
+
+**`--workspace`** (on `resolve_*` only) discovers which workspace modules
+implement IPC servers. **`--system-wide`** (on `map_*` only) ranks the full
+index by risk. Do NOT use `--workspace` on `map_*` or `--system-wide` on
+`resolve_*` -- they do not exist on those scripts.
+
 ```
-resolve_com_server.py       <module_or_clsid> [--context <ctx>] [--json]
+resolve_com_server.py       <module_or_clsid> [--context <ctx>] [--workspace] [--json]
 map_com_surface.py          [<module>] [--system-wide] [--top N] [--tier critical|high|medium|low] [--context <ctx>] [--privileged-only] [--json]
 enumerate_com_methods.py    <module_or_clsid> [--interface <name>] [--show-pseudo-idl] [--json]
 classify_com_entrypoints.py [<module>] [--system-wide] [--context <ctx>] [--json]
@@ -216,8 +257,12 @@ find_com_privesc.py         [--context <ctx>] [--top N] [--include-uac] [--json]
 
 #### RPC interface analysis
 
+Scripts live in `.agent/skills/rpc-interface-analysis/scripts/`.
+
+Same `--workspace` vs `--system-wide` split as COM above.
+
 ```
-resolve_rpc_interface.py    <module> [--with-stubs] [--json]
+resolve_rpc_interface.py    <module> [--with-stubs] [--workspace] [--json]
 map_rpc_surface.py          [<module>] [--system-wide] [--top N] [--tier critical|high|medium|low] [--servers-only] [--with-blast-radius] [--json]
 audit_rpc_security.py       <db_path> [--depth N] [--json]                          # exception: takes db_path
 trace_rpc_chain.py          <db_path> --function <name> [--depth N] [--json]         # exception: takes db_path
@@ -247,8 +292,12 @@ false-positive rates.  Individual scripts are appropriate only for:
 
 #### WinRT interface analysis
 
+Scripts live in `.agent/skills/winrt-interface-analysis/scripts/`.
+
+Same `--workspace` vs `--system-wide` split as COM above.
+
 ```
-resolve_winrt_server.py       <module> [--context <ctx>] [--json]
+resolve_winrt_server.py       <module> [--context <ctx>] [--workspace] [--json]
 map_winrt_surface.py          [<module>] [--system-wide] [--top N] [--tier critical|high|medium|low] [--context <ctx>] [--privileged-only] [--json]
 enumerate_winrt_methods.py    <module_or_class> [--interface <name>] [--show-pseudo-idl] [--json]
 classify_winrt_entrypoints.py [<module>] [--system-wide] [--context <ctx>] [--json]
