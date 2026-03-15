@@ -44,6 +44,11 @@ _WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 _GUID_RE = re.compile(r'\[Guid\("([0-9a-fA-F-]+)"\)\]')
 _STATEREPO_DLL = "windows.staterepository.dll"
 
+_GENERIC_HOST_PROCESSES = frozenset({
+    "svchost.exe", "dllhost.exe", "rundll32.exe",
+    "taskhostw.exe", "sihost.exe",
+})
+
 
 # ---------------------------------------------------------------------------
 # Access context enum
@@ -332,6 +337,10 @@ def _parse_server_detail(raw: dict, hosting_binary: str = "") -> WinrtServer:
     if not hosting and methods_flat:
         hosting = methods_flat[0].binary_name
 
+    if hosting.lower() in _GENERIC_HOST_PROCESSES:
+        if methods_flat and methods_flat[0].binary_name:
+            hosting = methods_flat[0].binary_name
+
     return WinrtServer(
         name=raw.get("class_name", ""),
         server=raw.get("hosting_server", ""),
@@ -475,7 +484,7 @@ class WinrtIndex:
             procedures = bin_entry.get("procedures", [])
             if isinstance(procedures, list) and procedures:
                 mod_name = module_name_from_path(binary_path) if binary_path else ""
-                if mod_name:
+                if mod_name and mod_name.lower() not in _GENERIC_HOST_PROCESSES:
                     if exclude_staterepo and mod_name.lower() == _STATEREPO_DLL:
                         continue
                     mod_key = mod_name.lower()

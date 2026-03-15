@@ -87,12 +87,21 @@ If validation fails, report the errors and stop. On success, use `result.resolve
      ```
    These two scripts together provide the data needed to synthesize the explanation.
 
-   **Deep mode** (when the user requests `--depth 2` or thorough analysis): Use the **deep-research-prompt** skill (`gather_function_context.py`) for comprehensive single-function intelligence including classification, call graphs, data flow, string intelligence, COM interfaces, and module context:
-   ```bash
-   python .agent/skills/deep-research-prompt/scripts/gather_function_context.py <db_path> <function_name> --json
-   ```
+  **Deep mode** (when the user requests `--depth 2` or thorough analysis): Run these scripts in parallel: `classify_function.py` (classification), `chain_analysis.py --depth 2` (call context), and `forward_trace.py` (data flow per parameter). These provide equivalent multi-skill context.
 
-3. **Synthesize explanation**
+3. **Pre-Synthesis Comprehension Gate**
+
+   Before synthesizing, build block-by-block understanding of the decompiled code to prevent hallucinated or surface-level explanations.
+
+   For each logical block in the function, document **What** it does, **Why** it appears at this position, what **Assumptions** it relies on, and what **Invariants** it establishes. Apply at least one of: **First Principles** (what is the fundamental operation?), **5 Whys** (why does this block exist?), or **5 Hows** (how does data reach this point?).
+
+   **Rationalizations to reject:** "I get the gist" misses edge cases in type casts and error paths. "The output is self-explanatory" ignores Hex-Rays approximation artifacts — cross-reference suspicious constructs against assembly. External calls are adversarial until confirmed safe via cross-module resolution.
+
+   **Anti-hallucination:** Never reshape evidence to fit earlier assumptions. Use "Unclear; need to inspect X" instead of "It probably...". Per function: identify at minimum 3 invariants, 5 assumptions, and 3 risk considerations.
+
+   IDA-specific awareness: recognize `HIDWORD`/`LODWORD` as 64-bit access macros, recovered `this` parameters, and vtable dispatch patterns (`call [reg+offset]`).
+
+4. **Synthesize explanation**
    Using the gathered context, produce a structured explanation following this format:
 
    - **Purpose**: 1-2 sentences on what the function does at a business level

@@ -1,8 +1,8 @@
 """Unified finding schema for normalizing results across all vulnerability scanners.
 
 Provides a common ``Finding`` dataclass and adapter functions that convert
-taint-analysis, memory-corruption-detector, and logic-vulnerability-detector
-JSON outputs into a uniform shape.  This enables cross-scanner merging,
+ai-memory-corruption-scanner and ai-logic-scanner JSON outputs into a
+uniform shape.  This enables cross-scanner merging,
 deduplication, and ranking via :mod:`helpers.finding_merge`.
 """
 
@@ -34,6 +34,7 @@ class Finding:
     path: list[str] = field(default_factory=list)
     evidence_lines: list[str] = field(default_factory=list)
     summary: str = ""
+    verification_subgraph: dict = field(default_factory=dict)
     extra: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
@@ -75,7 +76,7 @@ def graduated_reachability_score(entry_type: str | None, hops: int) -> float:
 
 
 def from_taint_finding(finding: dict, func_info: dict | None = None) -> Finding:
-    """Convert a taint-analysis finding dict to a unified Finding."""
+    """Convert a taint finding dict to a unified Finding."""
     fi = func_info or {}
     return Finding(
         function_name=fi.get("function_name", finding.get("param_name", "?")),
@@ -90,11 +91,20 @@ def from_taint_finding(finding: dict, func_info: dict | None = None) -> Finding:
         guards=finding.get("guards", []),
         path=finding.get("path", []),
         summary=f"Tainted {finding.get('param_name', '?')} reaches {finding.get('sink', '?')}",
+        verification_subgraph=finding.get("verification_subgraph", {}),
     )
 
 
 def from_memory_finding(finding: dict) -> Finding:
-    """Convert a MemCorruptionFinding dict to a unified Finding."""
+    """Convert a memory corruption finding dict to a unified Finding.
+
+    Handles both the AI scanner output format (``vulnerability_type``,
+    ``affected_functions``, ``evidence.code_lines``) and the legacy regex
+    scanner format (``category``, ``function_name``, ``evidence_lines``).
+    """
+    if "vulnerability_type" in finding:
+        return _from_ai_memory_finding(finding)
+
     cat = finding.get("category", "")
     return Finding(
         function_name=finding.get("function_name", "?"),
@@ -111,23 +121,136 @@ def from_memory_finding(finding: dict) -> Finding:
     )
 
 
+def _from_ai_memory_finding(finding: dict) -> Finding:
+    """Convert an AI memory corruption scanner finding to a unified Finding.
+
+    AI scanner output schema::
+
+        {
+            "vulnerability_type": "integer_overflow_before_allocation",
+            "cwe_id": "CWE-190",
+            "affected_functions": ["Func1", "Func2"],
+            "entry_point": "EntryPoint",
+            "call_chain": ["EntryPoint", "Func1", "Func2"],
+            "description": "...",
+            "evidence": {"code_lines": [...], "assembly_confirmation": "..."},
+            "data_flow": "...",
+            "exploitation_assessment": "...",
+            "severity_assessment": "CRITICAL",
+            "mitigations_present": [...],
+            "guards_on_path": [...]
+        }
+    """
+    affected = finding.get("affected_functions", [])
+    primary_func = affected[0] if affected else finding.get("entry_point", "?")
+    evidence = finding.get("evidence", {})
+    code_lines = evidence.get("code_lines", [])
+    asm_confirmation = evidence.get("assembly_confirmation", "")
+
+    severity_raw = finding.get("severity_assessment", "MEDIUM")
+    severity = severity_raw.split()[0].upper() if severity_raw else "MEDIUM"
+    if severity not in ("CRITICAL", "HIGH", "MEDIUM", "LOW"):
+        severity = "MEDIUM"
+
+    return Finding(
+        function_name=primary_func,
+        source_type="memory_corruption",
+        source_category=finding.get("vulnerability_type", ""),
+        sink=finding.get("vulnerability_type", ""),
+        sink_category="memory_unsafe",
+        severity=severity,
+        score={"CRITICAL": 0.95, "HIGH": 0.8, "MEDIUM": 0.5, "LOW": 0.2}.get(severity, 0.5),
+        guards=[{"description": g} for g in finding.get("guards_on_path", [])],
+        path=finding.get("call_chain", []),
+        evidence_lines=code_lines + ([asm_confirmation] if asm_confirmation else []),
+        summary=finding.get("description", ""),
+        verification_subgraph=finding.get("verification_subgraph", {}),
+        extra={
+            "cwe_id": finding.get("cwe_id", ""),
+            "entry_point": finding.get("entry_point", ""),
+            "data_flow": finding.get("data_flow", ""),
+            "exploitation_assessment": finding.get("exploitation_assessment", ""),
+            "mitigations_present": finding.get("mitigations_present", []),
+            "affected_functions": affected,
+        },
+    )
+
+
 def from_logic_finding(finding: dict) -> Finding:
-    """Convert a LogicFinding dict to a unified Finding."""
-    cat = finding.get("category", "")
+    """Convert a logic finding dict to a unified Finding.
+
+    Handles both the AI logic scanner output format (``vulnerability_type``,
+    ``affected_functions``, ``evidence.code_lines``) and the legacy hint
+    generator format (``category``, ``function_name``, ``evidence_lines``).
+    """
+    if "vulnerability_type" in finding:
+        return _from_ai_logic_finding(finding)
+    # Legacy format from hint generators
     return Finding(
         function_name=finding.get("function_name", "?"),
-        function_id=finding.get("function_id"),
         source_type="logic_vulnerability",
-        source_category=cat,
-        sink=finding.get("dangerous_op", cat),
-        sink_category=finding.get("dangerous_op_category", "uncategorized_dangerous"),
+        source_category=finding.get("category", ""),
+        sink=finding.get("dangerous_op", ""),
+        sink_category="logic_unsafe",
         severity=finding.get("severity", "MEDIUM"),
-        score=finding.get("score", 0.3),
+        score=finding.get("score", 0.0),
         guards=[g for g in finding.get("guards_on_path", [])],
         path=finding.get("path", []),
         evidence_lines=finding.get("evidence_lines", []),
         summary=finding.get("summary", ""),
-        extra=finding.get("extra", {}),
+    )
+
+
+def _from_ai_logic_finding(finding: dict) -> Finding:
+    """Convert an AI logic scanner finding to a unified Finding.
+
+    AI scanner output schema::
+
+        {
+            "vulnerability_type": "auth_bypass_missing_check",
+            "cwe_id": "CWE-862",
+            "affected_functions": ["Func1", "Func2"],
+            "entry_point": "EntryPoint",
+            "call_chain": ["EntryPoint", "Func1", "Func2"],
+            "description": "...",
+            "evidence": {"code_lines": [...], "assembly_confirmation": "..."},
+            "data_flow": "...",
+            "exploitation_assessment": "...",
+            "severity_assessment": "HIGH",
+            "mitigations_present": [...],
+            "guards_on_path": [...]
+        }
+    """
+    affected = finding.get("affected_functions", [])
+    primary_func = affected[0] if affected else finding.get("entry_point", "?")
+    evidence = finding.get("evidence", {})
+    code_lines = evidence.get("code_lines", [])
+    asm_confirmation = evidence.get("assembly_confirmation", "")
+    severity_raw = finding.get("severity_assessment", "MEDIUM")
+    severity = severity_raw.split()[0].upper() if severity_raw else "MEDIUM"
+    if severity not in ("CRITICAL", "HIGH", "MEDIUM", "LOW"):
+        severity = "MEDIUM"
+    return Finding(
+        function_name=primary_func,
+        source_type="logic_vulnerability",
+        source_category=finding.get("vulnerability_type", ""),
+        sink=finding.get("vulnerability_type", ""),
+        sink_category="logic_unsafe",
+        severity=severity,
+        score={"CRITICAL": 0.95, "HIGH": 0.8, "MEDIUM": 0.5, "LOW": 0.2}.get(severity, 0.5),
+        guards=[{"description": g} for g in finding.get("guards_on_path", [])],
+        path=finding.get("call_chain", []),
+        evidence_lines=code_lines + ([asm_confirmation] if asm_confirmation else []),
+        summary=finding.get("description", ""),
+        verification_subgraph=finding.get("verification_subgraph", {}),
+        extra={
+            "cwe_id": finding.get("cwe_id", ""),
+            "entry_point": finding.get("entry_point", ""),
+            "data_flow": finding.get("data_flow", ""),
+            "exploitation_assessment": finding.get("exploitation_assessment", ""),
+            "mitigations_present": finding.get("mitigations_present", []),
+            "affected_functions": affected,
+        },
     )
 
 
@@ -135,13 +258,13 @@ def from_verified_finding(verified: dict) -> Finding:
     """Convert a VerificationResult dict to a unified Finding.
 
     Works for both memory-corruption and logic-vulnerability verified outputs.
+    Accepts ``verdict`` (new 2-gate format) or ``confidence`` (legacy format).
     """
     inner = verified.get("finding", {})
-    source = inner.get("dangerous_api_category") or inner.get("dangerous_op_category")
     is_logic = "dangerous_op" in inner
 
     base = from_logic_finding(inner) if is_logic else from_memory_finding(inner)
-    base.verification_status = verified.get("confidence", "UNCERTAIN")
+    base.verification_status = verified.get("verdict") or verified.get("confidence", "UNCERTAIN")
     base.score = verified.get("verified_score", base.score)
     return base
 

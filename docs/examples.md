@@ -6,7 +6,6 @@
 /triage appinfo.dll
 /audit appinfo.dll AiLaunchProcess
 /explain appinfo.dll AiCheckSecureApplicationDirectory
-/verify-decompiler appinfo.dll AiLaunchProcess
 /scan appinfo.dll --top 15
 /compare-modules appinfo.dll consent.exe
 /health
@@ -64,13 +63,12 @@ First-time workflow for a new extraction workspace.
 
 ```text
 /health                                  # validate workspace: extraction data, DBs, skills, config
-/quickstart                              # auto-detect modules, lightweight classify + entry points
 /triage appinfo.dll                      # deep orientation: classify, topology, attack surface ranking
 /explain appinfo.dll AiLaunchProcess     # structured explanation of top-ranked function
 /audit appinfo.dll AiLaunchProcess       # full security audit with risk assessment
 ```
 
-Progression: `/health` -> `/quickstart` -> `/triage` -> `/explain` -> `/audit`.
+Progression: `/health` -> `/triage` -> `/explain` -> `/audit`.
 
 ---
 
@@ -103,14 +101,12 @@ Understanding a function's behavior, context, and data dependencies.
 /explain appinfo.dll AiLaunchProcess                       # purpose, params, key APIs, behavior
 /xref appinfo.dll AiLaunchProcess                          # caller/callee tables with classification
 /callgraph appinfo.dll AiLaunchProcess --diagram           # visual neighborhood, hub annotations
-/data-flow forward appinfo.dll AiLaunchProcess --param 1   # where does param 1 end up?
-/data-flow backward appinfo.dll AiLaunchProcess            # where do this function's inputs come from?
 ```
 
-Progression: `/explain` -> `/xref` -> `/callgraph` -> `/data-flow forward` -> `/data-flow backward`.
+Progression: `/explain` -> `/xref` -> `/callgraph`.
 
 `/explain` gives you the "what", `/xref` + `/callgraph` give the structural
-context, and `/data-flow` traces the actual value movement.
+context.
 
 ---
 
@@ -121,14 +117,13 @@ Producing clean, readable code from decompiled output.
 ```text
 /reconstruct-types appinfo.dll CSecurityDescriptor --validate  # struct layout from memory patterns
 /lift-class appinfo.dll CSecurityDescriptor                    # batch-lift all methods (grind loop)
-/verify-decompiler-batch appinfo.dll --class CSecurityDescriptor          # verify decompiler accuracy per method
 ```
 
-Progression: `/reconstruct-types` -> `/lift-class` -> `/verify-decompiler-batch`.
+Progression: `/reconstruct-types` -> `/lift-class`.
 
 Run type reconstruction first so lifts use correct struct layouts. `/lift-class`
 uses the grind loop to process each method sequentially, producing a single
-`.cpp` file. `/verify-decompiler-batch` catches decompiler issues the lifter may have inherited.
+`.cpp` file.
 
 ---
 
@@ -137,16 +132,14 @@ uses the grind loop to process each method sequentially, producing a single
 Tracing behavior and dependencies across DLL boundaries.
 
 ```text
-/data-flow-cross appinfo.dll AiLaunchProcess --depth 3  # trace params across DLL boundaries
 /imports appinfo.dll                                      # PE-level import/export relationships
 /compare-modules appinfo.dll consent.exe                  # side-by-side: shared APIs, topology, deps
 ```
 
-Progression: `/data-flow-cross` -> `/imports` -> `/compare-modules`.
+Progression: `/imports` -> `/compare-modules`.
 
-`/data-flow-cross` traces values across module boundaries at the code level.
 `/imports` shows the loader-level dependency picture (PE import tables).
-`/compare-modules` synthesizes both into an architectural comparison.
+`/compare-modules` synthesizes the architectural comparison.
 
 ---
 
@@ -180,7 +173,6 @@ Processing multiple functions or modules at scale.
 ```text
 /batch-audit appinfo.dll --top 10                          # audit top 10 entry points
 /batch-audit appinfo.dll --class CSecurityDescriptor       # audit all methods of a class
-/verify-decompiler-batch appinfo.dll --top 20                         # verify decompiler accuracy, top 20
 ```
 
 All three use the grind loop (one checkbox per function, auto-continues until done).

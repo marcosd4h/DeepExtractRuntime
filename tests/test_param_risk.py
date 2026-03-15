@@ -1,63 +1,74 @@
-"""Tests for helpers.param_risk.score_parameter_risk."""
+"""Tests for helpers.param_risk.describe_parameter_surface."""
 
 import pytest
 
-from helpers.param_risk import score_parameter_risk
+from helpers.param_risk import describe_parameter_surface
 
 
 def test_buffer_size_pair():
     sig = "void foo(void *buf, DWORD cbSize)"
-    score, reasons = score_parameter_risk(sig)
-    assert score >= 0.9
-    assert any("buffer" in r for r in reasons)
+    meta = describe_parameter_surface(sig)
+    assert meta["has_buffer_size_pair"] is True
+    assert meta["has_buffer_pointer"] is True
+    assert "buffer+size pair" in meta["characteristics"]
 
 
 def test_handle_parameter():
     sig = "void foo(HANDLE h)"
-    score, reasons = score_parameter_risk(sig)
-    assert 0.4 <= score <= 0.6
+    meta = describe_parameter_surface(sig)
+    assert meta["has_handle"] is True
+    assert meta["param_count"] == 1
+    assert "handle parameter" in meta["characteristics"]
 
 
 def test_string_parameter():
     sig = "void foo(LPCWSTR path)"
-    score, reasons = score_parameter_risk(sig)
-    assert score >= 0.7
+    meta = describe_parameter_surface(sig)
+    assert meta["has_string_pointer"] is True
+    assert "string pointer" in meta["characteristics"]
 
 
 def test_void_params():
     sig = "HRESULT DoWork(void)"
-    score, reasons = score_parameter_risk(sig)
-    assert score < 0.3
-    assert any("no parameters" in r for r in reasons)
+    meta = describe_parameter_surface(sig)
+    assert meta["param_count"] == 0
+    assert meta["characteristics"] == []
 
 
 def test_no_signature():
-    score, reasons = score_parameter_risk(None)
-    assert score == 0.0
-    assert reasons == []
+    meta = describe_parameter_surface(None)
+    assert meta["param_count"] == 0
+    assert meta["characteristics"] == []
 
 
 def test_empty_string():
-    score, reasons = score_parameter_risk("")
-    assert score == 0.0
-    assert reasons == []
+    meta = describe_parameter_surface("")
+    assert meta["param_count"] == 0
+    assert meta["characteristics"] == []
 
 
-def test_reasons_populated():
+def test_characteristics_populated():
     sig = "void ProcessInput(void *pBuf, DWORD cbLen, LPCWSTR wszName)"
-    score, reasons = score_parameter_risk(sig)
-    assert score >= 0.8
-    assert len(reasons) > 0
+    meta = describe_parameter_surface(sig)
+    assert meta["param_count"] == 3
+    assert meta["has_buffer_pointer"] is True
+    assert meta["has_string_pointer"] is True
+    assert meta["has_buffer_size_pair"] is True
+    assert len(meta["characteristics"]) >= 2
 
 
 def test_com_interface_pointer():
     sig = "HRESULT Activate(IUnknown *punk)"
-    score, reasons = score_parameter_risk(sig)
-    assert score >= 0.5
+    meta = describe_parameter_surface(sig)
+    assert meta["has_com_interface"] is True
+    assert "COM interface pointer" in meta["characteristics"]
 
 
-def test_multiple_high_risk():
+def test_multiple_types():
     sig = "HRESULT Read(void *pBuffer, ULONG cbSize, LPCWSTR wszPath)"
-    score, reasons = score_parameter_risk(sig)
-    assert score >= 0.85
-    assert len(reasons) >= 1
+    meta = describe_parameter_surface(sig)
+    assert meta["param_count"] == 3
+    assert meta["has_buffer_pointer"] is True
+    assert meta["has_string_pointer"] is True
+    assert meta["has_buffer_size_pair"] is True
+    assert meta["pointer_param_count"] >= 2

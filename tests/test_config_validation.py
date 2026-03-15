@@ -30,11 +30,8 @@ def valid_config():
     return {
         "classification": {
             "weights": {
-                "W_NAME": 10.0,
                 "W_API": 5.0,
                 "W_API_CAP": 25.0,
-                "W_STRING": 2.0,
-                "W_STRING_CAP": 10.0,
                 "W_STRUCTURAL": 4.0,
                 "W_LIBRARY": 20.0,
             }
@@ -77,9 +74,9 @@ class TestValidConfig:
 
 class TestWeightsValidation:
     def test_negative_weight(self, valid_config):
-        valid_config["classification"]["weights"]["W_NAME"] = -1.0
+        valid_config["classification"]["weights"]["W_API"] = -1.0
         issues = validate_config(valid_config)
-        assert any("W_NAME" in i and "positive" in i for i in issues)
+        assert any("W_API" in i and "positive" in i for i in issues)
 
     def test_zero_weight(self, valid_config):
         valid_config["classification"]["weights"]["W_API"] = 0.0
@@ -87,9 +84,9 @@ class TestWeightsValidation:
         assert any("W_API" in i and "positive" in i for i in issues)
 
     def test_string_weight(self, valid_config):
-        valid_config["classification"]["weights"]["W_NAME"] = "ten"
+        valid_config["classification"]["weights"]["W_API"] = "ten"
         issues = validate_config(valid_config)
-        assert any("W_NAME" in i and "number" in i for i in issues)
+        assert any("W_API" in i and "number" in i for i in issues)
 
     def test_weights_not_dict(self, valid_config):
         valid_config["classification"]["weights"] = [1, 2, 3]
@@ -240,7 +237,7 @@ class TestPartialConfig:
 
 class TestMultipleIssues:
     def test_returns_all_issues_not_just_first(self, valid_config):
-        valid_config["classification"]["weights"]["W_NAME"] = -1.0
+        valid_config["classification"]["weights"]["W_API"] = -1.0
         valid_config["triage"]["max_workers"] = 99
         valid_config["cache"]["max_age_hours"] = -1
         issues = validate_config(valid_config)
@@ -289,8 +286,8 @@ class TestGetConfigValidated:
 
 class TestBackwardCompat:
     def test_get_config_value_still_works(self):
-        val = get_config_value("classification.weights.W_NAME")
-        assert val == 10.0
+        val = get_config_value("classification.weights.W_API")
+        assert val == 5.0
 
     def test_get_config_value_default(self):
         val = get_config_value("nonexistent.path", default="fallback")

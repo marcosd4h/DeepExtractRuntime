@@ -45,14 +45,14 @@ skips the test suite for speed.
 |---|---|
 | **Location** | This document (test cases below) |
 | **Runner** | `.agent/helpers/qa_runner.py` |
-| **Typical runtime** | ~3-6 minutes (182 runnable tests) |
+| **Typical runtime** | ~3-6 minutes (158 runnable tests) |
 
 Integration tests exercise full skill scripts, agent entry points, pipeline
 validation, lifecycle hooks, and infrastructure conventions end-to-end
 against real analysis databases. Each test case specifies a concrete command,
 expected behavior, and the conventions it validates.
 
-Of the 359 test cases in this document, 182 are directly runnable by the QA
+Of the 335 test cases in this document, 158 are directly runnable by the QA
 test runner (skill scripts, agent scripts, pipelines, hooks, infrastructure).
 The remaining 177 are slash commands and multi-step workflows that require
 agent-level orchestration.
@@ -71,7 +71,7 @@ python .agent/helpers/qa_runner.py
 | Isolation | Synthetic fixtures, no live DBs | Real extraction databases |
 | Runner | pytest | `.agent/helpers/qa_runner.py` |
 | Trigger | `pytest` or `/health --full` | `qa_runner.py` or manual |
-| Test count | ~91 files (hundreds of cases) | 359 cases (178 auto-runnable) |
+| Test count | ~91 files (hundreds of cases) | 335 cases (158 auto-runnable) |
 | Runtime | ~10-30s | ~3-6 min |
 
 > **Machine-parseable**: Every integration test case uses a consistent metadata
@@ -273,32 +273,6 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 ---
 
 ## Section 1: Initialization Commands
-
-### TEST-INIT-001: Quickstart auto-detect
-
-- **Category**: initialization
-- **Component**: command
-- **Component-Name**: /quickstart
-- **Target-Module**: N/A
-- **Target-Function**: N/A
-- **Command**: `/quickstart`
-- **Expected**: Selects most interesting module, runs classification + entry points + call graph stats, presents summary with recommendations
-- **Validates**: Module auto-selection, concurrent skill execution, output formatting
-- **Flags-Tested**: none (default)
-- **Protocol**: none
-
-### TEST-INIT-002: Quickstart specific module
-
-- **Category**: initialization
-- **Component**: command
-- **Component-Name**: /quickstart
-- **Target-Module**: clusapi.dll
-- **Target-Function**: N/A
-- **Command**: `/quickstart clusapi.dll`
-- **Expected**: Runs triage on clusapi.dll, shows top functions including ClusterADLdap and ClusNode methods
-- **Validates**: Explicit module targeting, DB path resolution
-- **Flags-Tested**: module argument
-- **Protocol**: none
 
 ### TEST-INIT-003: Health check standard
 
@@ -906,123 +880,6 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Flags-Tested**: --forwarders, --function
 - **Protocol**: none
 
-### TEST-STRUCT-024: Strings module
-
-- **Category**: structural
-- **Component**: command
-- **Component-Name**: /strings
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `/strings srvsvc.dll`
-- **Expected**: Categorized string literals for entire module
-- **Validates**: Module-wide string analysis
-- **Flags-Tested**: none (default)
-- **Protocol**: none
-
-### TEST-STRUCT-025: Strings top N
-
-- **Category**: structural
-- **Component**: command
-- **Component-Name**: /strings
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `/strings srvsvc.dll --top 20`
-- **Expected**: Top 20 security-relevant strings
-- **Validates**: --top limit
-- **Flags-Tested**: --top
-- **Protocol**: none
-
-### TEST-STRUCT-026: Strings by category
-
-- **Category**: structural
-- **Component**: command
-- **Component-Name**: /strings
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `/strings srvsvc.dll --category credentials`
-- **Expected**: Only credential-related strings
-- **Validates**: --category filter
-- **Flags-Tested**: --category
-- **Protocol**: none
-
-### TEST-STRUCT-027: Strings by category format_string
-
-- **Category**: structural
-- **Component**: command
-- **Component-Name**: /strings
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `/strings srvsvc.dll --category format_string`
-- **Expected**: Only format string patterns
-- **Validates**: --category with format_string value
-- **Flags-Tested**: --category
-- **Protocol**: none
-
-### TEST-STRUCT-028: Strings function-scoped
-
-- **Category**: structural
-- **Component**: command
-- **Component-Name**: /strings
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: SsServerFsControl
-- **Command**: `/strings srvsvc.dll SsServerFsControl`
-- **Expected**: Strings referenced by SsServerFsControl only
-- **Validates**: Function-scoped string analysis
-- **Flags-Tested**: function argument
-- **Protocol**: none
-
-### TEST-STRUCT-029: State machines module scan
-
-- **Category**: structural
-- **Component**: command
-- **Component-Name**: /state-machines
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `/state-machines srvsvc.dll`
-- **Expected**: Dispatch tables and state machines found in module
-- **Validates**: Module-wide state machine scan
-- **Flags-Tested**: none (default)
-- **Protocol**: workspace
-
-### TEST-STRUCT-030: State machines detect
-
-- **Category**: structural
-- **Component**: command
-- **Component-Name**: /state-machines
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `/state-machines srvsvc.dll --detect`
-- **Expected**: List of all dispatcher functions detected
-- **Validates**: --detect flag
-- **Flags-Tested**: --detect
-- **Protocol**: none
-
-### TEST-STRUCT-031: State machines function
-
-- **Category**: structural
-- **Component**: command
-- **Component-Name**: /state-machines
-- **Target-Module**: clusapi.dll
-- **Target-Function**: ClusNode::ConfigureNode
-- **Command**: `/state-machines clusapi.dll ClusNode::ConfigureNode`
-- **Expected**: Dispatch table or state machine for the function
-- **Validates**: Single-function extraction
-- **Flags-Tested**: function argument
-- **Protocol**: none
-
-### TEST-STRUCT-032: State machines diagram
-
-- **Category**: structural
-- **Component**: command
-- **Component-Name**: /state-machines
-- **Target-Module**: clusapi.dll
-- **Target-Function**: ClusNode::ConfigureNode
-- **Command**: `/state-machines clusapi.dll ClusNode::ConfigureNode --diagram`
-- **Expected**: Mermaid state diagram
-- **Validates**: --diagram flag
-- **Flags-Tested**: --diagram
-- **Protocol**: none
-
 ### TEST-STRUCT-033: Compare modules two-way
 
 - **Category**: structural
@@ -1568,10 +1425,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 
 - **Category**: vulnerability
 - **Component**: command
-- **Component-Name**: /logic-scan
+- **Component-Name**: /ai-logical-bug-scan
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/logic-scan srvsvc.dll`
+- **Command**: `/ai-logical-bug-scan srvsvc.dll`
 - **Expected**: Auth bypass, state errors, TOCTOU, confused deputy findings
 - **Validates**: Full logic scan
 - **Flags-Tested**: none (default)
@@ -1581,10 +1438,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 
 - **Category**: vulnerability
 - **Component**: command
-- **Component-Name**: /logic-scan
+- **Component-Name**: /ai-logical-bug-scan
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `/logic-scan srvsvc.dll SsServerFsControl`
+- **Command**: `/ai-logical-bug-scan srvsvc.dll SsServerFsControl`
 - **Expected**: Logic scan on single function
 - **Validates**: Function-scoped logic scan
 - **Flags-Tested**: function argument
@@ -1594,10 +1451,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 
 - **Category**: vulnerability
 - **Component**: command
-- **Component-Name**: /logic-scan
+- **Component-Name**: /ai-logical-bug-scan
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/logic-scan srvsvc.dll --top 10`
+- **Command**: `/ai-logical-bug-scan srvsvc.dll --top 10`
 - **Expected**: Top 10 findings
 - **Validates**: --top limit
 - **Flags-Tested**: --top
@@ -1607,10 +1464,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 
 - **Category**: vulnerability
 - **Component**: command
-- **Component-Name**: /logic-scan
+- **Component-Name**: /ai-logical-bug-scan
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/logic-scan srvsvc.dll --id 42`
+- **Command**: `/ai-logical-bug-scan srvsvc.dll --id 42`
 - **Expected**: Logic scan on function with ID 42
 - **Validates**: --id flag
 - **Flags-Tested**: --id
@@ -2001,17 +1858,17 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Flags-Tested**: --plan-file
 - **Protocol**: grind-loop, workspace
 
-### TEST-VR-008: Brainstorm
+### TEST-VR-008: Hunt Plan (Strategic Modes)
 
 - **Category**: vr-campaign
 - **Component**: command
-- **Component-Name**: /brainstorm
+- **Component-Name**: /hunt-plan
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/brainstorm privilege escalation in srvsvc.dll`
-- **Expected**: Interactive strategy dialogue
-- **Validates**: Brainstorming skill engagement
-- **Flags-Tested**: topic
+- **Command**: `/hunt-plan cross srvsvc.dll ntoskrnl.exe` or `/hunt-plan replan` or `/hunt-plan design new-scanner`
+- **Expected**: Interactive strategy dialogue with pipeline templates and research phase reference
+- **Validates**: hunt-plan cross/replan/design mode engagement (formerly /brainstorm)
+- **Flags-Tested**: mode
 - **Protocol**: none
 
 ---
@@ -2082,19 +1939,6 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Validates**: Batch verification with grind loop
 - **Flags-Tested**: function list
 - **Protocol**: grind-loop, workspace
-
-### TEST-QUAL-005b: Verify finding single function
-
-- **Category**: code-quality
-- **Component**: command
-- **Component-Name**: /verify-finding
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: SsCheckAccess
-- **Command**: `/verify-finding srvsvc.dll SsCheckAccess`
-- **Expected**: Runs scanners, restates claims, verifies data flow and attacker control, renders TRUE/FALSE POSITIVE verdicts
-- **Validates**: Finding verification workflow with gate review
-- **Flags-Tested**: module, function
-- **Protocol**: workspace
 
 ### TEST-QUAL-006: Lift class list
 
@@ -2832,123 +2676,6 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Flags-Tested**: --function, --format mermaid, --json
 - **Protocol**: none
 
-### TEST-SKILL-037: forward_trace
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: data-flow-tracer/forward_trace.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/data-flow-tracer/scripts/forward_trace.py <db:srvsvc> SsServerFsControl --param 1 --json`
-- **Expected**: Forward parameter flow
-- **Validates**: Forward trace
-- **Flags-Tested**: function, --param, --json
-- **Protocol**: none
-
-### TEST-SKILL-038: forward_trace deep + assembly
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: data-flow-tracer/forward_trace.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/data-flow-tracer/scripts/forward_trace.py <db:srvsvc> SsServerFsControl --param 1 --depth 3 --assembly --json`
-- **Expected**: Deeper trace with assembly annotations
-- **Validates**: --depth and --assembly
-- **Flags-Tested**: --param, --depth, --assembly, --json
-- **Protocol**: none
-
-### TEST-SKILL-039: backward_trace
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: data-flow-tracer/backward_trace.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: NetrShareEnum
-- **Command**: `python .agent/skills/data-flow-tracer/scripts/backward_trace.py <db:srvsvc> NetrShareEnum --target RpcImpersonateClient --json`
-- **Expected**: Argument origins for RpcImpersonateClient. Depends on multi-line call parsing support in `decompiled_parser.py` and xref-first discovery via `discover_calls_with_xrefs()`.
-- **Validates**: Backward trace with --target, xref-first call discovery
-- **Flags-Tested**: function, --target, --json
-- **Protocol**: none
-
-### TEST-SKILL-040: backward_trace with callers
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: data-flow-tracer/backward_trace.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: NetrShareEnum
-- **Command**: `python .agent/skills/data-flow-tracer/scripts/backward_trace.py <db:srvsvc> NetrShareEnum --target RpcImpersonateClient --arg 1 --callers --json`
-- **Expected**: Origin traced through callers. Depends on multi-line call parsing support in `decompiled_parser.py` and xref-first discovery via `discover_calls_with_xrefs()`.
-- **Validates**: --arg and --callers, xref-first call discovery
-- **Flags-Tested**: --target, --arg, --callers, --json
-- **Protocol**: none
-
-### TEST-SKILL-041: global_state_map
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: data-flow-tracer/global_state_map.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/data-flow-tracer/scripts/global_state_map.py <db:srvsvc> --summary --json`
-- **Expected**: Global variable reader/writer summary
-- **Validates**: Global state mapping
-- **Flags-Tested**: --summary, --json
-- **Protocol**: none
-
-### TEST-SKILL-042: global_state_map filtered
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: data-flow-tracer/global_state_map.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/data-flow-tracer/scripts/global_state_map.py <db:srvsvc> --shared-only --writers-only --json`
-- **Expected**: Only shared globals with writers
-- **Validates**: --shared-only, --writers-only
-- **Flags-Tested**: --shared-only, --writers-only, --json
-- **Protocol**: none
-
-### TEST-SKILL-043: string_trace by string
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: data-flow-tracer/string_trace.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/data-flow-tracer/scripts/string_trace.py <db:srvsvc> --string "LanmanServer" --json`
-- **Expected**: Functions referencing the string
-- **Validates**: --string search
-- **Flags-Tested**: --string, --json
-- **Protocol**: none
-
-### TEST-SKILL-044: string_trace by function
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: data-flow-tracer/string_trace.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/data-flow-tracer/scripts/string_trace.py <db:srvsvc> --function SsServerFsControl --json`
-- **Expected**: Strings used by SsServerFsControl
-- **Validates**: --function mode
-- **Flags-Tested**: --function, --json
-- **Protocol**: none
-
-### TEST-SKILL-045: string_trace list
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: data-flow-tracer/string_trace.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/data-flow-tracer/scripts/string_trace.py <db:srvsvc> --list-strings --limit 20 --json`
-- **Expected**: Top 20 strings
-- **Validates**: --list-strings, --limit
-- **Flags-Tested**: --list-strings, --limit, --json
-- **Protocol**: none
-
 ### TEST-SKILL-046: discover_entrypoints
 
 - **Category**: skill-script
@@ -3027,277 +2754,121 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Flags-Tested**: --callee-depth, --json
 - **Protocol**: none
 
-### TEST-SKILL-052: taint_function
+### TEST-SKILL-060: ai-memory-corruption-scanner registry consistency
 
 - **Category**: skill-script
 - **Component**: skill-script
-- **Component-Name**: taint-analysis/taint_function.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/taint-analysis/scripts/taint_function.py <db:srvsvc> SsServerFsControl --json`
-- **Expected**: Taint trace results with sinks and guards
-- **Validates**: Core taint analysis
-- **Flags-Tested**: function, --json
-- **Protocol**: none
-
-### TEST-SKILL-053: taint_function with params and direction
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: taint-analysis/taint_function.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/taint-analysis/scripts/taint_function.py <db:srvsvc> SsServerFsControl --params 1,3 --depth 3 --direction both --json`
-- **Expected**: Bidirectional taint on specific params
-- **Validates**: --params, --depth, --direction both
-- **Flags-Tested**: --params, --depth, --direction, --json
-- **Protocol**: none
-
-### TEST-SKILL-054: trace_taint_forward
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: taint-analysis/trace_taint_forward.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/taint-analysis/scripts/trace_taint_forward.py <db:srvsvc> SsServerFsControl --params 1 --depth 2 --json`
-- **Expected**: Forward taint trace
-- **Validates**: Dedicated forward trace
-- **Flags-Tested**: --params, --depth, --json
-- **Protocol**: none
-
-### TEST-SKILL-055: trace_taint_backward
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: taint-analysis/trace_taint_backward.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/taint-analysis/scripts/trace_taint_backward.py <db:srvsvc> SsServerFsControl --params 1 --json`
-- **Expected**: Backward taint trace
-- **Validates**: Dedicated backward trace
-- **Flags-Tested**: --params, --json
-- **Protocol**: none
-
-### TEST-SKILL-056: trace_taint_cross_module
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: taint-analysis/trace_taint_cross_module.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/taint-analysis/scripts/trace_taint_cross_module.py <db:srvsvc> SsServerFsControl --cross-depth 2 --json`
-- **Expected**: Cross-module taint propagation
-- **Validates**: Cross-module taint
-- **Flags-Tested**: function, --cross-depth, --json
-- **Protocol**: none
-
-### TEST-SKILL-057: trace_taint_cross_module from-entrypoints
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: taint-analysis/trace_taint_cross_module.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/taint-analysis/scripts/trace_taint_cross_module.py <db:srvsvc> --from-entrypoints --top 5 --min-score 0.3 --json`
-- **Expected**: Entry point auto-discovery with taint
-- **Validates**: --from-entrypoints mode
-- **Flags-Tested**: --from-entrypoints, --top, --min-score, --json
-- **Protocol**: none
-
-### TEST-SKILL-058: trace_taint_cross_module disable features
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: taint-analysis/trace_taint_cross_module.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/taint-analysis/scripts/trace_taint_cross_module.py <db:srvsvc> SsServerFsControl --no-trust-analysis --no-com-resolve --json`
-- **Expected**: Taint without trust/COM analysis
-- **Validates**: --no-trust-analysis, --no-com-resolve
-- **Flags-Tested**: --no-trust-analysis, --no-com-resolve, --json
-- **Protocol**: none
-
-### TEST-SKILL-059: generate_taint_report placeholder
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: taint-analysis/generate_taint_report.py
+- **Component-Name**: ai-memory-corruption-scanner (registry)
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/taint-analysis/scripts/generate_taint_report.py --forward <path> --json`
-- **Expected**: PARSE_ERROR because placeholder path has no valid JSON data
-- **Validates**: Graceful handling of empty or invalid forward trace input
-- **Flags-Tested**: --forward, --json
+- **Command**: `python -m pytest .agent/tests/test_ai_memory_corruption_scanner.py -k RegistryConsistency`
+- **Expected**: Skill registry entry matches SKILL.md and _common.py
+- **Validates**: Registry consistency between skill metadata sources
+- **Flags-Tested**: N/A
 - **Protocol**: none
 
-### TEST-SKILL-060: scan_buffer_overflows
+### TEST-SKILL-061: ai-memory-corruption-scanner SKILL.md frontmatter
 
 - **Category**: skill-script
 - **Component**: skill-script
-- **Component-Name**: memory-corruption-detector/scan_buffer_overflows.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/memory-corruption-detector/scripts/scan_buffer_overflows.py <db:srvsvc> --json`
-- **Expected**: Buffer overflow findings
-- **Validates**: Buffer overflow scanner
-- **Flags-Tested**: --json
-- **Protocol**: none
-
-### TEST-SKILL-061: scan_buffer_overflows no-cache
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: memory-corruption-detector/scan_buffer_overflows.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/memory-corruption-detector/scripts/scan_buffer_overflows.py <db:srvsvc> --top 10 --json --no-cache`
-- **Expected**: Fresh scan, top 10
-- **Validates**: --top, --no-cache
-- **Flags-Tested**: --top, --json, --no-cache
-- **Protocol**: none
-
-### TEST-SKILL-062: scan_integer_issues
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: memory-corruption-detector/scan_integer_issues.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/memory-corruption-detector/scripts/scan_integer_issues.py <db:srvsvc> --json`
-- **Expected**: Integer overflow/truncation findings
-- **Validates**: Integer issue scanner
-- **Flags-Tested**: --json
-- **Protocol**: none
-
-### TEST-SKILL-063: scan_use_after_free
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: memory-corruption-detector/scan_use_after_free.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/memory-corruption-detector/scripts/scan_use_after_free.py <db:srvsvc> --json`
-- **Expected**: Use-after-free findings
-- **Validates**: UAF scanner
-- **Flags-Tested**: --json
-- **Protocol**: none
-
-### TEST-SKILL-064: scan_format_strings
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: memory-corruption-detector/scan_format_strings.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/memory-corruption-detector/scripts/scan_format_strings.py <db:srvsvc> --json`
-- **Expected**: Format string findings
-- **Validates**: Format string scanner
-- **Flags-Tested**: --json
-- **Protocol**: none
-
-### TEST-SKILL-065: memory verify_findings placeholder
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: memory-corruption-detector/verify_findings.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/memory-corruption-detector/scripts/verify_findings.py --findings <path> --db-path <db:srvsvc> --json`
-- **Expected**: NOT_FOUND or PARSE_ERROR because placeholder path has no valid data
-- **Validates**: Graceful handling of missing or empty findings file
-- **Flags-Tested**: --findings, --db-path, --json
-- **Protocol**: none
-
-### TEST-SKILL-066: scan_auth_bypass
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: logic-vulnerability-detector/scan_auth_bypass.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/logic-vulnerability-detector/scripts/scan_auth_bypass.py <db:srvsvc> --json`
-- **Expected**: Authorization bypass findings
-- **Validates**: Auth bypass scanner
-- **Flags-Tested**: --json
-- **Protocol**: none
-
-### TEST-SKILL-067: scan_auth_bypass no-cache
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: logic-vulnerability-detector/scan_auth_bypass.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/logic-vulnerability-detector/scripts/scan_auth_bypass.py <db:srvsvc> --top 10 --json --no-cache`
-- **Expected**: Fresh scan, top 10
-- **Validates**: --top, --no-cache
-- **Flags-Tested**: --top, --json, --no-cache
-- **Protocol**: none
-
-### TEST-SKILL-068: scan_state_errors
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: logic-vulnerability-detector/scan_state_errors.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/logic-vulnerability-detector/scripts/scan_state_errors.py <db:srvsvc> --json`
-- **Expected**: JSON with status ok and state-machine issue findings (may be empty)
-- **Validates**: State issue scanner
-- **Flags-Tested**: --json
-- **Protocol**: none
-
-### TEST-SKILL-069: scan_logic_flaws
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: logic-vulnerability-detector/scan_logic_flaws.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/logic-vulnerability-detector/scripts/scan_logic_flaws.py <db:srvsvc> --json`
-- **Expected**: TOCTOU, path leakage findings
-- **Validates**: Logic flaw scanner
-- **Flags-Tested**: --json
-- **Protocol**: none
-
-### TEST-SKILL-070: scan_api_misuse
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: logic-vulnerability-detector/scan_api_misuse.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/logic-vulnerability-detector/scripts/scan_api_misuse.py <db:srvsvc> --json`
-- **Expected**: API misuse findings
-- **Validates**: API misuse scanner
-- **Flags-Tested**: --json
-- **Protocol**: none
-
-### TEST-SKILL-071: logic verify_findings placeholder
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: logic-vulnerability-detector/verify_findings.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/logic-vulnerability-detector/scripts/verify_findings.py --findings <path> --db-path <db:srvsvc> --json`
-- **Expected**: NOT_FOUND or PARSE_ERROR because placeholder path has no valid data
-- **Validates**: Graceful handling of missing or empty findings file
-- **Flags-Tested**: --findings, --db-path, --json
-- **Protocol**: none
-
-### TEST-SKILL-072: generate_logic_report placeholder
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: logic-vulnerability-detector/generate_logic_report.py
+- **Component-Name**: ai-memory-corruption-scanner (SKILL.md)
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/logic-vulnerability-detector/scripts/generate_logic_report.py --findings <path> --json`
-- **Expected**: NOT_FOUND or PARSE_ERROR because placeholder path has no valid data
-- **Validates**: Graceful handling of missing or empty findings file
-- **Flags-Tested**: --findings, --json
+- **Command**: `python -m pytest .agent/tests/test_ai_memory_corruption_scanner.py -k SkillFrontmatter`
+- **Expected**: SKILL.md contains required frontmatter fields
+- **Validates**: SKILL.md structure and required fields
+- **Flags-Tested**: N/A
+- **Protocol**: none
+
+### TEST-SKILL-062: ai-memory-corruption-scanner _common.py imports
+
+- **Category**: skill-script
+- **Component**: skill-script
+- **Component-Name**: ai-memory-corruption-scanner/_common.py
+- **Target-Module**: N/A
+- **Target-Function**: N/A
+- **Command**: `python -m pytest .agent/tests/test_ai_memory_corruption_scanner.py -k CommonImports`
+- **Expected**: _common.py exports expected symbols (SKILL_NAME, SCANNERS, etc.)
+- **Validates**: Shared module interface consistency
+- **Flags-Tested**: N/A
+- **Protocol**: none
+
+### TEST-SKILL-063: build_threat_model logic
+
+- **Category**: skill-script
+- **Component**: skill-script
+- **Component-Name**: ai-memory-corruption-scanner/build_threat_model.py
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: N/A
+- **Command**: `python .agent/skills/ai-memory-corruption-scanner/scripts/build_threat_model.py <db:srvsvc> --json`
+- **Expected**: JSON with status ok, threat model entries with entry points and risk ranking
+- **Validates**: Threat model generation from analysis DB
+- **Flags-Tested**: --json
+- **Protocol**: none
+
+### TEST-SKILL-064: prepare_context output format
+
+- **Category**: skill-script
+- **Component**: skill-script
+- **Component-Name**: ai-memory-corruption-scanner/prepare_context.py
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: N/A
+- **Command**: `python .agent/skills/ai-memory-corruption-scanner/scripts/prepare_context.py <db:srvsvc> --function NetrShareGetInfo --with-code --json`
+- **Expected**: JSON with status ok, callgraph, traversal_plan, preloaded_code for depth 0+1 MUST_READ functions
+- **Validates**: Context preparation for LLM-driven analysis
+- **Flags-Tested**: --function, --with-code, --json
+- **Protocol**: none
+
+### TEST-SKILL-065: prepare_context callgraph JSON structure
+
+- **Category**: skill-script
+- **Component**: skill-script
+- **Component-Name**: ai-memory-corruption-scanner/prepare_context.py
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: N/A
+- **Command**: `python .agent/skills/ai-memory-corruption-scanner/scripts/prepare_context.py <db:srvsvc> --function SsValidateRpcHandleAndDereference --with-code --json`
+- **Expected**: JSON with callgraph fragment, traversal_plan with by_depth classification, preloaded_code
+- **Validates**: Callgraph JSON structure for single-function context
+- **Flags-Tested**: --function, --with-code, --json
+- **Protocol**: none
+
+### TEST-SKILL-066: build_threat_model (ai-logic-scanner)
+
+- **Category**: skill-script
+- **Component**: skill-script
+- **Component-Name**: ai-logic-scanner/build_threat_model.py
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: N/A
+- **Command**: `python .agent/skills/ai-logic-scanner/scripts/build_threat_model.py <db:srvsvc> --json`
+- **Expected**: JSON with status ok, module, service_type, attacker_model, top_entry_points
+- **Validates**: Threat model generation
+- **Flags-Tested**: --json
+- **Protocol**: none
+
+### TEST-SKILL-067: prepare_context entry-points (ai-logic-scanner)
+
+- **Category**: skill-script
+- **Component**: skill-script
+- **Component-Name**: ai-logic-scanner/prepare_context.py
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: N/A
+- **Command**: `python .agent/skills/ai-logic-scanner/scripts/prepare_context.py <db:srvsvc> --function NetrShareGetInfo --depth 3 --with-code --json`
+- **Expected**: JSON with status ok, callgraph.nodes, callgraph.edges, traversal_plan, preloaded_code, stats, _summary
+- **Validates**: Cross-module callgraph context preparation
+- **Flags-Tested**: --function, --depth, --with-code, --json
+- **Protocol**: none
+
+### TEST-SKILL-071: prepare_context single function (ai-logic-scanner)
+
+- **Category**: skill-script
+- **Component**: skill-script
+- **Component-Name**: ai-logic-scanner/prepare_context.py
+- **Target-Module**: srvsvc.dll
+- **Target-Function**: NetrShareGetInfo
+- **Command**: `python .agent/skills/ai-logic-scanner/scripts/prepare_context.py <db:srvsvc> --function "NetrShareGetInfo" --depth 3 --with-code --json`
+- **Expected**: JSON with status ok, root_functions containing NetrShareGetInfo, callgraph, traversal_plan, preloaded_code
+- **Validates**: Single-function callgraph preparation
+- **Flags-Tested**: --function, --depth, --with-code, --json
 - **Protocol**: none
 
 ### TEST-SKILL-073: assess_finding placeholder
@@ -3324,149 +2895,6 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Expected**: Batch findings sorted by exploitability
 - **Validates**: Batch assessment
 - **Flags-Tested**: --top, --min-score, --json
-- **Protocol**: none
-
-### TEST-SKILL-075: verify scan_module
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: verify-decompiled/scan_module.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/verify-decompiled/scripts/scan_module.py <db:srvsvc> --json`
-- **Expected**: Decompiler accuracy scan results
-- **Validates**: Module-wide verification scan
-- **Flags-Tested**: --json
-- **Protocol**: none
-
-### TEST-SKILL-076: verify scan_module filtered
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: verify-decompiled/scan_module.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/verify-decompiled/scripts/scan_module.py <db:srvsvc> --top 10 --min-severity medium --app-only --json --no-cache`
-- **Expected**: Top 10 medium+ severity issues, app-only
-- **Validates**: --top, --min-severity, --app-only, --no-cache
-- **Flags-Tested**: --top, --min-severity, --app-only, --json, --no-cache
-- **Protocol**: none
-
-### TEST-SKILL-077: verify verify_function
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: verify-decompiled/verify_function.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/verify-decompiled/scripts/verify_function.py <db:srvsvc> SsServerFsControl --json`
-- **Expected**: Instruction-level verification
-- **Validates**: Single function verification
-- **Flags-Tested**: function, --json
-- **Protocol**: none
-
-### TEST-SKILL-078: analyze_strings_deep
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: string-intelligence/analyze_strings_deep.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/string-intelligence/scripts/analyze_strings_deep.py <db:srvsvc> --json`
-- **Expected**: Categorized string intelligence
-- **Validates**: String analysis
-- **Flags-Tested**: --json
-- **Protocol**: none
-
-### TEST-SKILL-079: analyze_strings_deep function
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: string-intelligence/analyze_strings_deep.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/string-intelligence/scripts/analyze_strings_deep.py <db:srvsvc> --function SsServerFsControl --json`
-- **Expected**: Strings for single function
-- **Validates**: --function scope
-- **Flags-Tested**: --function, --json
-- **Protocol**: none
-
-### TEST-SKILL-080: analyze_strings_deep filtered
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: string-intelligence/analyze_strings_deep.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/string-intelligence/scripts/analyze_strings_deep.py <db:srvsvc> --top 20 --category credentials --json`
-- **Expected**: Top 20 credential strings
-- **Validates**: --top, --category
-- **Flags-Tested**: --top, --category, --json
-- **Protocol**: none
-
-### TEST-SKILL-081: detect_dispatchers
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: state-machine-extractor/detect_dispatchers.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/state-machine-extractor/scripts/detect_dispatchers.py <db:srvsvc> --json`
-- **Expected**: Dispatch table locations
-- **Validates**: Dispatcher detection
-- **Flags-Tested**: --json
-- **Protocol**: none
-
-### TEST-SKILL-082: detect_dispatchers filtered
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: state-machine-extractor/detect_dispatchers.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/state-machine-extractor/scripts/detect_dispatchers.py <db:srvsvc> --min-cases 5 --with-loops --app-only --json`
-- **Expected**: Filtered dispatchers
-- **Validates**: --min-cases, --with-loops, --app-only
-- **Flags-Tested**: --min-cases, --with-loops, --app-only, --json
-- **Protocol**: none
-
-### TEST-SKILL-083: extract_dispatch_table
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: state-machine-extractor/extract_dispatch_table.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/state-machine-extractor/scripts/extract_dispatch_table.py <db:srvsvc> SsServerFsControl --json`
-- **Expected**: Case-to-handler mappings
-- **Validates**: Dispatch table extraction
-- **Flags-Tested**: function, --json
-- **Protocol**: none
-
-### TEST-SKILL-084: extract_state_machine
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: state-machine-extractor/extract_state_machine.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/state-machine-extractor/scripts/extract_state_machine.py <db:srvsvc> SsServerFsControl --with-code --json`
-- **Expected**: NO_DATA result (SsServerFsControl has no state machine pattern); or state transitions with code if a dispatcher function is used instead
-- **Validates**: State machine extraction
-- **Flags-Tested**: function, --with-code, --json
-- **Protocol**: none
-
-### TEST-SKILL-085: generate_state_diagram
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: state-machine-extractor/generate_state_diagram.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/state-machine-extractor/scripts/generate_state_diagram.py <db:srvsvc> --function SsServerFsControl --mode dispatch --format mermaid`
-- **Expected**: Mermaid state diagram
-- **Validates**: Diagram generation
-- **Flags-Tested**: --function, --mode, --format
 - **Protocol**: none
 
 ### TEST-SKILL-086: generate_report
@@ -3659,7 +3087,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Target-Module**: N/A
 - **Target-Function**: N/A
 - **Command**: `python .agent/skills/com-interface-analysis/scripts/find_com_privesc.py --top 10 --include-uac --json`
-- **Expected**: COM privesc targets with UAC
+- **Expected**: COM privesc targets with structural scoring (runs_as_system, out_of_process, permissive_launch, method_count)
 - **Validates**: Privesc discovery
 - **Flags-Tested**: --top, --include-uac, --json
 - **Protocol**: none
@@ -3763,7 +3191,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Target-Module**: N/A
 - **Target-Function**: N/A
 - **Command**: `python .agent/skills/winrt-interface-analysis/scripts/find_winrt_privesc.py --top 10 --json`
-- **Expected**: WinRT privesc targets
+- **Expected**: WinRT privesc targets with structural scoring (runs_as_system, out_of_process, permissive_sddl, method_count)
 - **Validates**: WinRT privesc discovery
 - **Flags-Tested**: --top, --json
 - **Protocol**: none
@@ -3870,45 +3298,6 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Expected**: Compilable C++ header written to output file (stdout is empty when using --output flag)
 - **Validates**: Header generation
 - **Flags-Tested**: --all, --output
-- **Protocol**: none
-
-### TEST-SKILL-117: gather_function_context
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: deep-research-prompt/gather_function_context.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/deep-research-prompt/scripts/gather_function_context.py <db:srvsvc> SsServerFsControl --depth 2 --with-code --json`
-- **Expected**: Multi-skill context aggregation
-- **Validates**: Function context gathering
-- **Flags-Tested**: function, --depth, --with-code, --json
-- **Protocol**: none
-
-### TEST-SKILL-118: gather_module_context
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: deep-research-prompt/gather_module_context.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/deep-research-prompt/scripts/gather_module_context.py <db:srvsvc> --top 10 --json`
-- **Expected**: Module-level metrics aggregation
-- **Validates**: Module context gathering
-- **Flags-Tested**: --top, --json
-- **Protocol**: none
-
-### TEST-SKILL-119: generate_research_prompt
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: deep-research-prompt/generate_research_prompt.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/deep-research-prompt/scripts/generate_research_prompt.py <db:srvsvc> SsServerFsControl --area security --detail full`
-- **Expected**: Structured research prompt
-- **Validates**: Research prompt generation
-- **Flags-Tested**: function, --area, --detail
 - **Protocol**: none
 
 ### TEST-SKILL-120: audit_com_security
@@ -4273,10 +3662,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: security-auditor/run_security_scan.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/security-auditor/scripts/run_security_scan.py <db:srvsvc> --json`
+- **Command**: `python .agent/agents/security-auditor/scripts/run_security_scan.py <db:srvsvc> --top 1 --timeout 30 --json`
 - **Expected**: Full security scan pipeline
 - **Validates**: Default scan goal
-- **Flags-Tested**: --json
+- **Flags-Tested**: --top, --timeout, --json
 - **Protocol**: none
 
 ### TEST-AGENT-019: run_security_scan audit goal
@@ -4286,10 +3675,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: security-auditor/run_security_scan.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/agents/security-auditor/scripts/run_security_scan.py <db:srvsvc> --goal audit --function SsServerFsControl --json`
+- **Command**: `python .agent/agents/security-auditor/scripts/run_security_scan.py <db:srvsvc> --goal audit --function SsServerFsControl --timeout 30 --json`
 - **Expected**: Function-scoped audit
 - **Validates**: audit goal with --function
-- **Flags-Tested**: --goal audit, --function, --json
+- **Flags-Tested**: --goal audit, --function, --timeout, --json
 - **Protocol**: none
 
 ### TEST-AGENT-020: run_security_scan hunt goal
@@ -4299,10 +3688,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: security-auditor/run_security_scan.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/security-auditor/scripts/run_security_scan.py <db:srvsvc> --goal hunt --json`
+- **Command**: `python .agent/agents/security-auditor/scripts/run_security_scan.py <db:srvsvc> --goal hunt --top 1 --timeout 30 --json`
 - **Expected**: Hunt-mode security scan
 - **Validates**: hunt goal
-- **Flags-Tested**: --goal hunt, --json
+- **Flags-Tested**: --goal hunt, --top, --timeout, --json
 - **Protocol**: none
 
 ### TEST-AGENT-021: run_security_scan with top and no-cache
@@ -4312,10 +3701,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: security-auditor/run_security_scan.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/security-auditor/scripts/run_security_scan.py <db:srvsvc> --top 5 --no-cache --json`
-- **Expected**: Top 5, fresh computation
+- **Command**: `python .agent/agents/security-auditor/scripts/run_security_scan.py <db:srvsvc> --top 1 --timeout 30 --no-cache --json`
+- **Expected**: Top 1, fresh computation
 - **Validates**: --top and --no-cache
-- **Flags-Tested**: --top, --no-cache, --json
+- **Flags-Tested**: --top, --timeout, --no-cache, --json
 - **Protocol**: none
 
 ### TEST-AGENT-022: batch_extract class
@@ -4448,58 +3837,6 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Flags-Tested**: --header, --json
 - **Protocol**: none
 
-### TEST-AGENT-032: compare_lifted missing --lifted error
-
-- **Category**: agent
-- **Component**: agent-script
-- **Component-Name**: verifier/compare_lifted.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/agents/verifier/scripts/compare_lifted.py <db:srvsvc> SsServerFsControl --json`
-- **Expected**: INVALID_ARGS error because --lifted or --lifted-stdin is required
-- **Validates**: Argparse validation for required lifted code source
-- **Flags-Tested**: function, --json
-- **Protocol**: none
-
-### TEST-AGENT-033: compare_lifted missing lifted file
-
-- **Category**: agent
-- **Component**: agent-script
-- **Component-Name**: verifier/compare_lifted.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/agents/verifier/scripts/compare_lifted.py <db:srvsvc> SsServerFsControl --lifted lifted.cpp --json`
-- **Expected**: NOT_FOUND structured error because lifted.cpp does not exist
-- **Validates**: Graceful handling of missing lifted code file
-- **Flags-Tested**: --lifted, --json
-- **Protocol**: none
-
-### TEST-AGENT-034: extract_basic_blocks
-
-- **Category**: agent
-- **Component**: agent-script
-- **Component-Name**: verifier/extract_basic_blocks.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/agents/verifier/scripts/extract_basic_blocks.py <db:srvsvc> SsServerFsControl --json`
-- **Expected**: Assembly parsed into basic blocks
-- **Validates**: Basic block extraction
-- **Flags-Tested**: function, --json
-- **Protocol**: none
-
-### TEST-AGENT-035: generate_verification_report placeholder
-
-- **Category**: agent
-- **Component**: agent-script
-- **Component-Name**: verifier/generate_verification_report.py
-- **Target-Module**: N/A
-- **Target-Function**: N/A
-- **Command**: `python .agent/agents/verifier/scripts/generate_verification_report.py --compare-output <path> --json`
-- **Expected**: NOT_FOUND or PARSE_ERROR because placeholder path has no valid data
-- **Validates**: Graceful handling of missing or empty compare output
-- **Flags-Tested**: --compare-output, --json
-- **Protocol**: none
-
 ---
 
 ## Section 12: VR Workflow Pattern Tests
@@ -4511,7 +3848,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: module-triage-initialization
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/quickstart srvsvc.dll` then `/triage srvsvc.dll` then `/scan srvsvc.dll` then `/prioritize --modules srvsvc.dll`
+- **Command**: `/triage srvsvc.dll` then `/scan srvsvc.dll` then `/prioritize --modules srvsvc.dll`
 - **Expected**: Each stage completes and feeds into the next; final output is ranked findings
 - **Validates**: Full triage initialization workflow from technical_reference.md
 - **Flags-Tested**: N/A
@@ -5044,10 +4381,10 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 | TEST-VR | VR Campaigns | 8 |
 | TEST-QUAL | Code Quality | 12 |
 | TEST-OPS | Reporting and Ops | 13 |
-| TEST-SKILL | Skill Scripts | 129 |
+| TEST-SKILL | Skill Scripts | 112 |
 | TEST-AGENT | Agent Scripts | 35 |
 | TEST-FLOW | VR Workflows | 7 |
 | TEST-PIPE | Pipeline | 6 |
 | TEST-HOOK | Hooks | 3 |
 | TEST-INFRA | Infrastructure | 22 |
-| **TOTAL** | | **359** |
+| **TOTAL** | | **342** |

@@ -1,8 +1,9 @@
-"""Parameter risk scoring for function signatures.
+"""Parameter surface metadata for function signatures.
 
-Scores how dangerous a function's parameters look from an attacker's
-perspective by matching type patterns (buffer pointers, handles, COM
-interfaces, size parameters) and detecting buffer+size pair combinations.
+Extracts factual parameter characteristics (buffer pointers, handles, COM
+interfaces, size parameters, buffer+size pairs) from C-style function
+signatures.  Returns structured metadata -- no numeric risk score.
+Consumers interpret the facts in context.
 
 Extracted from the map-attack-surface skill for reuse across skills.
 """
@@ -10,33 +11,28 @@ Extracted from the map-attack-surface skill for reuse across skills.
 from __future__ import annotations
 
 import re
-from typing import Optional
+from typing import Any, Optional
+
+from helpers.decompiled_parser import split_arguments
 
 __all__ = [
-    "HIGH_RISK_PARAM_PATTERNS",
+    "PARAM_TYPE_PATTERNS",
     "BUFFER_SIZE_PAIR_PATTERNS",
-    "score_parameter_risk",
+    "describe_parameter_surface",
 ]
 
-# Type patterns that indicate attacker-controllable input
-HIGH_RISK_PARAM_PATTERNS: list[tuple[str, float]] = [
-    # Buffer + size pairs (highest risk)
-    (r"(?:void|PVOID|LPVOID|char|BYTE|PBYTE|LPBYTE)\s*\*", 1.0),
-    (r"(?:wchar_t|WCHAR|LPWSTR|PWSTR|OLECHAR)\s*\*", 0.9),
-    (r"(?:LPSTR|LPCSTR|PSTR|PCSTR|char\s+const)\s*\*?", 0.9),
-    (r"(?:LPCWSTR|PCWSTR|wchar_t\s+const)\s*\*?", 0.85),
-    (r"(?:BSTR|VARIANT|SAFEARRAY)", 0.85),
-    # Size/length parameters (amplifiers when paired with buffers)
-    (r"(?:DWORD|ULONG|SIZE_T|size_t|unsigned|int)\b", 0.3),
-    # Handle parameters (moderate -- can reference attacker objects)
-    (r"(?:HANDLE|HKEY|HMODULE|HINSTANCE|SOCKET|HWND)", 0.5),
-    # Interface pointers (COM attack surface)
-    (r"(?:IUnknown|IDispatch|I[A-Z]\w+)\s*\*", 0.7),
-    (r"(?:REFIID|REFCLSID|GUID|IID)", 0.4),
-    # Struct pointers
-    (r"(?:struct|SECURITY_ATTRIBUTES|OVERLAPPED)\s*\*", 0.5),
-    # Flags (low risk alone but can change behavior)
-    (r"(?:FLAGS|ULONG|DWORD)\b.*(?:flags|options|mode)", 0.2),
+PARAM_TYPE_PATTERNS: list[tuple[str, str]] = [
+    (r"(?:void|PVOID|LPVOID|char|BYTE|PBYTE|LPBYTE)\s*\*", "buffer_pointer"),
+    (r"(?:wchar_t|WCHAR|LPWSTR|PWSTR|OLECHAR)\s*\*", "string_pointer"),
+    (r"(?:LPSTR|LPCSTR|PSTR|PCSTR|char\s+const)\s*\*?", "string_pointer"),
+    (r"(?:LPCWSTR|PCWSTR|wchar_t\s+const)\s*\*?", "string_pointer"),
+    (r"(?:BSTR|VARIANT|SAFEARRAY)", "string_pointer"),
+    (r"(?:DWORD|ULONG|SIZE_T|size_t|unsigned|int)\b", "size_or_int"),
+    (r"(?:HANDLE|HKEY|HMODULE|HINSTANCE|SOCKET|HWND)", "handle"),
+    (r"(?:IUnknown|IDispatch|I[A-Z]\w+)\s*\*", "com_interface"),
+    (r"(?:REFIID|REFCLSID|GUID|IID)", "guid"),
+    (r"(?:struct|SECURITY_ATTRIBUTES|OVERLAPPED)\s*\*", "struct_pointer"),
+    (r"(?:FLAGS|ULONG|DWORD)\b.*(?:flags|options|mode)", "flags"),
 ]
 
 BUFFER_SIZE_PAIR_PATTERNS: list[re.Pattern] = [
@@ -46,53 +42,82 @@ BUFFER_SIZE_PAIR_PATTERNS: list[re.Pattern] = [
 ]
 
 
-def score_parameter_risk(signature: Optional[str]) -> tuple[float, list[str]]:
-    """Score parameter risk from a function signature.
+def describe_parameter_surface(signature: Optional[str]) -> dict[str, Any]:
+    """Extract factual parameter characteristics from a function signature.
 
-    Returns (risk_score 0.0-1.0, list of risk reasons).
+    Returns structured metadata -- no numeric risk score.
+    Consumers interpret the facts in context.
     """
+    empty: dict[str, Any] = {
+        "param_count": 0,
+        "has_buffer_pointer": False,
+        "has_string_pointer": False,
+        "has_size_param": False,
+        "has_buffer_size_pair": False,
+        "has_handle": False,
+        "has_com_interface": False,
+        "has_struct_pointer": False,
+        "has_flags_param": False,
+        "pointer_param_count": 0,
+        "characteristics": [],
+    }
     if not signature:
-        return 0.0, []
+        return empty
 
-    risk = 0.0
-    reasons: list[str] = []
+    has_pair = any(pat.search(signature) for pat in BUFFER_SIZE_PAIR_PATTERNS)
 
-    # Check for buffer+size pairs (highest risk)
-    for pat in BUFFER_SIZE_PAIR_PATTERNS:
-        if pat.search(signature):
-            risk = max(risk, 0.9)
-            reasons.append("buffer+size parameter pair")
-            break
-
-    # Score individual parameters
     paren_match = re.search(r"\(([^)]*)\)", signature)
     if not paren_match:
-        return risk, reasons
+        result = dict(empty)
+        if has_pair:
+            result["has_buffer_size_pair"] = True
+            result["characteristics"] = ["buffer+size pair"]
+        return result
 
     param_str = paren_match.group(1)
     if not param_str.strip() or param_str.strip().lower() in ("void", ""):
-        return 0.1, ["no parameters (limited attack surface)"]
+        return empty
 
-    params = [p.strip() for p in param_str.split(",") if p.strip()]
-    param_scores: list[float] = []
+    params = split_arguments(param_str)
+
+    categories_seen: set[str] = set()
+    pointer_count = 0
 
     for param in params:
-        best_score = 0.0
-        for pattern, score in HIGH_RISK_PARAM_PATTERNS:
+        for pattern, category in PARAM_TYPE_PATTERNS:
             if re.search(pattern, param, re.I):
-                best_score = max(best_score, score)
-        param_scores.append(best_score)
+                categories_seen.add(category)
+                if category in ("buffer_pointer", "string_pointer",
+                                "com_interface", "struct_pointer"):
+                    pointer_count += 1
+                break
 
-    if param_scores:
-        max_param = max(param_scores)
-        avg_param = sum(param_scores) / len(param_scores)
-        # Weighted: max matters more but count of risky params amplifies
-        combined = max_param * 0.6 + avg_param * 0.2 + min(len(params) / 10.0, 0.2)
-        risk = max(risk, min(combined, 1.0))
+    characteristics: list[str] = []
+    if has_pair:
+        characteristics.append("buffer+size pair")
+    if "buffer_pointer" in categories_seen:
+        characteristics.append("buffer pointer")
+    if "string_pointer" in categories_seen:
+        characteristics.append("string pointer")
+    if "com_interface" in categories_seen:
+        characteristics.append("COM interface pointer")
+    if "handle" in categories_seen:
+        characteristics.append("handle parameter")
+    if "struct_pointer" in categories_seen:
+        characteristics.append("struct pointer")
+    if "flags" in categories_seen:
+        characteristics.append("flags/options parameter")
 
-        if max_param >= 0.8:
-            reasons.append("high-risk pointer/buffer parameters")
-        elif max_param >= 0.5:
-            reasons.append("handle/interface pointer parameters")
-
-    return risk, reasons
+    return {
+        "param_count": len(params),
+        "has_buffer_pointer": "buffer_pointer" in categories_seen,
+        "has_string_pointer": "string_pointer" in categories_seen,
+        "has_size_param": "size_or_int" in categories_seen,
+        "has_buffer_size_pair": has_pair,
+        "has_handle": "handle" in categories_seen,
+        "has_com_interface": "com_interface" in categories_seen,
+        "has_struct_pointer": "struct_pointer" in categories_seen,
+        "has_flags_param": "flags" in categories_seen,
+        "pointer_param_count": pointer_count,
+        "characteristics": characteristics,
+    }

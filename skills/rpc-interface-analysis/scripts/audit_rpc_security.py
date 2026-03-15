@@ -60,12 +60,6 @@ _IDENTITY_CHECK_APIS = {
     "RtlCheckTokenMembershipEx",
 }
 
-_ELEVATION_PROCEDURE_PATTERNS = re.compile(
-    r"(?i)(?:LaunchAdmin|GetElevatedToken|GetTokenFor|OverrideDesktop"
-    r"|DisableElevation|EnableElevation|ForceElevationPrompt"
-    r"|LaunchProcessWithIdentity)",
-)
-
 
 @dataclass
 class RpcFinding:
@@ -141,15 +135,6 @@ def _collect_transitive_calls(
     return all_apis, visited
 
 
-def _effective_risk_tier(iface: RpcInterface, proc_name: str) -> str:
-    """Return the interface's risk tier, promoted for elevation procedures."""
-    base = iface.risk_tier
-    if _ELEVATION_PROCEDURE_PATTERNS.search(proc_name):
-        if base in ("medium", "low"):
-            return "high"
-    return base
-
-
 def audit_module(db_path: str, *, depth: int = _DEFAULT_DEPTH) -> tuple[list[RpcFinding], int]:
     """Run RPC security audit on a module.
 
@@ -188,7 +173,7 @@ def audit_module(db_path: str, *, depth: int = _DEFAULT_DEPTH) -> tuple[list[Rpc
 
                 iface = idx.get_interface_for_procedure(module_name, proc_name)
                 iface_id = iface.interface_id if iface else ""
-                risk_tier = _effective_risk_tier(iface, proc_name) if iface else "low"
+                risk_tier = iface.risk_tier if iface else "low"
 
                 transitive_apis, visited = _collect_transitive_calls(
                     proc_name, all_funcs, depth=depth,
@@ -225,8 +210,9 @@ def audit_module(db_path: str, *, depth: int = _DEFAULT_DEPTH) -> tuple[list[Rpc
                     ))
 
                 if iface and iface.has_complex_types:
-                    decompiled = func.decompiled_code or ""
-                    if re.search(r"(?:memcpy|memmove|RtlCopyMemory|CopyMemory)", decompiled):
+                    direct_callees = _get_direct_callees(func, all_funcs)
+                    memcpy_apis = direct_callees & {"memcpy", "memmove", "RtlCopyMemory", "CopyMemory"}
+                    if memcpy_apis:
                         findings.append(RpcFinding(
                             function_name=proc_name,
                             interface_id=iface_id,
@@ -235,27 +221,6 @@ def audit_module(db_path: str, *, depth: int = _DEFAULT_DEPTH) -> tuple[list[Rpc
                             severity=0.70,
                             description="Handler with complex NDR types performs memory copy",
                             details=[f"NDR types: {', '.join(iface.complex_types[:3])}"],
-                        ))
-
-                is_elevation_proc = _ELEVATION_PROCEDURE_PATTERNS.search(proc_name)
-                if is_elevation_proc:
-                    has_identity_check = bool(transitive_apis & _IDENTITY_CHECK_APIS)
-                    if not has_identity_check:
-                        sev = 0.90 if risk_tier in ("critical", "high") else 0.80
-                        findings.append(RpcFinding(
-                            function_name=proc_name,
-                            interface_id=iface_id,
-                            risk_tier=risk_tier,
-                            finding_type="rpc_elevation_no_identity_check",
-                            severity=sev,
-                            description=(
-                                f"Elevation/token handler reachable from Medium IL "
-                                f"with no caller identity verification (depth {depth})"
-                            ),
-                            details=[
-                                f"Searched {len(visited)} functions for: "
-                                f"{', '.join(sorted(_IDENTITY_CHECK_APIS)[:4])}...",
-                            ],
                         ))
 
             module_has_security_callback = False
@@ -323,7 +288,7 @@ def main() -> None:
         if not findings:
             result["caveat"] = (
                 f"0 findings from transitive analysis (depth {analysis_depth}). "
-                f"Run /logic-scan or /taint for deeper guard-aware analysis "
+                f"Run /ai-logical-bug-scan or /taint for deeper guard-aware analysis "
                 f"of handler call chains."
             )
         emit_json(result)
@@ -336,7 +301,7 @@ def main() -> None:
 
     if not findings:
         print(f"  No findings at depth {analysis_depth}.")
-        print(f"  NOTE: Run /logic-scan or /taint for deeper guard-aware")
+        print(f"  NOTE: Run /ai-logical-bug-scan or /taint for deeper guard-aware")
         print(f"        analysis of handler call chains.\n")
 
     for i, f in enumerate(findings, 1):

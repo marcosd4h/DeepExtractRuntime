@@ -206,9 +206,7 @@ helpers/function_index/             # Core logic (importable by any skill)
 
 ## Related Skills
 
-- [analyze-ida-decompiled](../analyze-ida-decompiled/SKILL.md) -- Navigate and understand decompiled code
-- [code-lifting](../code-lifting/SKILL.md) -- Lift decompiled functions into clean source
+- [ida_conventions_reference.md](../../docs/ida_conventions_reference.md) -- IDA conventions and analysis patterns
 - [classify-functions](../classify-functions/SKILL.md) -- Classify functions by purpose
 - [batch-lift](../batch-lift/SKILL.md) -- Lift groups of related functions together
-- [data-flow-tracer](../data-flow-tracer/SKILL.md) -- Trace data flow through binaries
 - [callgraph-tracer](../callgraph-tracer/SKILL.md) -- Trace call graphs across modules

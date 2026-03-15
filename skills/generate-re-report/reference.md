@@ -59,7 +59,7 @@ String literals are categorized by regex matching:
 | `format_string` | printf-style `%d`, `%s`, `%x`, etc. | `Error %d: %s` |
 | `debug_trace` | TraceLogging, TRACE_LEVEL, ETW_KEYWORD, WPP_ | `TRACE_LEVEL_VERBOSE` |
 
-Patterns are checked in order; first match wins. Defined in `scripts/_common.py:STRING_CATEGORIES`.
+Patterns were previously checked in order (first match wins). String categorization has been removed.
 
 ## Rich Header Decoding
 
@@ -120,7 +120,7 @@ Approximate betweenness: `inbound_count * outbound_count` for functions with >= 
 Edit `helpers/api_taxonomy.py:API_TAXONOMY` -- add a new category key with list of API name prefixes. This is the canonical source shared by all skills.
 
 ### Adding string patterns
-Edit `scripts/_common.py:STRING_CATEGORIES` -- add a tuple of `(compiled_regex, category, description)`.
+String categorization has been removed. Strings are reported uncategorized.
 
 ### Adding report sections
 Implement a new `_section_*` function in `generate_report.py` and add it to the `generate_report()` function's section list.

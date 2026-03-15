@@ -112,17 +112,17 @@ class TestConfigMutable:
         """Mutating a _mutable copy must not affect the cached config."""
         from helpers.config import load_config
         mutable = load_config(_mutable=True)
-        mutable["classification"]["weights"]["W_NAME"] = 999.0
+        mutable["classification"]["weights"]["W_API"] = 999.0
 
         cached = load_config()
-        assert cached["classification"]["weights"]["W_NAME"] != 999.0
+        assert cached["classification"]["weights"]["W_API"] != 999.0
 
     def test_get_config_value_uses_cached(self):
         """get_config_value should not deep-copy (uses the fast path)."""
         from helpers.config import get_config_value, load_config
         cached = load_config()
-        val = get_config_value("classification.weights.W_NAME")
-        assert val == cached["classification"]["weights"]["W_NAME"]
+        val = get_config_value("classification.weights.W_API")
+        assert val == cached["classification"]["weights"]["W_API"]
 
 
 # ===================================================================
@@ -137,14 +137,12 @@ class TestClassificationWeightsFromConfig:
         classify_mod = load_skill_module("classify-functions", "_common")
 
         config_weights = get_config_value("classification.weights", {})
-        assert classify_mod.W_NAME == config_weights.get("W_NAME", 10.0)
         assert classify_mod.W_API == config_weights.get("W_API", 5.0)
 
     def test_weights_are_positive(self):
         from helpers.script_runner import load_skill_module
         classify_mod = load_skill_module("classify-functions", "_common")
-        for attr in ("W_NAME", "W_API", "W_API_CAP", "W_STRING",
-                     "W_STRING_CAP", "W_STRUCTURAL", "W_LIBRARY"):
+        for attr in ("W_API", "W_API_CAP", "W_STRUCTURAL", "W_LIBRARY"):
             val = getattr(classify_mod, attr)
             assert isinstance(val, (int, float)) and val > 0, f"{attr} should be positive, got {val}"
 
@@ -500,10 +498,6 @@ class TestSkillCommonAdoption:
     def test_security_dossier_imports_from_skill_common(self):
         """security-dossier _common.py should use skill_common for standard helpers."""
         source = (AGENT_DIR / "skills" / "security-dossier" / "scripts" / "_common.py").read_text()
-        assert "from skills._shared.skill_common import" in source
-
-    def test_verify_decompiled_imports_from_skill_common(self):
-        source = (AGENT_DIR / "skills" / "verify-decompiled" / "scripts" / "_common.py").read_text()
         assert "from skills._shared.skill_common import" in source
 
     def test_exploitability_imports_from_skill_common(self):

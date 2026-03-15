@@ -98,8 +98,6 @@ Cross-module call chain tracing can explode on large modules. Always use
 # Audit a single export (bounded call chain depth 4)
 /audit large_module.dll <export> --diagram
 
-# Limit data flow tracing depth
-/data-flow forward large_module.dll <function> --param 1 --depth 2
 ```
 
 ## Performance Characteristics by Skill
@@ -111,9 +109,6 @@ Cross-module call chain tracing can explode on large modules. Always use
 | map-attack-surface      | Export/vtable count | Reachability BFS        | Yes    |
 | generate-re-report      | Function count      | Import/string analysis  | Yes    |
 | reconstruct-types       | Memory access count | Pattern scanning        | Yes    |
-| data-flow-tracer        | Xref depth          | Cross-module resolution | No     |
-| verify-decompiled       | Assembly size       | Heuristic matching      | No     |
-| state-machine-extractor | Switch case count   | Pattern detection       | No     |
 
 ## Workspace Cleanup
 
@@ -198,9 +193,9 @@ and `cross_module_index_warn_threshold`.
 These commands operate on a single module and are always safe:
 
 - `/triage <module>`, `/explain <module> <function>`, `/audit <module> <function>`
-- `/verify-decompiler <module> <function>`, `/lift-class <module> <class>`
-- `/audit <module> <export> --diagram`, `/data-flow <module> <function>`
-- `/reconstruct-types <module>`, `/state-machines <module>`
+- `/lift-class <module> <class>`
+- `/audit <module> <export> --diagram`
+- `/reconstruct-types <module>`
 - `/search <module> <term>` (single-module search)
 
 ### Commands That May Be Slow at Very Large Scale (6000+ modules)

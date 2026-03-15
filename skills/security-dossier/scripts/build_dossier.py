@@ -39,10 +39,8 @@ from typing import Any, Optional
 
 from _common import (
     WORKSPACE_ROOT,
-    AsmMetrics,
     classify_api_security,
     emit_error,
-    get_asm_metrics,
     has_real_decompiled,
     parse_json_safe,
     resolve_db_path,
@@ -51,8 +49,7 @@ from helpers.errors import ErrorCode, safe_parse_args
 from helpers.cache import get_cached, cache_result
 from helpers.callgraph import CallGraph
 from helpers.json_output import emit_json
-from helpers.param_risk import score_parameter_risk
-from helpers.string_taxonomy import categorize_strings
+from helpers.param_risk import describe_parameter_surface
 
 from helpers import (
     load_function_index_for_db,
@@ -156,7 +153,6 @@ class DossierBuilder:
         self.strings = _ensure_list(parse_json_safe(func.string_literals))
         self.stack_frame = _ensure_dict(parse_json_safe(func.stack_frame))
         self.loop_analysis = _ensure_dict(parse_json_safe(func.loop_analysis))
-        self.asm_metrics = get_asm_metrics(func.assembly_code)
         self.detailed_outbound = _ensure_list(
             parse_json_safe(func.outbound_xrefs) if hasattr(func, "outbound_xrefs") else None
         )
@@ -400,7 +396,7 @@ class DossierBuilder:
 
         sig = self.func.function_signature_extended or self.func.function_signature
         param_count = _count_params(sig)
-        param_risk, param_risk_reasons = score_parameter_risk(sig)
+        param_surface = describe_parameter_surface(sig)
 
         return {
             "export_callers_count": len(external_callers),
@@ -409,8 +405,7 @@ class DossierBuilder:
             "external_callers": external_callers,
             "data_paths": data_paths,
             "parameter_count": param_count,
-            "param_risk_score": param_risk,
-            "param_risk_reasons": param_risk_reasons,
+            "param_surface": param_surface,
             "receives_external_data": (
                 bool(external_callers)
                 or self.fname in self._export_names
@@ -564,14 +559,9 @@ class DossierBuilder:
                         if loop.get("is_infinite"):
                             has_infinite = True
 
-        string_categories = categorize_strings(self.strings) if self.strings else {}
+        string_categories = {}
 
         return {
-            "instruction_count": self.asm_metrics.instruction_count,
-            "call_count": self.asm_metrics.call_count,
-            "branch_count": self.asm_metrics.branch_count,
-            "ret_count": self.asm_metrics.ret_count,
-            "has_syscall": self.asm_metrics.has_syscall,
             "loop_count": loop_count,
             "max_cyclomatic_complexity": max_cyclomatic,
             "total_loop_instructions": total_loop_insns,
@@ -820,11 +810,11 @@ def format_text(dossier: dict, db_path: str) -> str:
     _section(lines, "3. UNTRUSTED DATA EXPOSURE")
     lines.append(f"  Receives External Data: {'YES' if exposure['receives_external_data'] else 'No'}")
     lines.append(f"  Parameter Count:        {exposure['parameter_count']}")
-    prisk = exposure.get("param_risk_score", 0.0)
-    lines.append(f"  Parameter Risk Score:   {prisk:.2f}")
-    prisk_reasons = exposure.get("param_risk_reasons", [])
-    if prisk_reasons:
-        lines.append(f"  Risk Factors:           {'; '.join(prisk_reasons)}")
+    ps = exposure.get("param_surface", {})
+    chars = ps.get("characteristics", [])
+    lines.append(f"  Parameter Surface:      {ps.get('param_count', 0)} params")
+    if chars:
+        lines.append(f"  Characteristics:        {'; '.join(chars)}")
     lines.append(f"  External Callers:       {exposure.get('external_callers_count', exposure['export_callers_count'])}")
     for name in exposure.get("external_callers", exposure.get("export_callers", []))[:10]:
         lines.append(f"    - {name}")
@@ -880,15 +870,9 @@ def format_text(dossier: dict, db_path: str) -> str:
     if resources["global_accesses_total"] > 20:
         lines.append(f"    ... and {resources['global_accesses_total'] - 20} more")
 
-    # 6. Complexity
     _section(lines, "6. COMPLEXITY ASSESSMENT")
-    lines.append(f"  Assembly Instructions:      {complexity['instruction_count']}")
-    lines.append(f"  Call Count:                 {complexity['call_count']}")
-    lines.append(f"  Branch Count:               {complexity['branch_count']}")
     lines.append(f"  Loop Count:                 {complexity['loop_count']}")
     lines.append(f"  Max Cyclomatic Complexity:  {complexity['max_cyclomatic_complexity']}")
-    if complexity.get("has_syscall"):
-        lines.append(f"  WARNING: Contains direct syscall/int 2Eh")
     if complexity["has_infinite_loop"]:
         lines.append(f"  WARNING: Contains infinite loop")
     lines.append(f"  String Literals:            {complexity['string_count']}")

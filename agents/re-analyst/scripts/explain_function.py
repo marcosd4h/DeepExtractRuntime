@@ -70,15 +70,6 @@ from helpers.validation import validate_depth, validate_function_id  # noqa: E40
 
 
 # ---------------------------------------------------------------------------
-# String categorization (canonical source: helpers.string_taxonomy)
-# ---------------------------------------------------------------------------
-from helpers.string_taxonomy import (  # noqa: E402
-    categorize_string_simple as _categorize_string,
-    categorize_strings as _categorize_strings,
-)
-
-
-# ---------------------------------------------------------------------------
 # Cross-module resolution (delegates to shared ModuleResolver helper)
 # ---------------------------------------------------------------------------
 _module_resolver: Optional[ModuleResolver] = None
@@ -397,8 +388,8 @@ def explain_function(
         else:
             final_external_unresolvable.append(call)
 
-    # Categorize strings
-    string_categories = _categorize_strings(strings if isinstance(strings, list) else [])
+    # Pass strings through uncategorized
+    string_categories = {"other": list(strings)} if isinstance(strings, list) and strings else {}
 
     # Get callee details recursively if depth > 0
     callee_details = []

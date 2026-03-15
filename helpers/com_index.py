@@ -45,6 +45,11 @@ _GUID_RE = re.compile(r'\[Guid\("([0-9a-fA-F-]+)"\)\]')
 
 _SYSTEM_USERNAMES = {"localsystem", "nt authority\\system", "system"}
 
+_GENERIC_HOST_PROCESSES = frozenset({
+    "svchost.exe", "dllhost.exe", "rundll32.exe",
+    "taskhostw.exe", "sihost.exe",
+})
+
 
 # ---------------------------------------------------------------------------
 # Access context enum
@@ -395,6 +400,13 @@ def _parse_server_detail(clsid: str, raw: dict, hosting_binary: str = "") -> Com
     if not isinstance(local_svc, dict):
         local_svc = {}
 
+    if hosting.lower() in _GENERIC_HOST_PROCESSES:
+        svc_dll = local_svc.get("service_dll", "")
+        if svc_dll:
+            hosting = module_name_from_path(svc_dll)
+        elif methods_flat and methods_flat[0].binary_name:
+            hosting = methods_flat[0].binary_name
+
     typelib_ifaces = raw.get("typelib_interfaces") or {}
     if not isinstance(typelib_ifaces, dict):
         typelib_ifaces = {}
@@ -569,7 +581,7 @@ class ComIndex:
             procedures = bin_entry.get("procedures", [])
             if isinstance(procedures, list) and procedures:
                 mod_name = module_name_from_path(binary_path) if binary_path else ""
-                if mod_name:
+                if mod_name and mod_name.lower() not in _GENERIC_HOST_PROCESSES:
                     mod_key = mod_name.lower()
                     filtered = [n for n in procedures if not _HEX_ADDR_RE.match(n)]
                     existing_procs = self._procedures_by_module.get(mod_key)

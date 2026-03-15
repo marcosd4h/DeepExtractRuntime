@@ -164,7 +164,7 @@ class _BootstrapState:
             fallback="step",
         )
 
-        status = "success"
+        status = "ok"
         if self.uncaught_exception is not None:
             status = "error"
         elif self.exit_code not in (None, 0):

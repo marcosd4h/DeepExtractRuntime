@@ -9,7 +9,6 @@ Previously the module-resolution logic was duplicated across 7+ scripts:
 
 - ``callgraph-tracer/scripts/cross_module_resolve.py`` (most complete)
 - ``re-analyst/scripts/explain_function.py``
-- ``deep-research-prompt/scripts/gather_function_context.py``
 - ``resolve_module_db()`` in 4+ ``_common.py`` files
 
 Usage::
@@ -27,6 +26,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import sqlite3
 import threading
 from collections import OrderedDict, defaultdict, deque
@@ -45,6 +45,10 @@ from .db_paths import (
 from .errors import log_warning
 
 _log = logging.getLogger(__name__)
+
+_GUID_RE = re.compile(
+    r'\{?[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\}?'
+)
 
 
 def _xref_result_key(module_name: str, function_name: str) -> str:
@@ -894,13 +898,160 @@ class CrossModuleGraph:
         "clsidfromprogid", "clsidfromprogidex",
     })
 
+    @staticmethod
+    def _is_com_activation_api(name: str) -> bool:
+        """Check if a function name is a COM activation API after stripping IDA prefixes."""
+        bare = name.lstrip("_")
+        if bare.startswith("imp_"):
+            bare = bare[4:]
+        return bare.lower() in CrossModuleGraph._COM_ACTIVATION_APIS
+
+    def _find_com_caller_functions(self, graph: "CallGraph") -> dict[str, set[str]]:
+        """Return ``{caller_function: {com_api_names_called}}`` for COM-calling functions."""
+        callers: dict[str, set[str]] = {}
+        for caller, ext_calls in graph.external_calls.items():
+            for callee_name, _target_mod in ext_calls:
+                if self._is_com_activation_api(callee_name):
+                    callers.setdefault(caller, set()).add(callee_name)
+        return callers
+
+    def _has_com_activation_apis(self, graph: "CallGraph") -> bool:
+        """Check if any function in the graph calls COM activation APIs."""
+        for _caller, ext_calls in graph.external_calls.items():
+            for callee_name, _target_mod in ext_calls:
+                if self._is_com_activation_api(callee_name):
+                    return True
+        return False
+
+    def _module_display_name(self, mod_key: str) -> str:
+        """Get the original-case file_name for a lowercase module key."""
+        for fn, _dp in self._resolver.list_modules():
+            if fn.lower() == mod_key:
+                return fn
+        return mod_key
+
+    def _resolve_clsids_at_callsites(
+        self,
+        mod_key: str,
+        graph: "CallGraph",
+        com_callers: dict[str, set[str]],
+    ) -> dict[int, set[str]]:
+        """Resolve CLSIDs referenced at COM activation call sites.
+
+        For each function that calls a COM activation API, extracts CLSID
+        references from the structured ``string_literals`` field in the DB
+        (IDA-extracted string data).  Uses _GUID_RE only to validate and
+        parse GUID patterns within those strings.  No regex on decompiled
+        code.
+
+        Returns ``{function_id: set_of_clsid_identifiers}`` where each
+        identifier is a lowercase GUID string (without braces).
+        """
+        entry = self._resolver.get_module_db(mod_key)
+        if entry is None:
+            return {}
+        db_path, _file_name = entry
+
+        try:
+            db = self._resolver._get_cached_db(db_path)
+        except (OSError, RuntimeError, sqlite3.Error):
+            return {}
+
+        result: dict[int, set[str]] = {}
+
+        for func_name in com_callers:
+            func_id = graph.name_to_id.get(func_name)
+            if func_id is None:
+                continue
+
+            try:
+                record = db.get_function_by_id(func_id)
+            except (OSError, sqlite3.Error):
+                continue
+            if record is None:
+                continue
+
+            clsids: set[str] = set()
+
+            # GUID literals from structured string_literals (no regex on code)
+            try:
+                strings_raw = (
+                    json.loads(record.string_literals)
+                    if record.string_literals
+                    else []
+                )
+            except (json.JSONDecodeError, TypeError):
+                strings_raw = []
+
+            for s in strings_raw:
+                text = (
+                    s
+                    if isinstance(s, str)
+                    else (s.get("value", "") if isinstance(s, dict) else str(s))
+                )
+                for gm in _GUID_RE.finditer(text):
+                    clsids.add(gm.group().strip("{}").lower())
+
+            if clsids:
+                result[func_id] = clsids
+
+        return result
+
+    def _resolve_clsid_to_servers(self, clsid_ref: str, idx: Any) -> list:
+        """Resolve a CLSID identifier to :class:`ComServer` objects.
+
+        Handles both raw GUID strings and symbolic ``CLSID_Xxx`` names.
+        """
+        normalized = clsid_ref.strip()
+
+        if _GUID_RE.fullmatch(normalized):
+            if not normalized.startswith("{"):
+                normalized = "{" + normalized + "}"
+            server = idx.get_server_by_clsid(normalized)
+            return [server] if server else []
+
+        lower = normalized.lower()
+        return [
+            srv for srv in idx._servers
+            if lower in srv.name.lower().replace(" ", "")
+        ]
+
+    def _get_unresolved_com_callers(
+        self,
+        graph: "CallGraph",
+        com_callers: dict[str, set[str]],
+        resolved: dict[int, set[str]],
+    ) -> set[str]:
+        """Find functions that call COM APIs but have no resolved CLSIDs."""
+        resolved_ids = set(resolved.keys())
+        unresolved: set[str] = set()
+        for func_name in com_callers:
+            func_id = graph.name_to_id.get(func_name)
+            if func_id is None or func_id not in resolved_ids:
+                unresolved.add(func_name)
+        return unresolved
+
+    def _clsid_matches(self, server: Any, clsids: set[str], idx: Any) -> bool:
+        """Check if a COM server matches any of the resolved CLSIDs."""
+        server_guid = server.clsid.strip("{}").lower()
+        if server_guid in clsids:
+            return True
+        if server.clsid.lower() in clsids:
+            return True
+        for ref in clsids:
+            if not _GUID_RE.fullmatch(ref):
+                if ref.lower() in server.name.lower().replace(" ", ""):
+                    return True
+        return False
+
     def inject_com_edges(self) -> int:
         """Add cross-process COM activation edges from the COM index.
 
-        Scans loaded module graphs for calls to CoCreateInstance-family
-        APIs.  Modules making these calls are treated as COM clients.
-        For each COM server known from the index, edges are created from
-        every client module to the server's method implementations.
+        Resolves CLSIDs at call sites when possible so that edges are
+        targeted to the specific COM servers referenced by each client
+        module.  Falls back to broad connectivity (tagged with
+        ``:unresolved``) when CLSID resolution fails or the analysis DB
+        is unavailable.
 
         Returns the number of COM edges added.
         """
@@ -913,40 +1064,91 @@ class CrossModuleGraph:
         if not idx.loaded:
             return 0
 
-        com_caller_modules: set[str] = set()
+        # Phase 1: find functions calling COM activation APIs per module
+        com_caller_modules: dict[str, dict[str, set[str]]] = {}
         for mod_key, graph in self._graphs.items():
-            for _caller, ext_calls in graph.external_calls.items():
-                for callee_name, _target_mod in ext_calls:
-                    bare = callee_name.lstrip("_")
-                    if bare.startswith("imp_"):
-                        bare = bare[4:]
-                    if bare.lower() in self._COM_ACTIVATION_APIS:
-                        com_caller_modules.add(mod_key)
-                        break
-                if mod_key in com_caller_modules:
-                    break
+            callers = self._find_com_caller_functions(graph)
+            if callers:
+                com_caller_modules[mod_key] = callers
 
         if not com_caller_modules:
             return 0
 
+        # Phase 2: resolve CLSIDs at call sites
+        module_resolved: dict[str, dict[int, set[str]]] = {}
+        module_all_clsids: dict[str, set[str]] = {}
+        for mod_key, callers in com_caller_modules.items():
+            graph = self._graphs[mod_key]
+            resolved = self._resolve_clsids_at_callsites(mod_key, graph, callers)
+            if resolved:
+                module_resolved[mod_key] = resolved
+                merged: set[str] = set()
+                for s in resolved.values():
+                    merged.update(s)
+                module_all_clsids[mod_key] = merged
+
+        # Phase 3: inject edges
         added = 0
-        for server_mod_key, graph in self._graphs.items():
-            procs = idx.get_procedures_for_module(
-                next((fn for fn, dp in self._resolver.list_modules()
-                      if dp == server_mod_key or fn.lower() == server_mod_key), server_mod_key)
-            )
-            if not procs:
+        for client_key, callers in com_caller_modules.items():
+            client_graph = self._graphs.get(client_key)
+            if client_graph is None:
                 continue
 
-            for client_key in com_caller_modules:
-                if client_key == server_mod_key:
-                    continue
-                client_graph = self._graphs.get(client_key)
-                if client_graph is None:
-                    continue
-                for proc_name in procs:
-                    self._add_ipc_edge(client_graph, client_key, server_mod_key, proc_name, f"com:{server_mod_key}")
-                    added += 1
+            resolved_clsids = module_all_clsids.get(client_key, set())
+            graph = self._graphs[client_key]
+
+            if resolved_clsids:
+                # Targeted edges: only connect to servers matching resolved CLSIDs
+                seen: set[tuple[str, str]] = set()
+                for clsid_ref in resolved_clsids:
+                    for server in self._resolve_clsid_to_servers(clsid_ref, idx):
+                        server_key = server.hosting_binary.lower()
+                        if server_key not in self._graphs or server_key == client_key:
+                            continue
+                        for method in server.methods_flat:
+                            edge = (server_key, method.name)
+                            if edge not in seen:
+                                seen.add(edge)
+                                self._add_ipc_edge(
+                                    client_graph, client_key, server_key,
+                                    method.name, f"com:{server_key}",
+                                )
+                                added += 1
+
+                # Broad fallback for functions whose CLSIDs could not be resolved
+                unresolved = self._get_unresolved_com_callers(
+                    graph, callers, module_resolved.get(client_key, {}),
+                )
+                if unresolved:
+                    for server_mod_key in self._graphs:
+                        if server_mod_key == client_key:
+                            continue
+                        procs = idx.get_procedures_for_module(
+                            self._module_display_name(server_mod_key)
+                        )
+                        for proc_name in procs:
+                            edge = (server_mod_key, proc_name)
+                            if edge not in seen:
+                                seen.add(edge)
+                                self._add_ipc_edge(
+                                    client_graph, client_key, server_mod_key,
+                                    proc_name, f"com:{server_mod_key}:unresolved",
+                                )
+                                added += 1
+            else:
+                # No CLSIDs resolved at all -- full broad fallback
+                for server_mod_key in self._graphs:
+                    if server_mod_key == client_key:
+                        continue
+                    procs = idx.get_procedures_for_module(
+                        self._module_display_name(server_mod_key)
+                    )
+                    for proc_name in procs:
+                        self._add_ipc_edge(
+                            client_graph, client_key, server_mod_key,
+                            proc_name, f"com:{server_mod_key}:unresolved",
+                        )
+                        added += 1
 
         if added:
             _log.info("Injected %d COM cross-process edges", added)

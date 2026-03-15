@@ -26,7 +26,6 @@ resolve_db_path, resolve_tracking_db = make_db_resolvers(WORKSPACE_ROOT)
 
 from helpers.api_taxonomy import SECURITY_API_CATEGORIES, classify_api_security  # noqa: E402
 from helpers.callgraph import CallGraph  # noqa: E402
-from helpers.asm_metrics import get_asm_metrics, AsmMetrics  # noqa: E402
 
 
 def has_real_decompiled(code: Optional[str]) -> bool:
@@ -49,11 +48,9 @@ MiniCallGraph = CallGraph
 
 
 __all__ = [
-    "AsmMetrics",
     "CallGraph",
     "classify_api_security",
     "emit_error",
-    "get_asm_metrics",
     "has_real_decompiled",
     "MiniCallGraph",
     "parse_json_safe",

@@ -53,7 +53,7 @@ SKILL_INFRASTRUCTURE_DIRS = {"_shared", "__pycache__"}
 AGENT_INFRASTRUCTURE_DIRS = {"_shared", "__pycache__"}
 
 # Skills that are documentation-only (no scripts/ directory expected)
-DOCUMENTATION_ONLY_SKILLS = {"adversarial-reasoning", "analyze-ida-decompiled", "brainstorming", "code-lifting", "finding-verification", "deep-context-builder"}
+DOCUMENTATION_ONLY_SKILLS = set()
 
 # Skills that should have methodology_only: true in registry
 METHODOLOGY_ONLY_SKILLS = DOCUMENTATION_ONLY_SKILLS

@@ -387,24 +387,11 @@ def _section_recommendations(import_result: dict, complexity_result: dict,
     lines.append("### Skill Integration Suggestions\n")
     lines.append("Recommended follow-up analysis using additional skills:\n")
 
-    # Check for complex dispatchers
-    by_loops_names = {f["function_name"] for f in by_loops[:20] if f["loop_count"] >= 3}
-    if by_loops_names:
-        sample = list(by_loops_names)[:3]
-        names_str = ", ".join(f"`{n}`" for n in sample)
-        lines.append(f"- **state-machine-extractor**: Complex dispatch/loop functions detected ({names_str})")
-
     # Check for many class methods
     type_dist = complexity_result.get("distributions", {}).get("type", {})
     if type_dist.get("class_method", 0) > 20:
         lines.append(f"- **batch-lift**: {type_dist['class_method']} class methods -- "
                      "consider batch-lifting entire classes together")
-
-    # Global state writers
-    by_globals = complexity_result.get("by_global_state", [])
-    if by_globals and by_globals[0]["total"] > 10:
-        lines.append(f"- **data-flow-tracer**: High global state access count -- "
-                     f"trace data flow through `{by_globals[0]['function_name']}` and related functions")
 
     # Entry point coverage
     entry_reach = topology_result.get("entry_reachability", [])

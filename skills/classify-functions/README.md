@@ -226,7 +226,4 @@ classify-functions/
 - [security-dossier](../security-dossier/SKILL.md) -- Deep security context for individual functions
 - [map-attack-surface](../map-attack-surface/SKILL.md) -- Map module-wide attack surface and rank entry points
 - [callgraph-tracer](../callgraph-tracer/SKILL.md) -- Trace call chains across modules
-- [data-flow-tracer](../data-flow-tracer/SKILL.md) -- Trace parameter and data flow
-- [code-lifting](../code-lifting/SKILL.md) -- Lift functions into clean, readable code
 - [reconstruct-types](../reconstruct-types/SKILL.md) -- Reconstruct struct/class definitions
-- [verify-decompiled](../verify-decompiled/SKILL.md) -- Verify decompiler accuracy

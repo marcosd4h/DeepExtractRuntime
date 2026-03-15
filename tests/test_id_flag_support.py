@@ -6,7 +6,6 @@ Validates the best practice: "After resolving a function, use --id
 Covers:
   - CallGraph.find_function_by_id()           (helpers/callgraph.py)
   - resolve_function with function_id          (helpers/function_resolver.py)
-  - string_trace.py --id                      (data-flow-tracer)
   - generate_diagram.py --id                  (callgraph-tracer)
   - build_call_graph.py --id                  (callgraph-tracer)
   - cross_module_resolve.py --id              (callgraph-tracer)
@@ -175,36 +174,6 @@ class TestResolveFunctionById:
             func, err = resolve_function(db, name="Beta", function_id=10)
             assert func is not None
             assert func.function_name == "Alpha"
-
-
-# ===================================================================
-# string_trace.py: _find_function_strings with function_id
-# ===================================================================
-
-class TestStringTraceIdSupport:
-    @pytest.fixture(autouse=True)
-    def _load_module(self):
-        self.mod = _load_skill("data-flow-tracer", "string_trace")
-
-    def test_find_function_strings_by_id(self, id_test_db):
-        results = self.mod._find_function_strings(str(id_test_db), function_id=10)
-        assert len(results) == 1
-        assert results[0]["function_name"] == "Alpha"
-        assert "hello world" in results[0]["all_strings"]
-
-    def test_find_function_strings_by_id_not_found(self, id_test_db):
-        results = self.mod._find_function_strings(str(id_test_db), function_id=999)
-        assert results == []
-
-    def test_trace_function_strings_by_id(self, id_test_db):
-        result = self.mod.trace_function_strings(str(id_test_db), function_id=10)
-        assert result["status"] == "ok"
-        assert len(result["functions"]) == 1
-        assert result["functions"][0]["function_name"] == "Alpha"
-
-    def test_trace_function_strings_by_id_not_found(self, id_test_db):
-        result = self.mod.trace_function_strings(str(id_test_db), function_id=999)
-        assert result["status"] == "not_found"
 
 
 # ===================================================================

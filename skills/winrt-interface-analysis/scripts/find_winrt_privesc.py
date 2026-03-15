@@ -12,7 +12,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import re
 import sys
 from pathlib import Path
 
@@ -21,12 +20,6 @@ sys.path.insert(0, str(_SCRIPT_DIR))
 
 from _common import WinrtServer, emit_json, parse_context, require_winrt_index
 from helpers.errors import safe_parse_args
-
-_HIGH_VALUE_PATTERNS = re.compile(
-    r"(?i)(launch|execute|create|write|delete|set|put|install|"
-    r"update|register|config|policy|shutdown|reboot|crypt|"
-    r"impersonat|token|credential|elevat)"
-)
 
 
 def _score_server(srv: WinrtServer) -> float:
@@ -43,14 +36,8 @@ def _score_server(srv: WinrtServer) -> float:
     if srv.is_base_trust:
         score += 0.05
 
-    method_surface = min(srv.method_count / 20.0, 1.0) * 0.10
+    method_surface = min(srv.method_count / 20.0, 1.0) * 0.20
     score += method_surface
-
-    high_value_count = sum(
-        1 for m in srv.methods_flat if _HIGH_VALUE_PATTERNS.search(m.short_name)
-    )
-    high_value_ratio = min(high_value_count / max(srv.method_count, 1), 1.0) * 0.20
-    score += high_value_ratio
 
     context_breadth = min(len(srv.access_contexts) / 4.0, 1.0) * 0.05
     score += context_breadth
@@ -88,10 +75,7 @@ def main() -> None:
         for score, srv in scored:
             d = srv.to_dict()
             d["privesc_score"] = round(score, 3)
-            d["high_value_methods"] = [
-                m.to_dict() for m in srv.methods_flat
-                if _HIGH_VALUE_PATTERNS.search(m.short_name)
-            ]
+            d["method_count"] = srv.method_count
             targets.append(d)
         emit_json({
             "caller_il": caller_il,
@@ -120,13 +104,6 @@ def main() -> None:
             f"{identity:<25}  "
             f"{srv.name}"
         )
-
-        high_value = [m for m in srv.methods_flat if _HIGH_VALUE_PATTERNS.search(m.short_name)]
-        if high_value:
-            for m in high_value[:3]:
-                print(f"        >> {m.short_name}")
-            if len(high_value) > 3:
-                print(f"        ... and {len(high_value) - 3} more high-value methods")
 
 
 if __name__ == "__main__":

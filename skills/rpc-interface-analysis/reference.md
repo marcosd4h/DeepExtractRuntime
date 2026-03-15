@@ -33,22 +33,6 @@
 | `parameter.ndr_type` | str | NDR wire type |
 | `parameter.name` | str | Parameter name |
 
-### Procedure Classification
-
-Semantic categories assigned by `rpc_procedure_classifier`:
-
-| Category | Pattern Examples |
-|----------|-----------------|
-| authentication | Auth, Login, Credential, Token |
-| file_io | File, Read, Write, Open, Create |
-| process | Process, Launch, Execute, Spawn |
-| registry | Registry, RegKey |
-| network | Network, Socket, Connect |
-| crypto | Crypt, Encrypt, Hash, Sign |
-| system_management | Update, Install, Config, Policy |
-| data_access | Get, Set, Query, Enum, List |
-| event | Event, Notify, Callback |
-
 ### Blast-Radius Model
 
 Co-hosted interfaces share a process; compromising one exposes all siblings.
@@ -153,4 +137,3 @@ Risk tier is a property of `RpcInterface`, computed from protocols, service stat
 | Stub directory missing | Stub signatures unavailable; proceeds without them |
 | DB path invalid (audit/trace) | `emit_error()` with `NOT_FOUND` |
 | Interface UUID not found | Returns empty result |
-| Procedure classification miss | Falls back to "other" category |

@@ -53,7 +53,7 @@
 ### Composite Attack Score (0.0 - 1.0)
 
 ```
-attack_score = param_risk      * 0.25
+attack_score = param_signal   * 0.25   # 1.0 if attacker-typed input (buffer+size, string, COM), 0.3 if any params, 0.0 if none
              + danger_reach    * 0.30
              + danger_proximity * 0.15
              + reach_breadth   * 0.15
@@ -62,22 +62,9 @@ attack_score = param_risk      * 0.25
 
 ### Component Details
 
-**1. Parameter Risk (0.25 weight)**
+**1. Parameter Signal (0.25 weight)**
 
-Scored from the function signature. Patterns ranked by risk:
-
-| Pattern | Risk Score | Rationale |
-|---|---|---|
-| `void*` + size parameter pair | 0.9 | Attacker controls buffer AND bounds |
-| `wchar_t*/LPWSTR` pointer | 0.9 | String buffer, common overflow target |
-| `char*/LPSTR` pointer | 0.9 | String buffer, classic overflow target |
-| `BSTR/VARIANT/SAFEARRAY` | 0.85 | COM data types, complex parsing |
-| `IUnknown*/IDispatch*` | 0.7 | COM interface, can be attacker-controlled |
-| `HANDLE/SOCKET` | 0.5 | Can reference attacker objects |
-| `REFIID/GUID` | 0.4 | Interface selection |
-| `DWORD/ULONG` (size) | 0.3 | Only dangerous when paired with buffer |
-| Flags/options | 0.2 | Can change behavior but limited direct impact |
-| `void` (no params) | 0.1 | Minimal direct attack surface |
+Parameter signal derived from `param_surface` metadata (boolean: has attacker-typed input).
 
 **2. Dangerous Operations Reachable (0.30 weight)**
 
@@ -176,7 +163,7 @@ entry_points[]:
   entry_type:               Type enum name
   signature:                Extended function signature
   analysis:
-    param_risk_score:       0.0-1.0
+    param_surface:          dict (structured metadata)
     reachable_functions:    Count of reachable internal functions
     dangerous_ops_reachable: Count of dangerous API sinks reachable
     depth_to_first_danger:  BFS depth to nearest danger (null if none)

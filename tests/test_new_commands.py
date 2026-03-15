@@ -108,9 +108,6 @@ class TestHuntExecuteCommand:
         assert "CONFIRMED" in self.text
         assert "REFUTED" in self.text
 
-    def test_references_taint_skill(self):
-        assert "taint-analysis" in self.reg["skills_used"]
-
     def test_references_exploitability(self):
         assert "exploitability-assessment" in self.reg["skills_used"]
 
@@ -136,9 +133,6 @@ class TestBatchAuditCommand:
 
     def test_references_security_dossier(self):
         assert "security-dossier" in self.reg["skills_used"]
-
-    def test_references_taint(self):
-        assert "taint-analysis" in self.reg["skills_used"]
 
     def test_references_exploitability(self):
         assert "exploitability-assessment" in self.reg["skills_used"]

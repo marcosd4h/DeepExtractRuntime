@@ -148,5 +148,5 @@ class TestTriagePipelineRegistry:
             "security-auditor not found in agents/registry.json"
         )
         agent = agent_registry["agents"]["security-auditor"]
-        assert "taint-analysis" in agent["skills_used"]
+        assert "ai-taint-scanner" in agent["skills_used"]
         assert "exploitability-assessment" in agent["skills_used"]

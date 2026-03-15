@@ -6,7 +6,6 @@ The runtime supports deterministic state transitions for vulnerability research.
 
 ## Module Triage Initialization
 For preliminary analysis of unindexed binaries, the system executes the following operational chain:
-- **Initialization**: Executes quickstart command to inventory available modules and assess baseline characteristics.
 - **Classification**: Executes triage command to extract binary identity, functional classification, and entry point distribution.
 - **Vulnerability Scanning**: Executes scan command to perform parallel memory corruption, logic flaw, and taint analyses.
 - **Prioritization**: Executes prioritize command to normalize and score findings based on a calculated exploitability index.
@@ -22,7 +21,7 @@ For systematic evaluation of known high-risk components:
 For targeted research based on specific vulnerability classes or patterns:
 - **Planning Phase**: Executes hunt-plan command to synthesize a structured research schema and generate verifiable hypotheses.
 - **Execution Phase**: Executes hunt-execute command to systematically apply the generated schema against the target binary, recording confidence scores for each hypothesis.
-- **Validation Phase**: Executes audit command on confirmed findings, followed by the finding-verification capability to evaluate the results against assembly-level ground truth.
+- **Validation Phase**: Executes audit command on confirmed findings to evaluate the results against assembly-level ground truth.
 
 ## Export Dependency Tracing
 For exhaustive mapping of specific exported interfaces:
@@ -33,7 +32,6 @@ For exhaustive mapping of specific exported interfaces:
 ## Cross-Boundary Impact Analysis
 For evaluating inter-module dependencies and data propagation:
 - **Dependency Graphing**: Executes imports command to construct PE-level dependency structures.
-- **Boundary Tracing**: Executes data-flow-cross command to track parameter flow across dynamically linked module boundaries.
 - **Comparative Assessment**: Executes compare-modules command to evaluate capability overlap, functional classification, and security posture across related binaries.
 
 ## Interface Attack Surface Mapping
@@ -46,8 +44,6 @@ For systematic enumeration of privilege escalation vectors:
 For generating functionally equivalent source representations:
 - **Type Resolution**: Executes reconstruct-types command to extract structure definitions from memory access patterns.
 - **Stateful Lifting**: Executes lift-class command to initialize a shared state context and orchestrate the code-lifter subagent through a deterministic translation sequence.
-- **Independent Validation**: Dispatches the verifier subagent to execute a block-by-block comparative analysis between the generated representation and the original assembly.
-- **Batch Verification**: Executes verify-batch command for comprehensive assessment of the reconstructed class methods.
 
 # Introduction and Architecture
 
@@ -156,7 +152,7 @@ The system employs a standardized filesystem handoff protocol to manage state du
 
 # Skills Reference
 
-The runtime implements 29 distinct skills, categorized by functional purpose. These capabilities operate as discrete analytical units, processing extraction data and generating structured output.
+The runtime implements 17 distinct skills, categorized by functional purpose. These capabilities operate as discrete analytical units, processing extraction data and generating structured output.
 
 ## Foundation and Data Access
 
@@ -196,13 +192,6 @@ This capability categorizes function logic into 20 distinct operational domains 
 - **classify_module.py**: Generates the complete categorized index with threshold filtering parameters.
 - **classify_function.py**: Executes detailed classification analysis on a single targeted function.
 
-### data-flow-tracer
-This capability tracks parameter propagation, argument origination, global variable state changes, and string literal utilization across the execution flow.
-- **forward_trace.py**: Tracks outbound parameter flow to dependent calls.
-- **backward_trace.py**: Tracks argument origin from a specific API invocation.
-- **global_state_map.py**: Computes the reader/writer matrix for global variables.
-- **string_trace.py**: Maps the execution context of string literal references.
-
 ### generate-re-report
 This capability synthesizes data from multiple databases to construct a 10-section reverse engineering report. It cross-correlates external interfaces, complexity hotspots, and security posture.
 - **generate_report.py**: Orchestrates the synthesis process.
@@ -221,17 +210,6 @@ This capability inventories 20 distinct entry point structures and computes an a
 ### security-dossier
 This capability aggregates function identity, reachability data, data exposure metrics, dangerous operations, and surrounding execution context into a unified dataset.
 - **build_dossier.py**: Executes the aggregation logic to produce an 8-section context block and flags high-priority security indicators.
-
-### state-machine-extractor
-This capability processes decompiled control flow and jump table cross-references to reconstruct command dispatchers and state transition logic.
-- **detect_dispatchers.py**: Scans the codebase for switch arrays and cascading conditionals.
-- **extract_dispatch_table.py**: Maps conditional cases to corresponding handler functions.
-- **extract_state_machine.py**: Reconstructs state-loop transitions.
-- **generate_state_diagram.py**: Generates visual state transition models.
-
-### string-intelligence
-This capability evaluates string literals against security-relevant patterns to identify hardcoded targets.
-- **analyze_strings_deep.py**: Executes the scanning and categorization logic with filtering parameters.
 
 ## Interface Analysis
 
@@ -271,52 +249,30 @@ This capability maps Windows Runtime activation classes, methods, trust levels, 
 
 ## Vulnerability Detection
 
-### memory-corruption-detector
-This capability processes syntax trees to detect memory safety violations, implementing parallel scanning logic followed by an independent assembly-level verification sequence.
-- **scan_buffer_overflows.py**: Detects buffer bounds violations.
-- **scan_integer_issues.py**: Detects arithmetic overflows leading to unsafe allocations.
-- **scan_use_after_free.py**: Detects temporal memory violations.
-- **scan_format_strings.py**: Detects unsafe format string parameters.
-- **verify_findings.py**: Cross-references findings against assembly instructions, classifying output confidence into four distinct bands.
+### ai-memory-corruption-scanner
+This capability uses LLM agents with adversarial prompting to detect memory safety violations, navigating cross-module callgraphs with type-specific specialists and skeptic verification.
+- **build_threat_model.py**: Builds a threat model identifying memory-corruption-prone entry points and callgraph paths.
+- **prepare_context.py**: Prepares rich function context (decompiled code, assembly, xrefs, data flow) for LLM-driven analysis.
+- Actual scanning is LLM-driven via the `/memory-scan` command, which orchestrates specialist and skeptic agents.
 
-### logic-vulnerability-detector
-This capability detects control flow bypasses, state invalidation, impersonation flaws, and absent validation checks that circumvent hardware memory protections.
-- **scan_auth_bypass.py**: Detects authorization state bypasses.
-- **scan_state_errors.py**: Detects logic sequence invalidation.
-- **scan_logic_flaws.py**: Detects TOCTOU patterns and path leakage.
-- **scan_api_misuse.py**: Detects improper parameter passing to sensitive APIs.
-- **verify_findings.py**: Validates findings against assembly behavior.
-- **generate_logic_report.py**: Synthesizes a unified report using a weighted scoring model.
+### ai-logic-scanner
+This capability uses LLM agents with adversarial prompting to detect control flow bypasses, state invalidation, impersonation flaws, and absent validation checks, navigating cross-module callgraphs with 4 type-specific specialists (AuthBypass, StateConfusion, Impersonation, RaceCondition) and skeptic verification. Structural enrichments include dispatch_profile, shared_state_profile, and classification_summary alongside the standard callgraph context.
+- **build_threat_model.py**: Builds a threat model identifying logic-vulnerability-prone entry points and callgraph paths.
+- **prepare_context.py**: Prepares rich function context (decompiled code, assembly, xrefs, data flow) for LLM-driven analysis.
+- Actual scanning is LLM-driven via the `/ai-logical-bug-scan` command, which orchestrates specialist and skeptic agents.
 
-### taint-analysis
-This capability tracks parameter input via execution paths to sensitive sinks, mapping bounds checking, trust levels, and inter-module transitions.
-- **taint_function.py**: Executes the core tracking algorithm.
-- **trace_taint_forward.py**: Tracks parameters to destinations.
-- **trace_taint_backward.py**: Tracks arguments to origins.
-- **trace_taint_cross_module.py**: Manages tracking across DLL boundaries with parameter remapping.
-- **generate_taint_report.py**: Synthesizes trace data, calculating a severity score inversely proportional to path length and guard complexity.
+### ai-taint-scanner
+This capability uses LLM agents with taint-specific context enrichment to trace attacker-controlled data through cross-module callgraphs, analyzing trust boundary crossings, insufficient input validation, and dangerous sink reachability with skeptic verification.
+- **build_threat_model.py**: Builds a threat model identifying taint-analysis-prone entry points and callgraph paths.
+- **prepare_context.py**: Prepares rich function context (decompiled code, assembly, xrefs, data flow) for LLM-driven taint analysis.
+- Actual scanning is LLM-driven via the `/taint` command, which orchestrates specialist and skeptic agents.
 
 ### exploitability-assessment
 This capability processes output from detection capabilities, normalizing data into a unified schema and calculating a comprehensive exploitability index based on reachability and guard bypass difficulty.
 - **assess_finding.py**: Calculates exploitability for discrete findings across five weighted dimensions.
 - **batch_assess.py**: Processes aggregate finding sets for prioritization sorting.
 
-## Verification
-
-### verify-decompiled
-This capability cross-references decompiled C++ output against the assembly instructions to identify translation artifacts and specific conversion errors. The capability caches output utilizing the database modification timestamp.
-- **scan_module.py**: Executes a heuristic-based triage across the module to identify potential translation discrepancies based on defined severity thresholds.
-- **verify_function.py**: Executes a deep, instruction-by-instruction alignment on a specific function to map decompiled syntax to assembly equivalents.
-
-### finding-verification
-This capability formalizes the verification protocol, requiring systematic confirmation of vulnerability findings against the assembly layer before accepting or rejecting a hypothesis.
-- The capability dictates a standardized workflow: restate the hypothesis, trace data flow, verify attacker control parameters, execute a contradiction review, and assign a deterministic TRUE POSITIVE or FALSE POSITIVE verdict.
-
 ## Code Reconstruction
-
-### code-lifting
-This capability defines the structured workflow for converting decompiled pseudocode into functional C++ syntax while preserving the operational equivalence of the assembly layer.
-- The process dictates 11 discrete execution steps: data gathering, assembly validation, parameter renaming, local variable renaming, constant substitution, structure mapping, pointer conversion, control flow simplification, documentation insertion, verification checklist execution, and secondary subagent validation.
 
 ### batch-lift
 This capability coordinates the reconstruction of related function arrays, managing the progressive accumulation of shared definitions across multiple discrete functions.
@@ -332,32 +288,12 @@ This capability processes memory access offsets across an entire module to synth
 
 ## Methodology and Strategy
 
-### adversarial-reasoning
-This capability encodes hypothesis generation frameworks and validation strategies for vulnerability research operations.
-- Defines deterministic execution parameters for five research modes: Campaign initialization, Hypothesis testing, Variant discovery, Finding validation, and Attack surface enumeration.
-
 ### brainstorming
-This capability implements an interactive dialogue structure to construct implementation strategies prior to execution.
-- Dictates a sequential state flow: context aggregation, constraint clarification, option proposal, design presentation, and implementation handover.
-
-### deep-context-builder
-This capability standardizes the block-by-block structural analysis process to reconstruct execution intent without modifying the underlying code.
-- Establishes a three-phase sequence: orientation mapping, granular operational analysis per logic block, and holistic state/workflow reconstruction.
-
-## Meta and Orchestration
-
-### deep-research-prompt
-This capability orchestrates data retrieval across multiple analysis modules to generate synthesized, context-heavy prompt payloads for external assessment.
-- **gather_function_context.py**: Aggregates function-level analysis data.
-- **gather_module_context.py**: Aggregates module-level metrics.
-- **generate_research_prompt.py**: Formats the aggregated data into a standardized assessment template.
-
-### analyze-ida-decompiled
-This capability provides the definitional reference matrix for mapping Hex-Rays artifacts, variable naming patterns, and control flow primitives to standardized analysis workflows.
+Merged into `/hunt-plan`. Strategic campaign planning, cross-module campaigns, post-analysis re-planning, and tool/skill design are now available as modes `cross`, `replan`, and `design` within the `/hunt-plan` command.
 
 # Agents Reference
 
-The runtime deploys six specialized subagents operating in isolated context environments to orchestrate complex operations and synthesize capability outputs.
+The runtime deploys eight specialized subagents operating in isolated context environments to orchestrate complex operations and synthesize capability outputs.
 
 ## re-analyst
 
@@ -366,7 +302,7 @@ The runtime deploys six specialized subagents operating in isolated context envi
 - **Entry Scripts**:
   - **re_query.py**: Executes multi-mode module and function queries. Parameters include database path, overview flag, function string, class string, exports flag, search string, context flag, classification flag, ID string, and JSON flag.
   - **explain_function.py**: Executes granular control flow mapping to output structured function explanations. Parameters include database path, function string, ID string, depth integer, assembly suppression flag, and JSON flag.
-- **Composed Skills**: analyze-ida-decompiled, classify-functions, generate-re-report, decompiled-code-extractor, callgraph-tracer, data-flow-tracer, deep-research-prompt, taint-analysis.
+- **Composed Skills**: classify-functions, generate-re-report, decompiled-code-extractor, callgraph-tracer, ai-taint-scanner.
 - **Workflow**:
   - Validates input syntax and locates function data.
   - Maps parameters, API invocations, and branching logic.
@@ -381,7 +317,7 @@ The runtime deploys six specialized subagents operating in isolated context envi
 - **Entry Scripts**:
   - **analyze_module.py**: Executes the direct analysis pipeline. Parameters include database path, goal string, function string, JSON flag, timeout integer, and workspace run directory string.
   - **generate_analysis_plan.py**: Outputs a hierarchical task schema without execution. Parameters include database path, goal string, function string, and JSON flag.
-- **Composed Skills**: classify-functions, map-attack-surface, callgraph-tracer, security-dossier, reconstruct-types, deep-research-prompt, com-interface-reconstruction, state-machine-extractor, decompiled-code-extractor, taint-analysis, import-export-resolver.
+- **Composed Skills**: classify-functions, map-attack-surface, callgraph-tracer, security-dossier, reconstruct-types, com-interface-reconstruction, decompiled-code-extractor, ai-taint-scanner, import-export-resolver.
 - **Adaptive Execution**: Evaluates the pre-computed module profile to selectively append specialized analysis phases.
 - **Usage Boundaries**: Employ this agent for complete module triage and security baseline initialization. Do not utilize for single-function explanations or localized instruction verification.
 
@@ -391,7 +327,7 @@ The runtime deploys six specialized subagents operating in isolated context envi
 - **Purpose**: Executes vulnerability detection routines, correlates taint propagation data, computes exploitability indices, and synthesizes security audit reports.
 - **Entry Scripts**:
   - **run_security_scan.py**: Orchestrates the detection and verification sequence. Parameters include database path, goal string, function string, top integer, JSON flag, and timeout integer.
-- **Composed Skills**: decompiled-code-extractor, classify-functions, map-attack-surface, security-dossier, taint-analysis, exploitability-assessment, memory-corruption-detector, logic-vulnerability-detector.
+- **Composed Skills**: decompiled-code-extractor, classify-functions, map-attack-surface, security-dossier, ai-taint-scanner, exploitability-assessment, ai-memory-corruption-scanner, ai-logic-scanner.
 - **Workflow**:
   - Executes entry point discovery and risk ranking.
   - Deploys memory corruption and logic vulnerability capabilities in parallel.
@@ -407,7 +343,7 @@ The runtime deploys six specialized subagents operating in isolated context envi
 - **Entry Scripts**:
   - **batch_extract.py**: Extracts target functions and initializes the shared state schema. Parameters include database path, class string, functions list, ID list, initialization flag, summary flag, and JSON flag.
   - **track_shared_state.py**: Manages read/write operations against the persistent JSON state schema. Parameters manage field offsets, constant values, naming mappings, and execution status tracking.
-- **Composed Skills**: decompiled-code-extractor, code-lifting, batch-lift, reconstruct-types, verify-decompiled, function-index.
+- **Composed Skills**: decompiled-code-extractor, batch-lift, reconstruct-types, function-index.
 - **Workflow**:
   - Extracts the target method array and establishes the dependency execution sequence.
   - Executes the predefined 11-step code lifting sequence per method.
@@ -426,32 +362,32 @@ The runtime deploys six specialized subagents operating in isolated context envi
 - **Composed Skills**: decompiled-code-extractor, reconstruct-types, com-interface-reconstruction.
 - **Usage Boundaries**: Employ this agent for generating header files and establishing type layouts. Do not utilize for control flow analysis or vulnerability detection.
 
-## verifier
+## memory-corruption-scanner
 
-- **Type**: verifier
-- **Purpose**: Executes a block-by-block comparison between generated C++ syntax and the originating assembly instructions to detect translation artifacts and functional divergence.
-- **Entry Scripts**:
-  - **compare_lifted.py**: Evaluates seven deterministic heuristic conditions. Parameters include database path, function name, identifier, lifted code path, standard input flag, and JSON flag.
-  - **extract_basic_blocks.py**: Parses assembly output into verifiable instruction blocks.
-  - **generate_verification_report.py**: Synthesizes output into a deterministic PASS, WARN, or FAIL status code.
-- **Composed Skills**: verify-decompiled, decompiled-code-extractor, code-lifting.
-- **Usage Boundaries**: Employ this agent exclusively following a code lifting operation to independently validate translation accuracy.
+- **Type**: analyst (LLM-only)
+- **Purpose**: AI-driven memory corruption vulnerability scanner. Operates as an LLM subagent receiving callgraph + code batches prepared by the `ai-memory-corruption-scanner` skill.
+- **Composed Skills**: ai-memory-corruption-scanner, decompiled-code-extractor, map-attack-surface.
+- **Usage Boundaries**: Launched by `/memory-scan` and `/scan`. Do not utilize for explanation, lifting, or orchestration tasks.
+
+## logic-scanner
+
+- **Type**: analyst (LLM-only)
+- **Purpose**: AI-driven logic vulnerability scanner. Operates as an LLM subagent receiving callgraph + code batches prepared by the `ai-logic-scanner` skill.
+- **Composed Skills**: ai-logic-scanner, decompiled-code-extractor, map-attack-surface.
+- **Usage Boundaries**: Launched by `/ai-logical-bug-scan` and `/scan`. Do not utilize for explanation, lifting, or orchestration tasks.
+
+## taint-scanner
+
+- **Type**: analyst (LLM-only)
+- **Purpose**: AI-driven taint analysis scanner. Operates as an LLM subagent receiving callgraph + code batches prepared by the `ai-taint-scanner` skill. Uses taint-specific context enrichment, trust boundary analysis, and skeptic verification.
+- **Composed Skills**: ai-taint-scanner, decompiled-code-extractor, map-attack-surface.
+- **Usage Boundaries**: Launched by `/taint` and `/scan`. Do not utilize for explanation, lifting, or orchestration tasks.
 
 # Commands Reference
 
-The runtime executes 36 predefined operational sequences triggered via slash commands.
+The runtime executes 28 predefined operational sequences triggered via slash commands.
 
 ## Initialization Operations
-
-### quickstart
-Executes an initial system inventory and calculates baseline module characteristics.
-- **Parameters**: target module.
-- **Execution Sequence**:
-  - Resolves available databases via find_module_db.py.
-  - Computes the most statistically relevant module based on entry point diversity and security API utilization.
-  - Executes triage_summary.py, discover_entrypoints.py, and build_call_graph.py concurrently.
-  - Outputs the module summary, top structural entry points, and an operational recommendation vector.
-- **Composed Elements**: classify-functions, map-attack-surface, callgraph-tracer, decompiled-code-extractor.
 
 ### health
 Executes system state validation.
@@ -476,7 +412,7 @@ Executes baseline module data extraction and classification.
   - Computes call graph topology via build_call_graph.py.
   - Identifies the entry point surface via discover_entrypoints.py and rank_entrypoints.py.
   - Triggers a localized taint scan on the highest-ranked entries.
-- **Composed Elements**: decompiled-code-extractor, generate-re-report, classify-functions, callgraph-tracer, map-attack-surface, taint-analysis.
+- **Composed Elements**: decompiled-code-extractor, generate-re-report, classify-functions, callgraph-tracer, map-attack-surface, ai-taint-scanner.
 
 ### full-report
 Executes an exhaustive, multi-phase synthesis utilizing the Task Iteration Protocol.
@@ -489,7 +425,7 @@ Executes an exhaustive, multi-phase synthesis utilizing the Task Iteration Proto
   - Executes Phase 4: Calculates topological and cross-module metrics.
   - Executes Phase 5: Conditionally extracts COM, state machine, and type layout structures based on module profiling thresholds.
   - Executes Phase 6: Assembles the 11-section output markdown artifact.
-- **Composed Elements**: triage-coordinator, decompiled-code-extractor, generate-re-report, classify-functions, map-attack-surface, callgraph-tracer, com-interface-reconstruction, state-machine-extractor, data-flow-tracer, taint-analysis, security-dossier, reconstruct-types, verify-decompiled, function-index.
+- **Composed Elements**: triage-coordinator, decompiled-code-extractor, generate-re-report, classify-functions, map-attack-surface, callgraph-tracer, com-interface-reconstruction, ai-taint-scanner, security-dossier, reconstruct-types, function-index.
 
 ### explain
 Executes focused extraction to define specific function logic.
@@ -498,7 +434,7 @@ Executes focused extraction to define specific function logic.
   - Locates the function index pointer.
   - Executes explain_function.py to process control flow and API usage.
   - Synthesizes the operational purpose, parameter structure, return state, and a calculated confidence threshold.
-- **Composed Elements**: re-analyst, function-index, decompiled-code-extractor, classify-functions, deep-research-prompt.
+- **Composed Elements**: re-analyst, function-index, decompiled-code-extractor, classify-functions.
 
 ### search
 Executes multidimensional cross-referencing across functions, APIs, and string literals.
@@ -530,26 +466,6 @@ Executes graph generation from cross-reference mappings.
   - Conditionally executes generate_diagram.py to render the topological structure.
 - **Composed Elements**: decompiled-code-extractor, callgraph-tracer.
 
-### data-flow
-Executes localized parameter tracing.
-- **Parameters**: trace direction, module name, function name, parameter index, target API string, argument index, caller inclusion flag, depth integer, assembly inclusion flag, target string, string list flag, result limit integer, global address string.
-- **Execution Sequence**:
-  - Locates the function and parameter offsets.
-  - Executes the applicable trace script.
-  - Formats the resulting data vectors.
-- **Composed Elements**: data-flow-tracer, decompiled-code-extractor, function-index.
-
-### data-flow-cross
-Executes recursive parameter tracing across module boundaries.
-- **Parameters**: trace direction, module name, function name, parameter index, target API string, depth integer.
-- **Execution Sequence**:
-  - Resolves the primary database and the global tracking database.
-  - Computes the localized trace logic.
-  - Determines cross-module transitions using the import-export-resolver.
-  - Re-initializes the trace logic within the secondary database context.
-  - Formats the concatenated path and parameter mappings.
-- **Composed Elements**: data-flow-tracer, callgraph-tracer, import-export-resolver, decompiled-code-extractor, function-index.
-
 ### imports
 Executes queries against PE-level dependency structures.
 - **Parameters**: module name, lookup function string, consumers resolution flag, diagram generation flag, forwarder resolution flag.
@@ -557,25 +473,6 @@ Executes queries against PE-level dependency structures.
   - Verifies the cross-module index state.
   - Executes query_function.py, module_deps.py, or resolve_forwarders.py based on passed flags.
 - **Composed Elements**: import-export-resolver.
-
-### strings
-Executes categorization of extracted literal values.
-- **Parameters**: module name, function name, result limit integer, string category string, function ID string.
-- **Execution Sequence**:
-  - Resolves the database context.
-  - Executes analyze_strings_deep.py, parsing string definitions against security taxonomies.
-- **Composed Elements**: string-intelligence, decompiled-code-extractor.
-
-### state-machines
-Executes the detection and extraction of conditional loop structures.
-- **Parameters**: module name, function name, diagram generation flag, full module detection flag.
-- **Execution Sequence**:
-  - Resolves the database context.
-  - Conditionally scans the module for dispatch patterns using detect_dispatchers.py.
-  - Computes case-to-handler mappings via extract_dispatch_table.py.
-  - Reconstructs state variables via extract_state_machine.py.
-  - Renders the node map using generate_state_diagram.py.
-- **Composed Elements**: state-machine-extractor, decompiled-code-extractor, function-index.
 
 ### compare-modules
 Executes comparative logic across multiple binaries.
@@ -634,10 +531,10 @@ Executes a composite diagnostic utilizing iterative state tracking.
   - Executes parallel arrays of memory detection scripts and logic detection scripts.
   - Executes parallel taint tracking mapped to the top 5 discovered entry points.
   - Merges and deduplicates overlapping data vectors.
-  - Dispatches verify_findings.py against the merged vector set to establish confidence thresholds.
+  - Applies verification against the merged vector set to establish confidence thresholds.
   - Computes the derived exploitability score for findings validated at CRITICAL or HIGH levels.
   - Conditionally executes the audit pipeline for the highest-ranking vulnerabilities.
-- **Composed Elements**: memory-corruption-detector, logic-vulnerability-detector, taint-analysis, map-attack-surface, exploitability-assessment, decompiled-code-extractor.
+- **Composed Elements**: ai-memory-corruption-scanner, ai-logic-scanner, ai-taint-scanner, map-attack-surface, exploitability-assessment, decompiled-code-extractor.
 
 ### memory-scan
 Executes deterministic bounds-checking and memory safety analysis.
@@ -645,16 +542,16 @@ Executes deterministic bounds-checking and memory safety analysis.
 - **Execution Sequence**:
   - Executes four independent sub-processes targeting buffer constraints, integer arithmetic conditions, use-after-free sequences, and format string input mappings.
   - Reconciles findings and executes cross-referencing against the assembly source.
-- **Composed Elements**: memory-corruption-detector, decompiled-code-extractor.
+- **Composed Elements**: ai-memory-corruption-scanner, decompiled-code-extractor.
 
-### logic-scan
-Executes pattern analysis targeting validation bypass conditions.
+### ai-logical-bug-scan
+Executes AI-driven logic vulnerability scanning with adversarial prompting and skeptic verification.
 - **Parameters**: module name, function string, result limit integer, function ID string.
 - **Execution Sequence**:
-  - Initializes logic-specific scripts.
-  - Merges results and executes the assembly verification step.
-  - Renders the synthesis report utilizing predefined metric weights.
-- **Composed Elements**: logic-vulnerability-detector, decompiled-code-extractor.
+  - Builds threat model and prepares rich function context.
+  - Orchestrates specialist and skeptic LLM agents for each vulnerability type.
+  - Merges results and produces verified findings with confidence scores.
+- **Composed Elements**: ai-logic-scanner, decompiled-code-extractor.
 
 ### taint
 Executes source-to-sink parameter tracking.
@@ -663,7 +560,7 @@ Executes source-to-sink parameter tracking.
   - Computes the trace vector from the defined starting state, logging specific memory and structure transfers.
   - Flags encountered bounds checks or validation routines.
   - Identifies module transitions, recalculating state at trust boundaries.
-- **Composed Elements**: taint-analysis, function-index, decompiled-code-extractor.
+- **Composed Elements**: ai-taint-scanner, function-index, decompiled-code-extractor.
 
 ## Security Auditing Operations
 
@@ -676,7 +573,7 @@ Executes context aggregation and independent verification for a localized functi
   - Conditionally executes a forward taint track based on API parameter consumption.
   - Formats output against the standardized criteria checklist.
   - Executes the verification subagent, establishing a strict boundary between initial analysis and subsequent validation.
-- **Composed Elements**: decompiled-code-extractor, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, classify-functions, taint-analysis, function-index.
+- **Composed Elements**: decompiled-code-extractor, security-dossier, map-attack-surface, callgraph-tracer, classify-functions, ai-taint-scanner, function-index.
 
 ### batch-audit
 Executes parallel initialization of multiple audit processes.
@@ -686,7 +583,7 @@ Executes parallel initialization of multiple audit processes.
   - Instantiates the iteration scratchpad mapped to the specific function array.
   - Triggers the dossier compilation, taint evaluation, exploitability calculation, and semantic classification sequence for each iteration target.
   - Synthesizes findings into a unified matrix structure.
-- **Composed Elements**: security-dossier, taint-analysis, exploitability-assessment, classify-functions, map-attack-surface, rpc-interface-analysis, com-interface-analysis, winrt-interface-analysis, function-index, decompiled-code-extractor.
+- **Composed Elements**: security-dossier, ai-taint-scanner, exploitability-assessment, classify-functions, map-attack-surface, rpc-interface-analysis, com-interface-analysis, winrt-interface-analysis, function-index, decompiled-code-extractor.
 
 ## VR Campaign Operations
 
@@ -697,7 +594,7 @@ Executes the generation of a verifiable analysis sequence.
   - Aggregates existing workspace context variables.
   - Determines threat models and verification strategies without altering codebase logic.
   - Serializes the generated task definitions to a workspace execution file.
-- **Composed Elements**: adversarial-reasoning, classify-functions, map-attack-surface, security-dossier, taint-analysis.
+- **Composed Elements**: classify-functions, map-attack-surface, security-dossier, ai-taint-scanner.
 
 ### hunt-execute
 Executes the operations specified within a structured task definition file.
@@ -707,43 +604,13 @@ Executes the operations specified within a structured task definition file.
   - Orchestrates the defined command executions.
   - Appends confidence thresholds to findings arrays.
   - Renders the resulting payload to an output file.
-- **Composed Elements**: taint-analysis, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, exploitability-assessment.
+- **Composed Elements**: ai-taint-scanner, security-dossier, map-attack-surface, callgraph-tracer, exploitability-assessment.
 
-### brainstorm
-Executes interactive scope definition logic prior to implementation.
-- **Parameters**: research topic string.
-- **Execution Sequence**:
-  - Modulates conversational interface to align context state.
-  - Transitions to implementation state only upon specific condition thresholds.
-- **Composed Elements**: brainstorming.
+### brainstorm (removed -- use /hunt-plan)
+This command has been merged into `/hunt-plan`. Use `/hunt-plan cross`, `/hunt-plan replan`, or `/hunt-plan design` for strategic campaign planning, post-analysis re-planning, or tool/skill design respectively.
+- **Composed Elements**: now part of hunt-plan.
 
 ## Code Quality Operations
-
-### verify-decompiler
-Executes comparative assessment of control flow equivalence.
-- **Parameters**: module name, function name, limit integer.
-- **Execution Sequence**:
-  - Scans defined function syntax trees against corresponding assembly indices.
-  - Computes the differential severity based on control flow discrepancies versus cosmetic alterations.
-- **Composed Elements**: verify-decompiled, function-index.
-
-### verify-finding
-Verifies suspected vulnerability findings against assembly ground truth.
-- **Parameters**: module name, function name, findings path, batch flag.
-- **Execution Sequence**:
-  - Gathers findings from scan output, taint results, or by running scanners on the target.
-  - Restates each claim; routes to Standard or Deep verification.
-  - Verifies data flow path, attacker control, and argues devil's advocate per finding.
-  - Renders TRUE POSITIVE or FALSE POSITIVE verdicts with evidence.
-- **Composed Elements**: finding-verification, taint-analysis, data-flow-tracer, callgraph-tracer, security-dossier, decompiled-code-extractor.
-
-### verify-decompiler-batch
-Executes parallel assessment instances across function arrays.
-- **Parameters**: module name, function enumeration array, class restriction string.
-- **Execution Sequence**:
-  - Initializes the scratchpad protocol based on the computed array size.
-  - Dispatches isolated verification subagents concurrently.
-- **Composed Elements**: verify-decompiled, function-index, reconstruct-types, decompiled-code-extractor.
 
 ### lift-class
 Executes structural reconstruction of interdependent functions.
@@ -753,7 +620,7 @@ Executes structural reconstruction of interdependent functions.
   - Initializes the shared variable space payload.
   - Spawns the code-lifter subagent to sequentially process the array, applying state updates back to the shared payload.
   - Assembles the resulting definitions into a contiguous compilation unit.
-- **Composed Elements**: decompiled-code-extractor, code-lifting, batch-lift, reconstruct-types.
+- **Composed Elements**: decompiled-code-extractor, batch-lift, reconstruct-types.
 
 ### reconstruct-types
 Executes compilation of structural layouts derived from base pointer offsets.
@@ -812,9 +679,6 @@ The shared Python library operates at the foundational tier, exposing core progr
 | **function_index** | Resolution | Evaluates JSON indexes to filter non-application library code. |
 | **batch_operations** | Resolution | Executes simultaneous resolution across function arrays. |
 | **api_taxonomy** | Classification | Maps API invocations to predefined security and functional categories. |
-| **string_taxonomy** | Classification | Maps extracted strings to security impact patterns. |
-| **guard_classifier** | Classification | Evaluates branching patterns to determine parameter validation presence. |
-| **rpc_procedure_classifier** | Classification | Categorizes RPC semantics based on stub analysis. |
 | **callgraph** | Graph | Computes directed topologies and traversal vectors. |
 | **cross_module_graph** | Graph | Computes multi-module topology transitions. |
 | **module_discovery** | Discovery | Enumerates the localized database array. |
@@ -825,13 +689,9 @@ The shared Python library operates at the foundational tier, exposing core progr
 | **rpc_stub_parser** | Interface | Parses auto-generated C# client templates. |
 | **import_export_index** | Interface | Structures PE-level execution dependencies. |
 | **def_use_chain** | Taint/Flow | Maps variable assignment arrays for propagation computation. |
-| **constraint_collector** | Taint/Flow | Extracts control flow constraints along target paths. |
-| **constraint_solver** | Taint/Flow | Computes condition feasibility indices. |
 | **decompiled_parser** | Parsing | Extracts structural components from decompiled syntax trees. |
 | **struct_scanner** | Parsing | Processes base offset arithmetic. |
 | **mangled_names** | Parsing | Computes standard class terminology from compiler naming conventions. |
-| **asm_patterns** | Parsing | Computes instruction boundaries using standard regex filters. |
-| **asm_metrics** | Parsing | Counts discrete functional parameters directly from the assembly tree. |
 | **calling_conventions** | Parsing | Maps x64 registers to parameter definitions. |
 | **type_constants** | Parsing | Translates IDA type syntax to standardized C representations. |
 | **errors** | Output | Manages the uniform error handling schema. |
@@ -868,54 +728,47 @@ The shared Python library operates at the foundational tier, exposing core progr
 | Calculating class logic manually | Execute parse_class_from_mangled |
 | Ad-hoc system categorizations | Execute classify_api |
 | Writing standard diagnostics to standard output | Execute status_message |
-| Defining custom string evaluations | Execute categorize_string |
 | Constructing custom invalidation timers | Execute get_cached or cache_result |
 
 # Cross-Reference Tables
 
 ## Command to Skill Matrix
 
-- **audit**: decompiled-code-extractor, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, classify-functions, taint-analysis, function-index
-- **batch-audit**: security-dossier, taint-analysis, exploitability-assessment, classify-functions, map-attack-surface, rpc-interface-analysis, com-interface-analysis, winrt-interface-analysis, function-index, decompiled-code-extractor
-- **brainstorm**: brainstorming
+- **audit**: decompiled-code-extractor, security-dossier, map-attack-surface, callgraph-tracer, classify-functions, ai-taint-scanner, function-index
+- **batch-audit**: security-dossier, ai-taint-scanner, exploitability-assessment, classify-functions, map-attack-surface, rpc-interface-analysis, com-interface-analysis, winrt-interface-analysis, function-index, decompiled-code-extractor
 - **cache-manage**: classify-functions, callgraph-tracer, generate-re-report
 - **callgraph**: decompiled-code-extractor, callgraph-tracer
 - **com**: com-interface-analysis, decompiled-code-extractor, map-attack-surface
 - **compare-modules**: decompiled-code-extractor, callgraph-tracer, generate-re-report, classify-functions, import-export-resolver, function-index
-- **data-flow**: data-flow-tracer, decompiled-code-extractor, function-index
-- **data-flow-cross**: data-flow-tracer, callgraph-tracer, import-export-resolver, decompiled-code-extractor, function-index
 - **diff**: decompiled-code-extractor, classify-functions, map-attack-surface
-- **explain**: function-index, decompiled-code-extractor, classify-functions, deep-research-prompt
-- **full-report**: decompiled-code-extractor, generate-re-report, classify-functions, map-attack-surface, callgraph-tracer, com-interface-reconstruction, state-machine-extractor, data-flow-tracer, taint-analysis, security-dossier, reconstruct-types, verify-decompiled, function-index
-- **hunt-plan**: adversarial-reasoning, classify-functions, map-attack-surface, security-dossier, taint-analysis
-- **hunt-execute**: taint-analysis, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, exploitability-assessment
+- **explain**: function-index, decompiled-code-extractor, classify-functions
+- **full-report**: decompiled-code-extractor, generate-re-report, classify-functions, map-attack-surface, callgraph-tracer, com-interface-reconstruction, ai-taint-scanner, security-dossier, reconstruct-types, function-index
+- **hunt-plan**: classify-functions, map-attack-surface, security-dossier, ai-taint-scanner
+- **hunt-execute**: ai-taint-scanner, security-dossier, map-attack-surface, callgraph-tracer, exploitability-assessment
 - **imports**: import-export-resolver
-- **lift-class**: decompiled-code-extractor, code-lifting, batch-lift, reconstruct-types
-- **logic-scan**: logic-vulnerability-detector, decompiled-code-extractor
-- **memory-scan**: memory-corruption-detector, decompiled-code-extractor
+- **lift-class**: decompiled-code-extractor, batch-lift, reconstruct-types
+- **ai-logical-bug-scan**: ai-logic-scanner, decompiled-code-extractor
+- **memory-scan**: ai-memory-corruption-scanner, decompiled-code-extractor
 - **prioritize**: decompiled-code-extractor
-- **quickstart**: classify-functions, map-attack-surface, callgraph-tracer, decompiled-code-extractor
 - **reconstruct-types**: reconstruct-types, decompiled-code-extractor, com-interface-reconstruction
 - **rpc**: rpc-interface-analysis, decompiled-code-extractor, map-attack-surface
-- **scan**: memory-corruption-detector, logic-vulnerability-detector, taint-analysis, map-attack-surface, exploitability-assessment, decompiled-code-extractor
-- **state-machines**: state-machine-extractor, decompiled-code-extractor, function-index
-- **strings**: string-intelligence, decompiled-code-extractor
-- **taint**: taint-analysis, function-index, decompiled-code-extractor
-- **audit**: decompiled-code-extractor, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, classify-functions, taint-analysis, import-export-resolver, function-index
-- **triage**: decompiled-code-extractor, generate-re-report, classify-functions, callgraph-tracer, map-attack-surface, taint-analysis, function-index
-- **verify-decompiler**: verify-decompiled, function-index
-- **verify-decompiler-batch**: verify-decompiled, function-index, reconstruct-types, decompiled-code-extractor
+- **scan**: ai-memory-corruption-scanner, ai-logic-scanner, ai-taint-scanner, map-attack-surface, exploitability-assessment, decompiled-code-extractor
+- **taint**: ai-taint-scanner, function-index, decompiled-code-extractor
+- **audit**: decompiled-code-extractor, security-dossier, map-attack-surface, callgraph-tracer, classify-functions, ai-taint-scanner, import-export-resolver, function-index
+- **triage**: decompiled-code-extractor, generate-re-report, classify-functions, callgraph-tracer, map-attack-surface, ai-taint-scanner, function-index
 - **winrt**: winrt-interface-analysis, decompiled-code-extractor, map-attack-surface
 - **xref**: callgraph-tracer, function-index
 
 ## Agent to Skill Matrix
 
-- **re-analyst**: analyze-ida-decompiled, classify-functions, generate-re-report, decompiled-code-extractor, callgraph-tracer, data-flow-tracer, deep-research-prompt, taint-analysis
-- **triage-coordinator**: classify-functions, map-attack-surface, callgraph-tracer, security-dossier, reconstruct-types, deep-research-prompt, com-interface-reconstruction, state-machine-extractor, decompiled-code-extractor, taint-analysis, import-export-resolver
-- **security-auditor**: decompiled-code-extractor, classify-functions, map-attack-surface, security-dossier, taint-analysis, exploitability-assessment, memory-corruption-detector, logic-vulnerability-detector
-- **code-lifter**: decompiled-code-extractor, code-lifting, batch-lift, reconstruct-types, verify-decompiled, function-index
+- **re-analyst**: classify-functions, generate-re-report, decompiled-code-extractor, callgraph-tracer, ai-taint-scanner
+- **triage-coordinator**: classify-functions, map-attack-surface, callgraph-tracer, security-dossier, reconstruct-types, com-interface-reconstruction, decompiled-code-extractor, ai-taint-scanner, import-export-resolver
+- **security-auditor**: decompiled-code-extractor, classify-functions, map-attack-surface, security-dossier, ai-taint-scanner, exploitability-assessment, ai-memory-corruption-scanner, ai-logic-scanner
+- **code-lifter**: decompiled-code-extractor, batch-lift, reconstruct-types, function-index
 - **type-reconstructor**: decompiled-code-extractor, reconstruct-types, com-interface-reconstruction
-- **verifier**: verify-decompiled, decompiled-code-extractor, code-lifting
+- **memory-corruption-scanner**: ai-memory-corruption-scanner, decompiled-code-extractor, map-attack-surface
+- **logic-scanner**: ai-logic-scanner, decompiled-code-extractor, map-attack-surface
+- **taint-scanner**: ai-taint-scanner, decompiled-code-extractor, map-attack-surface
 
 ## Task Iteration Commands
 
@@ -924,14 +777,11 @@ The following operations mandate the instantiation of a scratchpad artifact:
 - **scan**
 - **batch-audit**
 - **hunt-execute**
-- **verify-decompiler-batch**
 - **lift-class**
 
 ## Cache Target Execution
 
 The following processes generate payload artifacts governed by timestamp invalidation matrices:
-- **deep-research-prompt**
-- **verify-decompiled**
 
 # Glossary
 

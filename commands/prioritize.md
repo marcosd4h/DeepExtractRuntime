@@ -56,14 +56,27 @@ Fail gracefully if a module cannot be resolved -- log a warning and continue wit
 
 ### Step 2: Load Cached Scan Results Per Module
 
-For each resolved module, load existing scan/audit results from the cache directory `.agent/cache/<module>/`. Look for:
+For each resolved module, first try loading from the findings store, then fall back to cache files:
+
+**Primary source — findings store:**
+
+```python
+from helpers.findings_store import load_findings
+findings = load_findings(module=module_name)
+```
+
+If the store returns findings for this module, use them directly and skip the cache glob patterns below for that module.
+
+**Fallback — cache files** (when findings store returns 0 results for a module):
+
+Load existing scan/audit results from the cache directory `.agent/cache/<module>/`. Look for:
 
 - `scan_*.json` -- output from `/scan` (memory + logic + taint findings)
 - `audit_*.json` -- output from `/audit` (function-level security assessments)
 - `hunt_execute_*.json` -- output from `/hunt-execute` (hypothesis investigation findings)
 - `batch_audit_*.json` -- output from `/batch-audit` (batch security assessments)
 
-If no cached results exist for a module, log a warning suggesting the user run `/scan <module>` first, and skip that module.
+If no cached results exist for a module in either source, log a warning suggesting the user run `/scan <module>` first, and skip that module.
 
 ### Step 3: Normalize Findings
 

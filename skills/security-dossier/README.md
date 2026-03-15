@@ -128,9 +128,6 @@ Outbound calls are classified into 10 security-relevant categories:
 
 ## Related Skills
 
-- [code-lifting](../code-lifting/SKILL.md) -- Lift functions into clean, readable code
 - [callgraph-tracer](../callgraph-tracer/SKILL.md) -- Trace call chains across modules
-- [data-flow-tracer](../data-flow-tracer/SKILL.md) -- Trace parameter and data flow
 - [classify-functions](../classify-functions/SKILL.md) -- Classify all functions by purpose
-- [verify-decompiled](../verify-decompiled/SKILL.md) -- Verify decompiler accuracy
 - [map-attack-surface](../map-attack-surface/SKILL.md) -- Map module-wide attack surface

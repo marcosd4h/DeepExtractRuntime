@@ -106,7 +106,6 @@ _Application Information Service_
 
 ### Skill Integration Suggestions
 - **batch-lift**: 720 class methods -- consider batch-lifting entire classes
-- **data-flow-tracer**: Heavy global state usage -- trace ServiceMain
 - **callgraph-tracer**: Entry ServiceMain reaches 144 functions
 ```
 
@@ -154,9 +153,6 @@ generate-re-report/
 
 - [classify-functions](../classify-functions/SKILL.md) -- Classify all functions by purpose
 - [callgraph-tracer](../callgraph-tracer/SKILL.md) -- Trace call chains across modules
-- [code-lifting](../code-lifting/SKILL.md) -- Lift functions into clean code
 - [batch-lift](../batch-lift/SKILL.md) -- Lift related function groups together
-- [data-flow-tracer](../data-flow-tracer/SKILL.md) -- Trace parameter and data flow
-- [state-machine-extractor](../state-machine-extractor/SKILL.md) -- Extract dispatch tables
 - [security-dossier](../security-dossier/SKILL.md) -- Deep security context per function
 - [map-attack-surface](../map-attack-surface/SKILL.md) -- Map module-wide attack surface

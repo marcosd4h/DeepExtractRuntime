@@ -151,7 +151,6 @@ To add new API categories or patterns, edit `scripts/_common.py`:
 
 - **New API category**: Add entries to `helpers/api_taxonomy.py:API_TAXONOMY` dict (shared by all skills)
 - **New name pattern**: Add tuple to `NAME_RULES` list (compiled regex, category, description)
-- **New string pattern**: Add tuple to `STRING_RULES` list
 - **New structural rule**: Add logic in `classify_function()` after the structural section
 
 The classifier is designed to be extended without modifying the script entry points.

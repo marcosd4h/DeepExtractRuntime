@@ -110,7 +110,5 @@ map-attack-surface/
 - [security-dossier](../security-dossier/SKILL.md) -- Deep security context for individual functions
 - [callgraph-tracer](../callgraph-tracer/SKILL.md) -- Trace call chains across modules
 - [classify-functions](../classify-functions/SKILL.md) -- Classify all functions by purpose
-- [code-lifting](../code-lifting/SKILL.md) -- Lift functions into clean code
-- [data-flow-tracer](../data-flow-tracer/SKILL.md) -- Trace parameter and data flow
 - [com-interface-reconstruction](../com-interface-reconstruction/SKILL.md) -- Reconstruct COM interfaces
 - [verify-decompiled](../verify-decompiled/SKILL.md) -- Verify decompiler accuracy

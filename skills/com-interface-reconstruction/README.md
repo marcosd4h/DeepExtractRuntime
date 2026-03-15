@@ -157,7 +157,6 @@ com-interface-reconstruction/
 
 - [reconstruct-types](../reconstruct-types/SKILL.md) -- Reconstruct struct/class field layouts
 - [classify-functions](../classify-functions/SKILL.md) -- Classify all functions by purpose
-- [code-lifting](../code-lifting/SKILL.md) -- Lift functions into clean code
 - [callgraph-tracer](../callgraph-tracer/SKILL.md) -- Trace call chains across modules
 - [map-attack-surface](../map-attack-surface/SKILL.md) -- Map module-wide attack surface
 - [security-dossier](../security-dossier/SKILL.md) -- Deep security context for individual functions

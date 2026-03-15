@@ -150,8 +150,7 @@ reconstruct-types/
 
 ## Related Skills
 
-- [code-lifting](../code-lifting/SKILL.md) -- Lift functions into clean code (consumes reconstructed types)
-- [analyze-ida-decompiled](../analyze-ida-decompiled/SKILL.md) -- Understand and navigate decompiled code
+- [ida_conventions_reference.md](../../docs/ida_conventions_reference.md) -- IDA conventions, struct offset formulas, and analysis patterns
 - [callgraph-tracer](../callgraph-tracer/SKILL.md) -- Trace call chains and module dependencies
 - [classify-functions](../classify-functions/SKILL.md) -- Categorize functions by purpose
 - [com-interface-reconstruction](../com-interface-reconstruction/SKILL.md) -- Reconstruct COM interfaces and vtables

@@ -123,33 +123,6 @@ class TestValidateTriage:
 
 
 # ===================================================================
-# Validate config: verifier section
-# ===================================================================
-
-class TestValidateVerifier:
-    def test_valid_verifier(self):
-        config = {
-            "verifier": {
-                "call_count_tolerance": 0.2,
-                "branch_count_tolerance": 0.3,
-                "max_alignment": 16,
-            }
-        }
-        issues = validate_config(config)
-        assert len(issues) == 0
-
-    def test_tolerance_out_of_range(self):
-        config = {"verifier": {"call_count_tolerance": -0.1}}
-        issues = validate_config(config)
-        assert any("call_count_tolerance" in i for i in issues)
-
-    def test_max_alignment_too_high(self):
-        config = {"verifier": {"max_alignment": 128}}
-        issues = validate_config(config)
-        assert any("max_alignment" in i for i in issues)
-
-
-# ===================================================================
 # Validate config: cache section
 # ===================================================================
 

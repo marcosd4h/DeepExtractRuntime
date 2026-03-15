@@ -25,7 +25,7 @@ Output is a categorized function index for the entire module, enabling researche
 - Understanding what a specific function does line-by-line -- use **re-analyst** or `/explain`
 - Generating a full module report with imports, exports, and architecture -- use **generate-re-report**
 - Mapping entry points and ranking by attack value -- use **map-attack-surface**
-- Scanning for specific vulnerability patterns -- use **memory-corruption-detector** or **logic-vulnerability-detector**
+- Scanning for specific vulnerability patterns -- use **ai-memory-corruption-scanner** or **ai-logic-scanner**
 
 ## Data Sources
 
@@ -252,7 +252,7 @@ with open_individual_analysis_db("extracted_dbs/module_hash.db") as db:
 | Trace call chains for interesting functions | callgraph-tracer |
 | Build security dossier for high-interest functions | security-dossier |
 | Map attack surface using classified entry points | map-attack-surface |
-| Lift high-priority functions to clean code | code-lifting / batch-lift |
+| Lift high-priority functions to clean code | batch-lift |
 | Reconstruct types used by classified functions | reconstruct-types |
 
 ## Performance
@@ -267,7 +267,5 @@ with open_individual_analysis_db("extracted_dbs/module_hash.db") as db:
 
 - For detailed classification taxonomy and signal definitions, see [reference.md](reference.md)
 - For DB schema and JSON field formats, see [data_format_reference.md](../../docs/data_format_reference.md)
-- For code analysis, see [analyze-ida-decompiled](../analyze-ida-decompiled/SKILL.md)
-- For code lifting, see [code-lifting](../code-lifting/SKILL.md)
 - For call graph tracing, see [callgraph-tracer](../callgraph-tracer/SKILL.md)
 - For type reconstruction, see [reconstruct-types](../reconstruct-types/SKILL.md)

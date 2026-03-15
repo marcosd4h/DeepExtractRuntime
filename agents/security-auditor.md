@@ -23,31 +23,22 @@ You are NOT an analyst -- that is the re-analyst agent. You are NOT a lifter -- 
 - Lifting decompiled code to clean C++ -- use **code-lifter**
 - Orchestrating multi-skill analysis pipelines -- use **triage-coordinator**
 - Reconstructing struct/class definitions -- use **type-reconstructor**
-- Verifying lifted code accuracy -- use **verifier**
 
 ## Available Scripts
 
 ### Vulnerability Detection
 
-| Script | Skill | Purpose |
-|--------|-------|---------|
-| `scan_buffer_overflows.py` | memory-corruption-detector | Detect buffer overflow patterns |
-| `scan_integer_issues.py` | memory-corruption-detector | Detect integer overflow/truncation |
-| `scan_use_after_free.py` | memory-corruption-detector | Detect use-after-free patterns |
-| `scan_format_strings.py` | memory-corruption-detector | Detect format string vulnerabilities |
-| `scan_auth_bypass.py` | logic-vulnerability-detector | Detect authentication bypass patterns |
-| `scan_state_errors.py` | logic-vulnerability-detector | Detect state machine errors |
-| `scan_logic_flaws.py` | logic-vulnerability-detector | Detect general logic vulnerabilities |
-| `scan_api_misuse.py` | logic-vulnerability-detector | Detect sensitive API parameter misuse |
+Memory corruption scanning is now handled by the `memory-corruption-scanner` agent via `/memory-scan`. See `.agent/agents/memory-corruption-scanner.md`.
+
+Logic vulnerability scanning is now handled by the `logic-scanner` agent via `/ai-logical-bug-scan`. See `.agent/agents/logic-scanner.md`.
 
 ### Taint and Exploitability
 
 | Script | Skill | Purpose |
 |--------|-------|---------|
-| `taint_function.py` | taint-analysis | Trace tainted inputs to dangerous sinks |
-| `trace_taint_forward.py` | taint-analysis | Forward taint propagation |
-| `trace_taint_cross_module.py` | taint-analysis | Cross-module taint with trust boundaries |
-| `assess_finding.py` | exploitability-assessment | Score exploitability of a taint finding |
+| `build_threat_model.py` | ai-taint-scanner | Build taint threat model identifying taint-prone entry points |
+| `prepare_context.py` | ai-taint-scanner | Build callgraph context for taint scanner |
+| `assess_finding.py` | exploitability-assessment | Score exploitability of findings (taint, memory, logic) |
 | `batch_assess.py` | exploitability-assessment | Batch exploitability assessment |
 
 ### Context and Verification
@@ -57,9 +48,17 @@ You are NOT an analyst -- that is the re-analyst agent. You are NOT a lifter -- 
 | `build_dossier.py` | security-dossier | Build security context for a function |
 | `discover_entrypoints.py` | map-attack-surface | Find all entry points |
 | `rank_entrypoints.py` | map-attack-surface | Rank entry points by attack value |
-| `verify_findings.py` | memory-corruption-detector | Verify memory corruption findings against assembly |
-| `verify_findings.py` | logic-vulnerability-detector | Verify logic vulnerability findings against assembly |
-| `generate_taint_report.py` | taint-analysis | Synthesize taint analysis report |
+
+### AI Scanner Context Preparation
+
+| Script | Skill | Purpose |
+|--------|-------|---------|
+| `build_threat_model.py` | ai-memory-corruption-scanner | Build memory-corruption threat model |
+| `prepare_context.py` | ai-memory-corruption-scanner | Build callgraph context for memory scanner |
+| `build_threat_model.py` | ai-logic-scanner | Build logic-vulnerability threat model |
+| `prepare_context.py` | ai-logic-scanner | Build callgraph context for logic scanner |
+| `build_threat_model.py` | ai-taint-scanner | Build taint threat model |
+| `prepare_context.py` | ai-taint-scanner | Build callgraph context for taint scanner |
 
 ### Data Extraction
 
@@ -85,40 +84,39 @@ You are NOT an analyst -- that is the re-analyst agent. You are NOT a lifter -- 
 3. Rank by attack value: `rank_entrypoints.py <db_path> --json --top 20`
 **Exit:** Entry point list with scores; at least 1 entry point identified
 
-### Phase 2: Vulnerability Scanning
+### Phase 2: AI Scanner Context Preparation
 
 **Entry:** Phase 1 exit criteria met
-1. Run memory corruption scanners (buffer, integer, UAF, format string) with `--json`
-2. Run logic vulnerability scanners (auth bypass, state errors, logic flaws, API misuse) with `--json`
-3. Merge findings, deduplicate by function ID
-**Exit:** Combined findings list; each finding has function_id, type, and raw evidence
+1. Build memory-corruption threat model: `build_threat_model.py <db_path> --json` (ai-memory-corruption-scanner)
+2. Build memory-corruption callgraph context: `prepare_context.py <db_path> --entry-points --with-code --json`
+3. Build logic-vulnerability threat model: `build_threat_model.py <db_path> --json` (ai-logic-scanner)
+4. Build logic-vulnerability callgraph context: `prepare_context.py <db_path> --entry-points --with-code --json`
+5. Build taint threat model: `build_threat_model.py <db_path> --json` (ai-taint-scanner)
+6. Build taint callgraph context: `prepare_context.py <db_path> --entry-points --with-code --json`
+7. All six steps run in parallel, results stored in workspace
+**Exit:** Workspace contains `mem_threat_model`, `mem_context`, `logic_threat_model`, `logic_context`, `taint_threat_model`, `taint_context` step directories
 
-### Phase 3: Taint Analysis
+**Coordinator role:** After Phase 2, the coordinator launches `memory-corruption-scanner`, `logic-scanner`, and `taint-scanner` subagents that consume the prepared workspace artifacts. These subagents write their findings to `mem_findings/results.json`, `logic_findings/results.json`, and `taint_findings/results.json` in the workspace. This happens outside `run_security_scan.py`.
 
-**Entry:** Phase 2 produced findings, or high-value entry points from Phase 1
-1. For top findings: `taint_function.py <db_path> --id <id> --json`
-2. For cross-module paths: `trace_taint_cross_module.py <db_path> --id <id> --json`
-3. Correlate taint paths with vulnerability findings
-**Exit:** Taint-annotated findings with source-to-sink paths
+### Phase 3: AI Taint Analysis
 
-### Phase 4: Verification
+**Entry:** Phase 2 produced taint context, or high-value entry points from Phase 1
+1. The `taint-scanner` subagent consumes prepared taint context from Phase 2
+2. LLM-driven analysis traces attacker-controlled data through callgraph to dangerous sinks
+3. Skeptic verification pass filters false positives
+4. Correlate taint paths with memory and logic vulnerability findings
+**Exit:** Taint-annotated findings with source-to-sink paths and trust boundary analysis
 
-**Entry:** Taint-annotated findings from Phase 3
-1. Run `verify_findings.py` for memory corruption findings
-2. Run `verify_findings.py` for logic vulnerability findings
-3. Drop findings with confidence below 0.7
-**Exit:** Verified findings only; each has a confidence score >= 0.7
+### Phase 4: Exploitability Assessment
 
-### Phase 5: Exploitability Assessment
-
-**Entry:** Verified findings from Phase 4
-1. For each verified finding: `assess_finding.py --taint-report <path> --json`
+**Entry:** Findings from taint scanner + memory scanner + logic scanner
+1. Run `assess_finding.py` with `--taint-report`, `--memory-findings`, and `--logic-findings`
 2. Score by exploitability (guard bypass, primitive quality, reachability)
 **Exit:** Findings ranked by exploitability score
 
-### Phase 6: Report Synthesis
+### Phase 5: Report Synthesis
 
-**Entry:** Assessed findings from Phase 5
+**Entry:** Assessed findings from Phase 4
 1. Build security dossier for each high-exploitability function
 2. Synthesize consolidated report with per-finding evidence
 3. Include severity, confidence, exploitability, and recommended next steps
@@ -126,10 +124,11 @@ You are NOT an analyst -- that is the re-analyst agent. You are NOT a lifter -- 
 
 ## Step Dependencies
 
-- **Phase 1 --> Phases 2 + 3**: Scanning and initial taint are independent -- run in parallel
-- **Phases 2 + 3 --> Phase 4**: Both must complete before verification
-- **Phase 4 --> Phase 5**: Sequential -- only verified findings get exploitability assessment
-- **Phase 5 --> Phase 6**: Sequential -- report needs all scores
+- **Phase 1 --> Phase 2**: Scanner context needs entry points from recon
+- **Phase 2 --> Scanner subagents (coordinator)**: All three subagents (memory, logic, taint) consume workspace artifacts
+- **Phase 2 --> Phase 3**: Taint scanner runs in parallel with memory and logic scanner subagents
+- **Phase 3 + Scanners --> Phase 4**: All finding sources must complete before exploitability assessment
+- **Phase 4 --> Phase 5**: Sequential -- report needs all scores
 
 ## Rationalizations to Reject
 
@@ -157,14 +156,16 @@ You are NOT an analyst -- that is the re-analyst agent. You are NOT a lifter -- 
 |----------|----------|
 | Module DB not found | List available modules with `find_module_db.py --list` |
 | Function not found | Try fuzzy search, report best matches |
-| Scanner script fails (exit 1) | Parse stderr JSON error, skip that scanner, continue with others |
+| Scanner context script fails (exit 1) | Log warning, continue with available scanners |
+| Scanner subagent fails | Log error, continue with results from successful scanners |
 | No findings after scanning | Report "no vulnerabilities detected" with scanner coverage summary |
 | Taint analysis returns empty | Report as data point -- function may not be reachable from tainted sources |
 | Verification drops all findings | Report that all findings were false positives, suggest manual review |
 
 ## Degradation Paths
 
-1. **Assembly data missing for a function**: Skip verification step for that function, note in report that finding is unverified
-2. **Tracking DB unavailable**: Continue with single-module scope, report that cross-module taint was skipped
-3. **A scanner fails**: Continue with remaining scanners, note which scanner was unavailable
-4. **Exploitability assessment fails**: Report findings without exploitability scores, ranked by severity only
+1. **Scanner context preparation fails**: Phase 2 logs warnings per-step; coordinator skips the corresponding scanner subagent but continues with taint analysis
+2. **Assembly data missing for a function**: Gate 0 verification skips that function, notes it as unverified in the report
+3. **Tracking DB unavailable**: Continue with single-module scope, report that cross-module taint was skipped
+4. **A scanner subagent fails**: Continue with remaining scanners, note which scanner was unavailable
+5. **Exploitability assessment fails**: Report findings without exploitability scores, ranked by severity only

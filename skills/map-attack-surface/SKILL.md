@@ -257,12 +257,8 @@ Compare the `attack_surface_summary` sections for relative exposure.
 | --------------------------------- | ------------------------------------------------------------------------ |
 | Trace call chain from entry point | [callgraph-tracer](../callgraph-tracer/SKILL.md)                         |
 | Classify function purpose         | [classify-functions](../classify-functions/SKILL.md)                     |
-| Lift entry point code for review  | [code-lifting](../code-lifting/SKILL.md)                                 |
 | Reconstruct COM interfaces        | [com-interface-reconstruction](../com-interface-reconstruction/SKILL.md) |
-| Trace data flow from entry args   | [data-flow-tracer](../data-flow-tracer/SKILL.md)                         |
 | Reconstruct struct types          | [reconstruct-types](../reconstruct-types/SKILL.md)                       |
-| Deep research on entry point      | [deep-research-prompt](../deep-research-prompt/SKILL.md)                 |
-
 ## Direct Helper Module Access
 
 For advanced queries not covered by the scripts:

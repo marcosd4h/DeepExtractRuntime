@@ -379,7 +379,6 @@ Use the most appropriate `subagent_type` for the work:
 
 - `re-analyst` for explanation tasks and classification enrichment
 - `security-auditor` for security finding verification and severity validation
-- `verifier` for lifted-code verification against assembly
 - `code-lifter` for batch lifting with shared context
 - `triage-coordinator` scripts for triage and multi-skill orchestration
 - `type-reconstructor` scripts for struct/class reconstruction
@@ -407,7 +406,7 @@ Examples of common pitfalls:
 
 | Field                | Scale    | Trap                              |
 |----------------------|----------|-----------------------------------|
-| `param_risk_score`   | 0.0-1.0  | `0.7` = 70th percentile risk     |
+| `param_surface`      | dict     | Structured metadata: `has_buffer_size_pair`, `has_string_pointer`, `has_com_interface`, etc. |
 | `noise_ratio`        | 0.0-1.0  | `0.48` = 48% library boilerplate |
 | `attack_score`       | 0.0-1.0  | Higher = more attractive target  |
 
@@ -491,7 +490,7 @@ Write the formula out so it's reproducible.
 ## 13. Severity & Finding Assignment
 
 *Applies to commands that report findings with severity levels (e.g., `/audit`,
-`/verify-decompiler`). Each command should define severity criteria appropriate to its domain.*
+`/audit`). Each command should define severity criteria appropriate to its domain.*
 
 ### 13.1 Define strict severity criteria
 

@@ -13,7 +13,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import re
 import sys
 from pathlib import Path
 
@@ -22,12 +21,6 @@ sys.path.insert(0, str(_SCRIPT_DIR))
 
 from _common import ComServer, emit_json, parse_context, require_com_index
 from helpers.errors import safe_parse_args
-
-_HIGH_VALUE_PATTERNS = re.compile(
-    r"(?i)(launch|execute|create|write|delete|set|put|install|"
-    r"update|register|config|policy|shutdown|reboot|crypt|"
-    r"impersonat|token|credential|elevat)"
-)
 
 _IUnknown_TRIVIAL = frozenset({
     "QueryInterface", "AddRef", "Release",
@@ -69,10 +62,7 @@ def _score_server(srv: ComServer) -> float:
     if srv.trusted_marshaller:
         score += 0.05
 
-    high_value_count = sum(
-        1 for m in srv.methods_flat if _HIGH_VALUE_PATTERNS.search(m.short_name)
-    )
-    method_score = min(high_value_count / max(srv.method_count, 1), 1.0) * 0.10
+    method_score = min(srv.method_count / 20.0, 1.0) * 0.10
     score += method_score
     return min(score, 1.0)
 
@@ -110,10 +100,7 @@ def main() -> None:
             d = srv.to_dict()
             d["privesc_score"] = round(score, 3)
             d["has_attack_useful_methods"] = _has_attack_useful_methods(srv)
-            d["high_value_methods"] = [
-                m.to_dict() for m in srv.methods_flat
-                if _HIGH_VALUE_PATTERNS.search(m.short_name)
-            ]
+            d["method_count"] = srv.method_count
             targets.append(d)
         emit_json({
             "caller_il": caller_il,
@@ -136,13 +123,6 @@ def main() -> None:
     for rank, (score, srv) in enumerate(scored, 1):
         svc = srv.service_name or "-"
         print(f"#{rank:<3}  {score:.2f}   {srv.method_count:>7}  {svc:<20}  {srv.name}")
-
-        high_value = [m for m in srv.methods_flat if _HIGH_VALUE_PATTERNS.search(m.short_name)]
-        if high_value:
-            for m in high_value[:3]:
-                print(f"        -> {m.short_name} [{m.interface_name}]")
-            if len(high_value) > 3:
-                print(f"        ... and {len(high_value) - 3} more high-value methods")
         print()
 
 

@@ -144,38 +144,32 @@ For each target function, run a condensed audit pipeline:
 python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> --id <fid> --json
 ```
 
-**b. Run taint analysis:**
-
-```bash
-python .agent/skills/taint-analysis/scripts/taint_function.py <db_path> --id <fid> --depth 2 --json
-```
-
-**c. Run exploitability assessment** (if taint found sinks):
+**b. Run exploitability assessment** (if dossier found dangerous sinks):
 
 ```bash
 python .agent/skills/exploitability-assessment/scripts/assess_finding.py \
-    --taint-report <taint.json> --module-db <db_path> --json
+    --dossier <dossier.json> --module-db <db_path> --json
 ```
 
-**d. Classify function purpose:**
+**c. Classify function purpose:**
 
 ```bash
 python .agent/skills/classify-functions/scripts/classify_function.py <db_path> --id <fid> --json
 ```
 
-**e. Synthesize per-function audit summary:**
+**d. Synthesize per-function audit summary:**
 - Risk rating (CRITICAL/HIGH/MEDIUM/LOW) based on highest exploitability score
-- Top 3 findings with taint paths and guard bypass difficulty
+- Top findings with dangerous operations and guard analysis
 - Key dangerous operations and reachability status
 
-**f. Update scratchpad:** Check off the function.
+**e. Update scratchpad:** Check off the function.
 
 ### Step Dependencies
 
 - Step 1 is sequential (resolve targets).
 - In `--privilege-boundary` mode, the RPC, COM, and WinRT discovery sub-steps are independent and should run in parallel before candidate resolution.
-- Step 3a-3d: For each function, dossier and taint can run in parallel. Classification is independent.
-- Step 3e depends on 3a-3d completion.
+- Step 3a-3c: For each function, dossier, exploitability, and classification can run in parallel.
+- Step 3d depends on 3a-3c completion.
 - Functions are independent -- audit up to 3-4 functions concurrently (subject to agent limits).
 
 ### 4. Synthesize batch report

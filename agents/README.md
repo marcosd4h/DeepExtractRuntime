@@ -4,7 +4,7 @@ Subagents are specialized AI agents that run in isolated context windows. In an
 installed workspace they live under `.agent/agents/` inside a
 `DeepExtractIDA_output_root`; in this source checkout they live in `agents/`.
 The parent agent delegates complex, context-heavy tasks to them and receives
-compact results back. The live registry currently defines 6 subagents.
+compact results back. The live registry currently defines 8 subagents.
 
 **Registry**: `registry.json` in this directory is the machine-readable source of truth for all agents -- listing type, entry scripts with accepted parameters, skills used, and JSON output support. It is loaded by `inject-module-context.py` at session start and validated by the infrastructure test suite.
 
@@ -15,12 +15,14 @@ Documentation: https://cursor.com/docs/context/subagents
 ```
 Parent Agent (main conversation)
   │
-  ├─ re-analyst           Explain and analyze decompiled functions
-  ├─ triage-coordinator   Orchestrate multi-skill analysis workflows
-  ├─ type-reconstructor   Reconstruct C++ structs/classes from memory patterns
-  ├─ security-auditor     Vulnerability scanning, exploitability, finding verification
-  ├─ verifier             Verify lifted code against assembly ground truth
-  └─ code-lifter          Lift/rewrite class methods with shared context
+  ├─ re-analyst                  Explain and analyze decompiled functions
+  ├─ triage-coordinator          Orchestrate multi-skill analysis workflows
+  ├─ type-reconstructor          Reconstruct C++ structs/classes from memory patterns
+  ├─ security-auditor            Vulnerability scanning and exploitability assessment
+  ├─ code-lifter                 Lift/rewrite class methods with shared context
+  ├─ memory-corruption-scanner   AI-driven memory corruption vulnerability scanner (LLM-only)
+  ├─ logic-scanner               AI-driven logic vulnerability scanner (LLM-only)
+  └─ taint-scanner               AI-driven taint analysis scanner (LLM-only)
 ```
 
 Subagents **cannot launch other subagents**. The parent agent orchestrates all delegation. Multiple subagents can run in parallel when their work is independent.
@@ -83,7 +85,7 @@ python .agent/agents/re-analyst/scripts/explain_function.py <db_path> <function_
 python .agent/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> --json
 ```
 
-**Skills leveraged:** analyze-ida-decompiled, classify-functions, generate-re-report, decompiled-code-extractor, callgraph-tracer, data-flow-tracer, deep-research-prompt, taint-analysis (scripts referenced in the system prompt catalog).
+**Skills leveraged:** classify-functions, generate-re-report, decompiled-code-extractor, callgraph-tracer, ai-taint-scanner (scripts referenced in the system prompt catalog).
 
 ---
 
@@ -132,8 +134,8 @@ python .agent/agents/triage-coordinator/scripts/generate_analysis_plan.py <db_pa
 | Goal | Skills invoked | Steps | Typical time |
 |------|---------------|-------|-------------|
 | `triage` | classify-functions, map-attack-surface | 3 | ~6s |
-| `security` | triage + map-attack-surface (rank), callgraph-tracer, security-dossier (x5), taint-analysis (x3) | 13 | ~8s |
-| `full` | security + reconstruct-types, deep-research-prompt, + conditional COM/dispatch | 12+ | ~10s |
+| `security` | triage + map-attack-surface (rank), callgraph-tracer, security-dossier (x5), ai-taint-scanner (x3) | 13 | ~8s |
+| `full` | security + reconstruct-types, + conditional COM | 12+ | ~10s |
 | `understand-function` | classify-functions, decompiled-code-extractor, callgraph-tracer (x2), security-dossier | 5 | ~1.5s |
 | `types` | reconstruct-types, + conditional com-interface-reconstruction | 1-2 | ~2s |
 
@@ -146,7 +148,6 @@ Module fingerprint
   +-- RPC-heavy (>3 RPC functions)          -->  + attack surface focus on RPC handlers
   +-- Security-relevant (>3 security, >2 crypto, or >10 dangerous APIs)
   |                                         -->  + security dossiers for top entries
-  +-- Dispatch-heavy (>5 dispatch/handler)  -->  + state-machine-extractor
   +-- Class-heavy (>3 C++ classes)          -->  + reconstruct-types priority
 ```
 
@@ -162,10 +163,10 @@ Phase 2   rank_entrypoints         map-attack-surface/rank_entrypoints.py
 
 Phase 3   dossier_{func} x5       security-dossier/build_dossier.py  (top-5 ranked entries)
 
-Phase 4   taint_{func} x3        taint-analysis/taint_function.py   (top-3 ranked entries)
+Phase 4   taint_{func} x3        ai-taint-scanner                   (top-3 ranked entries)
 ```
 
-Output includes: category distribution, ranked entry points with attack scores, security dossiers per top entry, taint sink reachability with guard bypass analysis, and prioritized next steps (`/verify-decompiler`, `/explain`, `/audit`, `/taint`, `/search`).
+Output includes: category distribution, ranked entry points with attack scores, security dossiers per top entry, taint sink reachability with guard bypass analysis, and prioritized next steps (`/explain`, `/audit`, `/taint`, `/search`).
 
 **Plan generation mode** produces structured JSON describing parallel/sequential phases for the parent agent to orchestrate:
 
@@ -238,7 +239,7 @@ python .agent/agents/type-reconstructor/scripts/merge_evidence.py --scan-output 
 
 ### security-auditor
 
-**Purpose:** Dedicated security assessment agent for vulnerability scanning, exploitability analysis, and finding verification. Composes memory corruption detection, logic vulnerability detection, taint analysis, and exploitability assessment under a security-focused persona with built-in adversarial reasoning and finding verification methodologies.
+**Purpose:** Dedicated security assessment agent for vulnerability scanning and exploitability analysis. Composes memory corruption detection, logic vulnerability detection, taint analysis, and exploitability assessment under a security-focused persona with built-in adversarial reasoning methodology.
 
 **When to use:**
 - Running a security audit on one or more functions with taint, exploitability, and verification
@@ -250,11 +251,9 @@ python .agent/agents/type-reconstructor/scripts/merge_evidence.py --scan-output 
 - Explaining what a function does -- use **re-analyst**
 - Lifting decompiled code -- use **code-lifter**
 - Orchestrating general analysis pipelines -- use **triage-coordinator**
-- Verifying lifted code accuracy -- use **verifier**
 
-**Skills used:** decompiled-code-extractor, classify-functions, map-attack-surface, security-dossier, taint-analysis, exploitability-assessment, memory-corruption-detector, logic-vulnerability-detector
+**Skills used:** decompiled-code-extractor, classify-functions, map-attack-surface, security-dossier, ai-taint-scanner, exploitability-assessment, ai-memory-corruption-scanner, ai-logic-scanner
 
-**Methodologies:** adversarial-reasoning, finding-verification
 
 **Script:** `run_security_scan.py` -- main entry point for module- or
 function-scoped security scans that combine classification, attack-surface
@@ -271,89 +270,6 @@ python .agent/agents/security-auditor/scripts/run_security_scan.py <db_path> --f
 
 ---
 
-### verifier
-
-**Purpose:** Independent verification that lifted (rewritten) code matches original binary behavior. Operates with fresh eyes in a separate context to prevent confirmation bias that occurs when the same context that lifted the code also verifies it. Compares lifted code against assembly ground truth using systematic checks, basic block mapping, and x64 assembly analysis.
-
-**Why a subagent, not a skill:**
-1. **Confirmation bias prevention** -- the agent that lifted the code already "believes" its output is correct. A separate verifier with no prior context is more likely to find errors.
-2. **Parallel execution** -- verify lifted functions while the parent continues lifting more.
-3. **Different prompt** -- the verifier's prompt emphasizes skepticism and systematic checking, opposite of the lifter's constructive mindset.
-
-**When to use:**
-- After lifting/rewriting a decompiled function
-- Checking that a code transformation preserves all behavior
-- Auditing decompiler accuracy on a specific function
-- Any situation requiring assembly-level verification of C++ code
-
-**Core principles:**
-1. Assembly is ground truth -- when lifted code disagrees, assembly wins
-2. Every finding must include specific assembly evidence
-3. No false positives -- uncertain findings are "INVESTIGATE", not "FAIL"
-
-**Skills leveraged:**
-
-| Skill | How it's used |
-|-------|---------------|
-| verify-decompiled | Assembly/decompiled parsing, heuristic scanning (`_common.py` imported via `importlib`) |
-| decompiled-code-extractor, code-lifting | `find_module_db.py`, `extract_function_data.py` for original function data extraction |
-
-**Scripts:**
-
-| Script | Purpose |
-|--------|---------|
-| `_common.py` | Shared utilities: imports verify-decompiled parsing via `importlib`, adds `LiftedCodeStats`, `CheckResult`, `ComparisonResult`, lifted code parser, API/memory extraction |
-| `compare_lifted.py` | **Core script.** Runs 7 automated checks comparing lifted code against assembly ground truth |
-| `extract_basic_blocks.py` | Splits assembly into numbered basic blocks for block-by-block verification |
-| `generate_verification_report.py` | Combines automated check output + agent findings into a formal Markdown or JSON report |
-
-**compare_lifted.py** -- 7 automated checks:
-
-| Check | Compares | Severity on fail |
-|-------|----------|-----------------|
-| Call count match | `call` instructions in assembly vs function calls in lifted | CRITICAL |
-| Branch count match | Conditional jumps in assembly vs `if`/`switch`/`&&`/`\|\|` in lifted | CRITICAL |
-| String literal usage | DB `string_literals` vs strings present in lifted code | FAIL/WARNING |
-| Return path analysis | `ret` instructions vs `return` statements | WARNING |
-| API name preservation | `__imp_XXX` calls in assembly vs `XXX(...)` in lifted | CRITICAL |
-| Global variable access | DB `global_var_accesses` vs references in lifted code | WARNING |
-| Memory access coverage | `[base+offset]` patterns in assembly vs offsets in lifted code | WARNING |
-
-```bash
-# Core comparison (human-readable output)
-python .agent/agents/verifier/scripts/compare_lifted.py <db_path> <function_name> --lifted lifted_code.cpp
-
-# By function ID
-python .agent/agents/verifier/scripts/compare_lifted.py <db_path> --id <func_id> --lifted lifted_code.cpp
-
-# JSON output for piping to report generator
-python .agent/agents/verifier/scripts/compare_lifted.py <db_path> <function_name> --lifted lifted_code.cpp --json
-
-# Read lifted code from stdin
-python .agent/agents/verifier/scripts/compare_lifted.py <db_path> <function_name> --lifted-stdin < lifted.cpp
-
-# Basic block extraction for manual block-by-block verification
-python .agent/agents/verifier/scripts/extract_basic_blocks.py <db_path> <function_name>
-python .agent/agents/verifier/scripts/extract_basic_blocks.py <db_path> --id <func_id> --json
-
-# Formal report from automated checks + agent findings
-python .agent/agents/verifier/scripts/generate_verification_report.py --compare-output compare.json --agent-findings findings.json
-python .agent/agents/verifier/scripts/generate_verification_report.py --compare-output compare.json --output report.md
-python .agent/agents/verifier/scripts/generate_verification_report.py --compare-output compare.json --json
-```
-
-**Typical workflow:**
-```
-1. Parent saves lifted code to file
-2. Verifier runs compare_lifted.py --json         (automated checks)
-3. Verifier runs extract_function_data.py          (get original assembly + decompiled)
-4. Verifier runs extract_basic_blocks.py --json    (split assembly into blocks)
-5. Verifier maps each block to lifted code section  (manual verification)
-6. Verifier runs generate_verification_report.py   (formal report)
-7. Returns PASS/WARN/FAIL verdict + findings to parent
-```
-
----
 
 ### code-lifter
 
@@ -374,10 +290,9 @@ python .agent/agents/verifier/scripts/generate_verification_report.py --compare-
 
 | Skill | How it's used |
 |-------|---------------|
-| decompiled-code-extractor, code-lifting | Core 10-step lifting workflow per function |
+| decompiled-code-extractor | Core 10-step lifting workflow per function |
 | batch-lift | Function collection, dependency ordering |
 | reconstruct-types | Struct/class layout from memory access patterns |
-| verify-decompiled | Pre-verify decompiled accuracy before lifting |
 
 **Scripts:**
 
@@ -453,6 +368,45 @@ The grind loop is a safety net. If the subagent hits context limits mid-class (r
 
 ---
 
+### memory-corruption-scanner
+
+**Type:** analyst (LLM-only)
+**File:** `memory-corruption-scanner.md`
+
+AI-driven memory corruption vulnerability scanner. Operates as an LLM subagent receiving callgraph + code batches prepared by the `ai-memory-corruption-scanner` skill. Uses adversarial prompting and a type-specific specialist follow-up (BufferOverflowSpecialist, IntegerOverflowSpecialist, UseAfterFreeSpecialist) with a separate skeptic verification pass.
+
+**When to use:** Launched by `/memory-scan` (Phase 3 deep analysis) and `/scan` (Phase 2 memory corruption scanning).
+
+**Skills used:** `ai-memory-corruption-scanner`, `decompiled-code-extractor`, `map-attack-surface`
+
+---
+
+### logic-scanner
+
+**Type:** analyst (LLM-only)
+**File:** `logic-scanner.md`
+
+AI-driven logic vulnerability scanner. Operates as an LLM subagent receiving callgraph + code batches prepared by the `ai-logic-scanner` skill. Uses adversarial prompting and type-specific specialists (AuthBypassSpecialist, StateConfusionSpecialist) with a separate skeptic verification pass.
+
+**When to use:** Launched by `/ai-logical-bug-scan` (Phase 3 deep analysis) and `/scan` (Phase 2 logic scanning).
+
+**Skills used:** `ai-logic-scanner`, `decompiled-code-extractor`, `map-attack-surface`
+
+---
+
+### taint-scanner
+
+**Type:** analyst (LLM-only)
+**File:** `taint-scanner.md`
+
+AI-driven taint analysis scanner. Operates as an LLM subagent receiving callgraph + code batches prepared by the `ai-taint-scanner` skill. Uses taint-specific context enrichment, trust boundary analysis, and skeptic verification to trace attacker-controlled data to dangerous sinks.
+
+**When to use:** Launched by `/taint` (Phase 3 deep analysis) and `/scan` (Phase 2 taint scanning).
+
+**Skills used:** `ai-taint-scanner`, `decompiled-code-extractor`, `map-attack-surface`
+
+---
+
 ## Shared Infrastructure
 
 All subagents share access to the same workspace resources:
@@ -492,7 +446,7 @@ with open_individual_analysis_db("extracted_dbs/appinfo_dll_e98d25a9e8.db") as d
 
 ### Skill Scripts
 
-All 29 registered skills are available under `.agent/skills/`. Skills that ship
+All registered skills are available under `.agent/skills/`. Skills that ship
 scripts expose them at `.agent/skills/<skill-name>/scripts/<script>.py`;
 methodology-only skills contribute guidance but no script files. Subagent
 scripts call script-backed skills via subprocess with `--json` for structured
@@ -521,8 +475,9 @@ Each module also has `extracted_code/{module}/module_profile.json` with pre-comp
   triage-coordinator.md                         # Triage coordinator subagent definition
   type-reconstructor.md                         # Type reconstructor subagent definition
   security-auditor.md                           # Security auditor subagent definition
-  verifier.md                                   # Verifier subagent definition
   code-lifter.md                                # Code lifter subagent definition
+  memory-corruption-scanner.md                  # Memory corruption scanner subagent definition
+  logic-scanner.md                              # Logic scanner subagent definition
   re-analyst/
     scripts/
       re_query.py                               # Structured RE queries
@@ -542,12 +497,6 @@ Each module also has `extracted_code/{module}/module_profile.json` with pre-comp
     scripts/
       _common.py                                # Shared utilities
       run_security_scan.py                      # Security scan and synthesis entry point
-  verifier/
-    scripts/
-      _common.py                                # Shared utilities
-      compare_lifted.py                         # Lifted vs assembly comparison
-      extract_basic_blocks.py                   # Basic block mapper
-      generate_verification_report.py           # Verification report generator
   code-lifter/
     scripts/
       _common.py                                # Shared utilities (imports batch-lift _common)
@@ -555,6 +504,15 @@ Each module also has `extracted_code/{module}/module_profile.json` with pre-comp
       track_shared_state.py                     # Shared state management across methods
     state/                                      # Runtime-generated, may be absent until lifting runs
       <ClassName>_state.json                    # Per-class lifting state (auto-managed)
+  memory-corruption-scanner/
+    scripts/
+      _common.py                                # Infrastructure stub (LLM-only agent)
+  logic-scanner/
+    scripts/
+      _common.py                                # Infrastructure stub (LLM-only agent)
+  taint-scanner/
+    scripts/
+      _common.py                                # Infrastructure stub (LLM-only agent)
 ```
 
 ## When to Use Which Subagent
@@ -562,19 +520,18 @@ Each module also has `extracted_code/{module}/module_profile.json` with pre-comp
 | You want to... | Use | How |
 |-----------------|-----|-----|
 | Understand what a function does | **re-analyst** | `/explain` uses `explain_function.py` script |
-| Enrich xref/callgraph/data-flow with classification | **re-analyst** | `/xref`, `/callgraph`, `/data-flow` use `re_query.py` for metadata |
+| Enrich xref/callgraph with classification | **re-analyst** | `/xref`, `/callgraph` use `re_query.py` for metadata |
 | Add behavioral explanations to reports | **re-analyst** | `/full-report` uses `explain_function.py` for entry point explanations |
 | Triage an unknown module | **triage-coordinator** | `/triage` uses `analyze_module.py --goal triage` script |
 | Run a security audit | **triage-coordinator** | `--goal security` for full security pipeline |
 | Generate a comprehensive report | **triage-coordinator** | `/full-report` uses `generate_analysis_plan.py --goal full` script |
 | Run a unified vulnerability scan | **security-auditor** | `/scan` uses `run_security_scan.py` script |
-| Verify security findings with fresh eyes | **security-auditor** | `/audit`, `/taint`, `/memory-scan`, `/logic-scan` launch as subagent |
+| Trace taint / attacker-controlled data to sinks | **taint-scanner** | `/taint`, `/scan` launch as subagent |
+| Verify security findings with fresh eyes | **security-auditor** | `/audit`, `/taint`, `/memory-scan`, `/ai-logical-bug-scan` launch as subagent |
 | Reconstruct struct/class definitions | **type-reconstructor** | `/reconstruct-types` uses `reconstruct_all.py` script |
 | Generate C++ header files from a binary | **type-reconstructor** | `reconstruct_all.py --output types.h` |
 | Lift all methods of a C++ class | **code-lifter** | `/lift-class` launches as subagent |
 | Lift related functions with shared context | **code-lifter** | Launched as subagent with shared state |
-| Verify lifted code is correct | **verifier** | `/verify-decompiler-batch`, `/lift-class` launch as subagent |
-| Check decompiler accuracy | **verifier** | Launched as subagent with `readonly: true` |
 
 ## Subagent vs Skill
 

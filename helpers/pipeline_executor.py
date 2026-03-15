@@ -190,11 +190,11 @@ def _workspace_summary(run_dir: Path) -> dict[str, Any]:
     for step_name, step_record in steps.items():
         summary = read_summary(str(run_dir), step_name)
         substeps[step_name] = summary
-        if isinstance(step_record, dict) and step_record.get("status") == "success":
+        if isinstance(step_record, dict) and step_record.get("status") in ("ok", "success"):
             succeeded += 1
         else:
             failed += 1
-    status = "success"
+    status = "ok"
     if failed and succeeded:
         status = "partial"
     elif failed and not succeeded:
@@ -334,7 +334,8 @@ def _step_result_from_workspace(
     error: str | None = None,
 ) -> StepResult:
     summary = _workspace_summary(workspace_dir)
-    status = summary.get("status", "success")
+    raw_status = summary.get("status", "ok")
+    status = "success" if raw_status in ("ok", "success") else raw_status
     if error and status == "success":
         status = "partial"
     return StepResult(
@@ -454,10 +455,7 @@ def dispatch_scan_step(
     if step.options.get("memory_only"):
         return _dispatch_memory_scan(module, step, workspace_dir, settings)
     if step.options.get("logic_only"):
-        return _dispatch_logic_scan(module, step, workspace_dir, settings)
-    if step.options.get("taint_only"):
-        return _dispatch_taint(module, step, workspace_dir, settings)
-
+        return _dispatch_ai_logic_scan(module, step, workspace_dir, settings)
     started_at = time.time()
     _init_workspace_run(workspace_dir, module.module_name, step.name)
 
@@ -502,27 +500,43 @@ def _dispatch_memory_scan(
     workspace_dir: Path,
     settings: PipelineSettings,
 ) -> StepResult:
+    # Stage 1 only: build threat model + prepare callgraph context.
+    # Stages 2-4 (LLM-driven analysis, specialist scans, skeptic verification)
+    # are orchestrated by the /memory-scan command, not by the pipeline executor.
     started_at = time.time()
     _init_workspace_run(workspace_dir, module.module_name, step.name)
 
-    top = step.options.get("top")
-    base_args = [module.db_path]
-    if top is not None:
-        base_args += ["--top", str(top)]
-    if settings.no_cache:
-        base_args.append("--no-cache")
+    depth = str(step.options.get("depth", 5))
 
-    steps = [
-        ("scan_buffer_overflows", "memory-corruption-detector", "scan_buffer_overflows.py", list(base_args)),
-        ("scan_integer_issues", "memory-corruption-detector", "scan_integer_issues.py", list(base_args)),
-        ("scan_use_after_free", "memory-corruption-detector", "scan_use_after_free.py", list(base_args)),
-        ("scan_format_strings", "memory-corruption-detector", "scan_format_strings.py", list(base_args)),
-    ]
-    _, error = _run_grouped_skill_steps(workspace_dir, steps, settings, parallel=True)
+    threat_model_result = run_skill_script(
+        "ai-memory-corruption-scanner",
+        "build_threat_model.py",
+        [module.db_path],
+        timeout=settings.step_timeout,
+        json_output=True,
+        workspace_dir=str(workspace_dir),
+        workspace_step="threat_model",
+        max_retries=1,
+    )
+    if not threat_model_result.get("success"):
+        error = threat_model_result.get("error", "build_threat_model failed")
+        return _step_result_from_workspace(step.name, workspace_dir, started_at, error=error)
+
+    prepare_result = run_skill_script(
+        "ai-memory-corruption-scanner",
+        "prepare_context.py",
+        [module.db_path, "--entry-points", "--depth", depth],
+        timeout=settings.step_timeout,
+        json_output=True,
+        workspace_dir=str(workspace_dir),
+        workspace_step="prepare_context",
+        max_retries=1,
+    )
+    error = None if prepare_result.get("success") else prepare_result.get("error")
     return _step_result_from_workspace(step.name, workspace_dir, started_at, error=error)
 
 
-def _dispatch_logic_scan(
+def _dispatch_ai_logic_scan(
     module: ResolvedModule,
     step: StepDef,
     workspace_dir: Path,
@@ -530,24 +544,21 @@ def _dispatch_logic_scan(
 ) -> StepResult:
     started_at = time.time()
     _init_workspace_run(workspace_dir, module.module_name, step.name)
-
-    top = step.options.get("top")
-    def _args(*, top_default: int | None = None) -> list[str]:
-        args = [module.db_path]
-        use_top = top if top is not None else top_default
-        if use_top is not None:
-            args += ["--top", str(use_top)]
-        if settings.no_cache:
-            args.append("--no-cache")
-        return args
-
-    steps = [
-        ("scan_auth_bypass", "logic-vulnerability-detector", "scan_auth_bypass.py", _args(top_default=20)),
-        ("scan_state_errors", "logic-vulnerability-detector", "scan_state_errors.py", _args()),
-        ("scan_logic_flaws", "logic-vulnerability-detector", "scan_logic_flaws.py", _args(top_default=20)),
-        ("scan_api_misuse", "logic-vulnerability-detector", "scan_api_misuse.py", _args(top_default=20)),
-    ]
-    _, error = _run_grouped_skill_steps(workspace_dir, steps, settings, parallel=True)
+    depth = str(step.options.get("depth", 5))
+    error = None
+    try:
+        run_skill_script("ai-logic-scanner", "build_threat_model.py",
+                         [module.db_path], json_output=True, timeout=settings.step_timeout,
+                         workspace_dir=str(workspace_dir), workspace_step="threat_model")
+    except Exception as exc:
+        error = str(exc)
+    try:
+        run_skill_script("ai-logic-scanner", "prepare_context.py",
+                         [module.db_path, "--entry-points", "--depth", depth],
+                         json_output=True, timeout=settings.step_timeout,
+                         workspace_dir=str(workspace_dir), workspace_step="context")
+    except Exception as exc:
+        error = error or str(exc)
     return _step_result_from_workspace(step.name, workspace_dir, started_at, error=error)
 
 
@@ -628,58 +639,6 @@ def _dispatch_callgraph(
     return _step_result_from_workspace(step.name, workspace_dir, started_at, error=error)
 
 
-def _dispatch_taint(
-    module: ResolvedModule,
-    step: StepDef,
-    workspace_dir: Path,
-    settings: PipelineSettings,
-) -> StepResult:
-    started_at = time.time()
-    _init_workspace_run(workspace_dir, module.module_name, step.name)
-
-    top = int(step.options.get("top", 3))
-    depth = int(step.options.get("depth", 3))
-
-    rank_args = [module.db_path, "--top", str(top)]
-    result = run_skill_script(
-        "map-attack-surface",
-        "rank_entrypoints.py",
-        rank_args,
-        timeout=settings.step_timeout,
-        json_output=True,
-        workspace_dir=str(workspace_dir),
-        workspace_step="rank_entrypoints",
-        max_retries=1,
-    )
-    if not result.get("success"):
-        return _step_result_from_workspace(
-            step.name,
-            workspace_dir,
-            started_at,
-            error=result.get("error"),
-        )
-
-    target_names = _extract_ranked_names(workspace_dir)[:top]
-    if not target_names:
-        return _step_result_from_workspace(step.name, workspace_dir, started_at)
-
-    steps = []
-    for function_name in target_names:
-        args = [module.db_path, function_name, "--depth", str(depth)]
-        if settings.no_cache:
-            args.append("--no-cache")
-        steps.append(
-            (
-                f"taint_{function_name}",
-                "taint-analysis",
-                "taint_function.py",
-                args,
-            )
-        )
-    _, error = _run_grouped_skill_steps(workspace_dir, steps, settings, parallel=True)
-    return _step_result_from_workspace(step.name, workspace_dir, started_at, error=error)
-
-
 def _dispatch_dossiers(
     module: ResolvedModule,
     step: StepDef,
@@ -738,16 +697,14 @@ def dispatch_skill_step(
 ) -> StepResult:
     if step.name == "memory-scan":
         return _dispatch_memory_scan(module, step, workspace_dir, settings)
-    if step.name == "logic-scan":
-        return _dispatch_logic_scan(module, step, workspace_dir, settings)
+    if step.name == "ai-logic-scan":
+        return _dispatch_ai_logic_scan(module, step, workspace_dir, settings)
     if step.name == "entrypoints":
         return _dispatch_entrypoints(module, step, workspace_dir, settings)
     if step.name == "classify":
         return _dispatch_classify(module, step, workspace_dir, settings)
     if step.name == "callgraph":
         return _dispatch_callgraph(module, step, workspace_dir, settings)
-    if step.name == "taint":
-        return _dispatch_taint(module, step, workspace_dir, settings)
     if step.name == "dossiers":
         return _dispatch_dossiers(module, step, workspace_dir, settings)
     raise ScriptError(f"Unsupported skill-group step: {step.name}", ErrorCode.INVALID_ARGS)

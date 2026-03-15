@@ -90,19 +90,7 @@ def print_detailed_classification(db_path: str, func, result: ClassificationResu
     else:
         print("  (no signals detected)")
 
-    # Assembly metrics
     _section("STRUCTURAL METRICS")
-    if result.asm_metrics:
-        m = result.asm_metrics
-        print(f"  Assembly instructions: {m.instruction_count}")
-        print(f"  Call instructions:     {m.call_count}")
-        print(f"  Branch instructions:   {m.branch_count}")
-        print(f"  Return instructions:   {m.ret_count}")
-        print(f"  Is leaf function:      {m.is_leaf}")
-        print(f"  Is tiny (<10 instr):   {m.is_tiny}")
-        print(f"  Has syscall:           {m.has_syscall}")
-    else:
-        print("  (no assembly code available)")
     print(f"  Loop count:            {result.loop_count}")
     print(f"  Has decompiled code:   {result.has_decompiled}")
 

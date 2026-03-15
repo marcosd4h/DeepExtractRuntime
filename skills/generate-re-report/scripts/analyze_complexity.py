@@ -18,7 +18,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import (
     build_app_name_set,
-    count_asm_instructions,
     get_complexity_bucket,
     get_size_bucket,
     open_analysis_db,
@@ -136,7 +135,7 @@ def analyze_complexity(db_path: str, app_only: bool = False, *, no_cache: bool =
             })
 
         # --- Size ---
-        asm_lines = count_asm_instructions(func.assembly_code)
+        asm_lines = sum(1 for line in (func.assembly_code or "").splitlines() if line.strip() and not line.strip().startswith(";"))
         decomp_lines = len(func.decompiled_code.splitlines()) if func.decompiled_code else 0
         by_size.append({
             "function_id": fid, "function_name": fname,

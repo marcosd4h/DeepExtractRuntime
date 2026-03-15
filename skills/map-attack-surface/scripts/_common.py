@@ -6,7 +6,6 @@ detection, parameter risk scoring, and callgraph reachability analysis.
 
 from __future__ import annotations
 
-import re
 import sys
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
@@ -26,7 +25,6 @@ resolve_db_path, resolve_tracking_db = make_db_resolvers(WORKSPACE_ROOT)
 from helpers import _resolve_module_db, emit_error, parse_json_safe  # noqa: E402
 from helpers.callgraph import CallGraph  # noqa: E402
 from helpers.api_taxonomy import get_dangerous_api_set  # noqa: E402
-from helpers.asm_metrics import get_asm_metrics, AsmMetrics  # noqa: E402
 
 
 # ===========================================================================
@@ -219,128 +217,23 @@ DANGEROUS_SINK_APIS: set[str] = get_dangerous_api_set() | {
 # ===========================================================================
 
 from helpers.param_risk import (
-    score_parameter_risk,
-    HIGH_RISK_PARAM_PATTERNS,
+    describe_parameter_surface,
+    PARAM_TYPE_PATTERNS,
     BUFFER_SIZE_PAIR_PATTERNS,
 )
 
 
 # ===========================================================================
-# Function Name Pattern Detection
+# Entry Point Type Classification (Fallback)
 # ===========================================================================
-
-# Patterns for identifying entry point types from function names
-ENTRY_NAME_PATTERNS: dict[str, list[re.Pattern]] = {
-    "main_entry": [
-        re.compile(r"^(?:w?W?main|wmain|WinMain|wWinMain|_?tmain|_?wmain)$", re.I),
-    ],
-    "dllmain": [
-        re.compile(r"^(?:Dll(?:Main|Entry(?:Point)?))$", re.I),
-        re.compile(r"^_?DllMainCRTStartup$", re.I),
-    ],
-    "service_main": [
-        re.compile(r"^(?:Service(?:Main|Entry)|Svc(?:Main|Entry|Host))$", re.I),
-        re.compile(r"ServiceMain", re.I),
-    ],
-    "window_proc": [
-        re.compile(r"(?:Wnd|Dlg|Dialog|Window)Proc", re.I),
-        re.compile(r"(?:WM_|MSG_).*(?:Handler|Proc|Callback)", re.I),
-    ],
-    "rpc_handler": [
-        re.compile(r"^(?:Rpc|RPC_|Ndr).*(?:ServerCall|StubCall|Dispatch)", re.I),
-        re.compile(r"_?(?:Rpc)?(?:Server)?(?:Interface|If)(?:Callback|Handler)", re.I),
-        re.compile(r"^s_\w+$"),  # RPC-generated server-side stubs (s_FuncName)
-    ],
-    "named_pipe": [
-        re.compile(r"(?:Pipe|PIPE).*(?:Handler|Dispatch|Process|Server|Thread)", re.I),
-        re.compile(r"(?:Handle|Process).*(?:Pipe|Connection|Request)", re.I),
-    ],
-    "ipc_dispatcher": [
-        re.compile(r"(?:ALPC|LPC|Mailslot|SharedMem).*(?:Handler|Dispatch|Callback)", re.I),
-        re.compile(r"(?:Handle|Process|Dispatch).*(?:Message|Request|Command|Packet)", re.I),
-    ],
-    "socket_handler": [
-        re.compile(r"(?:Socket|Tcp|Udp|Http|Net)(?:Server|Client)?(?:Handler|Dispatch|Callback|Accept|Recv|Listen)", re.I),
-        re.compile(r"(?:^|::)(?:Handle|Process|On)(?:Connection|Request|Packet|Client)(?:$|[A-Z])", re.I),
-        re.compile(r"(?:^|::)(?:Accept|Receive|Listen)(?:Thread|Callback|Handler)$", re.I),
-    ],
-    "driver_dispatch": [
-        re.compile(r"^DriverEntry$", re.I),
-        re.compile(r"^(?:Irp|IRP).*Dispatch", re.I),
-        re.compile(r"^(?:DeviceIoControl|IOCTL).*Handler", re.I),
-    ],
-    "com_class_factory": [
-        re.compile(r"^Dll(?:GetClassObject|CanUnloadNow|RegisterServer|UnregisterServer)$", re.I),
-        re.compile(r"(?:ClassFactory|ActivationFactory).*(?:Create|Query)", re.I),
-    ],
-    "exception_handler": [
-        re.compile(r"(?:Exception|SEH|VEH).*(?:Handler|Filter|Callback)", re.I),
-        re.compile(r"(?:Unhandled|Vectored).*(?:Exception)", re.I),
-    ],
-}
-
-# String patterns suggesting function is an entry point or dispatcher
-ENTRY_STRING_PATTERNS: dict[str, list[re.Pattern]] = {
-    "rpc_handler": [
-        re.compile(r"ncalrpc|ncacn_np|ncacn_ip_tcp|ncacn_http", re.I),
-        re.compile(r"RPC\s+server|RPC\s+interface", re.I),
-    ],
-    "named_pipe": [
-        re.compile(r"\\\\.\\pipe\\", re.I),
-        re.compile(r"named\s+pipe|pipe\s+server", re.I),
-    ],
-    "socket_handler": [
-        re.compile(r"(?:bind|listen|accept)\s+(?:on|failed|error)", re.I),
-        re.compile(r"(?:tcp|udp|socket)\s+(?:server|handler|connection)", re.I),
-        re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}:\d{1,5}\b"),  # IP:port
-        re.compile(r"(?:HTTP/\d|GET |POST |PUT |DELETE )", re.I),
-    ],
-    "ipc_dispatcher": [
-        re.compile(r"\\Device\\", re.I),
-        re.compile(r"ALPC|alpc|\\RPC Control\\", re.I),
-    ],
-}
-
-
-# ===========================================================================
-# Name-Based Entry Point Classification
-# ===========================================================================
-
-_PATTERN_TO_ENTRY_TYPE: dict[str, "EntryPointType"] = {
-    "main_entry": EntryPointType.MAIN_ENTRY,
-    "dllmain": EntryPointType.DLLMAIN,
-    "service_main": EntryPointType.SERVICE_MAIN,
-    "window_proc": EntryPointType.WINDOW_PROC,
-    "rpc_handler": EntryPointType.RPC_HANDLER,
-    "named_pipe": EntryPointType.NAMED_PIPE_HANDLER,
-    "ipc_dispatcher": EntryPointType.IPC_DISPATCHER,
-    "socket_handler": EntryPointType.TCP_UDP_HANDLER,
-    "driver_dispatch": EntryPointType.DRIVER_DISPATCH,
-    "com_class_factory": EntryPointType.COM_CLASS_FACTORY,
-    "exception_handler": EntryPointType.EXCEPTION_HANDLER,
-}
 
 def _classify_entry_name(function_name: str) -> "EntryPointType":
-    """Classify an entry point type from its function name using pattern matching.
+    """Default fallback -- returns EXPORT_DLL.
 
-    Iterates over ENTRY_NAME_PATTERNS in definition order and returns the
-    EntryPointType for the first matching category.
-
-    Returns EntryPointType.EXPORT_DLL as the default fallback when nothing
-    matches. RPC handlers not covered by ENTRY_NAME_PATTERNS are identified
-    by the ground-truth RPC index (``get_rpc_index().is_rpc_procedure``) in
-    the callers of this function -- name-pattern heuristics for specific
-    MIDL naming conventions are intentionally absent here because they are
-    non-generic and would produce false positives on non-Microsoft codebases.
+    Entry point type classification is done by structured data sources
+    (RPC/COM/WinRT indexes, file_info.json exports) in the callers,
+    not by name-pattern heuristics.
     """
-    for category, patterns in ENTRY_NAME_PATTERNS.items():
-        entry_type = _PATTERN_TO_ENTRY_TYPE.get(category)
-        if entry_type is None:
-            continue
-        for pattern in patterns:
-            if pattern.search(function_name):
-                return entry_type
-
     return EntryPointType.EXPORT_DLL
 
 
@@ -363,9 +256,8 @@ class EntryPoint:
     address: str = ""
     ordinal: Optional[int] = None
 
-    # Risk scoring
-    param_risk_score: float = 0.0
-    param_risk_reasons: list[str] = field(default_factory=list)
+    # Parameter surface metadata
+    param_surface: dict = field(default_factory=dict)
 
     # Callgraph reachability (populated by ranker)
     reachable_count: int = 0
@@ -414,8 +306,7 @@ class EntryPoint:
             "mangled_name": self.mangled_name,
             "address": self.address,
             "ordinal": self.ordinal,
-            "param_risk_score": round(self.param_risk_score, 3),
-            "param_risk_reasons": self.param_risk_reasons,
+            "param_surface": self.param_surface,
             "reachable_count": self.reachable_count,
             "dangerous_ops_reachable": self.dangerous_ops_reachable,
             "dangerous_ops_list": self.dangerous_ops_list[:20],

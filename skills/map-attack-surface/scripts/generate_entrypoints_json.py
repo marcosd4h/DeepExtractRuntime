@@ -180,8 +180,7 @@ def _entry_to_crs(ep: EntryPoint) -> dict:
         "address": ep.address,
         "ordinal": ep.ordinal,
         "analysis": {
-            "param_risk_score": round(ep.param_risk_score, 3),
-            "param_risk_reasons": ep.param_risk_reasons,
+            "param_surface": ep.param_surface,
             "reachable_functions": ep.reachable_count,
             "dangerous_ops_reachable": ep.dangerous_ops_reachable,
             "depth_to_first_danger": ep.depth_to_first_danger,

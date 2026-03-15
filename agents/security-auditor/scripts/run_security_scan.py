@@ -11,7 +11,7 @@ Usage:
     python run_security_scan.py <db_path> --goal scan --json
 
 Goals:
-    scan:   full 6-phase vulnerability scan (default)
+    scan:   full 5-phase vulnerability scan (default)
     audit:  targeted audit on a specific function
     hunt:   hypothesis-driven scan on top entry points
 
@@ -58,24 +58,29 @@ from _shared.pipeline_helpers import (
 from helpers.config import get_config_value
 from helpers.errors import ErrorCode, emit_error, safe_parse_args
 from helpers.json_output import emit_json
+from helpers.findings_store import upsert_finding
 
 
 # ---------------------------------------------------------------------------
-# Step-name to finding-type mapping (explicit, not substring-based)
+# Step-name to finding-type mapping
 # ---------------------------------------------------------------------------
 _STEP_FINDING_TYPE: dict[str, str] = {
-    "scan_buffer_overflows": "memory_corruption",
-    "scan_integer_issues": "memory_corruption",
-    "scan_use_after_free": "memory_corruption",
-    "scan_format_strings": "memory_corruption",
-    "scan_auth_bypass": "logic_vulnerability",
-    "scan_state_errors": "logic_vulnerability",
-    "scan_logic_flaws": "logic_vulnerability",
-    "scan_api_misuse": "logic_vulnerability",
     "taint_forward": "taint",
     "taint_backward": "taint",
     "taint_cross": "taint",
+    "mem_findings": "memory_corruption",
+    "logic_findings": "logic_vulnerability",
 }
+
+
+def _get_finding_type(step_name: str) -> str | None:
+    """Resolve step name to finding type with prefix matching for taint steps."""
+    exact = _STEP_FINDING_TYPE.get(step_name)
+    if exact:
+        return exact
+    if step_name.startswith("taint_"):
+        return "taint"
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -257,28 +262,31 @@ def _phase_vuln_scan(
     max_workers: int | None = None,
     no_cache: bool = False,
 ) -> dict:
-    """Phase 2: Vulnerability scanning -- memory + logic detectors."""
+    """Phase 2: Prepare AI scanner contexts (threat models + callgraph data).
+
+    Builds threat models and callgraph context for both the memory-corruption
+    scanner and the logic scanner.  The actual LLM-driven scanning happens at
+    the command level (the coordinator launches scanner subagents); this phase
+    only prepares the workspace artifacts they consume.
+    """
     results: dict = {}
-    steps = [
-        ("scan_buffer_overflows", "memory-corruption-detector",
-         "scan_buffer_overflows.py", with_flag([db_path, "--json"], "--no-cache", no_cache)),
-        ("scan_integer_issues", "memory-corruption-detector",
-         "scan_integer_issues.py", with_flag([db_path, "--json"], "--no-cache", no_cache)),
-        ("scan_use_after_free", "memory-corruption-detector",
-         "scan_use_after_free.py", with_flag([db_path, "--json"], "--no-cache", no_cache)),
-        ("scan_format_strings", "memory-corruption-detector",
-         "scan_format_strings.py", with_flag([db_path, "--json"], "--no-cache", no_cache)),
-        ("scan_auth_bypass", "logic-vulnerability-detector",
-         "scan_auth_bypass.py", with_flag([db_path, "--top", "20", "--json"], "--no-cache", no_cache)),
-        ("scan_state_errors", "logic-vulnerability-detector",
-         "scan_state_errors.py", with_flag([db_path, "--json"], "--no-cache", no_cache)),
-        ("scan_logic_flaws", "logic-vulnerability-detector",
-         "scan_logic_flaws.py", with_flag([db_path, "--top", "20", "--json"], "--no-cache", no_cache)),
-        ("scan_api_misuse", "logic-vulnerability-detector",
-         "scan_api_misuse.py", with_flag([db_path, "--top", "20", "--json"], "--no-cache", no_cache)),
+
+    steps: list[tuple[str, str, str, list[str]]] = [
+        ("mem_threat_model", "ai-memory-corruption-scanner", "build_threat_model.py",
+         [db_path, "--json"]),
+        ("mem_context", "ai-memory-corruption-scanner", "prepare_context.py",
+         [db_path, "--entry-points", "--with-code", "--json"]),
+        ("logic_threat_model", "ai-logic-scanner", "build_threat_model.py",
+         [db_path, "--json"]),
+        ("logic_context", "ai-logic-scanner", "prepare_context.py",
+         [db_path, "--entry-points", "--with-code", "--json"]),
+        ("taint_threat_model", "ai-taint-scanner", "build_threat_model.py",
+         [db_path, "--json"]),
+        ("taint_context", "ai-taint-scanner", "prepare_context.py",
+         [db_path, "--entry-points", "--with-code", "--json"]),
     ]
 
-    with ThreadPoolExecutor(max_workers=_phase_workers(max_workers, len(steps), 4)) as pool:
+    with ThreadPoolExecutor(max_workers=_phase_workers(max_workers, len(steps), 6)) as pool:
         future_map = {}
         for step_name, skill, script, args in steps:
             future = pool.submit(
@@ -294,8 +302,15 @@ def _phase_vuln_scan(
                 result = future.result()
                 results[name] = result
             except Exception as exc:
-                status_message(f"[FAIL] {name}: {exc}")
+                status_message(f"[WARN] {name}: {exc}")
                 results[name] = {"success": False, "error": str(exc)}
+
+    succeeded = [k for k, v in results.items() if isinstance(v, dict) and v.get("success")]
+    failed = [k for k, v in results.items() if isinstance(v, dict) and not v.get("success")]
+    if succeeded:
+        status_message(f"  Scanner context ready: {', '.join(succeeded)}")
+    if failed:
+        status_message(f"  Scanner context failed: {', '.join(failed)}")
 
     return results
 
@@ -306,24 +321,30 @@ def _phase_taint(
     *,
     max_workers: int | None = None,
     no_cache: bool = False,
-    depth: int = 2,
+    depth: int = 5,
 ) -> dict:
-    """Phase 3: Taint analysis on top entry points (or a specific function)."""
+    """Phase 3: Per-function taint context preparation for AI taint scanner.
+
+    Builds taint-enriched callgraph context for specific entry points.  The
+    actual taint analysis is performed by the taint-scanner LLM agent (launched
+    by the coordinator) consuming these workspace artifacts alongside the
+    module-level threat model from Phase 2.
+    """
     results: dict = {}
     targets = [function_name] if function_name else entrypoints[:5]
 
     if not targets:
-        status_message("[SKIP] No targets for taint analysis")
+        status_message("[SKIP] No targets for taint context preparation")
         return results
 
     with ThreadPoolExecutor(max_workers=_phase_workers(max_workers, len(targets), 3)) as pool:
         future_map = {}
         for fname in targets:
             step_name = f"taint_{fname}"
-            taint_args = with_flag([db_path, fname, "--depth", str(depth), "--json"], "--no-cache", no_cache)
+            taint_args = [db_path, "--function", fname, "--depth", str(depth), "--with-code", "--json"]
             future = pool.submit(
                 run_skill_script,
-                "taint-analysis", "taint_function.py",
+                "ai-taint-scanner", "prepare_context.py",
                 taint_args,
                 timeout=timeout, json_output=True,
                 workspace_dir=workspace_dir, workspace_step=step_name,
@@ -342,75 +363,23 @@ def _phase_taint(
     return results
 
 
-def _phase_verify(
-    db_path: str,
-    workspace_dir: str,
-    timeout: int,
-    *,
-    max_workers: int | None = None,
-) -> dict:
-    """Phase 4: Independent verification of scanner findings."""
-    results: dict = {}
-    steps = [
-        ("verify_memory", "memory-corruption-detector", "verify_findings.py"),
-        ("verify_logic", "logic-vulnerability-detector", "verify_findings.py"),
-    ]
-
-    memory_findings = _collect_workspace_json(workspace_dir, [
-        "scan_buffer_overflows", "scan_integer_issues",
-        "scan_use_after_free", "scan_format_strings",
-    ])
-    logic_findings = _collect_workspace_json(workspace_dir, [
-        "scan_auth_bypass", "scan_state_errors", "scan_logic_flaws",
-        "scan_api_misuse",
-    ])
-
-    with ThreadPoolExecutor(max_workers=_phase_workers(max_workers, len(steps), 2)) as pool:
-        future_map = {}
-        for step_name, skill, script in steps:
-            findings_path = _write_temp_findings(
-                workspace_dir, step_name,
-                memory_findings if "memory" in step_name else logic_findings,
-            )
-            if not findings_path:
-                continue
-            future = pool.submit(
-                run_skill_script, skill, script,
-                ["--findings", findings_path, "--db-path", db_path, "--json"],
-                timeout=timeout, json_output=True,
-                workspace_dir=workspace_dir, workspace_step=step_name,
-            )
-            future_map[future] = step_name
-
-        for future in as_completed(future_map):
-            name = future_map[future]
-            try:
-                result = future.result()
-                results[name] = result
-            except Exception as exc:
-                status_message(f"[FAIL] {name}: {exc}")
-                results[name] = {"success": False, "error": str(exc)}
-
-    return results
-
-
 def _phase_exploitability(db_path: str, workspace_dir: str, timeout: int) -> dict:
-    """Phase 5: Exploitability assessment with all finding types."""
+    """Phase 4: Exploitability assessment with all finding types."""
     results: dict = {}
 
     taint_path = _find_step_results_path(workspace_dir, "taint_")
-    memory_path = _find_step_results_path(workspace_dir, "verify_memory")
-    logic_path = _find_step_results_path(workspace_dir, "verify_logic")
+    mem_path = _find_step_results_path(workspace_dir, "mem_findings")
+    logic_path = _find_step_results_path(workspace_dir, "logic_findings")
 
     args = ["--module-db", db_path, "--json"]
     if taint_path:
         args.extend(["--taint-report", taint_path])
-    if memory_path:
-        args.extend(["--memory-findings", memory_path])
+    if mem_path:
+        args.extend(["--memory-findings", mem_path])
     if logic_path:
         args.extend(["--logic-findings", logic_path])
 
-    if not taint_path and not memory_path and not logic_path:
+    if not taint_path and not mem_path and not logic_path:
         status_message("[SKIP] No findings for exploitability assessment")
         return results
 
@@ -431,8 +400,9 @@ def _phase_exploitability(db_path: str, workspace_dir: str, timeout: int) -> dic
 def _phase_report(
     all_phase_results: dict,
     workspace_dir: str,
+    persist: bool = False,
 ) -> dict:
-    """Phase 6: Merge, deduplicate, and rank all findings into final report."""
+    """Phase 5: Merge, deduplicate, and rank all findings into final report."""
     scanner_pairs: list[tuple[dict, str]] = []
 
     for step_name, result in all_phase_results.items():
@@ -442,7 +412,7 @@ def _phase_report(
         if not isinstance(data, dict):
             continue
 
-        finding_type = _STEP_FINDING_TYPE.get(step_name)
+        finding_type = _get_finding_type(step_name)
         if finding_type:
             scanner_pairs.append((data, finding_type))
 
@@ -459,6 +429,14 @@ def _phase_report(
         }, indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
+
+    if persist:
+        run_id = Path(workspace_dir).name
+        for f in merged:
+            try:
+                upsert_finding(f, run_id=run_id)
+            except Exception:
+                pass  # Persistence failure must never abort the scan
 
     return {
         "findings": merged,
@@ -483,19 +461,6 @@ def _collect_workspace_json(workspace_dir: str, step_names: list[str]) -> list[d
             elif isinstance(stdout, list):
                 collected.extend(stdout)
     return collected
-
-
-def _write_temp_findings(workspace_dir: str, step_name: str, findings: list[dict]) -> str | None:
-    """Write collected findings to a temp JSON file for verification scripts."""
-    if not findings:
-        return None
-    out_path = Path(workspace_dir) / f"{step_name}_input.json"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(
-        json.dumps({"findings": findings}, indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
-    return str(out_path)
 
 
 def _find_step_results_path(workspace_dir: str, step_prefix: str) -> str | None:
@@ -544,7 +509,7 @@ def run_security_pipeline(
     if top_n <= 0:
         top_n = adaptive_top_n(0)
 
-    progress = ProgressReporter(total=6, label="Security scan")
+    progress = ProgressReporter(total=5, label="Security scan")
     all_results: dict = {}
     phase_log: list[dict] = []
 
@@ -556,7 +521,7 @@ def run_security_pipeline(
         phase_log.append(entry)
 
     # Phase 1: Recon
-    status_message("Phase 1/6: Recon -- classifying functions and mapping attack surface")
+    status_message("Phase 1/5: Recon -- classifying functions and mapping attack surface")
     t0 = time.time()
     recon = _phase_recon(
         db_path,
@@ -595,7 +560,7 @@ def run_security_pipeline(
                   f"(RPC/COM/WinRT)", file=sys.stderr)
 
     # Phase 2: Vulnerability scan
-    status_message("Phase 2/6: Scanning for memory corruption and logic vulnerabilities")
+    status_message("Phase 2/5: Preparing AI scanner contexts (threat models + callgraphs)")
     t0 = time.time()
     vuln = _phase_vuln_scan(
         db_path,
@@ -610,8 +575,8 @@ def run_security_pipeline(
     ))
     progress.update(2)
 
-    # Phase 3: Taint analysis
-    status_message("Phase 3/6: Taint analysis on top entry points")
+    # Phase 3: Taint context preparation for AI taint scanner
+    status_message("Phase 3/5: Preparing taint-enriched callgraph context for top entry points")
     t0 = time.time()
     taint = _phase_taint(
         db_path,
@@ -628,65 +593,22 @@ def run_security_pipeline(
     ) if taint else True)
     progress.update(3)
 
-    # Phase 4: Verification
-    status_message("Phase 4/6: Verifying scanner findings against assembly")
-    t0 = time.time()
-    verified = _phase_verify(
-        db_path,
-        workspace_dir,
-        timeout,
-        max_workers=max_workers,
-    )
-    all_results.update(verified)
-    _log_phase("verification", t0, verified, any(
-        isinstance(v, dict) and v.get("success") for v in verified.values()
-    ) if verified else True)
-    progress.update(4)
-
-    # Phase 4b: Feedback loop -- deeper taint when initial findings are severe
-    interim_report = _phase_report(all_results, workspace_dir)
-    interim_findings = interim_report.get("findings", [])
-    if _should_deepen_scan(interim_findings):
-        status_message("Phase 4b: High-severity findings detected -- re-scanning top functions at depth 4")
-        t0 = time.time()
-        deep_targets = []
-        seen_funcs: set[str] = set()
-        for f in interim_findings:
-            if f.function_name not in seen_funcs:
-                deep_targets.append(f.function_name)
-                seen_funcs.add(f.function_name)
-            if len(deep_targets) >= 3:
-                break
-
-        if deep_targets:
-            deep_taint = _phase_taint(
-                db_path, workspace_dir, timeout,
-                deep_targets, None,
-                max_workers=max_workers,
-                no_cache=no_cache,
-                depth=4,
-            )
-            all_results.update(deep_taint)
-            _log_phase("feedback_taint", t0, deep_taint, any(
-                isinstance(v, dict) and v.get("success") for v in deep_taint.values()
-            ) if deep_taint else True)
-
-    # Phase 5: Exploitability assessment
-    status_message("Phase 5/6: Scoring exploitability")
+    # Phase 4: Exploitability assessment
+    status_message("Phase 4/5: Scoring exploitability")
     t0 = time.time()
     exploit = _phase_exploitability(db_path, workspace_dir, timeout)
     all_results.update(exploit)
     _log_phase("exploitability", t0, exploit, any(
         isinstance(v, dict) and v.get("success") for v in exploit.values()
     ) if exploit else True)
-    progress.update(5)
+    progress.update(4)
 
-    # Phase 6: Report synthesis
-    status_message("Phase 6/6: Merging and ranking findings")
+    # Phase 5: Report synthesis
+    status_message("Phase 5/5: Merging and ranking findings")
     t0 = time.time()
-    report = _phase_report(all_results, workspace_dir)
+    report = _phase_report(all_results, workspace_dir, persist=True)
     _log_phase("report", t0, report, bool(report.get("findings") is not None))
-    progress.update(6)
+    progress.update(5)
 
     total_elapsed = round(time.time() - start_time, 2)
     succeeded = sum(1 for p in phase_log if p["success"])
@@ -793,7 +715,7 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Goals:
-  scan    Full 6-phase vulnerability scan (default)
+  scan    Full 5-phase vulnerability scan (default)
   audit   Targeted audit on a specific function
   hunt    Hypothesis-driven scan on top entry points
 """,

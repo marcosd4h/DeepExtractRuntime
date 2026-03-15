@@ -61,10 +61,10 @@ def split_arguments(args_str: str) -> list[str]:
     current: list[str] = []
     depth = 0
     for char in args_str:
-        if char in "([":
+        if char in "([<":
             depth += 1
             current.append(char)
-        elif char in ")]":
+        elif char in ")]>":
             depth -= 1
             current.append(char)
         elif char == "," and depth == 0:
@@ -81,7 +81,7 @@ def split_arguments(args_str: str) -> list[str]:
     return args
 
 
-def extract_function_calls(
+def _extract_function_calls(
     code: str,
     *,
     keywords: frozenset[str] = _DEFAULT_KEYWORDS,
@@ -157,7 +157,7 @@ def discover_calls_with_xrefs(
     Calls that appear only in xrefs (missed by the parser due to formatting)
     are included with empty argument lists.
     """
-    parser_calls = extract_function_calls(code, keywords=keywords)
+    parser_calls = _extract_function_calls(code, keywords=keywords)
     parser_by_name: dict[str, list[dict]] = {}
     for c in parser_calls:
         parser_by_name.setdefault(c["function_name"].lower(), []).append(c)
@@ -190,35 +190,11 @@ def discover_calls_with_xrefs(
     return parser_calls
 
 
-def find_param_in_calls(
-    code: str,
-    param_name: str,
-    *,
-    keywords: frozenset[str] = _DEFAULT_KEYWORDS,
-) -> list[dict]:
-    """Find calls where a parameter appears in an argument expression."""
-    pattern = re.compile(rf"\b{re.escape(param_name)}\b")
-    results: list[dict] = []
-    for call in extract_function_calls(code, keywords=keywords):
-        for arg_position, arg_expression in enumerate(call["arguments"]):
-            if pattern.search(arg_expression):
-                results.append(
-                    {
-                        "function_name": call["function_name"],
-                        "arg_position": arg_position,
-                        "arg_expression": arg_expression,
-                        "line_number": call["line_number"],
-                        "line": call["line"],
-                        "is_direct": arg_expression.strip() == param_name,
-                    }
-                )
-    return results
+extract_function_calls = _extract_function_calls  # backward compatibility
 
 
 __all__ = [
     "discover_calls_with_xrefs",
     "extract_balanced_parens",
-    "extract_function_calls",
-    "find_param_in_calls",
     "split_arguments",
 ]

@@ -5,7 +5,7 @@ description: Orchestrates multi-skill analysis workflows for comprehensive DeepE
 
 # Triage Coordinator
 
-You are an expert reverse-engineering analysis coordinator for Windows PE binaries analyzed by DeepExtractIDA. You orchestrate 16 specialized analysis skills to perform comprehensive module analysis based on high-level goals.
+You are an expert reverse-engineering analysis coordinator for Windows PE binaries analyzed by DeepExtractIDA. You orchestrate specialized analysis skills to perform comprehensive module analysis based on high-level goals.
 
 ## Operating Modes
 
@@ -91,7 +91,7 @@ module_dir = resolve_module_dir("appinfo.dll")  # -> extracted_code/appinfo_dll/
 2. `map-attack-surface/rank_entrypoints.py --json --top 10` -- ranked by attack value
 3. `callgraph-tracer/build_call_graph.py --stats --json` -- graph topology
 4. `security-dossier/build_dossier.py <func> --callee-depth 4 --json` -- per top-5 entry points
-5. `taint-analysis/taint_function.py <func> --depth 2 --json` -- per top-3 ranked entry points. Traces tainted parameters forward to dangerous sinks with guard/bypass analysis and severity scoring.
+5. AI taint analysis via `ai-taint-scanner` -- per top-3 ranked entry points. LLM-driven taint tracing with trust boundary analysis and skeptic verification.
 
 **Output:** Risk-prioritized entry points, security dossiers, taint sink reachability with guard bypass analysis, dangerous operation paths, recommended audit targets.
 
@@ -101,13 +101,11 @@ module_dir = resolve_module_dir("appinfo.dll")  # -> extracted_code/appinfo_dll/
 
 **Pipeline:**
 
-1. Everything from security (including taint analysis on top-3 entry points), plus:
+1. Everything from security (including AI taint analysis on top-3 entry points), plus:
 2. `reconstruct-types/list_types.py --json` -- class/type inventory
-3. `deep-research-prompt/gather_module_context.py --json` -- full module intelligence
-4. _Conditional:_ `com-interface-reconstruction/scan_com_interfaces.py` (if COM-heavy)
-5. _Conditional:_ `state-machine-extractor/detect_dispatchers.py` (if dispatch-heavy)
+3. _Conditional:_ `com-interface-reconstruction/scan_com_interfaces.py` (if COM-heavy)
 
-**Output:** Everything from triage + security + taint analysis + type inventory + specialized analysis based on module traits.
+**Output:** Everything from triage + security + AI taint analysis + type inventory + specialized analysis based on module traits.
 
 ### 4. Understand Function (`--goal understand-function --function <name>`)
 
@@ -118,11 +116,10 @@ module_dir = resolve_module_dir("appinfo.dll")  # -> extracted_code/appinfo_dll/
 1. `classify-functions/classify_function.py <func> --json` -- purpose classification
 2. `decompiled-code-extractor/extract_function_data.py <func> --json` -- full data (decompiled + assembly + xrefs)
 3. `callgraph-tracer/build_call_graph.py --function <func> --depth 2 --json` -- call chain
-4. `data-flow-tracer/forward_trace.py <func> --json` -- parameter flow
-5. `security-dossier/build_dossier.py <func> --callee-depth 4 --json` -- security context
-6. _Conditional:_ `taint-analysis/taint_function.py <func> --depth 2 --json` -- taint to dangerous sinks (run when function has dangerous callees or is security-classified)
+4. `security-dossier/build_dossier.py <func> --callee-depth 4 --json` -- security context
+5. _Conditional:_ AI taint analysis via `ai-taint-scanner` -- taint to dangerous sinks (run when function has dangerous callees or is security-classified)
 
-**Output:** Complete function understanding: purpose, data flow, call chain, security implications, taint sink reachability (when applicable).
+**Output:** Complete function understanding: purpose, call chain, security implications, taint sink reachability (when applicable).
 
 ### 5. Type Reconstruction (`--goal types`)
 
@@ -150,27 +147,22 @@ critical steps or produces inconsistent output.
 
 ## Complete Skill Catalog
 
-### 16 Available Skills
+### Available Skills
 
 | #   | Skill                            | Purpose                                   | Key Scripts                                                                                                            |
 | --- | -------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| 1   | **analyze-ida-decompiled**       | Navigate and explain decompiled code      | _(agent-driven, no scripts)_                                                                                           |
-| 2   | **classify-functions**           | Categorize functions by purpose           | `triage_summary.py`, `classify_module.py`, `classify_function.py`                                                      |
-| 3   | **callgraph-tracer**             | Call chains, paths, cross-module analysis | `build_call_graph.py`, `chain_analysis.py`, `cross_module_resolve.py`, `module_dependencies.py`, `generate_diagram.py` |
-| 4   | **data-flow-tracer**             | Parameter flow, argument origin, globals  | `forward_trace.py`, `backward_trace.py`, `global_state_map.py`, `string_trace.py`                                      |
-| 5   | **map-attack-surface**           | Entry points, attack scoring              | `discover_entrypoints.py`, `rank_entrypoints.py`, `generate_entrypoints_json.py`                                       |
-| 6   | **security-dossier**             | Function security context                 | `build_dossier.py`                                                                                                     |
-| 7   | **generate-re-report**           | 10-section RE report                      | `generate_report.py`, `analyze_imports.py`, `analyze_complexity.py`, `analyze_topology.py`, `analyze_strings.py`       |
-| 8   | **reconstruct-types**            | C++ class/struct reconstruction           | `list_types.py`, `extract_class_hierarchy.py`, `scan_struct_fields.py`, `generate_header.py`                           |
-| 9   | **com-interface-reconstruction** | COM/WRL interface reconstruction          | `scan_com_interfaces.py`, `decode_wrl_templates.py`, `map_class_interfaces.py`, `generate_idl.py`                      |
-| 10  | **state-machine-extractor**      | Dispatch tables, state machines           | `detect_dispatchers.py`, `extract_dispatch_table.py`, `extract_state_machine.py`, `generate_state_diagram.py`          |
-| 11  | **deep-research-prompt**         | Research prompts and context gathering    | `generate_research_prompt.py`, `gather_module_context.py`, `gather_function_context.py`                                |
-| 12  | **decompiled-code-extractor**    | Extract function data from analysis DBs   | `find_module_db.py`, `list_functions.py`, `extract_function_data.py`                                                   |
+| 1   | **classify-functions**           | Categorize functions by purpose           | `triage_summary.py`, `classify_module.py`, `classify_function.py`                                                      |
+| 2   | **callgraph-tracer**             | Call chains, paths, cross-module analysis | `build_call_graph.py`, `chain_analysis.py`, `cross_module_resolve.py`, `module_dependencies.py`, `generate_diagram.py` |
+| 3   | **map-attack-surface**           | Entry points, attack scoring              | `discover_entrypoints.py`, `rank_entrypoints.py`, `generate_entrypoints_json.py`                                       |
+| 4   | **security-dossier**             | Function security context                 | `build_dossier.py`                                                                                                     |
+| 5   | **generate-re-report**           | 10-section RE report                      | `generate_report.py`, `analyze_imports.py`, `analyze_complexity.py`, `analyze_topology.py`, `analyze_strings.py`       |
+| 6   | **reconstruct-types**            | C++ class/struct reconstruction           | `list_types.py`, `extract_class_hierarchy.py`, `scan_struct_fields.py`, `generate_header.py`                           |
+| 7   | **com-interface-reconstruction** | COM/WRL interface reconstruction          | `scan_com_interfaces.py`, `decode_wrl_templates.py`, `map_class_interfaces.py`, `generate_idl.py`                      |
+| 8   | **decompiled-code-extractor**    | Extract function data from analysis DBs   | `find_module_db.py`, `list_functions.py`, `extract_function_data.py`                                                   |
 |     | **helpers** (cross-cutting)      | Unified cross-dimensional search          | `unified_search.py --query <term>` (names, signatures, strings, APIs, classes, exports)                                |
-| 13  | **batch-lift**                   | Lift function groups together             | `collect_functions.py`, `prepare_batch_lift.py`                                                                        |
-| 14  | **verify-decompiled**            | Verify decompiler accuracy                | `verify_function.py`, `scan_module.py`                                                                                 |
-| 15  | **import-export-resolver**       | PE import/export cross-module resolution  | `query_function.py`, `build_index.py`, `module_deps.py`, `resolve_forwarders.py`                                       |
-| 16  | **taint-analysis**               | Trace tainted params to dangerous sinks   | `taint_function.py`, `trace_taint_forward.py`, `trace_taint_backward.py`, `generate_taint_report.py`                   |
+| 9   | **batch-lift**                   | Lift function groups together             | `collect_functions.py`, `prepare_batch_lift.py`                                                                        |
+| 10  | **import-export-resolver**       | PE import/export cross-module resolution  | `query_function.py`, `build_index.py`, `module_deps.py`, `resolve_forwarders.py`                                       |
+| 11  | **ai-taint-scanner**             | AI-driven taint analysis with trust boundary analysis | `build_threat_model.py`, `prepare_context.py`                                                                          |
 
 ### Script Location Pattern
 
@@ -198,13 +190,9 @@ Module fingerprint:
   |     -> Focus on: RPC_HANDLER entry points, NdrClientCall chains
   |
   +-- Security-relevant (security_density > 3 or crypto > 2 or dangerous > 10)
-  |     -> Prioritize: security-dossier, map-attack-surface, taint-analysis
+  |     -> Prioritize: security-dossier, map-attack-surface, ai-taint-scanner
   |     -> Build dossiers for: all exports + COM vtable methods
   |     -> Run taint analysis on top-ranked entry points
-  |
-  +-- Dispatch-heavy (dispatch_density > 5)
-  |     -> Prioritize: state-machine-extractor, callgraph-tracer
-  |     -> Extract: dispatch tables, command handlers, state machines
   |
   +-- Class-heavy (class_count > 3)
   |     -> Prioritize: reconstruct-types, batch-lift
@@ -223,16 +211,16 @@ Module fingerprint:
 ### Can run in parallel (no dependencies)
 
 - `triage_summary.py` + `discover_entrypoints.py` + `classify_module.py`
-- `build_call_graph.py` + `list_types.py` + `gather_module_context.py`
-- `scan_com_interfaces.py` + `detect_dispatchers.py`
+- `build_call_graph.py` + `list_types.py`
+- `scan_com_interfaces.py` (if COM-heavy)
 - Multiple `build_dossier.py` calls for different functions
-- Multiple `taint_function.py` calls for different functions
+- Multiple AI taint analyses for different functions
 
 ### Must run sequentially (output dependencies)
 
 - `rank_entrypoints.py` depends on `discover_entrypoints.py` results
 - `build_dossier.py` per function depends on `rank_entrypoints.py` (needs top-N list)
-- `taint_function.py` per function depends on `rank_entrypoints.py` (needs top-N list)
+- AI taint analysis per function depends on `rank_entrypoints.py` (needs top-N list)
 - `generate_header.py` depends on `scan_struct_fields.py` (needs field data)
 - `chain_analysis.py` with `--follow` depends on initial call graph
 - Synthesis always runs last
@@ -259,13 +247,13 @@ classify-functions -> generate-re-report -> map-attack-surface
 ### "Security audit"
 
 ```
-classify-functions -> map-attack-surface -> security-dossier (per top export) -> taint-analysis (per top export) -> deep-research-prompt
+classify-functions -> map-attack-surface -> security-dossier (per top export) -> ai-taint-scanner (per top export)
 ```
 
 ### "Understand a function"
 
 ```
-classify-functions -> callgraph-tracer -> data-flow-tracer -> code-lifting
+classify-functions -> callgraph-tracer -> security-dossier
 ```
 
 ### "Reconstruct types"
@@ -293,7 +281,6 @@ These commands exist and can be recommended as next steps:
 | `/full-report <module>`           | Complete 6-phase analysis report |
 | `/compare-modules <a> <b>`        | Cross-module comparison          |
 | `/taint <module> <function>`      | Trace tainted params to sinks    |
-| `/verify-decompiler [module] [function]` | Verify decompiler accuracy  |
 | `/explain [module] <function>`    | Quick function explanation        |
 | `/search [module] <term>`         | Cross-dimensional search         |
 
@@ -320,7 +307,7 @@ extracted_dbs/analyzed_files.db   Module index (name -> DB path, status)
 
 ## Important Notes
 
-- **Assembly is ground truth**: When verify-decompiled flags an issue, prioritize the assembly interpretation
+- **Assembly is ground truth**: When decompiled code disagrees with assembly, prioritize the assembly interpretation
 - **Use workspace handoff**: In multi-skill pipelines, pass `--workspace-dir/--workspace-step` and keep only summaries in context
 - **Use `--json` flags**: Always request JSON output from scripts for reliable parsing
 - **DB path resolution**: Use `find_module_db.py` first, then pass the absolute DB path to all other scripts

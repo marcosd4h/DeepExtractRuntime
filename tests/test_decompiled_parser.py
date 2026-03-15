@@ -10,7 +10,6 @@ import pytest
 from helpers.decompiled_parser import (
     extract_balanced_parens,
     extract_function_calls,
-    find_param_in_calls,
     split_arguments,
 )
 
@@ -125,31 +124,3 @@ class TestExtractFunctionCalls:
         assert outer["arguments"] == ["inner(x)"]
 
 
-# ===================================================================
-# find_param_in_calls
-# ===================================================================
-
-
-class TestFindParamInCalls:
-    def test_direct_param(self):
-        code = """
-  foo(a1, a2);
-  bar(a1);
-"""
-        results = find_param_in_calls(code, "a1")
-        assert len(results) >= 1
-        direct = [r for r in results if r["is_direct"]]
-        assert len(direct) >= 1
-
-    def test_param_in_expression(self):
-        code = "  process(a1 + 1);"
-        results = find_param_in_calls(code, "a1")
-        assert len(results) == 1
-        assert results[0]["function_name"] == "process"
-        assert results[0]["arg_position"] == 0
-        assert "a1" in results[0]["arg_expression"]
-
-    def test_param_not_present(self):
-        code = "  foo(a2, a3);"
-        results = find_param_in_calls(code, "a1")
-        assert len(results) == 0

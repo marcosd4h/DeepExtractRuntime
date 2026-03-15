@@ -35,7 +35,7 @@ def complete_step(
     step_name: str,
     full_data: Any,
     summary_data: Any,
-    status: str = "success",
+    status: str = "ok",
 ) -> dict[str, str]:
     """Write step results and summary, then update manifest.
 

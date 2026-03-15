@@ -41,7 +41,7 @@ Before running the multi-skill audit pipeline:
 
 - **Function ID over name**: Step 1 returns a `function_id`. Use `--id <function_id>` in all subsequent script invocations -- it is unambiguous and avoids name-resolution edge cases.
 - **JSON mode**: All skill scripts support `--json` for machine-readable output. Always pass `--json` when parsing script output programmatically.
-- **Parallelism**: See the inline `>` note after Step 3h+3i for execution batches. Steps 2, 3, 3b, 3d, 3e, 4, and 4b (if `--diagram`) all run in the first parallel batch. Step 4c runs in Batch B (needs callchain results). Step 7 runs after Step 6.
+- **Parallelism**: See the inline `>` note after Step 3g+3h for execution batches. Steps 2, 3, 3b, 3c, 3d, 4, and 4b (if `--diagram`) all run in the first parallel batch. Step 4c runs in Batch B (needs callchain results).
 - **Subagent descriptions**: When delegating to subagents, use descriptions that name the audit step and target function -- e.g. "Build security dossier for RAiLaunchAdminProcess", "Trace call chain from RAiLaunchAdminProcess". Never use generic descriptions like "Raw JSON content retrieval" or "File read".
 
 ## Steps
@@ -95,6 +95,71 @@ python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py 
 
 Returns the complete function record: decompiled code, assembly, signatures, strings, xrefs, globals, stack frame, loops.
 
+### 3.5 Pre-Audit Comprehension Gate
+
+Before drawing conclusions from the decompiled code, build deep block-by-block understanding. This gate prevents hallucinated findings caused by surface-level skimming of decompiled output.
+
+#### Rationalizations to Reject
+
+| Rationalization | Why It's Wrong | Required Action |
+|-----------------|----------------|-----------------|
+| "I get the gist" | Gist-level understanding of decompiled code misses edge cases in type casts, error paths, and optimized branches | Block-by-block analysis required |
+| "This function is simple" | Simple decompiled functions compose into complex bugs. A 20-line wrapper around `CreateFileW` may be the key link in a symlink attack chain. | Apply 5 Whys anyway |
+| "The decompiled output is self-explanatory" | Hex-Rays output is an approximation. Check assembly for sign extension, actual branch targets, and optimized-away checks. | Cross-reference suspicious constructs against assembly |
+| "External call is probably fine" | External DLL calls are adversarial until proven otherwise by checking the callee via cross-module resolution | Jump into the callee or model as hostile |
+| "I can skip this helper function" | Helper functions contain assumptions about buffer sizes, string formats, and error handling that propagate to all callers | Trace the full call chain |
+| "This is taking too long" | Rushed context = hallucinated vulnerabilities later. Slow is fast. | Continue block-by-block; anchor progress periodically |
+
+#### Three-Phase Comprehension Workflow
+
+**Phase 1 — Initial Orientation** (using data already gathered in Steps 2–3):
+- Identify major code files and function groups from the dossier classification
+- Note exported entry points (from attack surface ranking in Step 3b)
+- Identify important global variables and shared state (from dossier `resource_patterns`)
+- Build preliminary structure without assuming behavior
+
+**Phase 2 — Ultra-Granular Function Analysis** (for the target function's decompiled code):
+
+For each logical block in the decompiled code, document:
+- **What** it does
+- **Why** it appears at this position (ordering logic)
+- **Assumptions** it relies on
+- **Invariants** it establishes or maintains
+- **Dependencies** — what later logic depends on this block
+
+Apply per block:
+- **First Principles**: What is the fundamental operation here?
+- **5 Whys**: Why does this block exist? Why this specific approach?
+- **5 Hows**: How does the data reach this point? How is the result used?
+
+IDA-specific awareness during block analysis:
+- Recognize `HIDWORD`/`LODWORD`/`BYTE1` as Hex-Rays 64-bit access macros
+- Recognize recovered `this` parameters in `__thiscall`/`__fastcall`
+- Check assembly when type casts look suspicious (signed/unsigned confusion)
+- Verify vtable dispatch targets against assembly `call [reg+offset]`
+
+For internal calls: propagate invariants and assumptions across the boundary. For external DLL calls where code is unavailable: model as adversarial — consider all outcomes: revert, unexpected return values, state changes, reentrancy.
+
+**Phase 3 — Global System Understanding** (connect individual analyses):
+- **State/invariant reconstruction**: Map reads/writes of each global, derive multi-function invariants
+- **Workflow reconstruction**: Identify end-to-end flows (RPC dispatch, COM activation, file I/O sequences)
+- **Trust boundary mapping**: Actor → entry point → behavior
+- **Complexity/fragility clustering**: Functions with many assumptions, high branching, coupled state changes
+
+#### 4 Anti-Hallucination Rules
+
+- **Never reshape evidence to fit earlier assumptions.** When contradicted: update the model, state the correction explicitly.
+- **Periodically anchor key facts.** Summarize core invariants, state relationships, actor roles, and workflows.
+- **Avoid vague guesses.** Use "Unclear; need to inspect assembly at offset X" instead of "It probably..."
+- **Cross-reference constantly.** Connect new insights to previous state, flows, and invariants to maintain global coherence.
+
+#### Quality Thresholds
+
+Per analyzed function, the analysis must include at minimum:
+- 3 invariants (what must be true for the function to work correctly)
+- 5 assumptions (what the function assumes about its inputs, callers, and environment)
+- 3 risk considerations (what could go wrong if assumptions are violated)
+
 ### 3b. Query attack surface ranking
 
 ```
@@ -103,48 +168,12 @@ python .agent/skills/map-attack-surface/scripts/rank_entrypoints.py <db_path> \
     --workspace-dir <run_dir> --workspace-step attack_surface
 ```
 
-Returns entry point classification and risk scoring: `entry_type` (COM_METHOD, RPC_HANDLER, NAMED_PIPE_HANDLER, IPC_DISPATCHER, WINRT_METHOD, EXPORT_DLL, etc.), `attack_score`, `param_risk_score`, `param_risk_reasons`, `dangerous_ops_reachable`, `depth_to_first_danger`, `tainted_args`. If the function is not detected as an entry point, the empty result itself is a data point (internal-only function).
+Returns entry point classification and risk scoring: `entry_type` (COM_METHOD, RPC_HANDLER, NAMED_PIPE_HANDLER, IPC_DISPATCHER, WINRT_METHOD, EXPORT_DLL, etc.), `attack_score`, `param_surface`, `dangerous_ops_reachable`, `depth_to_first_danger`, `tainted_args`. If the function is not detected as an entry point, the empty result itself is a data point (internal-only function).
 
-### 3c. Backward trace to dangerous APIs (conditional)
-
-Run the backward trace selector to determine which traces to execute:
-
-```
-python .agent/helpers/select_backward_traces.py \
-    --dossier <run_dir>/dossier/results.json \
-    --extract-callee <run_dir>/extract_callee/results.json \
-    --json
-```
-
-The script implements the Case A / Case B / Skip decision:
-- **Case A**: Target function has direct dangerous calls → traces from the target function
-- **Case B**: Thin wrapper (target has no direct dangerous calls but Step 3f callee does) → traces from the callee
-- **Skip**: Neither applies → no traces needed
-
-The output contains a `traces` array with `function_id`, `target_api`, `category`, and `step_name` for each trace to run. Execute all returned traces in parallel:
-
-```
-python .agent/skills/data-flow-tracer/scripts/backward_trace.py <db_path> --id <function_id> \
-    --target <target_api> --json \
-    --workspace-dir <run_dir> --workspace-step <step_name>
-```
-
-Each trace produces concrete parameter-to-sink argument paths for that danger category. Use results to populate the Data Flow Concerns section with confirmed call-site evidence.
-
-### 3d. Read module profile (no script needed)
+### 3c. Read module profile (no script needed)
 
 Read `extracted_code/<module_folder>/module_profile.json` for module-level context:
 - `api_profile.import_surface`: `com_present`, `rpc_present`, `winrt_present`, `named_pipes_present`
-
-### 3e. Forward taint analysis
-
-```
-python .agent/skills/taint-analysis/scripts/taint_function.py <db_path> --id <function_id> \
-    --depth 4 --json \
-    --workspace-dir <run_dir> --workspace-step taint_forward
-```
-
-Traces tainted parameters forward to dangerous sinks. For each finding, reports the sink name, category, severity score, the call path from source to sink, guards on the path (with attacker-controllability and bypass difficulty), and logic effects (branch steering, array indexing, size arguments). Use these results to strengthen concern C1 evidence and enrich the Data Flow Concerns section.
 
 ### 3f. Thin-wrapper callee extraction (conditional, depth up to 4)
 
@@ -199,13 +228,11 @@ Run the callee selection helper to determine which callees to extract for Steps 
 
 **Trigger conditions** (evaluated by the script):
 - Step 3h triggers when `dangerous_ops_reachable >= 10` (from step 3b) OR `is_rpc_handler: true` (from step 2 dossier)
-- Step 3i triggers when taint forward (step 3e) has findings with `path_hops > 1` AND empty `guards`
 
 ```
 python .agent/helpers/select_audit_callees.py <db_path> \
     --dossier <run_dir>/dossier/results.json \
     --attack-surface <run_dir>/attack_surface/results.json \
-    --taint-forward <run_dir>/taint_forward/results.json \
     --exclude <callee_names_from_step_3f> \
     --json
 ```
@@ -230,11 +257,11 @@ python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py 
 | Tier 2 `privilege` callee that does impersonation (e.g. `AiGetClientInformation`) | C2: verify `RpcImpersonateClient` / `RpcRevertToSelf` are paired on all error paths |
 | Tier 2 callee that modifies tokens (e.g. `AipBuildConsentToken`) | C4: confirm flag validation before `NtSetInformationToken` |
 | Tier 3 `file_write` callee (e.g. `AiCheckSecureApplicationDirectory`) | C3: confirm `CreateFileW` share flags and handle-based path resolution |
-| Taint-path intermediate (e.g. `AiBuildAxISParams`) | C1/C5: verify allocation arithmetic, implicit bounds checks, and taint severity |
+| Deep callee with allocation/validation logic | C1/C5: verify allocation arithmetic, implicit bounds checks |
 
-During Step 6 synthesis, read all `extract_deep_*` and `extract_taint_*` payloads and reference them by callee name. Prefix findings: *"(Source: deep callee `AiLaunchProcess`, manual review)"* or *"(Source: taint-path callee `AiBuildAxISParams`, manual review of allocation arithmetic)"*. If manual review changes a taint severity, state the adjustment and evidence in the concern entry.
+During Step 6 synthesis, read all `extract_deep_*` payloads and reference them by callee name. Prefix findings: *"(Source: deep callee `AiLaunchProcess`, manual review)"*.
 
-> **Batch A: Run steps 2 + 3 + 3b + 3d + 3e + 4 + 4b (if `--diagram`) in parallel** -- they all depend only on Step 1 (`db_path` + `function_id`). **Batch B (after Batch A):** Run `select_audit_callees.py` (needs dossier + attack_surface + taint_forward results), then extract all returned callees in parallel alongside 3f, 3g, 3c, and 4c (needs callchain results). Step 3f depends on steps 2 + 3; each deeper level depends on the previous level's extract result. Step 3g depends on step 2 (needs `is_rpc_handler`). Step 3c depends on steps 2 + 3f (see Step 3c rules).
+> **Batch A: Run steps 2 + 3 + 3b + 3c + 3d + 4 + 4b (if `--diagram`) in parallel** -- they all depend only on Step 1 (`db_path` + `function_id`). **Batch B (after Batch A):** Run `select_audit_callees.py` (needs dossier + attack_surface results), then extract all returned callees in parallel alongside 3f and 4c (needs callchain results). Step 3f depends on step 2 (needs `is_rpc_handler`).
 
 ### 4. Trace call chain
 
@@ -271,7 +298,7 @@ Runs in Batch B (needs callchain results to know which callees are external). In
 
 ### 6. Synthesize audit report
 
-Read the workspace results from all steps (2, 3, 3b, 3c, 3d, 3e, 3f + depth-2/3/4 extractions if run, 3g, `extract_deep_*` and `extract_taint_*` if run, 4, 4b if `--diagram`, 4c) and combine all findings into a structured report.
+Read the workspace results from all steps (2, 3, 3b, 3c, 3d + depth-2/3/4 extractions if run, 3f, `extract_deep_*` if run, 4, 4b if `--diagram`, 4c) and combine all findings into a structured report.
 
 **IMPORTANT -- workspace results.json envelope structure**: Every `results.json` file written by the workspace bootstrap has this shape:
 ```json
@@ -287,7 +314,6 @@ Read the full decompiled code from the extract step (`<run_dir>/extract/results.
 
 Several numeric fields use different scales. Always apply these rules when citing values:
 
-- `param_risk_score`: **0.0-1.0 scale** (fraction). `0.7` = 70th percentile risk.
 - `noise_ratio`: **0.0-1.0 scale** (fraction). `0.48` = 48% of functions are library boilerplate.
 - `attack_score`: **0.0-1.0 scale** (fraction). Higher = more attractive attack target.
 
@@ -365,7 +391,7 @@ Use this exact section structure and formatting. Do not rearrange sections or ch
 
 ## Data Flow Concerns
 
-<Trace untrusted parameters from entry to dangerous sinks. Use the dossier data_exposure, backward_trace, taint_forward (step 3e), and decompiled code. When taint analysis results are available, cite specific taint findings: which parameters reach which sinks, the severity score, guard bypass difficulty, and logic effects (branch steering, array indexing, size arguments). Describe the security gates in the path.>
+<Trace untrusted parameters from entry to dangerous sinks. Use the dossier data_exposure and decompiled code. Describe the security gates in the path. For AI-driven taint analysis, use `/taint` separately.>
 
 ## Call Chain Analysis
 
@@ -440,36 +466,34 @@ Inputs:
 - `reachability.is_exported`, `reachability.externally_reachable`
 - `reachability.shortest_path_from_entry` (path length = hop count)
 - `data_exposure.receives_external_data`
-- From step 3b: `entry_type` (COM_METHOD / RPC_HANDLER / NAMED_PIPE_HANDLER / IPC_DISPATCHER / WINRT_METHOD / EXPORT_DLL / etc.), `param_risk_score` (0.0-1.0), `tainted_args`
+- From step 3b: `entry_type` (COM_METHOD / RPC_HANDLER / NAMED_PIPE_HANDLER / IPC_DISPATCHER / WINRT_METHOD / EXPORT_DLL / etc.), `param_surface` (structured metadata), `tainted_args`
 - From dossier: `reachability.ipc_context` fields (`is_rpc_handler`, `is_com_method`, `is_winrt_method`, `reachable_from_rpc/com/winrt`). This field may be absent in cached results -- use `--no-cache` if missing, or fall back to name-pattern heuristics.
 - From step 3d: `module_profile.api_profile.import_surface` flags (`rpc_present`, `com_present`, `winrt_present`, `named_pipes_present`)
 - Fallback if step 3b returns no entry point: name-pattern heuristics (`RA` = RPC Async, `s_` = RPC stub, `::Invoke` = COM vtable)
 
 Scoring:
-- CRITICAL: `entry_type` is RPC_HANDLER/COM_METHOD/NAMED_PIPE_HANDLER/IPC_DISPATCHER AND `param_risk_score >= 0.7`
-- HIGH: `entry_type` is EXPORT_DLL AND `param_risk_score >= 0.5` AND `receives_external_data`; OR `externally_reachable` AND path <= 2 hops AND `receives_external_data`
+- CRITICAL: `entry_type` is RPC_HANDLER/COM_METHOD/NAMED_PIPE_HANDLER/IPC_DISPATCHER AND `param_surface` has `has_buffer_size_pair` OR `has_string_pointer` OR `has_com_interface`
+- HIGH: `entry_type` is EXPORT_DLL AND `param_surface.param_count > 0` AND `receives_external_data`; OR `externally_reachable` AND path <= 2 hops AND `receives_external_data`
 - MEDIUM: `externally_reachable` but path > 2 hops, or reachable without confirmed external data; OR module has `rpc_present`/`com_present` but function not identified as entry point
 - LOW: Not externally reachable AND not an IPC entry point AND no IPC import surface in module
 
-**Override for tool false negatives:** When step 3b returns `param_risk_score: 0.0` or does not detect the function as an entry point, BUT fallback heuristics (name-pattern + signature + RPC/COM API calls in body) confirm the function IS an RPC_HANDLER/COM_METHOD/IPC_DISPATCHER, apply this override:
+**Override for tool false negatives:** When step 3b does not detect the function as an entry point, BUT fallback heuristics (name-pattern + signature + RPC/COM API calls in body) confirm the function IS an RPC_HANDLER/COM_METHOD/IPC_DISPATCHER, apply this override:
 - Set `entry_type` to the heuristic-confirmed type.
-- Treat `param_risk_score` as **unknown** (not 0.0). Do NOT use the tool's 0.0 value in the scoring formula.
-- Score D1 as **CRITICAL** — the function is a confirmed IPC handler with attacker-controlled parameters; the tool simply failed to detect it. The `param_risk_score >= 0.7` threshold is waived because the tool's score is a known artifact, not a real measurement.
+- Score D1 as **CRITICAL** — the function is a confirmed IPC handler with attacker-controlled parameters; the tool simply failed to detect it.
 - State the override and evidence in the Confidence and Caveats section.
 
 **Dimension 2 -- Dangerous Operation Density**
 
-Data sources: dossier `dangerous_operations` + dossier `classification.signals` + step 3b `attack_surface` + step 3c `backward_trace` + step 3e `taint_forward`.
+Data sources: dossier `dangerous_operations` + dossier `classification.signals` + step 3b `attack_surface`.
 
 Inputs:
 - `dangerous_operations.dangerous_api_count`, `dangerous_operations.security_relevant_callees` (category keys: `memory_unsafe`, `command_execution`, `code_injection`, `privilege`, `file_write`, `registry_write`, `network`, `crypto`, `service`, `handle`, `sync`), `dangerous_operations.callee_dangerous_apis`
 - dossier `classification.signals` for categories like `security`, `process_thread`
 - From step 3b: `dangerous_ops_reachable` (total dangerous sinks reachable via callgraph BFS), `depth_to_first_danger` (hop count to nearest dangerous operation)
-- From step 3c: concrete parameter-to-sink paths showing which function parameters feed into which dangerous APIs
-- From step 3e: taint analysis forward findings with severity scores, guard bypass difficulty, and logic effects. Use CRITICAL/HIGH taint findings as direct evidence for scoring.
+- Dossier data_exposure and dangerous_operations for data flow evidence.
 
 Scoring:
-- CRITICAL: `dangerous_ops_reachable >= 10` OR both `command_execution` + `privilege` present in `security_relevant_callees` OR `depth_to_first_danger == 0` (function directly calls dangerous API with tainted arg confirmed by backward_trace) OR taint_forward has CRITICAL-severity findings (score >= 0.8)
+- CRITICAL: `dangerous_ops_reachable >= 10` OR both `command_execution` + `privilege` present in `security_relevant_callees` OR `depth_to_first_danger == 0` (function directly calls dangerous API with untrusted arg)
 - HIGH: `dangerous_ops_reachable` 5-9 OR `depth_to_first_danger <= 1` OR `dangerous_api_count` 2-4 OR `file_write`/`registry_write` present OR `command_execution` alone
 - MEDIUM: `dangerous_api_count == 1` OR only transitive dangerous APIs via `callee_dangerous_apis` OR `dangerous_ops_reachable` 1-4
 - LOW: No dangerous APIs direct or transitive AND `dangerous_ops_reachable == 0`
@@ -495,7 +519,7 @@ Every audit must evaluate these eight concern categories against the function's 
 
 | ID | Concern | What to Check |
 |----|---------|---------------|
-| C1 | **Untrusted input to dangerous sinks** | Does any client/external parameter flow to `CreateProcessAsUser*`, `CreateFile*`, memory-unsafe APIs, or other dangerous sinks? Cite the dossier `data_exposure` + `dangerous_operations` fields, backward_trace results, and taint_forward findings (step 3e). When taint analysis results are available, use the taint severity score, guard bypass difficulty, and concrete parameter-to-sink paths as primary evidence. |
+| C1 | **Untrusted input to dangerous sinks** | Does any client/external parameter flow to `CreateProcessAsUser*`, `CreateFile*`, memory-unsafe APIs, or other dangerous sinks? Cite the dossier `data_exposure` + `dangerous_operations` fields. For AI-driven taint paths, use `/taint` separately. |
 | C2 | **Impersonation/revert pairing** | Are all `RpcImpersonateClient`/`ImpersonateLoggedOnUser` calls paired with reverts on every exit path (including error/goto paths)? Check decompiled code branch targets. |
 | C3 | **TOCTOU / file handle races** | Is there a time gap between file validation and file use? Are `CreateFileW` share flags permissive (`FILE_SHARE_WRITE`)? Could the file be swapped between check and use? |
 | C4 | **Flag/bitmask validation** | Are client-controlled flag/bitmask parameters validated for legal combinations before gating security-sensitive branches? |
@@ -520,7 +544,7 @@ The Risk Assessment section of the report must contain these parts in order:
 1. **Dimension table**: one row per dimension with its score and the key data points that drove it
 2. **Overall Risk**: the computed level with a one-line rationale citing which dimensions drove it
 3. **Specific concerns**: ranked list where each concern cites its checklist ID and the dossier field it comes from. Assign severity using these rules:
-   - **CRITICAL**: Directly achieves code execution, privilege escalation, or authentication bypass with attacker-controlled input. Must have a confirmed data flow from untrusted source to dangerous sink (cite the backward_trace or dossier field).
+   - **CRITICAL**: Directly achieves code execution, privilege escalation, or authentication bypass with attacker-controlled input. Must have a confirmed data flow from untrusted source to dangerous sink (cite the taint_forward or dossier field).
    - **HIGH**: Could achieve the above with one additional precondition (bypass of an intermediate check, TOCTOU race win, etc.), OR a confirmed missing security check in an active code path.
    - **MEDIUM**: Theoretical weakness requiring multiple preconditions, OR a defense-in-depth gap in validation or authorization. A concern about untested flag combinations without a confirmed path to dangerous behavior is MEDIUM at most.
    - **LOW**: Code quality concern, untested path, or cosmetic issue that does not directly affect security.
@@ -567,124 +591,7 @@ The Recommended Next Steps table must be populated using this deterministic rank
    - Tier 4: all other categories (`memory_unsafe`, `network`, `crypto`, `handle`, `sync`, etc.)
 3. Within the same tier, sort by `dangerous_ops_reachable` count (descending). Use `len(callee_dangerous_apis[callee_name])` from the dossier — the number of dangerous API names listed for that callee. Example: `AiBuildAxISParams` has `["wcscpy_s"]` → write `1`. `AiGetClientInformation` has `["NtOpenProcess", "NtDuplicateToken"]` → write `2`. The column must never be blank; if zero, write `0`.
 4. Output the top 5-7 functions in the table. Include the danger tier, reachability count, and a brief reason.
-5. After the table, optionally add one line suggesting a `/callgraph`, `/data-flow`, or `/taint` command for deeper investigation.
-
-### 7. Verify concerns with fresh eyes
-
-After Step 6 produces the draft report, launch a **separate subagent** to independently validate the specific concerns and their severity assignments. This step eliminates confirmation bias by ensuring the verifier has never seen the synthesis reasoning -- only the raw data and the claims.
-
-**Subagent call:**
-
-Use `subagent_type="security-auditor"` with `readonly: true`. Pass it a self-contained prompt containing:
-
-1. The **severity criteria** (the CRITICAL/HIGH/MEDIUM/LOW rules from the Required Output Format above)
-2. The **raw dossier summary JSON** (from `<run_dir>/dossier/summary.json`)
-3. The **raw attack surface summary** (from `<run_dir>/attack_surface/summary.json`, if available)
-4. The **raw backward trace summary** (from `<run_dir>/backward_trace_*/summary.json` for every backward trace step that ran, if available)
-5. The **raw taint_forward summary** (from `<run_dir>/taint_forward/summary.json`, if available)
-6. The **function's decompiled code** (from `<run_dir>/extract/results.json` `stdout.decompiled_code` field)
-7. The **function's assembly code** (from `<run_dir>/extract/results.json` `stdout.assembly_code` field) -- required for ground-truth checks such as confirming hardcoded argument values, bit-test instructions, and calling conventions
-8. The **full callee chain decompiled code** -- paste every callee that was extracted during the audit, in call-depth order, labeled by function name and step name. This covers:
-   - Depth-1 primary callee (`extract_callee/results.json` `stdout.decompiled_code`) -- required for verifying callee-level alternate paths and flag gating
-   - Depth-2 callee (`extract_callee_d2/results.json` `stdout.decompiled_code`), if Step 3f depth-2 ran
-   - Depth-3 callee (`extract_callee_d3/results.json` `stdout.decompiled_code`), if Step 3f depth-3 ran
-   - Depth-4 callee (`extract_callee_d4/results.json` `stdout.decompiled_code`), if Step 3f depth-4 ran
-   - Deep security callees (`extract_deep_*/results.json` `stdout.decompiled_code` for every step returned by `select_audit_callees.py`), if Step 3h ran -- required for verifying Tier-1/2/3 callee-level concerns (impersonation pairing, flag validation, file-handle share flags)
-   - Taint-path intermediate callees (`extract_taint_*/results.json` `stdout.decompiled_code` for every step returned by `select_audit_callees.py`), if Step 3i ran -- required for verifying severity adjustments on allocation arithmetic and taint propagation
-9. The **Data Interpretation Rules** (param_risk_score is 0-1, noise_ratio is 0-1, attack_score is 0-1)
-10. The **draft specific concerns list** with their assigned severities, checklist IDs, and cited source fields
-11. The **draft dimension scores** with their key data points
-
-**How to collect callee code before building the prompt**: Before calling the subagent, iterate over the workspace manifest (`<run_dir>/manifest.json`) and collect `stdout.decompiled_code` + `stdout.function_name` from every step whose name matches `extract_callee*`, `extract_deep_*`, or `extract_taint_*`. This ensures the verifier sees the full call chain regardless of how many callee levels were actually extracted.
-
-**Subagent prompt template:**
-
-```
-You are an independent reviewer of a security audit report. You have NOT
-participated in writing this report. Your job is to verify that each
-specific concern's severity is correctly assigned according to the rubric,
-and that each dimension score (D1-D3 only) follows the scoring thresholds.
-
-SEVERITY CRITERIA:
-- CRITICAL: Directly achieves code execution, privilege escalation, or
-  authentication bypass with attacker-controlled input. Must have confirmed
-  data flow from untrusted source to dangerous sink.
-- HIGH: Could achieve the above with one additional precondition, OR
-  confirmed missing security check in an active code path.
-- MEDIUM: Theoretical weakness requiring multiple preconditions, OR
-  defense-in-depth gap. Untested flag combinations without confirmed path
-  to dangerous behavior are MEDIUM at most.
-- LOW: Code quality concern, untested path, or cosmetic issue.
-
-DATA INTERPRETATION:
-- param_risk_score: 0.0-1.0 scale
-- noise_ratio: 0.0-1.0 scale (0.48 = 48%)
-
-RAW DATA:
-<paste dossier summary JSON>
-<paste attack surface summary JSON>
-<paste backward trace summary JSON (all backward_trace_* steps)>
-<paste taint_forward summary JSON, if available>
-
-DECOMPILED CODE (target function):
-<paste decompiled code for the target function>
-
-ASSEMBLY CODE (target function):
-<paste assembly code for the target function>
-
-DECOMPILED CODE (call chain -- paste ALL extracted callees in depth order):
---- extract_callee: <function_name> ---
-<paste decompiled code>
-
---- extract_callee_d2: <function_name> --- (if run)
-<paste decompiled code>
-
---- extract_callee_d3: <function_name> --- (if run)
-<paste decompiled code>
-
---- extract_callee_d4: <function_name> --- (if run)
-<paste decompiled code>
-
---- extract_deep_<N>: <function_name> --- (one block per deep callee from Step 3h, if run)
-<paste decompiled code>
-
---- extract_taint_<N>: <function_name> --- (one block per taint-path callee from Step 3i, if run)
-<paste decompiled code>
-
-DRAFT DIMENSION SCORES (D1-D3):
-<paste dimension table rows for Attack Surface Exposure, Dangerous Operation Density, Complexity and Error Surface>
-
-DRAFT SPECIFIC CONCERNS:
-<paste numbered concern list with severities>
-
-For each concern, return a JSON object:
-{
-  "concern_number": N,
-  "checklist_id": "C1"-"C7",
-  "original_severity": "LEVEL",
-  "verified_severity": "LEVEL",
-  "change": "none" | "upgraded" | "downgraded",
-  "reason": "brief explanation citing the rubric rule and data field"
-}
-
-Also verify each of the three dimension scores (D1, D2, D3) against the
-thresholds. If a score is wrong, return the correction with the specific
-threshold rule that was violated.
-
-Return the complete list as a JSON array, followed by dimension corrections
-(if any).
-```
-
-**Handling the verifier response:**
-
-- If the verifier returns `"change": "none"` for all concerns, proceed with the draft as-is.
-- If any concern is downgraded or upgraded, update the severity in the final report and add a note in the Confidence and Caveats section: `"Severity for concern #N was adjusted from X to Y by independent verification."`
-- If a dimension score is corrected, update it and recompute the Overall Risk using the calculation rules.
-- The verifier's response is NOT included verbatim in the report -- only the corrections are applied.
-
-**Subagent description:** Use a description like `"Verify audit concerns for <function_name>"`.
-
-> **Execution note**: Step 7 runs after Step 6 completes. It adds one subagent round-trip but catches severity inflation/deflation and data misinterpretation before the user sees the report.
+5. After the table, optionally add one line suggesting a `/callgraph` or `/taint` command for deeper investigation.
 
 ## Output
 

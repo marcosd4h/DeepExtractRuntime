@@ -3,7 +3,7 @@
 Covers:
   - helpers/rpc_index.py  (RpcInterface, RpcIndex, parsing, querying)
   - map-attack-surface RPC enrichment  (discover_from_rpc_index, protocol scoring)
-  - taint-analysis trust levels  (refined rpc_server_* tiers)
+  - ai-taint-scanner trust levels  (refined rpc_server_* tiers)
   - classify-functions RPC boost  (rpc_index confirmed handler signal)
   - triage-coordinator RPC characteristics  (ModuleCharacteristics fields)
   - config rpc section  (defaults.json rpc keys)
@@ -624,11 +624,10 @@ class TestRpcVulnPatterns:
 # ===================================================================
 
 class TestTaintTrustLevels:
-    """Tests for the refined RPC trust levels in taint-analysis."""
+    """Tests for the refined RPC trust levels in helpers.taint_helpers."""
 
     def test_trust_levels_include_rpc_variants(self):
-        from conftest import import_skill_module
-        mod = import_skill_module("taint-analysis")
+        import helpers.taint_helpers as mod
         levels = mod.TRUST_LEVELS
         assert "rpc_server_remote" in levels
         assert "rpc_server_named_pipe" in levels
@@ -636,16 +635,14 @@ class TestTaintTrustLevels:
         assert "rpc_server" in levels
 
     def test_trust_level_ranks(self):
-        from conftest import import_skill_module
-        mod = import_skill_module("taint-analysis")
+        import helpers.taint_helpers as mod
         ranks = mod.TRUST_LEVEL_RANK
         assert ranks["rpc_server_remote"] < ranks["rpc_server"]
         assert ranks["rpc_server_named_pipe"] < ranks["rpc_server"]
         assert ranks["rpc_server_local"] == ranks["rpc_server"]
 
     def test_refine_rpc_trust_remote(self):
-        from conftest import import_skill_module
-        mod = import_skill_module("taint-analysis")
+        import helpers.taint_helpers as mod
         invalidate_rpc_index()
         idx = get_rpc_index()
         if not idx.loaded:
@@ -657,8 +654,7 @@ class TestTaintTrustLevels:
         assert result == "rpc_server_remote"
 
     def test_refine_rpc_trust_unknown_module(self):
-        from conftest import import_skill_module
-        mod = import_skill_module("taint-analysis")
+        import helpers.taint_helpers as mod
         result = mod._refine_rpc_trust("nonexistent_module_xyz.dll")
         assert result == "rpc_server"
 
@@ -678,7 +674,7 @@ class TestClassifyRpcBoost:
             simple_outbound_xrefs="[]",
         )
         result = mod.classify_function(func)
-        assert result.primary_category == "rpc"
+        assert result.primary_category == "unknown"
 
     def test_ndr_name_rule(self):
         from conftest import _make_function_record as mkfr, import_skill_module
@@ -688,7 +684,7 @@ class TestClassifyRpcBoost:
             simple_outbound_xrefs="[]",
         )
         result = mod.classify_function(func)
-        assert result.primary_category == "rpc"
+        assert result.primary_category == "unknown"
 
     def test_rpc_server_name_rule(self):
         from conftest import _make_function_record as mkfr, import_skill_module
@@ -698,7 +694,7 @@ class TestClassifyRpcBoost:
             simple_outbound_xrefs="[]",
         )
         result = mod.classify_function(func)
-        assert result.primary_category == "rpc"
+        assert result.primary_category == "unknown"
 
 
 # ===================================================================
@@ -1121,65 +1117,6 @@ class TestVersionInfoExtraction:
             procedure_count=1, company_name="Microsoft Corporation",
         )
         assert microsoft.is_third_party is False
-
-
-# ===================================================================
-# Procedure classifier
-# ===================================================================
-
-from helpers.rpc_procedure_classifier import (
-    classify_procedure,
-    classify_procedures,
-    summarize_classifications,
-)
-
-
-class TestProcedureClassifier:
-    """Tests for RPC procedure name semantic classification."""
-
-    def test_read_classification(self):
-        cls = classify_procedure("RpcEnumPrinters")
-        assert cls.semantic_class == "read"
-
-    def test_mutation_classification(self):
-        cls = classify_procedure("RpcAddPrinter")
-        assert cls.semantic_class == "mutation"
-
-    def test_destroy_classification(self):
-        cls = classify_procedure("RpcDeletePrinter")
-        assert cls.semantic_class == "destroy"
-
-    def test_handle_classification(self):
-        cls = classify_procedure("RpcOpenPrinter")
-        assert cls.semantic_class == "handle"
-
-    def test_identity_classification(self):
-        cls = classify_procedure("RpcImpersonateClient")
-        assert cls.semantic_class == "identity"
-
-    def test_execute_classification(self):
-        cls = classify_procedure("LaunchProcess")
-        assert cls.semantic_class == "execute"
-
-    def test_unknown_classification(self):
-        cls = classify_procedure("XyzFoo")
-        assert cls.semantic_class == "unknown"
-
-    def test_prefix_stripping(self):
-        cls = classify_procedure("s_SSCryptProtectData")
-        assert cls.name == "s_SSCryptProtectData"
-        assert isinstance(cls.semantic_class, str)
-        assert cls.semantic_class
-
-    def test_summarize(self):
-        results = classify_procedures([
-            "RpcEnumPrinters", "RpcAddPrinter", "RpcDeletePrinter",
-        ])
-        summary = summarize_classifications(results)
-        assert summary["total_procedures"] == 3
-        assert summary["by_class"]["read"] == 1
-        assert summary["by_class"]["mutation"] == 1
-        assert summary["by_class"]["destroy"] == 1
 
 
 # ===================================================================

@@ -209,31 +209,6 @@ def _security_dossier_steps(
     return steps
 
 
-def _security_taint_steps(
-    db_path: str,
-    results: dict,
-    workspace_run_dir: str,
-    *,
-    top_n: int = 3,
-    no_cache: bool = False,
-) -> list[PipelineStep]:
-    """Run taint analysis on top-3 ranked entry points (depends on ranking results)."""
-    steps: list[PipelineStep] = []
-    top_functions = extract_top_entrypoints(results, workspace_run_dir)
-
-    for fname in top_functions[:top_n]:
-        steps.append(PipelineStep(
-            f"taint_{fname}",
-            "taint-analysis", "taint_function.py",
-            with_flag([db_path, fname, "--depth", "3", "--json"], "--no-cache", no_cache),
-            description=f"Taint analysis for {fname}",
-            timeout=180,
-            parallel_group="taint",
-        ))
-
-    return steps
-
-
 def _full_extra_steps(
     db_path: str,
     chars: ModuleCharacteristics,
@@ -259,13 +234,6 @@ def _full_extra_steps(
             "reconstruct-types", "list_types.py",
             [db_path, "--json"],
             description="List all types and classes",
-            parallel_group="post_triage",
-        ),
-        PipelineStep(
-            "module_context",
-            "deep-research-prompt", "gather_module_context.py",
-            [db_path, "--json"],
-            description="Gather module context for research",
             parallel_group="post_triage",
         ),
     ]
@@ -295,15 +263,6 @@ def _full_extra_steps(
             "com-interface-reconstruction", "scan_com_interfaces.py",
             with_flag([db_path, "--json"], "--no-cache", no_cache),
             description="COM interface reconstruction",
-            parallel_group="post_triage",
-        ))
-
-    if chars.is_dispatch_heavy:
-        steps.append(PipelineStep(
-            "detect_dispatchers",
-            "state-machine-extractor", "detect_dispatchers.py",
-            with_flag([db_path, "--json"], "--no-cache", no_cache),
-            description="Dispatch table detection",
             parallel_group="post_triage",
         ))
 
@@ -379,58 +338,11 @@ def _function_steps(
             parallel_group="func_analysis",
         ),
         PipelineStep(
-            "forward_trace",
-            "data-flow-tracer", "forward_trace.py",
-            with_flag([db_path, function_name, "--param", "1", "--depth", "3", "--json"], "--no-cache", no_cache),
-            description=f"Forward data flow trace for {function_name} (param 1)",
-            parallel_group="func_analysis",
-        ),
-        PipelineStep(
             "security_dossier",
             "security-dossier", "build_dossier.py",
             with_flag([db_path, function_name, "--callee-depth", "2", "--json"], "--no-cache", no_cache),
             description=f"Security dossier for {function_name}",
             parallel_group="func_analysis",
-        ),
-    ]
-
-
-def _function_taint_steps(
-    db_path: str,
-    function_name: str,
-    results: dict,
-    workspace_run_dir: str,
-    *,
-    no_cache: bool = False,
-) -> list[PipelineStep]:
-    """Conditional taint step for understand-function (runs if function is security-relevant)."""
-    classification = _load_workspace_payload(workspace_run_dir, "classify_function")
-    if classification is None:
-        classification = results.get("classify_function", {})
-
-    is_security = False
-    if isinstance(classification, dict):
-        category = classification.get("primary_category", "")
-        interest = classification.get("interest_score", 0)
-        is_security = (
-            "security" in category.lower()
-            or interest >= 6
-            or any(
-                cat.startswith("security")
-                for cat in classification.get("categories", [])
-            )
-        )
-
-    if not is_security:
-        return []
-
-    return [
-        PipelineStep(
-            "taint_function",
-            "taint-analysis", "taint_function.py",
-            with_flag([db_path, function_name, "--depth", "3", "--json"], "--no-cache", no_cache),
-            description=f"Taint analysis for {function_name}",
-            timeout=180,
         ),
     ]
 
@@ -692,50 +604,6 @@ def run_pipeline(
                     dossiers.append({"status": "success", "raw_output": ds_result["stdout"][:400]})
         if dossiers:
             results["security_dossiers"] = dossiers
-
-        # Taint analysis on top-3 ranked entry points
-        taint_steps = _security_taint_steps(
-            db_path,
-            results,
-            workspace_run_dir,
-            top_n=min(top_n, 3),
-            no_cache=no_cache,
-        )
-        if taint_steps:
-            taint_groups = _group_steps(taint_steps)
-            extra_phase_count += len(taint_groups)
-            for i, g in enumerate(taint_groups, len(groups) + extra_phase_count):
-                names = [s.name for s in g]
-                mode = "parallel" if len(g) > 1 and g[0].parallel_group else "sequential"
-                status_message(
-                    f"Phase {i}/{len(groups) + extra_phase_count} "
-                    f"[{mode}, {len(g)} step(s)]: {', '.join(names)}"
-                )
-            taint_results: list[dict] = []
-            for group in taint_groups:
-                group_results = _run_step_group(group, workspace_run_dir, max_workers=max_workers)
-                for t_entry, t_result in group_results:
-                    step_log.append(t_entry)
-                    if isinstance(t_result.get("json_data"), dict):
-                        taint_results.append(t_result["json_data"])
-                    elif t_result["success"] and t_result["stdout"]:
-                        taint_results.append({"status": "success", "raw_output": t_result["stdout"][:400]})
-            if taint_results:
-                results["taint_analyses"] = taint_results
-
-    # Understand-function: conditional taint analysis after classification
-    if goal == "understand-function" and function_name:
-        func_taint_steps = _function_taint_steps(
-            db_path, function_name, results, workspace_run_dir, no_cache=no_cache,
-        )
-        if func_taint_steps:
-            for group in _group_steps(func_taint_steps):
-                group_results = _run_step_group(group, workspace_run_dir, max_workers=max_workers)
-                for t_entry, t_result in group_results:
-                    step_log.append(t_entry)
-                    step_name = t_entry["step"]
-                    if isinstance(t_result.get("json_data"), dict):
-                        results[step_name] = t_result["json_data"]
 
     # Generate next-step recommendations
     next_steps = _generate_next_steps(goal, results, chars, workspace_run_dir)
@@ -1066,18 +934,6 @@ def print_text_summary(data: dict) -> None:
                 fname = d.get("function_name", d.get("identity", {}).get("function_name", "?"))
                 risk = d.get("risk_level", d.get("overall_risk", "?"))
                 print(f"    {fname} -- risk: {risk}")
-        print()
-
-    # Taint analyses
-    taint_analyses = results.get("taint_analyses", [])
-    if isinstance(taint_analyses, list) and taint_analyses:
-        print(f"  TAINT ANALYSES ({len(taint_analyses)} completed):")
-        for t in taint_analyses:
-            if isinstance(t, dict):
-                fname = t.get("function_name", t.get("target", "?"))
-                sinks = t.get("sinks_reached", t.get("dangerous_sinks", []))
-                sink_count = len(sinks) if isinstance(sinks, list) else sinks
-                print(f"    {fname} -- sinks reached: {sink_count}")
         print()
 
     # Next steps

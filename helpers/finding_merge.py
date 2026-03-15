@@ -1,8 +1,8 @@
 """Merge, deduplicate, and rank findings across multiple scanner outputs.
 
 Works with the unified :class:`~helpers.finding_schema.Finding` dataclass to
-combine results from taint-analysis, memory-corruption-detector, and
-logic-vulnerability-detector into a single prioritized list.
+combine results from ai-taint-scanner, ai-memory-corruption-scanner, and
+ai-logic-scanner into a single prioritized list.
 """
 
 from __future__ import annotations

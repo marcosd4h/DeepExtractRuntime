@@ -1,6 +1,6 @@
 # Helper API Reference -- DeepExtractIDA Agent Analysis Runtime
 
-This reference documents the public API for the 35+ modules in `.agent/helpers/`. These modules provide the foundational data access, analysis taxonomies, and infrastructure used by skills, agents, and commands.
+This reference documents the public API for the 30+ modules in `.agent/helpers/`. These modules provide the foundational data access, analysis taxonomies, and infrastructure used by skills, agents, and commands.
 
 ## 1. Database Access
 
@@ -90,14 +90,9 @@ Classification of Win32/NT APIs into functional and security categories.
 - `get_dangerous_api_set()` -> set[str]
   - Returns a set of all APIs classified as security-sensitive.
 - `DISPATCH_KEYWORDS`: tuple of function-name substrings suggesting dispatch/routing behaviour.
-
-### string_taxonomy
-Categorization of string literals using regex patterns.
-
-- `categorize_string(s: str)` -> str
-  - Categorizes a string (e.g., `file_path`, `registry_key`, `url`, `guid`).
-- `categorize_strings(strings: list[str])` -> dict[str, list[str]]
-  - Batch categorizes a list of strings.
+- `strip_import_prefix(api_name: str)` -> str
+  - Removes IDA import-thunk prefixes (`__imp_`, `_imp_`, `j_`, `cs:`) from an API name.
+- `IMP_PREFIX_RE` -- Compiled regex for import-prefix stripping.
 
 ### type_constants
 Mappings for C/C++ type sizes and IDA-to-C type conversions.
@@ -294,19 +289,6 @@ Regex-based extraction of function calls, arguments, and parameter usage from ID
 - `extract_balanced_parens(text: str, start: int = 0)` -> str | None
   - Extracts content from balanced parentheses starting at `text[start]`.
 
-### guard_classifier
-Classifies conditional guards (if/while conditions) in decompiled code by type and attacker influence.
-
-- **Guard**(dataclass)
-  - Fields: `guard_type`, `line_number`, `condition_text`, `attacker_controllable`, `bypass_difficulty`, `api_in_condition`, `tainted_vars_in_condition`, `role`, `on_path_to_sink`
-- `classify_guard(condition: str, tainted_vars: set[str])` -> Guard
-  - Classifies a single condition string. Guard types: `auth_check`, `error_check`, `validation`, `function_check`, `null_check`, `bounds_check`, `comparison`. Bypass difficulty: `easy`, `medium`, `hard`, `unknown`.
-- `find_guards_between(code: str, source_line: int, sink_line: int, tainted_vars: set[str], *, path_aware: bool = True)` -> list[Guard]
-  - Scans lines between source and sink for `if`/`while` guards. When `path_aware=True`, annotates each guard with role (`protects`, `enables`, `sibling`) and excludes off-path guards.
-- `AUTH_CHECK_APIS`: tuple of security-check API name prefixes.
-- `VALIDATION_API_PREFIXES`: tuple of validation function prefixes.
-- `ERROR_CHECK_MACROS`: tuple of HRESULT/NTSTATUS check macros.
-
 ### struct_scanner
 Scans decompiled and assembly code for struct/class field accesses to infer memory layouts.
 
@@ -346,28 +328,6 @@ Lightweight def-use chain analysis with scope-aware taint propagation for IDA He
   - Runs `analyze_taint` for each parameter and builds an inter-procedural summary.
 - `SANITIZER_APIS`: frozenset of APIs that produce trusted output from tainted input.
 
-### constraint_collector
-Extracts path constraints from guard conditions on taint paths for feasibility checking.
-
-- **Constraint**(dataclass)
-  - Fields: `variable`, `operator` (`==`, `!=`, `<`, `<=`, `>`, `>=`, `is_null`, `not_null`, `in_set`, `not_in_set`), `value`, `source_line`, `raw_condition`, `negated`
-  - `to_dict()` -> dict
-- **ConstraintSet**(dataclass) -- Constraints that must hold simultaneously.
-  - Fields: `constraints`, `disjuncts` (list of ConstraintSet for OR branches), `source_guards`, `unparsed_guards`
-  - `add(c: Constraint)` -> None
-  - `to_dict()` -> dict
-- `collect_constraints(guards: list[Guard])` -> ConstraintSet
-  - Extracts variable constraints (comparisons, null checks, range checks) from a list of guard conditions. Handles `&&` conjuncts and top-level `||` disjuncts.
-
-### constraint_solver
-Pattern-based constraint satisfiability checker for taint path feasibility.
-
-- **FeasibilityResult**(dataclass)
-  - Fields: `feasible` (True | False | None for unknown), `conflicts`, `reason`, `constraints_checked`, `constraints_decidable`
-  - `to_dict()` -> dict
-- `check_feasibility(constraint_set: ConstraintSet)` -> FeasibilityResult
-  - Checks whether constraints can be simultaneously satisfied using range intersections, null/non-null conflicts, equality conflicts, and symbolic equivalence via union-find. Returns `feasible=None` for patterns beyond its capability.
-
 ## 11. Finding Normalization & Merging
 
 ### finding_schema
@@ -405,35 +365,6 @@ Merges, deduplicates, and ranks findings across multiple scanner outputs.
 
 ## 12. Assembly Analysis
 
-### asm_patterns
-Shared x64 assembly regex patterns consolidated from multiple skills.
-
-- `ASM_CALL_RE` -- Compiled regex matching `call` instructions.
-- `ASM_BRANCH_RE` -- Compiled regex matching conditional/unconditional branch instructions (je, jne, jmp, loop, etc.).
-- `ASM_RET_RE` -- Compiled regex matching `ret`/`retn` instructions.
-- `ASM_SYSCALL_RE` -- Compiled regex matching `syscall` and `int 2Eh`.
-- `IMP_PREFIX_RE` -- Compiled regex stripping `__imp_`/`_imp_`/`j_` prefixes.
-- `CALL_TARGET_RE` -- Compiled regex extracting call instruction targets.
-- `ASM_MEM_OFFSET_RE` -- Compiled regex matching `[base+offset]` memory references (handles SIB addressing).
-- `ASM_PTR_RE` -- Compiled regex matching ptr size qualifiers (`byte ptr`, `dword ptr`, etc.).
-- `ASM_LOAD_RE` -- Compiled regex extracting destination register from mov/lea/cmp/test.
-- `ASM_PROLOGUE_SAVE_RE` -- Compiled regex matching prologue saves of parameter registers.
-- `ASM_GLOBAL_RE` -- Compiled regex matching IDA global variable names (`dword_XXXX`, `qword_XXXX`, etc.).
-- `strip_import_prefix(api_name: str)` -> str
-  - Removes IDA import-thunk prefixes (`__imp_`, `_imp_`, `j_`, `cs:`) from an API name.
-
-### asm_metrics
-Structural metrics extraction from x64 assembly code.
-
-- **AsmMetrics**(dataclass)
-  - Fields: `instruction_count`, `call_count`, `branch_count`, `ret_count`, `has_syscall`, `is_leaf`, `is_tiny`
-- `get_asm_metrics(assembly_code: str | None)` -> AsmMetrics
-  - Extracts structural metrics from IDA-formatted assembly text.
-- `count_asm_instructions(assembly_code: str | None)` -> int
-  - Counts non-empty, non-comment lines in assembly text.
-- `count_asm_calls(assembly_code: str | None)` -> int
-  - Counts call instructions in assembly text.
-
 ### calling_conventions
 x64 fastcall register mappings and assembly width constants.
 
@@ -449,12 +380,12 @@ x64 fastcall register mappings and assembly width constants.
 ## 13. Security Analysis Helpers
 
 ### param_risk
-Parameter-type risk scoring from C-style function signatures.
 
-- `score_parameter_risk(signature: str | None)` -> tuple[float, list[str]]
-  - Scores how dangerous a function's parameters look (0.0-1.0). Returns `(risk_score, reasons)`. Weighted combination of max parameter type risk, average risk, and parameter count bonus.
-- `HIGH_RISK_PARAM_PATTERNS`: list[tuple[str, float]] -- 11 regex patterns with risk scores for parameter types (buffer pointers, handles, COM interfaces, size parameters).
-- `BUFFER_SIZE_PAIR_PATTERNS`: list[re.Pattern] -- 3 compiled regexes detecting buffer+size parameter pair combinations.
+Parameter surface metadata from C-style signatures.
+
+- `describe_parameter_surface(signature)` → `dict` with keys: `param_count`, `has_buffer_pointer`, `has_string_pointer`, `has_size_param`, `has_buffer_size_pair`, `has_handle`, `has_com_interface`, `has_struct_pointer`, `has_flags_param`, `pointer_param_count`, `characteristics`
+- `PARAM_TYPE_PATTERNS` -- 11 regex patterns mapping Windows types to categories
+- `BUFFER_SIZE_PAIR_PATTERNS` -- 3 compiled regexes detecting buffer+size parameter pairs
 
 ### sddl_parser
 SDDL ACE parsing with Deny support and effective permission computation.
@@ -619,20 +550,6 @@ PE import/export table index across all analyzed modules for loader-level depend
   - `module_export_list(module_name: str)` -> list[ExportEntry] -- All exports for a module.
   - `summary()` -> dict -- Aggregate statistics (module count, export count, import count).
   - Context manager: `with ImportExportIndex() as idx: ...`
-
-### string_taxonomy (expanded)
-Canonical string categorization with regex patterns consolidated from multiple skills. Expands the brief entry in section 3.
-
-- `STRING_TAXONOMY`: list[tuple[re.Pattern, str, str]] -- Ordered list of `(regex, category, description)` tuples. 16 categories covering file paths, registry keys, URLs, RPC endpoints, named pipes, ALPC paths, service accounts, certificates, credentials, embedded commands, source paths, ETW providers, GUIDs, error messages, format strings, debug traces.
-- `CATEGORIES`: list[str] -- All canonical category names in definition order.
-- `CATEGORY_RISK`: dict[str, str] -- Security risk level per category (`HIGH`, `MEDIUM`, `LOW`).
-- `TAXONOMY_TO_CLASSIFICATION`: dict[str, str] -- Maps taxonomy categories to classify-functions scoring buckets.
-- `categorize_string(s: str)` -> tuple[str, str] | None
-  - Categorizes a string literal. Returns `(category, description)` for the first matching pattern, or `None`.
-- `categorize_string_simple(s: str)` -> str
-  - Returns only the category name (or `"other"` if no match). Backward-compatible with the old `categorize_string` return type.
-- `categorize_strings(strings: list[str])` -> dict[str, list[str]]
-  - Batch categorizes strings into `{category: [strings]}` buckets.
 
 ### type_constants (expanded)
 IDA type size mappings and C type translation tables. Expands the brief entry in section 3.

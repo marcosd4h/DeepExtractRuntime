@@ -244,8 +244,8 @@ These steps orchestrate one or more skill scripts directly.
 
 | Step | Scripts | Description | Options |
 |------|---------|-------------|---------|
-| `memory-scan` | `scan_buffer_overflows.py`, `scan_integer_issues.py`, `scan_use_after_free.py`, `scan_format_strings.py` | Memory corruption detection | `top` (int) |
-| `logic-scan` | `scan_auth_bypass.py`, `scan_state_errors.py`, `scan_logic_flaws.py`, `scan_api_misuse.py` | Logic vulnerability detection | `top` (int) |
+| `memory-scan` | `build_threat_model.py`, `prepare_context.py` + LLM-driven analysis | AI-driven memory corruption detection via callgraph navigation | `top` (int) |
+| `ai-logic-scan` | `build_threat_model.py`, `prepare_context.py` + LLM-driven analysis | AI-driven logic vulnerability detection via callgraph navigation | `top` (int) |
 | `entrypoints` | `discover_entrypoints.py`, `rank_entrypoints.py` | Attack surface discovery + ranking | `top` (int) |
 | `classify` | `triage_summary.py` | Triage-oriented function classification summary | `top` (int) |
 | `callgraph` | `build_call_graph.py --stats` | Call graph statistics | `stats` (bool) |
@@ -276,8 +276,8 @@ Example:
       discover_entrypoints/summary.json
     scan/
       manifest.json
-      scan_buffer_overflows/results.json
-      scan_buffer_overflows/summary.json
+      build_threat_model/results.json
+      build_threat_model/summary.json
       ...
   consent.exe/
     triage/

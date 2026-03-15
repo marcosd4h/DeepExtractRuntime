@@ -193,13 +193,13 @@ class TestParallelGroupAssignment:
         )
         chars = self._make_chars(com_density=10, dispatch_density=10)
         steps = self.mod._full_extra_steps("/fake.db", chars)
-        assert len(steps) == 5  # 3 base + scan_com + detect_dispatchers
+        assert len(steps) == 3  # 2 base + scan_com (module_context step removed)
         for step in steps:
             assert step.parallel_group == "post_triage"
 
     def test_function_steps_all_func_analysis(self):
         steps = self.mod._function_steps("/fake.db", "TestFunc")
-        assert len(steps) == 6
+        assert len(steps) == 5
         for step in steps:
             assert step.parallel_group == "func_analysis", (
                 f"Step {step.name} has parallel_group={step.parallel_group!r}"

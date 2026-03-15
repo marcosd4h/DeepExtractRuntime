@@ -18,7 +18,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import (
-    categorize_string,
     open_analysis_db,
     parse_json_safe,
     resolve_db_path,
@@ -71,11 +70,10 @@ def analyze_strings(db_path: str, *, no_cache: bool = False) -> dict:
             s_key = s.strip()
 
             if s_key not in string_index:
-                cat_result = categorize_string(s_key)
                 string_index[s_key] = {
                     "string": s_key,
-                    "category": cat_result[0] if cat_result else "uncategorized",
-                    "description": cat_result[1] if cat_result else "",
+                    "category": "uncategorized",
+                    "description": "",
                     "functions": set(),
                 }
             string_index[s_key]["functions"].add(fname)

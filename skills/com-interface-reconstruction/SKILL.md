@@ -267,6 +267,16 @@ IDispatch extends IUnknown:
 | `ComPtr<IFoo>`            | Smart pointer to interface | Reveals interface usage                               |
 | `FillArrayWithIid`        | IID enumeration helper     | Lists supported IIDs                                  |
 
+## Known Limitations
+
+- **QI dispatch table parsing**: The skill does not yet parse `QueryInterface`
+  dispatch tables (the `if/else if` or `switch` chains comparing against IID
+  GUIDs in decompiled code) to extract the full set of supported interfaces
+  per class. Currently interface discovery relies on vtable symbols, WRL
+  template decoding, and mangled names. Adding structured QI dispatch table
+  extraction would improve interface coverage for classes that implement
+  multiple interfaces with hand-written QI logic.
+
 ## Integration with Other Skills
 
 | Task | Recommended Skill |
@@ -276,7 +286,7 @@ IDispatch extends IUnknown:
 | Trace call chains through COM vtable methods | callgraph-tracer |
 | Map COM entry points as attack surface | map-attack-surface |
 | Build security dossier for COM methods | security-dossier |
-| Lift COM class methods to clean code | code-lifting / batch-lift |
+| Lift COM class methods to clean code | batch-lift |
 
 ## Performance
 
@@ -292,5 +302,4 @@ IDispatch extends IUnknown:
 - For detailed COM/WRL technical reference, see [reference.md](reference.md)
 - For type reconstruction (struct fields), see [reconstruct-types](../reconstruct-types/SKILL.md)
 - For function classification, see [classify-functions](../classify-functions/SKILL.md)
-- For code lifting, see [code-lifting](../code-lifting/SKILL.md)
 - For DB schema and JSON formats, see [data_format_reference.md](../../docs/data_format_reference.md)

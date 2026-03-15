@@ -62,8 +62,6 @@ interest scores to decompiled functions.
 | `W_NAME` | float | `10.0` | Weight for function name pattern matching | > 0 |
 | `W_API` | float | `5.0` | Weight per matched API call | > 0 |
 | `W_API_CAP` | float | `25.0` | Maximum total score contribution from API matches | > 0 |
-| `W_STRING` | float | `2.0` | Weight per matched string literal | > 0 |
-| `W_STRING_CAP` | float | `10.0` | Maximum total score contribution from string matches | > 0 |
 | `W_STRUCTURAL` | float | `4.0` | Weight for structural pattern matching (dispatch tables, loops) | > 0 |
 | `W_LIBRARY` | float | `12.0` | Weight for library/boilerplate detection | > 0 |
 

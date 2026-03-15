@@ -19,8 +19,8 @@ This skill feeds directly into code lifting -- once you have accurate structs, e
 
 ## When NOT to Use
 
-- Lifting or rewriting decompiled functions to clean code -- use **code-lifting** or **batch-lift**
-- Scanning for vulnerabilities in functions that use reconstructed types -- use **memory-corruption-detector** or **logic-vulnerability-detector**
+- Lifting or rewriting decompiled functions to clean code -- use **batch-lift**
+- Scanning for vulnerabilities in functions that use reconstructed types -- use **ai-memory-corruption-scanner** or **ai-logic-scanner**
 - Understanding COM interfaces from vtable layouts -- use **com-interface-reconstruction**
 - Tracing data flow through struct fields across functions -- use **data-flow-tracer**
 - General function explanation -- use **re-analyst** or `/explain`
@@ -281,7 +281,7 @@ struct MyClass {
 
 | Task | Recommended Skill |
 |------|-------------------|
-| Lift functions using reconstructed types | code-lifting / batch-lift |
+| Lift functions using reconstructed types | batch-lift |
 | Discover COM interfaces from vtable layouts | com-interface-reconstruction |
 | Trace data flow through reconstructed struct fields | data-flow-tracer |
 | Classify functions that access reconstructed types | classify-functions |
@@ -300,5 +300,4 @@ struct MyClass {
 
 - For detailed technical reference, see [reference.md](reference.md)
 - For DB schema and JSON field formats, see [data_format_reference.md](../../docs/data_format_reference.md)
-- For code lifting (uses reconstructed types), see [code-lifting](../code-lifting/SKILL.md)
-- For code analysis, see [analyze-ida-decompiled](../analyze-ida-decompiled/SKILL.md)
+- For IDA conventions and struct offset formulas, see [ida_conventions_reference.md](../../docs/ida_conventions_reference.md)

@@ -96,6 +96,57 @@ recognizable substring.
 | `map_com_surface.py --workspace --json` (or `map_rpc_surface.py --workspace`) | `--workspace` only exists on `resolve_*` scripts, not `map_*` scripts | Use `resolve_com_server.py --workspace --json` to discover workspace COM modules; use `map_com_surface.py --system-wide --json` for risk-ranked surface across the full COM index |
 | IPC script under wrong skill folder (e.g. `decompiled-code-extractor/scripts/resolve_com_server.py`) | IPC scripts live in their own skill folders, not in `decompiled-code-extractor` | COM: `com-interface-analysis/scripts/`, RPC: `rpc-interface-analysis/scripts/`, WinRT: `winrt-interface-analysis/scripts/` |
 | `json_extract.py <file> modules` on `--workspace` output | Field is `workspace_modules`, not `modules`; see IPC workspace schema above | `json_extract.py <file> workspace_modules` -- or use `summary`, `com`, `rpc`, `winrt` |
+| `json_extract.py results.json stdout.stats` | Redundant `stdout.` prefix; `json_extract.py` auto-unwraps workspace envelopes | `json_extract.py results.json stats` (envelope unwrapped automatically; use `--raw` to query envelope keys) |
+| `python -c "..."` to inspect IPC index state (COM/RPC/WinRT server counts, module attribution) | Fragile inline Python; use the dedicated diagnostic helper | `python .agent/helpers/ipc_index_inspect.py --summary` or `--com --module <name>` or `--edges` or `--check-hosts` |
+| `extract_function_data.py ... --json 2>/dev/null \| python -c "...d.get('assembly'...)"` | Triples the failure modes: `2>/dev/null` hides errors, `\| python -c` violates JSON convention, and `assembly` is the **wrong field name** (returns `None` silently) | Run `extract_function_data.py <db_path> --function <name> --json` standalone and read Shell output directly; the correct fields are **`assembly_code`** and **`decompiled_code`** |
+| `extract_function_data.py ... --json \| python -c "...d['decompiled']..."` | `decompiled` does not exist; the field is **`decompiled_code`** | Use the correct field name from the schema below |
+| `list_functions.py <db_path> --search "X" --json 2>/dev/null \| python -c "...json.load(stdin)..."` | When `--search` finds no matches, `emit_error(NO_DATA)` writes to **stderr** and exits 1 with **empty stdout**. `2>/dev/null` hides the only diagnostic; `json.load()` gets empty bytes and throws `JSONDecodeError: Expecting value: line 1 column 1 (char 0)`. Same applies to `extract_function_data.py --search` and any `--search ... --json` script with no matches. | Run the script standalone (`--json`, no pipe, no redirect); a `NO_DATA` exit (code 1) means zero matches -- treat as empty result and continue |
+
+## extract_function_data.py Output Schema
+
+`extract_function_data.py <db_path> --function <name> --json` returns a single
+JSON object. The key fields and their **exact names** are:
+
+```
+decompiled_code          string   Hex-Rays decompiled C/C++ source
+assembly_code            string   Raw x64 assembly listing
+function_name            string   Symbol name
+function_id              int      Numeric ID in the analysis DB
+function_signature       string   Short signature
+function_signature_extended string Full signature with return type and params
+mangled_name             string   Mangled/decorated name (if any)
+string_literals          array    String constants referenced in the function
+outbound_xrefs           array    Functions this function calls (with module)
+inbound_xrefs            array    Functions that call this function
+vtable_contexts          array    vtable slot information (for virtual methods)
+global_var_accesses      array    Global variables read or written
+stack_frame              object   { args_size, local_vars_size, ... }
+loop_analysis            object   { loop_count, loops: [...] }
+db_path                  string   Resolved absolute path to the analysis DB
+```
+
+**CRITICAL — wrong names that return `null`/`None` or `"NO ASSEMBLY"`:**
+
+| Wrong name (breaks silently) | Correct name |
+|------------------------------|-------------|
+| `assembly` | `assembly_code` |
+| `decompiled` | `decompiled_code` |
+| `code` | `decompiled_code` |
+| `xrefs` | `outbound_xrefs` or `inbound_xrefs` |
+| `strings` | `string_literals` |
+| `signature` | `function_signature` or `function_signature_extended` |
+
+**How to retrieve decompiled code and assembly correctly:**
+
+```bash
+# Run standalone — read output directly from Shell result:
+python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py \
+    "extracted_dbs/<module>.db" --function "<FunctionName>" --json
+```
+
+The Shell tool returns the complete JSON in its output. Read the `decompiled_code`
+and `assembly_code` fields directly from that Shell output — no pipe, no inline
+Python, no `2>/dev/null`.
 
 ## Function Lookup When Module Is Unknown
 
@@ -122,7 +173,7 @@ All function-targeting scripts accept **`--function <name>`** (preferred)
 or a bare positional name (backward compat). Use `--id <N>` for ID-based
 lookup. Both forms are equivalent.
 
-### Core (decompiled-code-extractor, classify-functions, security-dossier, taint-analysis)
+### Core (decompiled-code-extractor, classify-functions, security-dossier)
 
 All scripts in this section live under their respective skill's `scripts/`
 directory. Invoke with the full relative path, e.g.
@@ -134,8 +185,6 @@ list_functions.py           <db_path> [--search "<pattern>"] [--with-signatures]
 extract_function_data.py    <db_path> --function <name> | --id <N> | --search "<pattern>"  [--json]
 classify_function.py        <db_path> --function <name> | --id <N> | --search "<pattern>"  [--json]
 build_dossier.py            <db_path> --function <name> | --id <N> | --search "<pattern>"  [--json]
-verify_function.py          <db_path> --function <name> | --id <N> | --search "<pattern>"  [--json]
-taint_function.py           <db_path> --function <name> | --id <N>  [--depth N] [--json]
 triage_summary.py           <db_path> [--top N] [--app-only] [--json]
 discover_entrypoints.py     <db_path> [--json]
 discover_workspace_ipc.py   [--type com|rpc|winrt] [--json]          # in decompiled-code-extractor
@@ -152,27 +201,18 @@ module_dependencies.py      --overview | --module <name> | --surface <name> | --
 cross_module_resolve.py     <function_name> | --from-function <db_path> <func> | --resolve-all <db_path> <func>  [--id <N>] [--tracking-db <path>] [--json]
 ```
 
-### Data-flow tracer
+### AI memory corruption scanner (ai-memory-corruption-scanner)
 
 ```
-forward_trace.py            <db_path> --function <name> | --id <N>  --param <N>  [--depth N] [--json]
-backward_trace.py           <db_path> --function <name> | --id <N>  --target <api>  [--json]
-global_state_map.py         <db_path> [--global <name_or_addr>] [--summary] [--shared-only] [--writers-only] [--app-only] [--json] [--no-cache]
-string_trace.py             <db_path> --string <text> | --function <name> | --id <N> | --list-strings  [--callers] [--depth N] [--limit N] [--assembly] [--app-only] [--json] [--no-cache]
+build_threat_model.py       <db_path> [--json] [--workspace-dir <dir> --workspace-step <step>]
+prepare_context.py          <db_path> --function <name> | --entry-points [--depth N] [--with-code] [--json] [--workspace-dir <dir> --workspace-step <step>]
 ```
 
-### Security scanners (memory-corruption-detector, logic-vulnerability-detector, verify-decompiled)
+### AI logic scanner (ai-logic-scanner)
 
 ```
-scan_buffer_overflows.py    <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
-scan_integer_issues.py      <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
-scan_use_after_free.py      <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
-scan_format_strings.py      <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
-scan_auth_bypass.py         <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
-scan_state_errors.py        <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
-scan_logic_flaws.py         <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
-scan_api_misuse.py          <db_path> [--function <name> | --id <N>] [--top N] [--json] [--no-cache]
-scan_module.py              <db_path> [--top N] [--min-severity LOW|MODERATE|MEDIUM|HIGH|CRITICAL] [--app-only] [--json] [--no-cache]  # verify-decompiled (decompiler accuracy, not vuln scanning)
+build_threat_model.py       <db_path> [--json] [--workspace-dir <dir> --workspace-step <step>]
+prepare_context.py          <db_path> --function <name> | --entry-points [--depth N] [--with-code] [--json] [--workspace-dir <dir> --workspace-step <step>]
 ```
 
 ### Generate RE report
@@ -184,15 +224,6 @@ analyze_imports.py              <db_path> [--include-delay-load] [--exports] [--
 analyze_decompilation_quality.py <db_path> [--json] [--no-cache]
 analyze_topology.py             <db_path> [--top N] [--app-only] [--json] [--no-cache]
 analyze_complexity.py           <db_path> [--top N] [--app-only] [--json] [--no-cache]
-```
-
-### State-machine extractor
-
-```
-detect_dispatchers.py       <db_path> [--min-cases N] [--with-loops] [--app-only] [--json] [--no-cache]
-extract_dispatch_table.py   <db_path> --function <name> | --id <N> | --search "<pattern>"  [--json] [--no-cache]
-extract_state_machine.py    <db_path> --function <name> | --id <N>  [--with-code] [--json] [--no-cache]
-generate_state_diagram.py   <db_path> --function <name> | --id <N>  [--format mermaid|dot] [--mode dispatch|state-machine|auto] [--json]
 ```
 
 ### Batch lift
@@ -218,7 +249,7 @@ batch_assess.py             <db_path> [--top N] [--min-score F] [--depth N] [--j
 ### Audit selection helpers
 
 ```
-select_audit_callees.py     <db_path> --dossier <path> [--attack-surface <path>] [--taint-forward <path>] [--exclude <names...>] [--json]
+select_audit_callees.py     <db_path> --dossier <path> [--attack-surface <path>] [--exclude <names...>] [--json]
 select_backward_traces.py   --dossier <path> [--extract-callee <path>] [--json]
 ```
 
@@ -281,10 +312,9 @@ deduplication):
 python .agent/agents/security-auditor/scripts/run_security_scan.py <db_path> --goal scan --json
 ```
 
-Do **NOT** run individual scanner scripts (`scan_auth_bypass.py`,
-`scan_logic_flaws.py`, `scan_buffer_overflows.py`, etc.) directly for
-module-wide sweeps -- those produce unverified, unfiltered output with high
-false-positive rates.  Individual scripts are appropriate only for:
+Do **NOT** run individual hint-generator scripts directly for module-wide
+sweeps -- they produce unverified hint output for the AI scanner's threat
+model, not standalone findings. Individual scripts are appropriate only for:
 
 - Targeted single-function analysis (`--function <name>` or `--id <N>`)
 - When the user explicitly asks for a specific scanner by name
@@ -304,3 +334,16 @@ classify_winrt_entrypoints.py [<module>] [--system-wide] [--context <ctx>] [--js
 audit_winrt_security.py       <db_path> [--json]                                    # exception: takes db_path
 find_winrt_privesc.py         [--context <ctx>] [--top N] [--json]
 ```
+
+### IPC Index Diagnostics (helper, not a skill script)
+
+```
+python .agent/helpers/ipc_index_inspect.py --summary [--json]
+python .agent/helpers/ipc_index_inspect.py --com | --rpc | --winrt [--module <name>] [--json]
+python .agent/helpers/ipc_index_inspect.py --edges [--json]
+python .agent/helpers/ipc_index_inspect.py --check-hosts [--json]
+```
+
+Use for verifying IPC index state, checking module attribution (e.g.
+confirming no servers are misattributed to svchost.exe), and inspecting
+cross-module edge injection counts.

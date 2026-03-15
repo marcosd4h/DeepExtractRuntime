@@ -192,12 +192,13 @@ STEP_REGISTRY: dict[str, StepConfig] = {
             "top": OptionSpec("int", "Limit each scanner to the top N findings.", minimum=1),
         },
     ),
-    "logic-scan": StepConfig(
-        name="logic-scan",
+    "ai-logic-scan": StepConfig(
+        name="ai-logic-scan",
         kind="skill_group",
-        description="Run the logic vulnerability detector scanners.",
+        description="Run the AI-driven logic vulnerability scanner.",
         valid_options={
-            "top": OptionSpec("int", "Limit each scanner to the top N findings.", minimum=1),
+            "top": OptionSpec("int", "Limit hint scanners to top N findings.", minimum=1),
+            "depth": OptionSpec("int", "Callgraph depth limit.", minimum=1),
         },
     ),
     "taint": StepConfig(

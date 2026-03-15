@@ -199,7 +199,7 @@ def test_step_registry_contains_documented_core_steps():
         "types",
         "scan",
         "memory-scan",
-        "logic-scan",
+        "ai-logic-scan",
         "entrypoints",
         "classify",
         "callgraph",

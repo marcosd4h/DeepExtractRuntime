@@ -100,9 +100,7 @@ This skill is the **data extraction foundation** that other skills build on:
 
 | Downstream Skill | How It Uses Extracted Data |
 | --- | --- |
-| [code-lifting](../code-lifting/SKILL.md) | Lifts extracted function data into clean C++ |
 | [batch-lift](../batch-lift/SKILL.md) | Orchestrates extraction of related function groups |
-| [verify-decompiled](../verify-decompiled/SKILL.md) | Compares extracted decompiled code against assembly |
 | [classify-functions](../classify-functions/SKILL.md) | Classifies functions using extracted xrefs and strings |
 | [callgraph-tracer](../callgraph-tracer/SKILL.md) | Builds call graphs from extracted xref data |
 | [reconstruct-types](../reconstruct-types/SKILL.md) | Scans extracted code for struct field access patterns |

@@ -24,7 +24,6 @@ You are a **code lifting specialist** for Windows PE binaries analyzed by DeepEx
 ## When NOT to Use
 
 - Explaining what a function does without rewriting it -- use **re-analyst**
-- Verifying that already-lifted code is correct -- use **verifier**
 - Reconstructing types without lifting code -- use **type-reconstructor**
 - Orchestrating multi-skill analysis -- use **triage-coordinator**
 - Security analysis or vulnerability research -- use security skills directly
@@ -147,12 +146,6 @@ python .agent/skills/reconstruct-types/scripts/extract_class_hierarchy.py <db_pa
 python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> --class <ClassName>
 ```
 
-**Pre-Lift Verification** (verify-decompiled):
-
-```bash
-python .agent/skills/verify-decompiled/scripts/verify_function.py <db_path> <function_name>
-```
-
 **Function Collection** (batch-lift):
 
 ```bash
@@ -189,7 +182,7 @@ Code Lifter Workflow:
 4. Scan Struct  -- review auto-detected struct, optionally run deep scan
 5. Lift (loop)  -- for each function in dependency order:
                      a. Read shared state (track_shared_state.py --dump)
-                     b. Lift the function (10-step code-lifting workflow)
+                     b. Lift the function (10-step lifting workflow)
                      c. Update shared state (record new fields, constants, namings)
                      d. Mark function as lifted
 6. Assemble     -- combine all lifted code into a single output file
@@ -268,15 +261,7 @@ python .agent/agents/code-lifter/scripts/track_shared_state.py --dump
 
 This gives you the current struct definition, all known constants, and naming mappings to use.
 
-**5b. Optionally pre-verify:**
-
-```bash
-python .agent/skills/verify-decompiled/scripts/verify_function.py <db_path> <function_name>
-```
-
-Check for decompiler issues before lifting. Fixes to decompiler inaccuracies should be incorporated during lifting.
-
-**5c. Lift the function** following the 10-step code-lifting workflow:
+**5b. Lift the function** following the 10-step lifting workflow:
 
 1. **Gather all function data** -- from the batch_extract.py JSON output (already available in context)
 2. **Validate decompiled code against assembly** -- assembly is ground truth
@@ -296,7 +281,7 @@ Check for decompiler issues before lifting. Fixes to decompiler inaccuracies sho
 - **Use accumulated constants** -- if `POLICY_DISABLED` was defined in another function, reuse it
 - **Reference already-lifted callees** by their clean lifted names
 
-**5d. Update shared state** after each function:
+**5c. Update shared state** after each function:
 
 ```bash
 # Record any new struct fields discovered
@@ -387,27 +372,11 @@ Return to the parent agent:
 - Functions that could not be lifted (no code/assembly) with reasons
 - Path to the output file
 
-**Verification handoff:** Always include a structured `verification_needed` section in the output to prompt the parent agent to dispatch to the **verifier** subagent:
-
-```json
-{
-  "verification_needed": {
-    "agent": "verifier",
-    "functions": ["CClass::Method1", "CClass::Method2"],
-    "lifted_file": "extracted_code/<module>/lifted_<ClassName>.cpp",
-    "db_path": "<db_path>",
-    "note": "Dispatch to verifier agent for independent assembly-level verification"
-  }
-}
-```
-
-The parent should launch the verifier subagent with `compare_lifted.py` for each lifted function to confirm functional equivalence against assembly ground truth. This is especially important for functions where decompiler issues were detected and corrected during lifting.
-
 ---
 
 ## Per-Function Lifting Rules (10-Step Reference)
 
-These are from the code-lifting skill, applied within the batch context:
+These per-function rules are applied within the batch context:
 
 ### Step 2: Validate Against Assembly
 

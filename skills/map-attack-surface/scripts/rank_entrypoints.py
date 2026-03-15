@@ -44,7 +44,7 @@ from _common import (
     compute_reachability,
     find_dangerous_ops_reachable,
     parse_json_safe,
-    score_parameter_risk,
+    describe_parameter_surface,
     _classify_entry_name,
 )
 from discover_entrypoints import discover_all
@@ -244,7 +244,13 @@ def _compute_composite_scores(
     max_reach = max((ep.reachable_count for ep in entries), default=1) or 1
 
     for ep in entries:
-        param_score = ep.param_risk_score
+        ps = ep.param_surface
+        has_attacker_input = (
+            ps.get("has_buffer_size_pair")
+            or ps.get("has_string_pointer")
+            or ps.get("has_com_interface")
+        )
+        param_signal = 1.0 if has_attacker_input else (0.3 if ps.get("param_count", 0) > 0 else 0.0)
         danger_score = min(ep.dangerous_ops_reachable / max_danger, 1.0)
 
         if ep.depth_to_first_danger is not None:
@@ -260,7 +266,7 @@ def _compute_composite_scores(
         type_bonus = max(rpc_bonus, com_bonus, winrt_bonus) or _type_risk_bonus(ep.entry_type, module_trust)
 
         ep.attack_score = (
-            param_score * 0.25 +
+            param_signal * 0.25 +
             danger_score * 0.30 +
             proximity * 0.15 +
             reach_score * 0.15 +
@@ -499,16 +505,18 @@ def print_ranked(entries: list[EntryPoint], as_json: bool = False, top_n: int = 
     print(f"{'=' * 90}\n")
 
     # Summary header
-    print(f"{'Rank':>4}  {'Score':>6}  {'DangerOps':>9}  {'Reachable':>9}  {'ParamRisk':>9}  {'Type':<25}  Function")
-    print(f"{'-' * 4}  {'-' * 6}  {'-' * 9}  {'-' * 9}  {'-' * 9}  {'-' * 25}  {'-' * 40}")
+    print(f"{'Rank':>4}  {'Score':>6}  {'DangerOps':>9}  {'Reachable':>9}  {'Param':>5}  {'Type':<25}  Function")
+    print(f"{'-' * 4}  {'-' * 6}  {'-' * 9}  {'-' * 9}  {'-' * 5}  {'-' * 25}  {'-' * 40}")
 
     for ep in entries:
+        chars = ep.param_surface.get("characteristics", [])
+        param_ind = "Y" if chars else "-"
         score_pct = f"{ep.attack_score * 100:.1f}%"
         print(
             f"#{ep.attack_rank:<3}  {score_pct:>6}  "
             f"{ep.dangerous_ops_reachable:>9}  "
             f"{ep.reachable_count:>9}  "
-            f"{ep.param_risk_score:>8.2f}  "
+            f"{param_ind:>5}  "
             f"{ep.type_label:<25}  "
             f"{ep.function_name}"
         )
@@ -535,9 +543,8 @@ def print_ranked(entries: list[EntryPoint], as_json: bool = False, top_n: int = 
             print(f"  Nearest danger: depth {ep.depth_to_first_danger}")
         if ep.dangerous_ops_list:
             print(f"  Danger APIs:    {', '.join(ep.dangerous_ops_list[:10])}")
-        print(f"  Param risk:     {ep.param_risk_score:.2f}")
-        if ep.param_risk_reasons:
-            print(f"  Risk factors:   {'; '.join(ep.param_risk_reasons)}")
+        chars = ep.param_surface.get("characteristics", [])
+        print(f"  Param surface:  {', '.join(chars) if chars else 'none'}")
         if ep.tainted_args:
             print(f"  Tainted args:")
             for ta in ep.tainted_args[:8]:
@@ -602,7 +609,7 @@ def rank_single_function(
                 signature=sig,
                 mangled_name=func.mangled_name or "",
             )
-            ep.param_risk_score, ep.param_risk_reasons = score_parameter_risk(sig)
+            ep.param_surface = describe_parameter_surface(sig)
             ep.notes.append("User-specified function (not auto-discovered as entry point)")
 
             # Enrich RPC fields from the index for any confirmed RPC handler.

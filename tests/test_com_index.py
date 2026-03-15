@@ -1059,3 +1059,110 @@ class TestEdgeCases:
         )
         srv = _parse_server_detail("ffff6666-0000-1111-2222-333333333333", raw)
         assert srv.interfaces[0].guid == ""
+
+
+class TestGenericHostResolution:
+    """Tests for svchost.exe/dllhost.exe -> service_dll resolution."""
+
+    def test_svchost_resolves_to_service_dll(self):
+        raw = _make_com_server_entry(
+            "aaaa1111-0000-0000-0000-000000000001", "SvcServer", "LocalServer32",
+            app_id={
+                "is_service": True,
+                "service_name": "testsvc",
+                "local_service": {
+                    "service_name": "testsvc",
+                    "service_dll": r"C:\Windows\System32\testsvc.dll",
+                    "account": "LocalSystem",
+                },
+            },
+            interfaces=[{
+                "iface_name": "ITest",
+                "methods": [
+                    {"access_type": "DIRECT", "dispatch_type": "VTABLE",
+                     "method_name": "TestMethod", "binary_path": r"c:\windows\system32\testsvc.dll"},
+                ],
+                "pseudo_idl": [],
+            }],
+        )
+        srv = _parse_server_detail("aaaa1111-0000-0000-0000-000000000001", raw, "svchost.exe")
+        assert srv.hosting_binary.lower() == "testsvc.dll"
+
+    def test_dllhost_resolves_to_method_binary(self):
+        raw = _make_com_server_entry(
+            "aaaa2222-0000-0000-0000-000000000002", "DllhostServer", "LocalServer32",
+            interfaces=[{
+                "iface_name": "IFoo",
+                "methods": [
+                    {"access_type": "DIRECT", "dispatch_type": "VTABLE",
+                     "method_name": "FooMethod", "binary_path": r"c:\windows\system32\real.dll"},
+                ],
+                "pseudo_idl": [],
+            }],
+        )
+        srv = _parse_server_detail("aaaa2222-0000-0000-0000-000000000002", raw, "dllhost.exe")
+        assert srv.hosting_binary.lower() == "real.dll"
+
+    def test_non_generic_host_unchanged(self):
+        raw = _make_com_server_entry(
+            "aaaa3333-0000-0000-0000-000000000003", "NormalServer", "LocalServer32",
+            interfaces=[{
+                "iface_name": "IBar",
+                "methods": [
+                    {"access_type": "DIRECT", "dispatch_type": "VTABLE",
+                     "method_name": "BarMethod", "binary_path": r"c:\windows\system32\other.dll"},
+                ],
+                "pseudo_idl": [],
+            }],
+        )
+        srv = _parse_server_detail("aaaa3333-0000-0000-0000-000000000003", raw, "myapp.exe")
+        assert srv.hosting_binary == "myapp.exe"
+
+    def test_svchost_no_service_dll_falls_to_method(self):
+        raw = _make_com_server_entry(
+            "aaaa4444-0000-0000-0000-000000000004", "NoSvcDll", "LocalServer32",
+            app_id={"is_service": True, "service_name": "nosvc"},
+            interfaces=[{
+                "iface_name": "IBaz",
+                "methods": [
+                    {"access_type": "DIRECT", "dispatch_type": "VTABLE",
+                     "method_name": "BazMethod", "binary_path": r"c:\windows\system32\fallback.dll"},
+                ],
+                "pseudo_idl": [],
+            }],
+        )
+        srv = _parse_server_detail("aaaa4444-0000-0000-0000-000000000004", raw, "svchost.exe")
+        assert srv.hosting_binary.lower() == "fallback.dll"
+
+    def test_svchost_no_methods_stays_svchost(self):
+        raw = _make_com_server_entry(
+            "aaaa5555-0000-0000-0000-000000000005", "EmptySvc", "LocalServer32",
+            app_id={"is_service": True, "service_name": "emptysvc"},
+            interfaces=[],
+        )
+        srv = _parse_server_detail("aaaa5555-0000-0000-0000-000000000005", raw, "svchost.exe")
+        assert srv.hosting_binary.lower() == "svchost.exe"
+
+    def test_procedures_not_indexed_under_svchost(self):
+        data = {
+            r"c:\windows\system32\svchost.exe": {
+                "binary_path": r"C:\Windows\System32\svchost.exe",
+                "servers": [],
+                "procedures": ["ProcA", "ProcB"],
+            },
+            r"c:\windows\system32\real.dll": {
+                "binary_path": r"C:\Windows\System32\real.dll",
+                "servers": [],
+                "procedures": ["RealProc"],
+            },
+        }
+        idx = ComIndex()
+        import tempfile, json
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "com_servers.json"
+            p.write_text(json.dumps(data))
+            idx._load_binary_entries(p, ComAccessContext.HIGH_IL_ALL)
+
+        assert "svchost.exe" not in idx._procedures_by_module
+        assert "real.dll" in idx._procedures_by_module
+        assert "RealProc" in idx._procedures_by_module["real.dll"]

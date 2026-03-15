@@ -208,13 +208,13 @@ class TestRealGrouping:
         )
         groups = self.mod._group_steps(steps)
         assert len(groups) == 2
-        assert len(groups[1]) == 7  # 2 security + 3 base + scan_com + detect_dispatchers
+        assert len(groups[1]) == 5  # 2 security + 2 base + scan_com (module_context step removed)
 
     def test_function_goal_single_parallel_phase(self):
         steps = self.mod._function_steps("/fake.db", "TestFunc")
         groups = self.mod._group_steps(steps)
         assert len(groups) == 1, "Function goal should be 1 parallel phase"
-        assert len(groups[0]) == 6
+        assert len(groups[0]) == 5
 
     def test_types_goal_two_steps_single_phase(self):
         chars = self._make_chars(com_density=10)

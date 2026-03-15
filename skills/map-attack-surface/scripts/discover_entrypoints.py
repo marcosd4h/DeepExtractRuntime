@@ -43,13 +43,12 @@ from _common import (
     SERVICE_DISPATCHER_APIS,
     SERVICE_HANDLER_APIS,
     SOCKET_APIS,
-    ENTRY_NAME_PATTERNS,
-    ENTRY_STRING_PATTERNS,
+    _classify_entry_name,
     EntryPoint,
     EntryPointType,
     parse_json_safe,
     resolve_db_path,
-    score_parameter_risk,
+    describe_parameter_surface,
 )
 from helpers import get_function_id, load_function_index_for_db, open_individual_analysis_db, search_index
 from helpers.cache import get_cached, cache_result
@@ -89,8 +88,7 @@ def _entrypoints_from_cached(data: list[dict]) -> list[EntryPoint]:
             mangled_name=d.get("mangled_name", ""),
             address=d.get("address", ""),
             ordinal=d.get("ordinal"),
-            param_risk_score=d.get("param_risk_score", 0.0),
-            param_risk_reasons=d.get("param_risk_reasons", []),
+            param_surface=d.get("param_surface", {}),
             reachable_count=d.get("reachable_count", 0),
             dangerous_ops_reachable=d.get("dangerous_ops_reachable", 0),
             dangerous_ops_list=d.get("dangerous_ops_list", []),
@@ -174,7 +172,7 @@ def discover_explicit_entry_points(db, function_index: dict | None = None) -> li
         if resolved_func and not entry.signature:
             entry.signature = resolved_func.function_signature_extended or resolved_func.function_signature or ""
         # Score parameters
-        entry.param_risk_score, entry.param_risk_reasons = score_parameter_risk(entry.signature)
+        entry.param_surface = describe_parameter_surface(entry.signature)
         results.append(entry)
 
     return results
@@ -245,7 +243,7 @@ def discover_exports(db, function_index: dict | None = None) -> list[EntryPoint]
         if resolved_func and not entry.signature:
             entry.signature = resolved_func.function_signature_extended or resolved_func.function_signature or ""
 
-        entry.param_risk_score, entry.param_risk_reasons = score_parameter_risk(entry.signature)
+        entry.param_surface = describe_parameter_surface(entry.signature)
         if is_forwarded:
             entry.notes.append(f"Forwarded to: {exp.get('forwarded_to', 'unknown')}")
         results.append(entry)
@@ -300,7 +298,7 @@ def discover_tls_callbacks(db, function_index: dict | None = None) -> list[Entry
         if resolved_func:
             entry.signature = resolved_func.function_signature_extended or resolved_func.function_signature or ""
 
-        entry.param_risk_score, entry.param_risk_reasons = score_parameter_risk(entry.signature)
+        entry.param_surface = describe_parameter_surface(entry.signature)
         results.append(entry)
 
     return results
@@ -356,7 +354,7 @@ def discover_com_vtable_methods(db, all_funcs: list | None = None) -> list[Entry
                     mangled_name=func.mangled_name or "",
                 )
                 entry.notes.append(f"VTable class: {class_str[:120]}")
-                entry.param_risk_score, entry.param_risk_reasons = score_parameter_risk(entry.signature)
+                entry.param_surface = describe_parameter_surface(entry.signature)
                 results.append(entry)
 
     return results
@@ -467,7 +465,7 @@ def discover_callback_registrations(db, all_funcs: list | None = None) -> list[E
                 detection_source=f"callback registration via {best_api} in {func.function_name}",
                 signature=sig,
             )
-            entry.param_risk_score, entry.param_risk_reasons = score_parameter_risk(sig)
+            entry.param_surface = describe_parameter_surface(sig)
             entry.notes.append(f"Registered by {func.function_name} via {best_api}()")
             if caller_count <= 2:
                 entry.notes.append(f"Low caller count ({caller_count}) supports callback hypothesis")
@@ -477,44 +475,13 @@ def discover_callback_registrations(db, all_funcs: list | None = None) -> list[E
 
 
 def discover_by_naming_patterns(db, all_funcs: list | None = None) -> list[EntryPoint]:
-    """Find entry points by function name patterns (RPC stubs, WndProc, etc.)."""
-    results: list[EntryPoint] = []
-    seen_names: set[str] = set()
+    """Find entry points by function name patterns (RPC stubs, WndProc, etc.).
 
-    if all_funcs is None:
-        all_funcs = db.get_all_functions()
-    for func in all_funcs:
-        name = func.function_name
-        if not name or name in seen_names:
-            continue
-
-        for pattern_type, patterns in ENTRY_NAME_PATTERNS.items():
-            matched = False
-            for pat in patterns:
-                if pat.search(name):
-                    matched = True
-                    break
-            if not matched:
-                continue
-
-            etype = _pattern_type_to_entry_type(pattern_type)
-            seen_names.add(name)
-
-            entry = EntryPoint(
-                function_name=name,
-                function_id=func.function_id,
-                entry_type=etype,
-                type_label=etype.name,
-                category=pattern_type,
-                detection_source=f"name_pattern ({pattern_type})",
-                signature=func.function_signature_extended or func.function_signature or "",
-                mangled_name=func.mangled_name or "",
-            )
-            entry.param_risk_score, entry.param_risk_reasons = score_parameter_risk(entry.signature)
-            results.append(entry)
-            break  # One match per function
-
-    return results
+    Regex-based name patterns have been removed. Classification is done by
+    structured data sources (RPC/COM/WinRT indexes, file_info.json exports).
+    Returns empty list to preserve pipeline compatibility.
+    """
+    return []
 
 
 def discover_by_api_usage(db, all_funcs: list | None = None) -> list[EntryPoint]:
@@ -555,7 +522,7 @@ def discover_by_api_usage(db, all_funcs: list | None = None) -> list[EntryPoint]
                 signature=func.function_signature_extended or func.function_signature or "",
                 mangled_name=func.mangled_name or "",
             )
-            entry.param_risk_score, entry.param_risk_reasons = score_parameter_risk(entry.signature)
+            entry.param_surface = describe_parameter_surface(entry.signature)
             results.append(entry)
             continue
 
@@ -573,7 +540,7 @@ def discover_by_api_usage(db, all_funcs: list | None = None) -> list[EntryPoint]
                 signature=func.function_signature_extended or func.function_signature or "",
                 mangled_name=func.mangled_name or "",
             )
-            entry.param_risk_score, entry.param_risk_reasons = score_parameter_risk(entry.signature)
+            entry.param_surface = describe_parameter_surface(entry.signature)
             results.append(entry)
             continue
 
@@ -591,7 +558,7 @@ def discover_by_api_usage(db, all_funcs: list | None = None) -> list[EntryPoint]
                 signature=func.function_signature_extended or func.function_signature or "",
                 mangled_name=func.mangled_name or "",
             )
-            entry.param_risk_score, entry.param_risk_reasons = score_parameter_risk(entry.signature)
+            entry.param_surface = describe_parameter_surface(entry.signature)
             results.append(entry)
             continue
 
@@ -609,7 +576,7 @@ def discover_by_api_usage(db, all_funcs: list | None = None) -> list[EntryPoint]
                 signature=func.function_signature_extended or func.function_signature or "",
                 mangled_name=func.mangled_name or "",
             )
-            entry.param_risk_score, entry.param_risk_reasons = score_parameter_risk(entry.signature)
+            entry.param_surface = describe_parameter_surface(entry.signature)
             results.append(entry)
             continue
 
@@ -627,7 +594,7 @@ def discover_by_api_usage(db, all_funcs: list | None = None) -> list[EntryPoint]
                 signature=func.function_signature_extended or func.function_signature or "",
                 mangled_name=func.mangled_name or "",
             )
-            entry.param_risk_score, entry.param_risk_reasons = score_parameter_risk(entry.signature)
+            entry.param_surface = describe_parameter_surface(entry.signature)
             results.append(entry)
             continue
 
@@ -645,7 +612,7 @@ def discover_by_api_usage(db, all_funcs: list | None = None) -> list[EntryPoint]
                 signature=func.function_signature_extended or func.function_signature or "",
                 mangled_name=func.mangled_name or "",
             )
-            entry.param_risk_score, entry.param_risk_reasons = score_parameter_risk(entry.signature)
+            entry.param_surface = describe_parameter_surface(entry.signature)
             results.append(entry)
             continue
 
@@ -663,58 +630,20 @@ def discover_by_api_usage(db, all_funcs: list | None = None) -> list[EntryPoint]
                 signature=func.function_signature_extended or func.function_signature or "",
                 mangled_name=func.mangled_name or "",
             )
-            entry.param_risk_score, entry.param_risk_reasons = score_parameter_risk(entry.signature)
+            entry.param_surface = describe_parameter_surface(entry.signature)
             results.append(entry)
 
     return results
 
 
 def discover_by_string_patterns(db, all_funcs: list | None = None) -> list[EntryPoint]:
-    """Find entry points by string literals (pipe names, RPC protocols, etc.)."""
-    results: list[EntryPoint] = []
-    seen_names: set[str] = set()
+    """Find entry points by string literals (pipe names, RPC protocols, etc.).
 
-    if all_funcs is None:
-        all_funcs = db.get_all_functions()
-    for func in all_funcs:
-        name = func.function_name
-        if not name or name in seen_names:
-            continue
-
-        strings = parse_json_safe(func.string_literals)
-        if not strings or not isinstance(strings, list):
-            continue
-
-        all_str = " ".join(s for s in strings if isinstance(s, str))
-
-        for pattern_type, patterns in ENTRY_STRING_PATTERNS.items():
-            matched_pattern = None
-            for pat in patterns:
-                m = pat.search(all_str)
-                if m:
-                    matched_pattern = m.group(0)
-                    break
-            if not matched_pattern:
-                continue
-
-            etype = _pattern_type_to_entry_type(pattern_type)
-            seen_names.add(name)
-
-            entry = EntryPoint(
-                function_name=name,
-                function_id=func.function_id,
-                entry_type=etype,
-                type_label=etype.name,
-                category=pattern_type,
-                detection_source=f"string_pattern: \"{matched_pattern[:60]}\"",
-                signature=func.function_signature_extended or func.function_signature or "",
-                mangled_name=func.mangled_name or "",
-            )
-            entry.param_risk_score, entry.param_risk_reasons = score_parameter_risk(entry.signature)
-            results.append(entry)
-            break
-
-    return results
+    Regex-based string patterns have been removed. Classification is done by
+    structured data sources (RPC/COM/WinRT indexes). Returns empty list to
+    preserve pipeline compatibility.
+    """
+    return []
 
 
 # ===========================================================================
@@ -787,7 +716,7 @@ def discover_from_rpc_index(
             rpc_service=rpc_service,
             rpc_risk_tier=rpc_risk_tier,
         )
-        ep.param_risk_score, ep.param_risk_reasons = score_parameter_risk(sig)
+        ep.param_surface = describe_parameter_surface(sig)
         if rpc_service:
             ep.notes.append(f"Windows service: {rpc_service}")
         if iface and iface.has_complex_types:
@@ -899,7 +828,7 @@ def discover_from_com_index(
             com_can_elevate=com_can_elevate,
             com_access_contexts=com_access_ctxs,
         )
-        ep.param_risk_score, ep.param_risk_reasons = score_parameter_risk(sig)
+        ep.param_surface = describe_parameter_surface(sig)
         if com_service:
             ep.notes.append(f"Windows service: {com_service}")
         if com_can_elevate:
@@ -1023,7 +952,7 @@ def discover_from_winrt_index(
             winrt_risk_tier=winrt_risk_tier,
             winrt_access_contexts=winrt_access_ctxs,
         )
-        ep.param_risk_score, ep.param_risk_reasons = score_parameter_risk(sig)
+        ep.param_surface = describe_parameter_surface(sig)
         results.append(ep)
 
     return results
@@ -1172,40 +1101,12 @@ def _clean_name(name: str) -> str:
     return name.strip()
 
 
-def _classify_entry_name(name: str) -> EntryPointType:
-    """Classify an entry point type from its name."""
-    clean = _clean_name(name)
-    for pattern_type, patterns in ENTRY_NAME_PATTERNS.items():
-        for pat in patterns:
-            if pat.search(clean):
-                return _pattern_type_to_entry_type(pattern_type)
-    return EntryPointType.EXPORT_DLL
-
-
 def _matches_com_factory(name: str) -> bool:
     """Check if a function name matches COM class factory exports."""
     return bool(re.match(
         r"^Dll(?:GetClassObject|CanUnloadNow|RegisterServer|UnregisterServer)$",
         name, re.I
     ))
-
-
-def _pattern_type_to_entry_type(pattern_type: str) -> EntryPointType:
-    """Map pattern type string to EntryPointType enum."""
-    mapping = {
-        "main_entry": EntryPointType.MAIN_ENTRY,
-        "dllmain": EntryPointType.DLLMAIN,
-        "service_main": EntryPointType.SERVICE_MAIN,
-        "window_proc": EntryPointType.WINDOW_PROC,
-        "rpc_handler": EntryPointType.RPC_HANDLER,
-        "named_pipe": EntryPointType.NAMED_PIPE_HANDLER,
-        "ipc_dispatcher": EntryPointType.IPC_DISPATCHER,
-        "socket_handler": EntryPointType.TCP_UDP_HANDLER,
-        "driver_dispatch": EntryPointType.DRIVER_DISPATCH,
-        "com_class_factory": EntryPointType.COM_CLASS_FACTORY,
-        "exception_handler": EntryPointType.EXCEPTION_HANDLER,
-    }
-    return mapping.get(pattern_type, EntryPointType.EXPORT_DLL)
 
 
 def _callback_category_to_type(category: str) -> EntryPointType:
@@ -1253,16 +1154,16 @@ def _build_compact_summary(entries: list[EntryPoint]) -> dict:
                 seen_ifaces.add(iface_id)
                 interfaces.append(iface_id)
 
-    top_entries = sorted(entries, key=lambda e: e.param_risk_score, reverse=True)[:10]
+    top_entries = sorted(entries, key=lambda e: e.param_surface.get("pointer_param_count", 0), reverse=True)[:10]
     return {
         "total": len(entries),
         "by_type": by_type,
         "interfaces": interfaces,
-        "top10_by_param_risk": [
+        "top10_by_param_surface": [
             {
                 "name": e.function_name,
                 "type": e.type_label,
-                "param_risk": round(e.param_risk_score, 3),
+                "param_surface": e.param_surface,
                 "rpc_opnum": e.rpc_opnum,
                 "interface_id": e.rpc_interface_id or e.com_clsid or "",
                 "signature": (e.signature or "")[:120],
@@ -1308,22 +1209,17 @@ def print_results(entries: list[EntryPoint], as_json: bool = False) -> None:
         print(f"  {type_name} ({len(eps)} entries)")
         print(f"{'-' * 80}")
         for ep in eps:
-            risk_bar = _risk_bar(ep.param_risk_score)
+            chars = ep.param_surface.get("characteristics", [])
             print(f"  {ep.function_name}")
             if ep.signature:
                 print(f"    Signature: {ep.signature[:100]}")
             print(f"    Source:    {ep.detection_source}")
-            print(f"    ParamRisk: {risk_bar} ({ep.param_risk_score:.2f})")
+            print(f"    Params:    {ep.param_surface.get('param_count', 0)} params" +
+                  (f" ({', '.join(chars)})" if chars else ""))
             if ep.notes:
                 for note in ep.notes[:3]:
                     print(f"    Note:      {note[:100]}")
             print()
-
-
-def _risk_bar(score: float) -> str:
-    """Visual risk bar."""
-    filled = int(score * 10)
-    return "[" + "#" * filled + "." * (10 - filled) + "]"
 
 
 # ===========================================================================
@@ -1352,8 +1248,8 @@ def main() -> None:
         allowed = {t.upper() for t in args.types}
         entries = [ep for ep in entries if ep.entry_type.name in allowed or ep.type_label in allowed]
 
-    # Sort by param_risk_score descending
-    entries.sort(key=lambda ep: ep.param_risk_score, reverse=True)
+    # Sort by pointer_param_count descending
+    entries.sort(key=lambda ep: ep.param_surface.get("pointer_param_count", 0), reverse=True)
 
     print_results(entries, as_json=args.json)
 

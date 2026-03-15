@@ -45,33 +45,35 @@ EXPECTED_SKILLS = [
     "classify-functions",
     "com-interface-analysis",
     "com-interface-reconstruction",
-    "data-flow-tracer",
     "decompiled-code-extractor",
-    "deep-research-prompt",
     "exploitability-assessment",
     "function-index",
     "generate-re-report",
     "import-export-resolver",
-    "logic-vulnerability-detector",
+    "ai-logic-scanner",
     "map-attack-surface",
-    "memory-corruption-detector",
+    "ai-memory-corruption-scanner",
     "reconstruct-types",
     "rpc-interface-analysis",
     "security-dossier",
-    "state-machine-extractor",
-    "string-intelligence",
-    "taint-analysis",
-    "verify-decompiled",
+    "ai-taint-scanner",
     "winrt-interface-analysis",
 ]
 
 EXPECTED_AGENTS = [
     "code-lifter",
+    "logic-scanner",
+    "memory-corruption-scanner",
     "re-analyst",
     "security-auditor",
+    "taint-scanner",
     "triage-coordinator",
     "type-reconstructor",
-    "verifier",
+]
+
+AGENTS_WITH_SCRIPTS = [
+    a for a in EXPECTED_AGENTS
+    if (Path(__file__).resolve().parents[1] / "agents" / a / "scripts" / "_common.py").exists()
 ]
 
 
@@ -192,13 +194,13 @@ class TestSkillBootstrapConsistency:
 class TestAgentBootstrapConsistency:
     """Verify all agent _common.py files use the bootstrap() one-liner."""
 
-    @pytest.mark.parametrize("agent_name", EXPECTED_AGENTS)
+    @pytest.mark.parametrize("agent_name", AGENTS_WITH_SCRIPTS)
     def test_agent_common_exists(self, agent_name):
-        """Each agent must have _common.py (not _agent_common.py)."""
+        """Each agent with scripts must have _common.py (not _agent_common.py)."""
         common_path = AGENTS_DIR / agent_name / "scripts" / "_common.py"
         assert common_path.exists(), f"Missing: {common_path}"
 
-    @pytest.mark.parametrize("agent_name", EXPECTED_AGENTS)
+    @pytest.mark.parametrize("agent_name", AGENTS_WITH_SCRIPTS)
     def test_agent_no_agent_common(self, agent_name):
         """No agent should have _agent_common.py anymore (Issue #9)."""
         old_path = AGENTS_DIR / agent_name / "scripts" / "_agent_common.py"
@@ -206,7 +208,7 @@ class TestAgentBootstrapConsistency:
             f"{agent_name} still has _agent_common.py -- should be _common.py"
         )
 
-    @pytest.mark.parametrize("agent_name", EXPECTED_AGENTS)
+    @pytest.mark.parametrize("agent_name", AGENTS_WITH_SCRIPTS)
     def test_agent_uses_bootstrap(self, agent_name):
         """Each agent _common.py must use the bootstrap() function."""
         common_path = AGENTS_DIR / agent_name / "scripts" / "_common.py"
@@ -215,7 +217,7 @@ class TestAgentBootstrapConsistency:
             f"{agent_name}/_common.py does not reference bootstrap"
         )
 
-    @pytest.mark.parametrize("agent_name", EXPECTED_AGENTS)
+    @pytest.mark.parametrize("agent_name", AGENTS_WITH_SCRIPTS)
     def test_agent_has_workspace_root(self, agent_name):
         """Each agent _common.py must set WORKSPACE_ROOT = bootstrap(__file__)."""
         common_path = AGENTS_DIR / agent_name / "scripts" / "_common.py"
@@ -224,7 +226,7 @@ class TestAgentBootstrapConsistency:
             f"{agent_name}/_common.py missing WORKSPACE_ROOT = bootstrap(__file__)"
         )
 
-    @pytest.mark.parametrize("agent_name", EXPECTED_AGENTS)
+    @pytest.mark.parametrize("agent_name", AGENTS_WITH_SCRIPTS)
     def test_agent_no_old_bootstrap_pattern(self, agent_name):
         """Each agent _common.py must NOT have the old bootstrap."""
         common_path = AGENTS_DIR / agent_name / "scripts" / "_common.py"

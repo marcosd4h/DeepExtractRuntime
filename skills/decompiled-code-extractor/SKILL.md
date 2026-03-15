@@ -23,8 +23,8 @@ are purely data retrieval tools.
 - Classifying functions by purpose or triaging a module -- use **classify-functions**
 - Understanding what a function does (explanation, not raw data) -- use **re-analyst** or `/explain`
 - Tracing call chains or cross-module execution paths -- use **callgraph-tracer**
-- Scanning for vulnerabilities in extracted code -- use **memory-corruption-detector** or **logic-vulnerability-detector**
-- Lifting or rewriting decompiled code to readable C++ -- use **code-lifting** or the **code-lifter** agent
+- Scanning for vulnerabilities in extracted code -- use **ai-memory-corruption-scanner** or **ai-logic-scanner**
+- Lifting or rewriting decompiled code to readable C++ -- use the **code-lifter** agent
 
 ## Data Sources
 
@@ -185,8 +185,7 @@ See [reference.md](reference.md) for full API details.
 | Classify extracted functions by purpose | classify-functions |
 | Trace call graphs from extracted functions | callgraph-tracer |
 | Reconstruct struct types from extracted code | reconstruct-types |
-| Lift extracted functions to clean code | code-lifting / batch-lift |
-| Verify decompiler accuracy for extracted functions | verify-decompiled |
+| Lift extracted functions to clean code | batch-lift |
 
 ## Performance
 
@@ -201,5 +200,4 @@ See [reference.md](reference.md) for full API details.
 - For detailed technical reference (DB fields, query patterns), see [reference.md](reference.md)
 - For DB schema and JSON field formats, see [data_format_reference.md](../../docs/data_format_reference.md)
 - For file_info.json schema, see [file_info_format_reference.md](../../docs/file_info_format_reference.md)
-- For code lifting workflow, see [code-lifting](../code-lifting/SKILL.md)
-- For code analysis skill, see [analyze-ida-decompiled](../analyze-ida-decompiled/SKILL.md)
+- For IDA conventions and analysis patterns, see [ida_conventions_reference.md](../../docs/ida_conventions_reference.md)

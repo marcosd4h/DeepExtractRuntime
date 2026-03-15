@@ -2,7 +2,7 @@
 
 ## Overview
 
-End-to-end analysis of a DeepExtractIDA module combining multiple analysis passes: binary identity, function classification, attack surface mapping, call graph topology, and specialized analysis (COM, dispatch tables, global state). This is the most thorough single-command analysis.
+End-to-end analysis of a DeepExtractIDA module combining multiple analysis passes: binary identity, function classification, attack surface mapping, call graph topology, and specialized analysis (COM, global state). This is the most thorough single-command analysis.
 
 The text after `/full-report` is the **module name** (e.g., `/full-report appinfo.dll`). Add `--brief` for an abbreviated version. If omitted, list available modules and ask.
 
@@ -75,7 +75,7 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 ### Phase 1: Module Identity
 
 3. **Generate base RE report**
-   Use the **generate-re-report** skill (`generate_report.py --top 15`) for the comprehensive 10-section report covering: executive summary, provenance, security posture, imports/exports, architecture, complexity hotspots, string intelligence, topology, anomalies, and recommendations.
+   Use the **generate-re-report** skill (`generate_report.py --top 15`) for the comprehensive 10-section report covering: executive summary, provenance, security posture, imports/exports, architecture, complexity hotspots, topology, anomalies, and recommendations.
    For `--brief` mode, use `generate_report.py --summary` (sections 1, 3, 4, 10 only).
    Check off Phase 1 in the scratchpad.
 
@@ -115,14 +115,6 @@ If validation fails, report the errors and stop. On success, use `result.resolve
    ```
    Include brief behavioral explanations in the Attack Surface section: what the entry point does at a business level, its key API calls, and its risk profile.
 
-9c. **Taint analysis for top entry points**
-   Use the **taint-analysis** skill (`taint_function.py`) on the top 3 ranked entry points from Step 7 to trace tainted parameters forward to dangerous sinks:
-   ```bash
-   python .agent/skills/taint-analysis/scripts/taint_function.py <db_path> <entry_point_name> --depth 2 --json \
-       --workspace-dir <run_dir> --workspace-step taint_<entry_point_name>
-   ```
-   For each entry point, report: sinks reached, severity breakdown (CRITICAL/HIGH/MEDIUM/LOW), guards on the path with bypass difficulty, and notable logic effects. Feed results into the Attack Surface section alongside the dossier findings.
-
    Check off Phase 3 in the scratchpad.
 
 ### Phase 4: Topology
@@ -144,14 +136,11 @@ The triage-coordinator's plan from Setup Step 1b determines which specialized an
 13. **COM interfaces** (trait: `com_heavy` -- >5 COM functions or >10% COM density)
     Use the **com-interface-reconstruction** skill (`scan_com_interfaces.py`).
 
-14. **Dispatch tables** (trait: `dispatch_heavy` -- >5 dispatch/handler functions)
-    Use the **state-machine-extractor** skill (`detect_dispatchers.py`).
-
-15. **Global state hotspots** (if heavy global variable usage detected in Phase 2 classification)
-    Use the **data-flow-tracer** skill (`global_state_map.py --summary`).
+14. **Global state hotspots** (if heavy global variable usage detected in Phase 2 classification)
+    Analyze global variable usage patterns from the classification and dossier data.
 
 16. **Decompilation quality** (if module has >20% unnamed functions or index entries with `has_decompiled=false`)
-    Use the **generate-re-report** skill (`analyze_decompilation_quality.py`) for quality metrics, or the **verify-decompiled** skill (`scan_module.py --min-severity HIGH --top 10`) for the worst decompiler issues. Feed results into the Anomalies section.
+    Use the **generate-re-report** skill (`analyze_decompilation_quality.py`) for quality metrics. Feed results into the Anomalies section.
 
 17. **Type reconstruction** (trait: `class_heavy` -- >3 C++ classes)
     Use the **reconstruct-types** skill (`scan_struct_fields.py --all-classes --app-only`) to collect struct layouts for classes found in Phase 2.
@@ -169,13 +158,12 @@ Check off Phase 5 in the scratchpad (even if no specialized analysis was needed)
     - **Binary Structure**: DLL characteristics, section layout.
     - **Capability Profile**: imports by category, exports by type, delay-loaded deps. `module_profile.json` has technology surface flags (COM/RPC/WinRT/pipes) and dangerous API categories.
     - **Function Classification**: distribution table, noise ratio, top 20 interesting functions. `module_profile.json` provides noise ratio and library tag breakdown (WIL/STL/WRL/CRT/ETW counts). Use function_index `compute_stats()` for additional decompiled/assembly availability counts from index metadata.
-    - **Attack Surface**: entry point types/counts, top 15 ranked, hidden entry points, taint analysis findings for top entries (sinks reached, severity, guard bypass difficulty)
+    - **Attack Surface**: entry point types/counts, top 15 ranked, hidden entry points
     - **Call Graph Topology**: statistics, hub functions, SCCs, Mermaid diagrams
     - **Complexity Hotspots**: by loop complexity, by size, by xref density
-    - **String Intelligence**: categorized strings, notable clusters
-    - **Specialized Findings**: COM interfaces, dispatch tables, global state (if detected)
+    - **Specialized Findings**: COM interfaces, global state (if detected)
     - **Anomalies**: decompiler failures, oversized functions. Include index entries where `has_decompiled=false` (these may have `file=null` but still valid `function_id` / `has_assembly` metadata).
-    - **Prioritized Analysis Roadmap**: ranked next steps with `/explain` and `/verify-decompiler` for quick follow-ups, `/audit`, `/lift-class` for deep dives, and `/search` for targeted exploration
+    - **Prioritized Analysis Roadmap**: ranked next steps with `/explain` for quick follow-ups, `/audit`, `/lift-class` for deep dives, and `/search` for targeted exploration
 
     Check off Phase 6 and set Status to `DONE` in the scratchpad.
 

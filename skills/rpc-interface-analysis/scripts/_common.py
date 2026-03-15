@@ -22,12 +22,6 @@ from helpers import (  # noqa: E402
 from helpers.errors import db_error_handler, ErrorCode  # noqa: E402
 from helpers.json_output import emit_json, emit_json_list  # noqa: E402
 from helpers.rpc_index import RpcIndex, RpcInterface, get_rpc_index  # noqa: E402
-from helpers.rpc_procedure_classifier import (  # noqa: E402
-    classify_procedure,
-    classify_procedures,
-    summarize_classifications,
-    ProcedureClassification,
-)
 
 
 def require_rpc_index() -> RpcIndex:

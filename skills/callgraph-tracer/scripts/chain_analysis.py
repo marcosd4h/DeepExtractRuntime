@@ -513,7 +513,7 @@ def main() -> None:
                        help="Starting function name")
     group.add_argument("--id", "--function-id", type=int, dest="function_id", help="Starting function ID")
     parser.add_argument("function_name_pos", nargs="?", default=None, help=argparse.SUPPRESS)
-    parser.add_argument("--depth", type=int, default=1, help="Max recursion depth (default: 1)")
+    parser.add_argument("--depth", type=int, default=2, help="Max recursion depth (default: 2)")
     parser.add_argument("--follow", metavar="CALLEE", help="Only follow xrefs matching this name")
     parser.add_argument("--summary", action="store_true", help="Print compact call tree without code")
     parser.add_argument("--no-code", action="store_true", help="Skip printing decompiled code")

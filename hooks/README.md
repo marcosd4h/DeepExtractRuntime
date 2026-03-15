@@ -166,7 +166,6 @@ Fires when a conversation ends. Delegates to `helpers.cleanup_workspace.cleanup_
       inject-module-context.py        # sessionStart hook
       grind-until-done.py             # stop hook
       cleanup-workspace.py            # sessionEnd hook
-      validate-command.py             # Shared validation helper for command-facing workflows
       _context_builder.py             # Markdown context assembly helpers
       _profile_formatter.py           # Module-profile formatting helpers
       _readme_loader.py               # README overview extraction helpers

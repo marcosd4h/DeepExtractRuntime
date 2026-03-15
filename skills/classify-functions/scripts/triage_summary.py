@@ -121,16 +121,6 @@ def generate_triage(db_path: str, app_only: bool = False, *, no_cache: bool = Fa
         functions_with_dangerous = sum(1 for r in results if r.dangerous_api_count > 0)
         total_dangerous = sum(r.dangerous_api_count for r in results)
 
-        # Assembly size distribution
-        asm_sizes = [r.asm_metrics.instruction_count for r in results if r.asm_metrics]
-        avg_asm = sum(asm_sizes) / len(asm_sizes) if asm_sizes else 0
-        max_asm = max(asm_sizes) if asm_sizes else 0
-        tiny_count = sum(1 for s in asm_sizes if s < 10)
-        small_count = sum(1 for s in asm_sizes if 10 <= s < 50)
-        medium_count = sum(1 for s in asm_sizes if 50 <= s < 200)
-        large_count = sum(1 for s in asm_sizes if 200 <= s < 500)
-        huge_count = sum(1 for s in asm_sizes if s >= 500)
-
         # API category usage across entire module
         api_usage: dict[str, int] = defaultdict(int)
         for r in results:
@@ -139,14 +129,9 @@ def generate_triage(db_path: str, app_only: bool = False, *, no_cache: bool = Fa
                     if sig.startswith("api:"):
                         api_usage[cat] += 1
 
-        # Top interesting functions (sorted by interest then asm size)
-        interesting = sorted(results, key=lambda r: (-r.interest_score, -(r.asm_metrics.instruction_count if r.asm_metrics else 0)))
+        interesting = sorted(results, key=lambda r: (-r.interest_score, -r.loop_count))
 
-        # Largest functions
-        largest = sorted(results, key=lambda r: -(r.asm_metrics.instruction_count if r.asm_metrics else 0))
-
-        # Most complex (highest loop count)
-        most_complex = sorted(results, key=lambda r: (-r.loop_count, -(r.asm_metrics.instruction_count if r.asm_metrics else 0)))
+        most_complex = sorted(results, key=lambda r: (-r.loop_count, -r.dangerous_api_count))
 
         data = {
             "module_info": module_info,
@@ -162,24 +147,9 @@ def generate_triage(db_path: str, app_only: bool = False, *, no_cache: bool = Fa
                 "total_loops": total_loops,
                 "functions_with_dangerous_apis": functions_with_dangerous,
                 "total_dangerous_api_refs": total_dangerous,
-                "avg_asm_instructions": round(avg_asm, 1),
-                "max_asm_instructions": max_asm,
-                "size_distribution": {
-                    "tiny_lt10": tiny_count,
-                    "small_10_50": small_count,
-                    "medium_50_200": medium_count,
-                    "large_200_500": large_count,
-                    "huge_500plus": huge_count,
-                },
             },
             "api_category_usage": dict(api_usage),
             "top_interesting": [r.to_dict() for r in interesting[:30]],
-            "largest_functions": [
-                {"function_id": r.function_id, "function_name": r.function_name,
-                 "asm_instructions": r.asm_metrics.instruction_count if r.asm_metrics else 0,
-                 "category": r.primary_category, "interest": r.interest_score}
-                for r in largest[:15]
-            ],
             "most_complex": [
                 {"function_id": r.function_id, "function_name": r.function_name,
                  "loop_count": r.loop_count, "category": r.primary_category,
@@ -211,7 +181,6 @@ def print_text_triage(data: dict, top_n: int = 10) -> None:
         print(f"  PDB:         {mi['pdb_path']}")
     print()
 
-    # Quick stats
     m = data["metrics"]
     print(f"  Total functions:         {total}")
     print(f"  With decompiled code:    {m['functions_with_decompiled']}")
@@ -220,17 +189,6 @@ def print_text_triage(data: dict, top_n: int = 10) -> None:
     print(f"  Unclassified:            {data['unknown_count']}")
     print(f"  With dangerous APIs:     {m['functions_with_dangerous_apis']} ({m['total_dangerous_api_refs']} refs)")
     print(f"  With loops:              {m['functions_with_loops']} ({m['total_loops']} total loops)")
-    print()
-
-    # Function size distribution
-    sd = m["size_distribution"]
-    print(f"  SIZE DISTRIBUTION (assembly instructions):")
-    print(f"    Tiny (<10):    {sd['tiny_lt10']:>5}  {'#' * min(sd['tiny_lt10'] // 5, 40)}")
-    print(f"    Small (10-50): {sd['small_10_50']:>5}  {'#' * min(sd['small_10_50'] // 5, 40)}")
-    print(f"    Medium (50-200):{sd['medium_50_200']:>4}  {'#' * min(sd['medium_50_200'] // 5, 40)}")
-    print(f"    Large (200-500):{sd['large_200_500']:>4}  {'#' * min(sd['large_200_500'] // 5, 40)}")
-    print(f"    Huge (500+):   {sd['huge_500plus']:>5}  {'#' * min(sd['huge_500plus'] // 5, 40)}")
-    print(f"    Avg size: {m['avg_asm_instructions']:.0f} instructions, Max: {m['max_asm_instructions']}")
     print()
 
     # Category distribution
@@ -272,8 +230,8 @@ def print_text_triage(data: dict, top_n: int = 10) -> None:
     top = data["top_interesting"][:top_n]
     if top:
         print(f"  TOP {len(top)} MOST INTERESTING FUNCTIONS:")
-        print(f"  {'ID':>6}  {'Int':>3}  {'Category':<22}  {'Loops':>5}  {'ASM':>5}  {'Name'}")
-        print(f"  {'-' * 6}  {'-' * 3}  {'-' * 22}  {'-' * 5}  {'-' * 5}  {'-' * 40}")
+        print(f"  {'ID':>6}  {'Int':>3}  {'Category':<22}  {'Loops':>5}  {'Name'}")
+        print(f"  {'-' * 6}  {'-' * 3}  {'-' * 22}  {'-' * 5}  {'-' * 40}")
         for f in top:
             name = f["function_name"] or "(unnamed)"
             if len(name) > 40:
@@ -283,22 +241,8 @@ def print_text_triage(data: dict, top_n: int = 10) -> None:
                 f"{f['interest_score']:>3}  "
                 f"{f['primary_category']:<22}  "
                 f"{f['loop_count']:>5}  "
-                f"{f['asm_instruction_count']:>5}  "
                 f"{name}"
             )
-        print()
-
-    # Largest functions
-    largest = data["largest_functions"][:10]
-    if largest:
-        print(f"  LARGEST FUNCTIONS (by assembly size):")
-        print(f"  {'ID':>6}  {'ASM':>6}  {'Category':<22}  {'Name'}")
-        print(f"  {'-' * 6}  {'-' * 6}  {'-' * 22}  {'-' * 40}")
-        for f in largest:
-            name = f["function_name"] or "(unnamed)"
-            if len(name) > 40:
-                name = name[:37] + "..."
-            print(f"  {f['function_id']:>6}  {f['asm_instructions']:>6}  {f['category']:<22}  {name}")
         print()
 
     # Most complex

@@ -173,3 +173,10 @@ python .agent/skills/winrt-interface-analysis/scripts/find_winrt_privesc.py --to
    warning for missing ones. Analysis continues with partial data.
 3. **Analysis DB unavailable** (for `audit_winrt_security.py`): Fall back
    to metadata-only audit using WinRT index data.
+
+## Diagnostics
+
+Use `python .agent/helpers/ipc_index_inspect.py --winrt [--module <name>]` to
+inspect WinRT index state and module attribution. Use `--edges` to verify
+cross-module WinRT edge injection counts. Use `--check-hosts` to verify no
+servers are misattributed to generic host processes.

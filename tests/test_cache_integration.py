@@ -348,7 +348,7 @@ class TestDiscoverEntrypointsCache:
             assert orig.entry_type == rest.entry_type
             assert orig.type_label == rest.type_label
             assert orig.category == rest.category
-            assert abs(orig.param_risk_score - rest.param_risk_score) < 0.01
+            assert orig.param_surface == rest.param_surface
 
     def test_no_cache_bypasses(self, rpt_db):
         self.mod.discover_all(str(rpt_db))
@@ -464,9 +464,6 @@ class TestRegistryConsistency:
             "callgraph-tracer", "classify-functions", "generate-re-report",
             "import-export-resolver", "map-attack-surface", "reconstruct-types",
             "com-interface-reconstruction", "security-dossier",
-            "data-flow-tracer", "taint-analysis", "string-intelligence",
-            "deep-research-prompt", "state-machine-extractor", "verify-decompiled",
-            "logic-vulnerability-detector", "memory-corruption-detector",
         }
         actual = {
             n for n, s in self.registry.items() if s.get("cacheable")
@@ -484,10 +481,6 @@ class TestRegistryConsistency:
             "reconstruct-types": {"scan_struct_fields"},
             "com-interface-reconstruction": {"scan_com_interfaces"},
             "security-dossier": {"security_dossier"},
-            "string-intelligence": {"string_analysis"},
-            "deep-research-prompt": {"gather_function_context"},
-            "state-machine-extractor": {"detect_dispatchers"},
-            "verify-decompiled": {"scan_module_verify"},
         }
         for skill_name, keys in expected.items():
             actual = set(self.registry[skill_name].get("cache_keys", []))

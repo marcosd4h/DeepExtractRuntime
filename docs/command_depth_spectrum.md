@@ -10,13 +10,11 @@ which command to use.
 
 ```mermaid
 flowchart LR
-    QS["/quickstart"] -->|"subset of"| TR["/triage"]
     TR -->|"subset of"| FR["/full-report"]
     TR -->|"--with-security overlaps"| SC["/scan"]
     TR -->|"--with-security overlaps"| BA["/batch-audit"]
 
     subgraph recon ["Reconnaissance Commands"]
-        QS
         TR
         FR
     end
@@ -33,15 +31,10 @@ The three reconnaissance commands form a strict depth progression:
 
 | Command | Scope | Depth | Steps | Grind Loop | Security Coverage |
 |---------|-------|-------|-------|------------|-------------------|
-| `/quickstart` | Module | Quick look | 3 (classify, entries, callgraph) | No | None |
 | `/triage` | Module | Thorough orientation | 5-6 (identity, classify, callgraph, attack surface, optional taint) | No | Optional lightweight taint on top 3-5 entries (`--with-security`) |
 | `/full-report` | Module | Exhaustive | 6 phases (identity, classify, attack surface + dossiers + taint, topology + diagrams, specialized, synthesis) | Yes | Taint + dossiers on top entries (always), COM/dispatch/types (adaptive) |
 
 Each level is a strict superset of the one before it:
-
-- **`/quickstart`** runs 3 lightweight cached analyses (classification top 5,
-  entry point discovery, call graph stats). It auto-selects the most
-  interesting module and suggests `/triage` as the next step.
 
 - **`/triage`** adds binary identity (RE report), full classification (not
   just top 5), and attack surface ranking. With `--with-security`, it also
@@ -57,7 +50,7 @@ Each level is a strict superset of the one before it:
 
 The `--with-security` flag on `/triage` creates a small bridge into the
 security domain. It runs `taint_function.py` on the top 3-5 ranked entry
-points at depth 2 -- enough to surface a quick signal of exploitable issues,
+points at depth 3 -- enough to surface a quick signal of exploitable issues,
 but intentionally lightweight. It is **not** a substitute for proper security
 analysis.
 
@@ -69,23 +62,19 @@ The proper security tools are:
 | `/batch-audit` | Per-function | Deep (security-only) | Security dossier + taint + exploitability + classification per function; privilege-boundary discovery (RPC/COM/WinRT) |
 
 `/scan` provides breadth across vulnerability classes (buffer overflows,
-integer issues, UAF, format strings, auth bypasses, state errors, TOCTOU,
+integer issues, UAF, format strings, auth bypasses, state errors,
 logic flaws). `/batch-audit` provides depth per function with dossier-level
 context and privilege-boundary awareness.
 
 ## No Redundancy
 
 No two commands are redundant -- each occupies a distinct point on the
-depth/breadth spectrum. `/triage` is the natural "second command" after
-`/quickstart` and the natural stepping stone toward `/full-report`, `/scan`,
+depth/breadth spectrum. `/triage` is the natural first command and the natural stepping stone toward `/full-report`, `/scan`,
 or `/audit`.
 
 Typical progression:
 
 ```
-/quickstart              # First contact -- what modules exist, what's interesting?
-    |
-    v
 /triage <module>         # Thorough orientation -- identity, classification, attack surface
     |
     +---> /full-report   # When you need everything about the module

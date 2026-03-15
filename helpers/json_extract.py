@@ -75,13 +75,33 @@ def _emit_error(message: str, code: str = "PARSE_ERROR") -> None:
     sys.exit(1)
 
 
-def _load_json_robust(filepath: Path) -> Any:
+def _is_workspace_envelope(data: Any) -> bool:
+    """True if *data* is a workspace results.json envelope."""
+    return (
+        isinstance(data, dict)
+        and "output_type" in data
+        and "stdout" in data
+    )
+
+
+def _unwrap_envelope(data: Any) -> Any:
+    """Unwrap workspace envelope, returning the inner payload."""
+    if _is_workspace_envelope(data):
+        return data["stdout"]
+    return data
+
+
+def _load_json_robust(filepath: Path, *, unwrap: bool = True) -> Any:
     """Load JSON from a file that may contain non-JSON prefix/suffix lines.
 
     The Cursor Shell tool captures both stdout and stderr into the same
     agent-tools output file.  Scripts emit ``[status]``/``[warning]``
     messages to stderr and JSON to stdout, so the captured file often has
     non-JSON lines before (and occasionally after) the actual payload.
+
+    When *unwrap* is True (default), workspace results.json envelopes
+    (containing ``output_type`` and ``stdout`` keys) are transparently
+    unwrapped so callers access the inner payload directly.
 
     Strategy:
       1. Fast path -- ``json.loads(text)`` on the raw file.
@@ -93,7 +113,8 @@ def _load_json_robust(filepath: Path) -> Any:
 
     # Fast path: file is pure JSON
     try:
-        return json.loads(text)
+        data = json.loads(text)
+        return _unwrap_envelope(data) if unwrap else data
     except json.JSONDecodeError:
         pass
 
@@ -104,7 +125,7 @@ def _load_json_robust(filepath: Path) -> Any:
         if stripped.startswith("{"):
             try:
                 obj, _ = json.JSONDecoder().raw_decode(text, offset + (len(line) - len(stripped)))
-                return obj
+                return _unwrap_envelope(obj) if unwrap else obj
             except json.JSONDecodeError:
                 pass
         offset += len(line)
@@ -129,6 +150,8 @@ def main() -> None:
     parser.add_argument("key", nargs="?", default=None, help="Key or dotted path to extract (e.g. 'module.name')")
     parser.add_argument("--grep", dest="grep_pattern", help="Substring search across top-level keys")
     parser.add_argument("--keys", action="store_true", help="List top-level keys only")
+    parser.add_argument("--raw", action="store_true",
+                        help="Disable workspace envelope unwrapping (query the envelope itself)")
     args = safe_parse_args(parser)
 
     filepath = Path(args.file)
@@ -142,7 +165,7 @@ def main() -> None:
         _emit_error(f"File not found: {args.file}{hint}")
 
     try:
-        data = _load_json_robust(filepath)
+        data = _load_json_robust(filepath, unwrap=not args.raw)
     except json.JSONDecodeError as exc:
         _emit_error(f"Invalid JSON: {exc}")
 

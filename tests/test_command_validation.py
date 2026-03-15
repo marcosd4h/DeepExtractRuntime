@@ -306,14 +306,6 @@ class TestValidateCommandArgs:
         r = validate_command_args("runs", {})
         assert r.ok is True
 
-    def test_brainstorm_no_args_needed(self):
-        r = validate_command_args("brainstorm", {})
-        assert r.ok is True
-
-    def test_quickstart_no_args_needed(self):
-        r = validate_command_args("quickstart", {})
-        assert r.ok is True
-
     def test_depth_validation_passes_through(self):
         r = validate_command_args("health", {"depth": 5})
         assert r.ok is True
@@ -419,6 +411,23 @@ class TestValidateCommandArgs:
         r = validate_command_args(command_name, {"mode": mode})
         assert r.ok is False
         assert any("module" in e.lower() for e in r.errors)
+
+    def test_hunt_plan_no_args_needed(self):
+        result = validate_command_args("hunt-plan", {})
+        assert result.ok, str(result.errors)
+
+    def test_hunt_plan_cross_module_mode(self):
+        result = validate_command_args("hunt-plan", {"args": ["cross"]})
+        # hunt-plan accepts any args — no required params
+        assert result.ok, str(result.errors)
+
+    def test_hunt_plan_replan_mode(self):
+        result = validate_command_args("hunt-plan", {"args": ["replan"]})
+        assert result.ok, str(result.errors)
+
+    def test_hunt_plan_design_mode(self):
+        result = validate_command_args("hunt-plan", {"args": ["design", "new skill"]})
+        assert result.ok, str(result.errors)
 
 
 class TestCommandPreflight:

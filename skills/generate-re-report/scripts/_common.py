@@ -3,7 +3,6 @@
 Provides:
 - Workspace root resolution and helpers import
 - Comprehensive Win32 API taxonomy (~500 APIs -> categories)
-- String literal categorization patterns
 - Rich header MSVC version decoder
 - Common data parsing and formatting helpers
 """
@@ -25,16 +24,6 @@ WORKSPACE_ROOT = bootstrap(__file__)
 
 from helpers import _resolve_module_db, parse_json_safe  # noqa: E402
 from helpers.api_taxonomy import API_TAXONOMY, classify_api  # noqa: E402
-from helpers.asm_metrics import count_asm_instructions, count_asm_calls  # noqa: E402
-
-# ---------------------------------------------------------------------------
-# String categorization patterns (canonical source: helpers.string_taxonomy)
-# ---------------------------------------------------------------------------
-from helpers.string_taxonomy import (  # noqa: E402
-    STRING_TAXONOMY as STRING_CATEGORIES,
-    categorize_string,
-)
-
 
 # ---------------------------------------------------------------------------
 # Rich Header MSVC Build Number -> Compiler Version

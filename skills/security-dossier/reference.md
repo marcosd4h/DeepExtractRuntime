@@ -76,8 +76,7 @@ Complete dossier as a JSON object:
       { "source": "ExportA", "source_export": "ExportA", "entry_type": "export", "path": ["ExportA", "FuncName"], "hops": 1 }
     ],
     "parameter_count": 3,
-    "param_risk_score": 0.0,
-    "param_risk_reasons": [],
+    "param_surface": {},
     "external_callers_count": 1,
     "external_callers": ["ExportA"],
     "receives_external_data": true
@@ -171,7 +170,7 @@ Complete dossier as a JSON object:
 | High cyclomatic complexity (>10)      | Complex control flow, higher bug probability              | Medium   |
 | Sync operations                       | Potential deadlock or race conditions                     | Medium   |
 | `has_syscall = true`                  | Direct syscall detected -- potential security hook evasion | High     |
-| `param_risk_score >= 0.8`             | High-risk parameters (buffers, strings)                   | High     |
+| `param_surface.has_buffer_size_pair` or `has_string_pointer` | Buffer/string parameters present | High     |
 | `ipc_context.is_rpc_handler = YES`    | Confirmed RPC handler from ground-truth data              | Critical |
 | `ipc_context.is_com_method = YES`     | Confirmed COM vtable method from ground-truth data        | High     |
 | `indirect_call_count > 0`             | Unresolved indirect/vtable calls present                  | Medium   |

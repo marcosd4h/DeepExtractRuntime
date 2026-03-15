@@ -47,8 +47,6 @@ from helpers.json_output import emit_json
 SKILL_TO_AGENT: dict[str, str] = {
     "reconstruct-types": "type-reconstructor",
     "com-interface-reconstruction": "type-reconstructor",
-    "verify-decompiled": "verifier",
-    "code-lifting": "code-lifter",
     "batch-lift": "code-lifter",
 }
 
@@ -189,40 +187,20 @@ def _security_plan(db_path: str, chars) -> list[dict]:
         ],
     })
 
-    # Phase 5: Taint analysis for top-3 ranked entry points
+    # Phase 5: Synthesis
     phases.append({
         "phase": 5,
-        "name": "taint_analysis",
-        "mode": "parallel",
-        "depends_on": "security_ranking",
-        "tasks": [
-            {
-                "skill": "taint-analysis",
-                "script": "taint_function.py",
-                "args_template": [db_path, "{function_name}",
-                                  "--depth", "3", "--json"],
-                "task": "Taint analysis for top-3 ranked entry points",
-                "iterate_over": "rank_entrypoints.top_3",
-                "output_key": "taint_analyses",
-            },
-        ],
-    })
-
-    # Phase 6: Synthesis
-    phases.append({
-        "phase": 6,
         "name": "synthesize_security",
         "mode": "sequential",
         "tasks": [
             {
                 "action": "synthesize",
-                "task": "Combine security rankings, dossiers, taint analysis, "
+                "task": "Combine security rankings, dossiers, "
                         "and call graph into risk-prioritized report with "
                         "specific findings and recommended manual audit targets",
                 "inputs": ["classify_triage", "classify_full",
                            "discover_entrypoints", "rank_entrypoints",
-                           "call_graph_stats", "security_dossiers",
-                           "taint_analyses"],
+                           "call_graph_stats", "security_dossiers"],
             },
         ],
     })
@@ -290,13 +268,6 @@ def _full_plan(db_path: str, chars) -> list[dict]:
             "task": "Rank entry points by attack value",
             "output_key": "rank_entrypoints",
         },
-        {
-            "skill": "deep-research-prompt",
-            "script": "gather_module_context.py",
-            "args": [db_path, "--json"],
-            "task": "Gather module context for research",
-            "output_key": "module_context",
-        },
     ]
 
     if chars.is_com_heavy:
@@ -306,15 +277,6 @@ def _full_plan(db_path: str, chars) -> list[dict]:
             "args": [db_path, "--json"],
             "task": "Reconstruct COM interfaces",
             "output_key": "com_interfaces",
-        })
-
-    if chars.is_dispatch_heavy:
-        phase2_tasks.append({
-            "skill": "state-machine-extractor",
-            "script": "detect_dispatchers.py",
-            "args": [db_path, "--json"],
-            "task": "Detect dispatch tables",
-            "output_key": "dispatchers",
         })
 
     phases.append({
@@ -360,7 +322,7 @@ def _full_plan(db_path: str, chars) -> list[dict]:
                     "classify_triage", "classify_full",
                     "discover_entrypoints", "rank_entrypoints",
                     "call_graph_stats", "list_types",
-                    "module_context", "com_interfaces", "dispatchers",
+                    "module_context", "com_interfaces",
                     "security_dossiers",
                 ],
             },
@@ -408,14 +370,6 @@ def _function_plan(db_path: str, function_name: str, chars) -> list[dict]:
                     "task": f"Functions reachable from {function_name}",
                     "output_key": "reachable",
                 },
-                {
-                    "skill": "data-flow-tracer",
-                    "script": "forward_trace.py",
-                    "args": [db_path, function_name,
-                             "--depth", "3", "--json"],
-                    "task": f"Forward data flow trace for {function_name}",
-                    "output_key": "forward_trace",
-                },
             ],
         },
         {
@@ -432,17 +386,6 @@ def _function_plan(db_path: str, function_name: str, chars) -> list[dict]:
                     "task": f"Build security dossier for {function_name}",
                     "output_key": "security_dossier",
                 },
-                {
-                    "skill": "taint-analysis",
-                    "script": "taint_function.py",
-                    "args": [db_path, function_name,
-                             "--depth", "3", "--json"],
-                    "task": f"Taint analysis for {function_name} "
-                            "(conditional: runs if classification indicates security relevance)",
-                    "output_key": "taint_function",
-                    "condition": "classification.primary_category contains 'security' "
-                                 "OR classification.interest_score >= 6",
-                },
             ],
         },
         {
@@ -456,8 +399,8 @@ def _function_plan(db_path: str, function_name: str, chars) -> list[dict]:
                             f"{function_name}: purpose, data flow, "
                             "call chain, security implications",
                     "inputs": ["classification", "function_data", "neighbors",
-                               "reachable", "forward_trace",
-                               "security_dossier", "taint_function"],
+                               "reachable",
+                               "security_dossier"],
                 },
             ],
         },

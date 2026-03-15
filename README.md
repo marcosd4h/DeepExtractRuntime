@@ -94,9 +94,9 @@ When installed, that source tree becomes `.agent/`.
 
 | Component   | Count | Source of Truth                                    |
 | ----------- | ----- | -------------------------------------------------- |
-| Commands    | 36    | [`commands/registry.json`](commands/registry.json) |
-| Agents      | 6     | [`agents/registry.json`](agents/registry.json)     |
-| Skills      | 29    | [`skills/registry.json`](skills/registry.json)     |
+| Commands    | 28    | [`commands/registry.json`](commands/registry.json) |
+| Agents      | 8     | [`agents/registry.json`](agents/registry.json)     |
+| Skills      | 17    | [`skills/registry.json`](skills/registry.json)     |
 | Rules       | 8     | [`rules/`](rules/)                                 |
 | Hook events | 3     | [`hooks.json`](hooks.json)                         |
 | Helpers     | 56    | [`helpers/`](helpers/)                              |
@@ -107,16 +107,18 @@ When installed, that source tree becomes `.agent/`.
 
 ## Agents
 
-The runtime currently ships 6 subagents:
+The runtime currently ships 8 subagents:
 
-| Agent                | Purpose                                             | Key Scripts                                                                       |
-| -------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `re-analyst`         | Explain functions, trace call chains, classify code | `re_query.py`, `explain_function.py`                                              |
-| `triage-coordinator` | Orchestrate multi-skill module analysis             | `analyze_module.py`, `generate_analysis_plan.py`                                  |
-| `security-auditor`   | Run vulnerability scans and finding verification    | `run_security_scan.py`                                                            |
-| `type-reconstructor` | Reconstruct structs and classes                     | `reconstruct_all.py`, `merge_evidence.py`, `validate_layout.py`                   |
-| `verifier`           | Verify lifted code against assembly ground truth    | `compare_lifted.py`, `extract_basic_blocks.py`, `generate_verification_report.py` |
-| `code-lifter`        | Lift related functions with shared state            | `batch_extract.py`, `track_shared_state.py`                                       |
+| Agent                        | Purpose                                             | Key Scripts                                                                       |
+| ---------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `re-analyst`                 | Explain functions, trace call chains, classify code | `re_query.py`, `explain_function.py`                                              |
+| `triage-coordinator`         | Orchestrate multi-skill module analysis             | `analyze_module.py`, `generate_analysis_plan.py`                                  |
+| `security-auditor`           | Run vulnerability scans and finding verification    | `run_security_scan.py`                                                            |
+| `type-reconstructor`         | Reconstruct structs and classes                     | `reconstruct_all.py`, `merge_evidence.py`, `validate_layout.py`                   |
+| `code-lifter`                | Lift related functions with shared state            | `batch_extract.py`, `track_shared_state.py`                                       |
+| `memory-corruption-scanner`  | AI-driven memory corruption vulnerability scanner   | _(LLM-only agent)_                                                                |
+| `logic-scanner`              | AI-driven logic vulnerability scanner               | _(LLM-only agent)_                                                                |
+| `taint-scanner`              | AI-driven taint analysis scanner                    | _(LLM-only agent)_                                                                |
 
 See [agents/README.md](agents/README.md) for the full architecture, file tree,
 and decision table.
@@ -125,7 +127,7 @@ and decision table.
 
 ## Commands
 
-The runtime currently ships 36 slash commands under `.agent/commands/`. Common
+The runtime currently ships 28 slash commands under `.agent/commands/`. Common
 entry points include:
 
 | Command                              | Purpose                                                                                             |
@@ -134,8 +136,6 @@ entry points include:
 | `/explain [module] <function>`       | Fast structured explanation of a function                                                           |
 | `/audit [module] <function>`         | Deep security audit with dossier, verification, call chain, and taint context                       |
 | `/scan <module>`                     | Unified memory, logic, and taint vulnerability scan                                                 |
-| `/verify-decompiler-batch <module>`  | Batch decompiler verification across a class or function set                                        |
-| `/verify-finding <module> <function>` | Verify suspected vulnerability findings against assembly ground truth                              |
 | `/lift-class [module] <class>`       | Batch-lift all methods of a class with shared state                                                 |
 | `/batch-audit <module>`              | Breadth-first audit of top-ranked functions                                                         |
 | `/rpc <module>`                      | RPC surface analysis                                                                                |
@@ -145,14 +145,14 @@ entry points include:
 | `/pipeline run <yaml> [--dry-run]`   | Run or validate headless batch analysis pipelines                                                   |
 | `/full-report <module>`              | End-to-end module analysis roadmap                                                                  |
 
-See [commands/README.md](commands/README.md) for the complete 36-command
+See [commands/README.md](commands/README.md) for the complete 28-command
 catalog and the exhaustive file listing.
 
 ---
 
 ## Skills
 
-There are 29 registered skills spanning extraction, reporting, indexing,
+There are 17 registered skills spanning extraction, reporting, indexing,
 analysis, reconstruction, security scanning, exploitability assessment, and
 methodology guidance.
 
@@ -160,10 +160,9 @@ Representative groups:
 
 - Foundation and indexing: `decompiled-code-extractor`, `function-index`
 - Reporting and orientation: `generate-re-report`, `classify-functions`, `map-attack-surface`
-- Dataflow and topology: `callgraph-tracer`, `data-flow-tracer`, `state-machine-extractor`, `import-export-resolver`, `string-intelligence`
-- Reconstruction: `reconstruct-types`, `com-interface-reconstruction`, `code-lifting`, `batch-lift`
-- Security scanning: `security-dossier`, `taint-analysis`, `memory-corruption-detector`, `logic-vulnerability-detector`, `exploitability-assessment`, `rpc-interface-analysis`, `winrt-interface-analysis`, `com-interface-analysis`
-- Methodology and documentation: `analyze-ida-decompiled`, `deep-context-builder`, `deep-research-prompt`, `brainstorming`, `adversarial-reasoning`, `finding-verification`
+- Dataflow and topology: `callgraph-tracer`, `import-export-resolver`
+- Reconstruction: `reconstruct-types`, `com-interface-reconstruction`, `batch-lift`
+- Security scanning: `security-dossier`, `ai-taint-scanner`, `ai-memory-corruption-scanner`, `ai-logic-scanner`, `exploitability-assessment`, `rpc-interface-analysis`, `winrt-interface-analysis`, `com-interface-analysis`
 
 See [skills/README.md](skills/README.md) and
 [`skills/registry.json`](skills/registry.json) for the full inventory.
@@ -181,9 +180,8 @@ See [skills/README.md](skills/README.md) and
 - Call graph construction, cross-module graph, and topology analysis
 - API taxonomy, string taxonomy, and classification
 - COM, RPC, and WinRT index modules
-- Decompiled code parsing, mangled name decoding, and ASM metrics/patterns
-- Constraint collection, constraint solving, and def-use chains
-- Finding merge, finding schema, guard classification, and exploitability support
+- Decompiled code parsing, mangled name decoding, and def-use chains
+- Finding merge, finding schema, and exploitability support
 - Error handling, JSON output, progress reporting, logging, cache, and config
 - Pipeline schema, executor, and CLI
 - Batch operations, workspace handoff, workspace bootstrap, and validation
@@ -246,7 +244,6 @@ installation. It contains 17 top-level sections:
 - `triage` -- COM/RPC/security density thresholds, workers, timeouts
 - `security_auditor` -- step and per-function timeouts
 - `pipeline` -- timeouts, workers, continue-on-error, no-cache
-- `verifier` -- call/branch tolerance, max alignment
 - `script_runner` -- timeout, retries
 - `explain` -- max callee depth and count
 - `cache` -- max age (hours), max size (MB)

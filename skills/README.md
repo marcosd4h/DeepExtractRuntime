@@ -18,32 +18,21 @@ arguments, dependencies, and caching contracts for each skill.
 
 | Skill | Type | Purpose | Scripts | Cacheable | Dependencies |
 |-------|------|---------|---------|-----------|--------------|
-| [analyze-ida-decompiled](#analyze-ida-decompiled) | documentation | Navigate, explain, and annotate IDA decompiled code | -- | No | function-index |
-| [batch-lift](#batch-lift) | code_generation | Lift related function groups with shared context | 2 | No | decompiled-code-extractor, code-lifting, callgraph-tracer, reconstruct-types |
+| [batch-lift](#batch-lift) | code_generation | Lift related function groups with shared context | 2 | No | decompiled-code-extractor, callgraph-tracer, reconstruct-types |
 | [callgraph-tracer](#callgraph-tracer) | analysis | Build call graphs, trace paths, cross-module deps | 6 | Yes | decompiled-code-extractor |
 | [classify-functions](#classify-functions) | analysis | Classify every function by purpose | 3 | Yes | decompiled-code-extractor |
-| [code-lifting](#code-lifting) | code_generation | Lifting workflow for rewriting decompiled functions | -- | No | decompiled-code-extractor, reconstruct-types, verify-decompiled |
 | [com-interface-reconstruction](#com-interface-reconstruction) | reconstruction | Reconstruct COM/WRL interfaces from vtable patterns | 4 | Yes | decompiled-code-extractor |
-| [data-flow-tracer](#data-flow-tracer) | analysis | Trace parameter flow, argument origins, global state | 4 | Yes | decompiled-code-extractor |
+| [ai-taint-scanner](#ai-taint-scanner) | security | AI-driven taint analysis with cross-module data flow tracing, trust boundary analysis, and skeptic verification | 2 | No | decompiled-code-extractor, map-attack-surface |
 | [decompiled-code-extractor](#decompiled-code-extractor) | foundation | Extract function data from analysis databases | 4 | No | -- |
-| [deep-research-prompt](#deep-research-prompt) | meta | Generate research prompts from multi-skill context | 3 | Yes | classify-functions, callgraph-tracer, data-flow-tracer, generate-re-report, state-machine-extractor, com-interface-reconstruction, reconstruct-types, taint-analysis |
 | [function-index](#function-index) | index | Fast function-to-file resolution and library filtering | 3 | No | -- |
 | [generate-re-report](#generate-re-report) | reporting | Comprehensive RE reports (identity, security, architecture) | 6 | Yes | decompiled-code-extractor |
 | [map-attack-surface](#map-attack-surface) | security | Discover entry points, rank by attack value | 3 | Yes | decompiled-code-extractor, callgraph-tracer, import-export-resolver |
 | [reconstruct-types](#reconstruct-types) | reconstruction | Reconstruct structs/classes from memory access patterns | 4 | Yes | decompiled-code-extractor |
 | [security-dossier](#security-dossier) | security | Security context dossier (reachability, dangerous ops) | 1 | Yes | decompiled-code-extractor, callgraph-tracer |
-| [state-machine-extractor](#state-machine-extractor) | analysis | Extract dispatch tables and state machines | 4 | Yes | decompiled-code-extractor |
-| [verify-decompiled](#verify-decompiled) | verification | Verify decompiler accuracy against assembly | 2 | Yes | decompiled-code-extractor |
-| [taint-analysis](#taint-analysis) | security | Trace tainted params to dangerous sinks with guard/bypass analysis | 5 | Yes | data-flow-tracer, callgraph-tracer, decompiled-code-extractor, com-interface-reconstruction |
-| [brainstorming](#brainstorming) | methodology | Strategic VR planning: campaign strategy, cross-module campaigns, re-planning, tool design | -- | No | adversarial-reasoning |
-| [deep-context-builder](#deep-context-builder) | documentation | Build deep block-by-block understanding of decompiled functions | -- | No | decompiled-code-extractor, classify-functions, callgraph-tracer, data-flow-tracer, map-attack-surface |
-| [adversarial-reasoning](#adversarial-reasoning) | methodology | Hypothesis-driven VR methodology with Windows attack pattern playbooks | -- | No | classify-functions, map-attack-surface, security-dossier, taint-analysis, data-flow-tracer, callgraph-tracer |
 | [import-export-resolver](#import-export-resolver) | analysis | Resolve PE import/export relationships across modules | 4 | Yes | decompiled-code-extractor |
-| [string-intelligence](#string-intelligence) | analysis | Categorize string literals by security relevance (URLs, registry keys, pipes, certs) | 1 | Yes | decompiled-code-extractor |
-| [memory-corruption-detector](#memory-corruption-detector) | security | Detect memory corruption: buffer overflows, integer issues, UAF, format strings | 5 | Yes | decompiled-code-extractor, callgraph-tracer, taint-analysis |
-| [exploitability-assessment](#exploitability-assessment) | security | Assess exploitability of taint findings with guard analysis | 2 | No | taint-analysis, security-dossier, map-attack-surface, memory-corruption-detector, logic-vulnerability-detector |
-| [finding-verification](#finding-verification) | security | Verify findings against assembly ground truth to eliminate false positives | -- | No | taint-analysis, data-flow-tracer, security-dossier, exploitability-assessment, import-export-resolver |
-| [logic-vulnerability-detector](#logic-vulnerability-detector) | security | Detect logic bugs: auth bypasses, state machine errors, TOCTOU, API misuse | 6 | Yes | decompiled-code-extractor, callgraph-tracer, taint-analysis, state-machine-extractor, security-dossier, map-attack-surface |
+| [ai-memory-corruption-scanner](#ai-memory-corruption-scanner) | security | AI-driven memory corruption scanning with callgraph navigation, adversarial prompting, and skeptic verification | 2 | No | decompiled-code-extractor, map-attack-surface |
+| [exploitability-assessment](#exploitability-assessment) | security | Assess exploitability of taint findings with guard analysis | 2 | No | ai-taint-scanner, security-dossier, map-attack-surface, ai-memory-corruption-scanner, ai-logic-scanner |
+| [ai-logic-scanner](#ai-logic-scanner) | security | AI-driven logic vulnerability scanning with callgraph navigation and adversarial prompting | 2 | No | decompiled-code-extractor, map-attack-surface |
 | [rpc-interface-analysis](#rpc-interface-analysis) | security | Analyze RPC interfaces: enumerate UUIDs, map attack surface, audit security, trace chains, find clients, build topology, blast-radius, query stubs | 6 | No | decompiled-code-extractor, map-attack-surface, callgraph-tracer |
 | [winrt-interface-analysis](#winrt-interface-analysis) | security | Analyze WinRT servers: enumerate classes, map privilege-boundary surface, audit security, classify methods, find EoP | 6 | No | decompiled-code-extractor, map-attack-surface |
 | [com-interface-analysis](#com-interface-analysis) | security | Analyze COM servers: enumerate CLSIDs, map privilege-boundary surface, audit security (permissions, elevation, DCOM), classify methods, find EoP/UAC bypass | 6 | No | decompiled-code-extractor, map-attack-surface |
@@ -62,10 +51,8 @@ flowchart BT
     subgraph analysis [Analysis]
         callgraphTracer["callgraph-tracer"]
         classifyFunctions["classify-functions"]
-        dataFlowTracer["data-flow-tracer"]
         importExportResolver["import-export-resolver"]
-        stateMachineExtractor["state-machine-extractor"]
-        stringIntelligence["string-intelligence"]
+        aiTaintScanner["ai-taint-scanner"]
     end
 
     subgraph reconstruction [Reconstruction]
@@ -76,10 +63,7 @@ flowchart BT
     subgraph security [Security]
         mapAttackSurface["map-attack-surface"]
         securityDossier["security-dossier"]
-        taintAnalysis["taint-analysis"]
-        adversarialReasoning["adversarial-reasoning"]
-        findingVerification["finding-verification"]
-        logicVulnDetector["logic-vulnerability-detector"]
+        aiLogicScanner["ai-logic-scanner"]
         winrtInterfaceAnalysis["winrt-interface-analysis"]
         comInterfaceAnalysis["com-interface-analysis"]
     end
@@ -88,78 +72,30 @@ flowchart BT
         generateReReport["generate-re-report"]
     end
 
-    subgraph verification [Verification]
-        verifyDecompiled["verify-decompiled"]
-    end
-
     subgraph codeGeneration [Code Generation]
-        codeLift["code-lifting"]
         batchLift["batch-lift"]
     end
 
-    subgraph meta [Meta]
-        deepResearchPrompt["deep-research-prompt"]
-    end
-
     subgraph documentation [Documentation]
-        analyzeIdaDecompiled["analyze-ida-decompiled"]
-        deepContextBuilder["deep-context-builder"]
-        brainstorming["brainstorming"]
     end
 
     callgraphTracer --> decompiledCodeExtractor
     classifyFunctions --> decompiledCodeExtractor
-    dataFlowTracer --> decompiledCodeExtractor
-    stateMachineExtractor --> decompiledCodeExtractor
-    stringIntelligence --> decompiledCodeExtractor
     importExportResolver --> decompiledCodeExtractor
     reconstructTypes --> decompiledCodeExtractor
     comInterfaceReconstruction --> decompiledCodeExtractor
     generateReReport --> decompiledCodeExtractor
-    verifyDecompiled --> decompiledCodeExtractor
     mapAttackSurface --> decompiledCodeExtractor
     mapAttackSurface --> callgraphTracer
     securityDossier --> decompiledCodeExtractor
     securityDossier --> callgraphTracer
-    codeLift --> decompiledCodeExtractor
-    codeLift --> reconstructTypes
-    codeLift --> verifyDecompiled
     batchLift --> decompiledCodeExtractor
-    batchLift --> codeLift
     batchLift --> callgraphTracer
     batchLift --> reconstructTypes
-    analyzeIdaDecompiled --> functionIndex
-    deepContextBuilder --> decompiledCodeExtractor
-    deepContextBuilder --> classifyFunctions
-    deepContextBuilder --> callgraphTracer
-    deepResearchPrompt --> classifyFunctions
-    deepResearchPrompt --> callgraphTracer
-    deepResearchPrompt --> dataFlowTracer
-    deepResearchPrompt --> generateReReport
-    deepResearchPrompt --> stateMachineExtractor
-    deepResearchPrompt --> comInterfaceReconstruction
-    deepResearchPrompt --> reconstructTypes
-    taintAnalysis --> dataFlowTracer
-    taintAnalysis --> callgraphTracer
-    taintAnalysis --> decompiledCodeExtractor
-    brainstorming --> adversarialReasoning
-    adversarialReasoning --> classifyFunctions
-    adversarialReasoning --> mapAttackSurface
-    adversarialReasoning --> securityDossier
-    adversarialReasoning --> taintAnalysis
-    adversarialReasoning --> callgraphTracer
-    adversarialReasoning --> dataFlowTracer
-    findingVerification --> taintAnalysis
-    findingVerification --> verifyDecompiled
-    findingVerification --> dataFlowTracer
-    findingVerification --> securityDossier
-    deepResearchPrompt --> taintAnalysis
-    logicVulnDetector --> decompiledCodeExtractor
-    logicVulnDetector --> callgraphTracer
-    logicVulnDetector --> taintAnalysis
-    logicVulnDetector --> stateMachineExtractor
-    logicVulnDetector --> securityDossier
-    logicVulnDetector --> mapAttackSurface
+    aiTaintScanner --> decompiledCodeExtractor
+    aiTaintScanner --> mapAttackSurface
+    aiLogicScanner --> decompiledCodeExtractor
+    aiLogicScanner --> callgraphTracer
     winrtInterfaceAnalysis --> decompiledCodeExtractor
     winrtInterfaceAnalysis --> mapAttackSurface
     comInterfaceAnalysis --> decompiledCodeExtractor
@@ -191,7 +127,7 @@ only.
 `find_module_db.py` first to get the DB path, then use
 `extract_function_data.py` to retrieve everything needed for lifting,
 verification, or deeper analysis. The actual lifting is performed by the
-code-lifter agent following the [code-lifting](#code-lifting) workflow.
+code-lifter agent.
 
 ---
 
@@ -203,8 +139,7 @@ maps each function name to its `.cpp` file and a library tag (`WIL`,
 `STL`, `WRL`, `CRT`, `ETW/TraceLogging`, or `null` for application
 code). This skill wraps that index with lookup, filtering, and
 resolution scripts, and is the recommended first step for locating a
-function's source file. It has no dependencies on other skills and is
-itself depended on by `analyze-ida-decompiled`.
+function's source file. It has no dependencies on other skills.
 
 **Key scripts:** `lookup_function.py` (find functions by exact name,
 substring, or regex across all modules), `index_functions.py` (list and
@@ -272,32 +207,6 @@ security` to drill into specific categories of interest.
 
 ---
 
-#### data-flow-tracer
-
-Traces how specific data moves through extracted binaries. Supports four
-tracing modes: **forward parameter trace** (where does parameter N flow
-to -- which calls receive it, which globals it is written to),
-**backward argument origin** (where does the 3rd argument to
-`CreateFileW` come from -- a parameter, another call's return value, a
-constant, or a global), **global variable producer/consumer mapping**
-(which functions read and write each global), and **string literal usage
-chains** (which functions reference a string, with caller context). All
-traces use decompiled code parsing with optional assembly register
-tracking as ground truth, and support recursive depth for following data
-through callee chains.
-
-**Key scripts:** `forward_trace.py` (parameter forward trace),
-`backward_trace.py` (argument origin trace), `global_state_map.py`
-(global variable reader/writer mapping), `string_trace.py` (string
-literal usage tracking).
-
-**Typical use:** Use `forward_trace.py --param 1` to see where a
-function's first parameter flows, or `backward_trace.py --target
-CreateProcessW --arg 2 --callers` to trace the origin of a sensitive API
-argument back through the caller chain.
-
----
-
 #### import-export-resolver
 
 Resolves PE-level import and export relationships across all analyzed
@@ -321,81 +230,7 @@ modules depend on appinfo.dll at the PE level.
 
 ---
 
-#### string-intelligence
-
-Categorizes string literals by security relevance instead of treating all
-strings as equal. It groups registry paths, URLs, named pipes, certificate
-subjects, mutex names, command lines, and other high-signal artifacts so
-researchers can focus on strings that reveal trust boundaries, IPC surfaces,
-and dangerous operations.
-
-**Key scripts:** `analyze_strings_deep.py` (deep string categorization by
-module, function, or category with cache support).
-
-**Typical use:** Run `analyze_strings_deep.py <db_path> --top 100 --json`
-to surface the most interesting strings in a module, or scope with
-`--function` / `--id` when triaging a specific routine.
-
----
-
-#### state-machine-extractor
-
-Detects and reconstructs command dispatchers, switch/case dispatch
-tables, and state machines from decompiled code. Combines three
-detection strategies: decompiled code parsing (switch/case blocks and
-if-else chains comparing the same variable against constants), jump
-table resolution from outbound xrefs, and state machine reconstruction
-from dispatch-inside-loop patterns using loop analysis data. Produces
-structured dispatch tables (case value to handler function) and state
-transition models. Generates Mermaid and DOT diagrams for visual
-exploration.
-
-**Key scripts:** `detect_dispatchers.py` (scan module for all dispatch
-functions), `extract_dispatch_table.py` (extract case-to-handler
-mapping for a specific function), `extract_state_machine.py`
-(reconstruct state machine model with transitions),
-`generate_state_diagram.py` (Mermaid/DOT diagram output).
-
-**Typical use:** Run `detect_dispatchers.py` to find all dispatch
-functions in a module, then `extract_dispatch_table.py` on the most
-interesting candidate to get the full command-ID-to-handler table. Use
-`--with-loops` to focus on state machine candidates.
-
----
-
 ### Code Generation
-
-#### code-lifting
-
-Defines the 11-step workflow for lifting IDA Pro decompiled C/C++
-functions into clean, readable, 100% functionally equivalent source
-code. This is a **workflow/recipe skill** with no scripts of its own --
-the code-lifter agent follows this recipe, using data extracted by
-decompiled-code-extractor and types from reconstruct-types. The workflow
-covers gathering function data, validating against assembly ground
-truth, renaming parameters and variables, replacing magic numbers,
-reconstructing structs, converting pointer arithmetic to field access,
-simplifying control flow, adding documentation, and running independent
-verification via the verifier agent. Also provides IDA naming pattern
-reference, assembly-to-C++ translation tables, and common lifting
-patterns (COM virtual calls, unique_ptr moves, HRESULT error chains,
-lock pair reconstruction, SEH exception handling, memory lifecycle, and
-callback dispatch).
-
-**Key scripts:** None (workflow/recipe skill).
-
-**Supporting files:** `examples.md` contains 7 concrete before/after
-lifting examples with detailed change explanations; `README.md` covers
-the skill's role and dependency relationships.
-
-**Typical use:** The code-lifter agent reads this skill's `SKILL.md`
-and follows the 11-step workflow when asked to lift or rewrite a
-decompiled function. Data is extracted first via
-decompiled-code-extractor, then each step transforms the code
-progressively. For batch lifting of related functions, see
-[batch-lift](#batch-lift).
-
----
 
 #### batch-lift
 
@@ -418,7 +253,7 @@ scan shared struct patterns, produce the full lift plan).
 --class CSecurityDescriptor --json`, pipe to `prepare_batch_lift.py` for
 the lift plan, then lift each function in dependency order with
 progressively accumulated struct definitions. Depends on
-decompiled-code-extractor, code-lifting, callgraph-tracer, and
+decompiled-code-extractor, callgraph-tracer, and
 reconstruct-types.
 
 ---
@@ -525,50 +360,45 @@ analysis).
 
 **Typical use:** Run `build_dossier.py <db_path> <function_name>` to get
 the full security landscape for a function, then use the dossier findings
-to guide deeper investigation with decompiled-code-extractor,
-callgraph-tracer, and data-flow-tracer.
+to guide deeper investigation with decompiled-code-extractor and
+callgraph-tracer.
 
 ---
 
-#### taint-analysis
+#### ai-taint-scanner
 
-Vulnerability-research-focused parameter taint tracing. Given a function
-and optionally a set of parameters, traces attacker-controlled inputs
-forward to dangerous sinks (CreateProcess, memcpy, LoadLibrary, etc.)
-and backward to discover caller origins. For each path to a sink,
-reports the severity score, the guards that must be bypassed (with
-attacker-controllability and bypass difficulty), and how tainted data
-affects internal logic (branch steering, array indexing, loop bounds,
-allocation sizes). Covers ~250 dangerous API prefixes including Nt*
-syscalls, COM/OLE/DDE, named pipes, ALPC, and DeviceIoControl.
+AI-driven taint analysis scanner that traces attacker-controlled data through
+cross-module callgraphs using LLM agents with taint-specific context
+enrichment, trust boundary analysis, and skeptic verification. Detects
+dangerous sink reachability, insufficient input validation, trust boundary
+crossings, and attacker-controlled data reaching security-sensitive operations.
+Builds threat models and prepares rich context for LLM-driven analysis.
 
-**Key scripts:** `taint_function.py` (full forward + backward taint
-analysis in one call), `trace_taint_forward.py` (forward-only trace),
-`trace_taint_backward.py` (backward-only trace),
-`generate_taint_report.py` (merge forward/backward into unified report).
+**Key scripts:** `build_threat_model.py` (threat model identifying
+taint-analysis-prone entry points and callgraph paths),
+`prepare_context.py` (rich function context for LLM-driven taint analysis).
 
-**Typical use:** Run `taint_function.py <db_path> <function_name>
---depth 2 --json` to trace all parameters forward to dangerous sinks.
-Use `--params 1,3` to trace specific parameters, `--direction both` for
-combined forward + backward analysis. Review CRITICAL/HIGH findings for
-sinks reached with weak or attacker-controllable guards.
+**Typical use:** Build a threat model for the module, prepare context for
+high-priority entry points, then run the `/taint` command which
+orchestrates LLM-driven analysis across the callgraph with specialist and
+skeptic agents.
 
 ---
 
-#### memory-corruption-detector
+#### ai-memory-corruption-scanner
 
-Detects classic memory corruption bug classes in extracted binaries:
-buffer overflows, integer overflow/truncation issues, use-after-free,
-double-free, and format-string problems. The skill is tuned for VR-style
-triage, ranking findings and then providing a separate verification step to
-weed out noisy decompiler artifacts before deeper exploitability analysis.
+AI-driven memory corruption scanner that navigates cross-module callgraphs
+using LLM agents with adversarial prompting, type-specific specialists,
+and skeptic verification. Detects buffer overflows, integer
+overflow/truncation, use-after-free, double-free, and format-string
+problems by building threat models and preparing rich context for
+LLM-driven analysis.
 
-**Key scripts:** `scan_buffer_overflows.py`, `scan_integer_issues.py`,
-`scan_use_after_free.py`, `scan_format_strings.py`, `verify_findings.py`.
+**Key scripts:** `build_threat_model.py`, `prepare_context.py`.
 
-**Typical use:** Run the scanners across a module with `--json`, merge the
-result sets, then use `verify_findings.py` to confirm the high-severity
-candidates before escalating them into a full audit report.
+**Typical use:** Build a threat model for the module, prepare context for
+high-priority entry points, then run the `/memory-scan` command which
+orchestrates LLM-driven analysis across the callgraph.
 
 ---
 
@@ -623,210 +453,21 @@ investigation.
 
 ---
 
-### Verification
+#### ai-logic-scanner
 
-#### verify-decompiled
+AI-driven logic vulnerability scanner that uses LLM agents with adversarial
+prompting to detect auth/authz bypasses, state machine errors, TOCTOU/race
+conditions, confused deputy, and API misuse patterns. Navigates cross-module
+callgraphs with type-specific specialists and skeptic verification to
+minimize false positives.
 
-Finds and fixes specific places where IDA Hex-Rays got something wrong
-compared to assembly ground truth. The output is the original decompiler
-output with minimal, targeted fixes -- not a rewrite. Variables stay as
-`a1`/`v5`, gotos stay as gotos. This differs fundamentally from lifting:
-verification makes decompiler output trustworthy, lifting makes it
-readable. They are sequential -- verify first, then lift if needed.
-Automated heuristic checks cover return type mismatches, call count
-discrepancies, missing branches, NULL check detection, signedness
-mismatches, access size mismatches, and decompiler artifacts. Agent-driven
-deep comparison catches collapsed multi-step operations, wrong offset
-calculations, lost volatile reads, and missing error checks.
+**Key scripts:** `build_threat_model.py` (threat model identifying
+logic-vulnerability-prone entry points), `prepare_context.py` (rich
+function context for LLM-driven analysis).
 
-**Key scripts:** `scan_module.py` (triage all functions in a module,
-ranked by severity), `verify_function.py` (deep per-function
-verification with automated findings, full assembly, and decompiled
-code).
-
-**Typical use:** Start with `scan_module.py` to get a ranked list of
-functions with decompiler issues, then `verify_function.py --id
-<function_id>` for deep verification of the most problematic functions.
-Supports the grind loop for batch verification across a module.
-
----
-
-### Meta
-
-#### deep-research-prompt
-
-A meta-skill that orchestrates all other skills to gather maximum context
-about a target function or module area, then synthesizes findings into a
-structured research prompt driving detailed investigation. Works in two
-phases: the **gather phase** runs classification, call graph tracing,
-data flow analysis, string intelligence, COM interface scanning, dispatch
-table detection, type reconstruction, and taint analysis to collect all available
-evidence; the **synthesize phase** combines gathered context into a
-research prompt with target description, known context, internal
-architecture, cross-module integration, prioritized research questions,
-and requested output format. This is the skill with the most
-dependencies -- it coordinates output from 8 other skills into a unified
-research workflow.
-
-**Key scripts:** `gather_function_context.py` (deep single-function
-intelligence across all skill dimensions),
-`gather_module_context.py` (module-level intelligence for area research),
-`generate_research_prompt.py` (main orchestrator producing the structured
-prompt).
-
-**Typical use:** Run `gather_function_context.py <db_path>
-<function_name> --cross-module --with-code` to collect all evidence, then
-`generate_research_prompt.py` to produce the prompt. Use `--area
-security` for area-focused research across all security functions in a
-module.
-
----
-
-### Documentation
-
-#### analyze-ida-decompiled
-
-A documentation skill that provides comprehensive guidance for
-navigating, reading, and understanding IDA Pro decompiled code extracted
-by DeepExtractIDA. It does not contain executable scripts but instead
-defines the extraction directory layout, grouped file naming conventions,
-`file_info.json` section reference, IDA naming patterns (`a1`/`v1`,
-`sub_XXXX`, `_DWORD`/`_QWORD` casts, `LODWORD`/`HIDWORD`,
-`__fastcall`, WIL/WRL namespaces), and a 5-step analysis workflow
-(orient, discover, analyze, cross-reference, contextualize). It is the
-recommended starting point for anyone new to reading DeepExtractIDA
-extraction outputs.
-
-**Typical use:** Read the `SKILL.md` to understand the extraction output
-structure, file naming, IDA conventions, and common analysis patterns
-(struct field access, COM/WRL virtual calls, HRESULT error handling)
-before diving into decompiled code.
-
----
-
-#### brainstorming
-
-A methodology skill for strategic VR research planning. Operates in four
-modes: **campaign** (single-module strategic planning with workflow
-selection), **cross-module** (coordinated multi-module campaigns),
-**replan** (post-analysis re-planning from prior results and cached data),
-and **design** (structured tool/skill/agent/command design following
-authoring guides). Includes end-to-end pipeline templates for common VR
-scenarios, a research phase reference mapping needs to all 29 skills, and
-a 10-point design checklist. Reads **adversarial-reasoning** on demand
-for Windows security mental models and the research prioritization rubric
-when composing VR campaign pipelines.
-
-**Typical use:** Invoked via the `/brainstorm` command. Use for strategic
-decisions ("which workflow should I use?", "what should I investigate
-next?", "how should this new skill be designed?"). For single-module
-hypothesis-driven VR, recommend `/hunt-plan` instead.
-
----
-
-#### deep-context-builder
-
-A documentation skill that governs how the agent thinks during the
-context-building phase of binary analysis. Forces block-by-block
-analysis of IDA Pro decompiled functions using First Principles,
-5 Whys, and 5 Hows to build deep understanding before vulnerability
-hunting. Includes IDA/Hex-Rays artifact recognition (HIDWORD/LODWORD,
-recovered `this` pointers, vtable dispatch patterns), anti-hallucination
-rules, quality thresholds, and a completeness checklist.
-
-Three phases: Initial Orientation (module structure mapping), Ultra-
-Granular Function Analysis (block-by-block with invariant tracking),
-and Global System Understanding (cross-function workflows and trust
-boundaries).
-
-**Dependencies:** decompiled-code-extractor, classify-functions,
-callgraph-tracer, data-flow-tracer, map-attack-surface (referenced for data
-extraction, flow analysis, and attack-surface context).
-
-**Typical use:** Invoked before `/audit` on complex functions or when
-a researcher asks for thorough understanding of decompiled code. Also
-wired into `/explain` for deep comprehension requests.
-
----
-
-#### adversarial-reasoning
-
-A security methodology skill that encodes hypothesis-driven vulnerability
-research methodology for Windows PE binaries. Provides five research
-modes (campaign planning, hypothesis testing, variant analysis, finding
-validation, and trust boundary mapping), a hypothesis generation
-framework that derives testable hypotheses from entry point types,
-classification signals, data flow patterns, and code patterns, Windows
-security mental models (trust boundaries, privilege escalation vectors,
-IPC pitfalls, file system attacks, memory safety), a research
-prioritization rubric, and a validation strategy matrix mapping each
-vulnerability class to specific workspace commands.
-
-The skill includes a comprehensive reference file with a vulnerability
-class encyclopedia (15 classes), 10 named Windows attack patterns from
-Forshaw/P0/MSRC research, 8 step-by-step research playbooks with exact
-commands, variant analysis methodology, and fill-in-the-blank hypothesis
-templates. No scripts -- the skill's value is encoded domain expertise
-that guides the researcher to use existing tools effectively.
-
-**Dependencies:** classify-functions, map-attack-surface,
-security-dossier, taint-analysis, data-flow-tracer, callgraph-tracer
-(referenced in tool chain recommendations).
-
-**Typical use:** Invoked via the `/hunt-plan` command or when a user asks to
-plan a VR campaign, generate attack hypotheses, find bug variants,
-validate a suspected vulnerability, or reason about Windows attack
-patterns against an extracted module.
-
----
-
-#### finding-verification
-
-A security methodology skill that provides structured false-positive
-elimination for findings produced by taint-analysis,
-memory-corruption-detector, and logic-vulnerability-detector. Forces
-verification against assembly ground truth before accepting any finding.
-
-Uses a 5-gate verification workflow: assembly ground truth (via
-verify-decompiled), data flow confirmation (via data-flow-tracer),
-attacker control reachability (via callgraph-tracer), cross-module
-boundary checks (via import-export-resolver), and devil's advocate
-review. Includes a catalog of false-positive patterns specific to
-Hex-Rays decompiled PE binaries (type recovery errors, library
-boilerplate triggers, optimized-away code paths, COM/WRL template
-expansions).
-
-**Dependencies:** taint-analysis, verify-decompiled, data-flow-tracer,
-security-dossier, exploitability-assessment, import-export-resolver
-(consumed as input sources and verification tools).
-
-**Typical use:** Invoked during `/audit` and `/hunt-execute` workflows
-when findings need confirmation. Also usable standalone when a
-researcher asks "is this bug real?"
-
----
-
-#### logic-vulnerability-detector
-
-Detects logic vulnerability classes: auth/authz bypasses
-(missing checks, auth-after-action, impersonation leaks), state machine
-errors (state bypass, unrestricted transitions), and general logic flaws
-(TOCTOU/double-fetch, missing return value checks, confused deputy, error
-path privilege leaks). An independent verification script re-reads raw code
-and assembly with fresh eyes to confirm or reject each finding before the
-final report.
-
-**Key scripts:** `scan_auth_bypass.py` (auth/authz bypass detection),
-`scan_state_errors.py` (state machine vulnerabilities),
-`scan_logic_flaws.py` (TOCTOU, missing checks, confused deputy),
-`scan_api_misuse.py` (sensitive API parameter misuse),
-`verify_findings.py` (independent fresh-eyes verification),
-`generate_logic_report.py` (prioritized report synthesis).
-
-**Typical use:** Run all three scanners on a module, merge the findings,
-run `verify_findings.py` to confirm/reject each, and
-`generate_logic_report.py` to produce a prioritized report. Use the
-`/logic-scan` command for the full pipeline.
+**Typical use:** Scanning is LLM-driven via the `/ai-logical-bug-scan`
+command, which orchestrates specialist and skeptic agents per vulnerability
+type.
 
 ---
 

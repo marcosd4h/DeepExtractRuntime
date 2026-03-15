@@ -29,10 +29,8 @@ Your job is to **explain, analyze, and answer questions** about decompiled funct
 ## When NOT to Use
 
 - Lifting/rewriting decompiled code to clean C++ -- use **code-lifter**
-- Verifying that lifted code matches assembly -- use **verifier**
 - Orchestrating multi-skill analysis pipelines -- use **triage-coordinator**
 - Reconstructing struct/class layouts from memory patterns -- use **type-reconstructor**
-- Planning vulnerability research campaigns -- use **adversarial-reasoning** skill
 
 ---
 
@@ -246,6 +244,10 @@ Check that every allocation has a matching free on all paths (including error pa
 
 ## Data Navigation Guide
 
+> **IDA conventions reference:** For grouped file naming, `function_summary` JSON schema, import
+> entry structure, struct offset formulas, and worked analysis examples, see
+> [.agent/docs/ida_conventions_reference.md](../docs/ida_conventions_reference.md).
+
 ### Workspace Layout
 
 ```
@@ -401,36 +403,12 @@ python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --re
 python .agent/skills/callgraph-tracer/scripts/module_dependencies.py --module <name>
 ```
 
-**Data Flow** (data-flow-tracer):
-
-```bash
-python .agent/skills/data-flow-tracer/scripts/forward_trace.py <db_path> <function> --param 1
-python .agent/skills/data-flow-tracer/scripts/backward_trace.py <db_path> <function> --target CreateFileW
-python .agent/skills/data-flow-tracer/scripts/global_state_map.py <db_path> --summary
-python .agent/skills/data-flow-tracer/scripts/string_trace.py <db_path> --string "COMSPEC"
-```
-
-**Taint Analysis** (taint-analysis):
-
-```bash
-python .agent/skills/taint-analysis/scripts/taint_function.py <db_path> <function> --depth 2 --json
-python .agent/skills/taint-analysis/scripts/trace_taint_forward.py <db_path> <function> --params 1 --depth 2 --json
-python .agent/skills/taint-analysis/scripts/trace_taint_backward.py <db_path> <function> --depth 1 --json
-```
-
 **RE Report** (generate-re-report):
 
 ```bash
 python .agent/skills/generate-re-report/scripts/generate_report.py <db_path> --summary
 python .agent/skills/generate-re-report/scripts/analyze_imports.py <db_path> --exports
 python .agent/skills/generate-re-report/scripts/analyze_strings.py <db_path> --category file_path
-```
-
-**Deep Research** (deep-research-prompt):
-
-```bash
-python .agent/skills/deep-research-prompt/scripts/gather_function_context.py <db_path> <function> --cross-module --with-code
-python .agent/skills/deep-research-prompt/scripts/gather_module_context.py <db_path> --categories security,crypto
 ```
 
 **Function Index** (function-index skill):

@@ -91,10 +91,7 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 
    Save the output to `extracted_code/<module_folder>/lifted_<ClassName>.cpp`.
 
-5. **Optional: Verify with the verifier subagent**
-   For critical functions, launch the `verifier` subagent with `readonly: true` to independently check that the lifted code matches assembly ground truth. The verifier operates in a separate context (preventing confirmation bias) and must never modify lifted outputs.
-
-6. **Summary**
+5. **Summary**
    Report: methods lifted vs skipped, struct field coverage, decompiler issues found.
 
 **Follow-up suggestions**:
@@ -108,15 +105,14 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 - Steps 1 -> 2 are sequential (resolve then preview).
 - Step 3 depends on Steps 1 + 2 (needs DB path, class info, user preferences).
 - Step 4 depends on Step 3 (waits for subagent results).
-- Step 5 (optional verify) depends on Step 4. For classes with many methods, individual method verifications can run concurrently.
-- Step 6 depends on Step 4 (or Step 5 if verification was run).
+- Step 5 depends on Step 4.
 
 ## Fallback: Grind Loop
 
 If the code-lifter subagent is unavailable or hits context limits (rare with <20 methods), fall back to the grind-loop approach:
 
 1. Create `.agent/hooks/scratchpads/{session_id}.md` with one checkbox per method
-2. Lift methods one at a time using the **code-lifting** and **batch-lift** skills
+2. Lift methods one at a time using the **batch-lift** skill
 3. Track shared state manually via `track_shared_state.py`
 4. Set Status to `DONE` when finished
 

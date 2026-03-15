@@ -1,11 +1,8 @@
 {
   "classification": {
     "weights": {
-      "W_NAME": 10.0,
       "W_API": 5.0,
       "W_API_CAP": 25.0,
-      "W_STRING": 2.0,
-      "W_STRING_CAP": 10.0,
       "W_STRUCTURAL": 4.0,
       "W_LIBRARY": 12.0
     },
@@ -38,7 +35,7 @@
     "include_vtable_edges": true,
     "default_max_depth": 10,
     "max_depth_for_reachability": 15,
-    "max_depth_for_taint": 8
+    "max_depth_for_taint": 10
   },
   "triage": {
     "com_density_threshold": 5,
@@ -65,11 +62,6 @@
     "max_module_workers": 2,
     "no_cache": false
   },
-  "verifier": {
-    "call_count_tolerance": 0.2,
-    "branch_count_tolerance": 0.3,
-    "max_alignment": 8
-  },
   "script_runner": {
     "default_timeout_seconds": 180,
     "max_retries": 2
@@ -81,6 +73,10 @@
   "cache": {
     "max_age_hours": 24,
     "max_cache_size_mb": 500
+  },
+  "findings_store": {
+    "db_path": ".agent/cache/findings.db",
+    "retention_days": 30
   },
   "ui": {
     "show_progress": true

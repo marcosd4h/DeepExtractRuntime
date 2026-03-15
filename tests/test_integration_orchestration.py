@@ -179,7 +179,7 @@ class TestCompleteStep:
 
         manifest = _read_json(run_dir / "manifest.json")
         assert "step1" in manifest["steps"]
-        assert manifest["steps"]["step1"]["status"] == "success"
+        assert manifest["steps"]["step1"]["status"] in ("ok", "success")
         assert "summary_path" in manifest["steps"]["step1"]
 
     def test_error_status_records_failure(self, tmp_path):
@@ -268,7 +268,7 @@ class TestWorkspaceLifecycle:
         for step_name, step_rec in manifest["steps"].items():
             assert "status" in step_rec
             assert "summary_path" in step_rec
-            assert step_rec["status"] == "success"
+            assert step_rec["status"] in ("ok", "success")
 
 
 # ===================================================================

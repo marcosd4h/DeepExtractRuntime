@@ -6,11 +6,11 @@ from helpers.config import load_config, get_config_value
 def test_load_config_defaults():
     config = load_config()
     assert "classification" in config
-    assert config["classification"]["weights"]["W_NAME"] == 10.0
+    assert config["classification"]["weights"]["W_API"] == 5.0
 
 def test_get_config_value():
-    val = get_config_value("classification.weights.W_NAME")
-    assert val == 10.0
+    val = get_config_value("classification.weights.W_API")
+    assert val == 5.0
     
     val = get_config_value("non.existent.path", default="fallback")
     assert val == "fallback"

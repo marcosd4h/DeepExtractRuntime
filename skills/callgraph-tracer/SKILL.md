@@ -362,7 +362,7 @@ See [reference.md](reference.md) for complete API details and xref field formats
 | Build security dossier for reachable functions | security-dossier |
 | Trace data flow through call chain paths | data-flow-tracer |
 | Map attack surface using reachability data | map-attack-surface |
-| Lift interesting functions found in chains | code-lifting / batch-lift |
+| Lift interesting functions found in chains | batch-lift |
 
 ## Performance
 
@@ -379,5 +379,4 @@ See [reference.md](reference.md) for complete API details and xref field formats
 
 - For xref JSON field formats and DB schema, see [data_format_reference.md](../../docs/data_format_reference.md)
 - For file_info.json schema (imports/exports), see [file_info_format_reference.md](../../docs/file_info_format_reference.md)
-- For code analysis skill, see [analyze-ida-decompiled](../analyze-ida-decompiled/SKILL.md)
-- For code lifting skill, see [code-lifting](../code-lifting/SKILL.md)
+- For IDA conventions and analysis patterns, see [ida_conventions_reference.md](../../docs/ida_conventions_reference.md)

@@ -247,12 +247,14 @@ def _summarize_run_steps(steps: Any) -> dict[str, Any]:
             status = "unknown"
         statuses.append(status or "unknown")
 
+    _OK_STATUSES = {"ok", "success"}  # "success" for legacy manifests
+
     if not statuses:
         overall = "empty"
     elif any(status == "error" for status in statuses):
         overall = "error"
-    elif all(status == "success" for status in statuses):
-        overall = "success"
+    elif all(status in _OK_STATUSES for status in statuses):
+        overall = "ok"
     elif any(status in {"running", "in_progress", "pending"} for status in statuses):
         overall = "in_progress"
     else:
@@ -262,10 +264,11 @@ def _summarize_run_steps(steps: Any) -> dict[str, Any]:
     for status in statuses:
         counts[status] = counts.get(status, 0) + 1
 
+    ok_count = sum(counts.get(s, 0) for s in _OK_STATUSES)
     return {
         "status": overall,
         "step_count": len(statuses),
-        "success_steps": counts.get("success", 0),
+        "success_steps": ok_count,
         "error_steps": counts.get("error", 0),
         "step_status_counts": counts,
     }

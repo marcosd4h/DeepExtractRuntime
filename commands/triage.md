@@ -56,13 +56,7 @@ If validation fails, report the errors and stop. On success, use `result.resolve
    The session context "Module Profiles" section already contains pre-computed library noise ratio, dangerous API categories, technology surface flags, and complexity metrics from `module_profile.json`. Use these for additional orientation alongside the coordinator output.
 
 3. **Quick security scan** (conditional -- only when `--with-security` is specified)
-   Run `taint_function.py` from the **taint-analysis** skill on the top 3-5 ranked entry points from Step 2:
-
-   ```bash
-   python .agent/skills/taint-analysis/scripts/taint_function.py <db_path> --id <fid> --depth 2 --json
-   ```
-
-   Collect any CRITICAL or HIGH severity findings. This is intentionally lightweight -- a quick signal of exploitable issues, not a comprehensive scan. For full vulnerability scanning, use `/scan`.
+   Use the **ai-taint-scanner** skill to perform a lightweight taint scan on the top 3-5 ranked entry points from Step 2. Collect any CRITICAL or HIGH severity findings. This is intentionally lightweight -- a quick signal of exploitable issues, not a comprehensive scan. For full vulnerability scanning, use `/scan`.
 
 4. **Synthesize triage report**
    Combine all findings into a structured report:
@@ -72,7 +66,7 @@ If validation fails, report the errors and stop. On success, use `result.resolve
    - **Most Interesting Functions (Top 10)**: table with name, category, interest score, dangerous APIs, reason
    - **Attack Surface Summary**: entry point types/counts, top 5 ranked by attack score, hidden entry points
    - **Quick Security Findings** (when `--with-security` was used): top taint findings from entry points, severity distribution, recommended `/audit` targets
-   - **Recommended Next Steps**: suggest `/explain` or `/verify-decompiler` for quick follow-ups, `/audit`, `/lift-class`, or `/full-report` for deep analysis, `/scan` for comprehensive vulnerability scanning, and `/search` for targeted exploration
+   - **Recommended Next Steps**: suggest `/explain` for quick follow-ups, `/audit`, `/lift-class`, or `/full-report` for deep analysis, `/scan` for comprehensive vulnerability scanning, and `/search` for targeted exploration
 
 ## Step Dependencies
 

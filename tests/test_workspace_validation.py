@@ -67,12 +67,12 @@ def test_validate_compliant_run(tmp_path):
     step_dir = run_dir / "step1"
     step_dir.mkdir()
     (step_dir / "results.json").write_text('{"data": []}')
-    (step_dir / "summary.json").write_text('{"status": "success"}')
+    (step_dir / "summary.json").write_text('{"status": "ok"}')
     manifest = {
         "run_id": "run",
         "steps": {
             "step1": {
-                "status": "success",
+                "status": "ok",
                 "summary_path": "step1/summary.json",
                 "updated_at": "2024-01-01T00:00:00Z",
             }
@@ -91,13 +91,13 @@ def test_validate_step_missing_results(tmp_path):
     run_dir.mkdir()
     step_dir = run_dir / "step1"
     step_dir.mkdir()
-    (step_dir / "summary.json").write_text('{"status": "success"}')
+    (step_dir / "summary.json").write_text('{"status": "ok"}')
     # no results.json
     manifest = {
         "run_id": "run",
         "steps": {
             "step1": {
-                "status": "success",
+                "status": "ok",
                 "summary_path": "step1/summary.json",
             }
         },
@@ -118,7 +118,7 @@ def test_validate_step_missing_summary_path(tmp_path):
     (step_dir / "summary.json").write_text("{}")
     manifest = {
         "run_id": "run",
-        "steps": {"step1": {"status": "success"}},  # no summary_path
+        "steps": {"step1": {"status": "ok"}},  # no summary_path
     }
     (run_dir / "manifest.json").write_text(json.dumps(manifest))
     result = validate_workspace_run(run_dir)
@@ -173,17 +173,17 @@ def test_complete_step_writes_and_updates_manifest(tmp_path):
     manifest = {"run_id": "run", "steps": {}, "created_at": "2024-01-01T00:00:00Z"}
     (run_dir / "manifest.json").write_text(json.dumps(manifest))
     full_data = {"output_type": "json", "items": [1, 2, 3]}
-    summary_data = {"status": "success", "count": 3}
+    summary_data = {"status": "ok", "count": 3}
     paths = complete_step(run_dir, "phase1", full_data, summary_data)
     assert Path(paths["results_path"]).exists()
     assert Path(paths["summary_path"]).exists()
     results = json.loads(Path(paths["results_path"]).read_text())
     assert results["items"] == [1, 2, 3]
     summary = json.loads(Path(paths["summary_path"]).read_text())
-    assert summary["status"] == "success"
+    assert summary["status"] == "ok"
     manifest_after = json.loads((run_dir / "manifest.json").read_text())
     assert "phase1" in manifest_after["steps"]
-    assert manifest_after["steps"]["phase1"]["status"] == "success"
+    assert manifest_after["steps"]["phase1"]["status"] == "ok"
 
 
 def test_complete_step_with_error_status(tmp_path):
@@ -207,7 +207,7 @@ def test_validate_after_complete_step(tmp_path):
     run_dir = tmp_path / "run"
     run_dir.mkdir()
     (run_dir / "manifest.json").write_text('{"run_id": "run", "steps": {}}')
-    complete_step(run_dir, "step1", {"x": 1}, {"status": "success"})
+    complete_step(run_dir, "step1", {"x": 1}, {"status": "ok"})
     result = validate_workspace_run(run_dir)
     assert result.valid is True
     assert result.step_count == 1

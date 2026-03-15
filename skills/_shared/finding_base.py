@@ -1,8 +1,8 @@
 """Shared infrastructure for security-finding skills.
 
 Consolidates dataclasses, scoring models, data-loading wrappers, and
-API-matching utilities duplicated across memory-corruption-detector,
-logic-vulnerability-detector, and taint-analysis skill ``_common.py``
+API-matching utilities duplicated across ai-memory-corruption-scanner,
+ai-logic-scanner, and ai-taint-scanner skill ``_common.py``
 files.
 
 Skills import from here and extend with category-specific constants::
@@ -175,7 +175,7 @@ def build_meta(db_path: str, skill_name: str, **extra: Any) -> dict[str, Any]:
 # API matching utility
 # ---------------------------------------------------------------------------
 
-from helpers.asm_patterns import strip_import_prefix
+from helpers.api_taxonomy import strip_import_prefix
 
 
 def matches_api_list(api_name: str, api_list: tuple[str, ...]) -> bool:

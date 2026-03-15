@@ -18,30 +18,21 @@ Documentation: https://cursor.com/docs/context/commands
 | `/lift-class`        | `lift-class.md`        | Batch-lift all methods of a C++ class with shared struct context into a cohesive `.cpp` file        |
 | `/full-report`       | `full-report.md`       | End-to-end multi-phase analysis: RE report, classification, attack surface, topology, specialized   |
 | `/compare-modules`   | `compare-modules.md`   | Cross-module comparison: dependencies, API overlap, classification distributions, call chains       |
-| `/verify-decompiler` | `verify-decompiler.md` | Verify decompiler accuracy for a function or scan a module for decompiler issues                    |
 | `/explain`           | `explain.md`           | Quick structured explanation of what a function does: purpose, parameters, APIs, call context       |
 | `/search`            | `search.md`            | Cross-dimensional search: function names, signatures, strings, APIs, classes, exports               |
 | `/reconstruct-types` | `reconstruct-types.md` | Reconstruct C/C++ struct and class definitions from memory access patterns                          |
-| `/data-flow`         | `data-flow.md`         | Trace parameter flow, argument origins, global variable maps, string usage chains                   |
-| `/state-machines`    | `state-machines.md`    | Extract dispatch tables, state machines, and command dispatchers with diagrams                      |
 | `/cache-manage`      | `cache-manage.md`      | View cache stats, clear, or refresh cached analysis results                                        |
 | `/runs`              | `runs.md`              | List, inspect, and reopen prior workspace runs and step summaries                                  |
-| `/data-flow-cross`   | `data-flow-cross.md`   | Trace data flow across module boundaries (cross-DLL parameter and argument tracking)               |
-| `/verify-decompiler-batch` | `verify-decompiler-batch.md` | Verify decompiler accuracy for a batch of functions or an entire class                      |
-| `/verify-finding`    | `verify-finding.md`    | Verify suspected vulnerability findings against assembly ground truth (TRUE/FALSE POSITIVE)        |
 | `/health`            | `health.md`            | Pre-flight workspace validation: check extraction data, DBs, skills, and config                   |
 | `/taint`             | `taint.md`             | Trace attacker-controlled inputs to dangerous sinks with guard/bypass analysis                     |
-| `/brainstorm`        | `brainstorm.md`        | Strategic VR planning: campaign strategy, cross-module campaigns, post-analysis re-planning, tool/skill design |
-| `/hunt-plan`         | `hunt-plan.md`         | Hypothesis-driven VR: campaign planning, attack pattern matching, variant analysis, validation     |
+| `/hunt-plan`         | `hunt-plan.md`         | Hypothesis-driven VR and strategic research planning: campaign planning, cross-module campaigns, replan, tool/skill design, attack pattern matching, variant analysis, validation |
 | `/hunt-execute`      | `hunt-execute.md`      | Execute a `/hunt-plan` research plan: run investigation commands, collect evidence, score confidence    |
 | `/batch-audit`       | `batch-audit.md`       | Audit top N entry points or privilege-boundary handlers in parallel with consolidated security and exploitability report |
 | `/xref`              | `xref.md`              | Quick cross-reference lookup: show callers and callees in a compact table                         |
-| `/quickstart`        | `quickstart.md`        | Guided first experience: auto-detect modules, run lightweight triage, suggest next steps          |
-| `/logic-scan`        | `logic-scan.md`        | Scan module for logic vulnerabilities (auth bypass, state errors, TOCTOU) with verification       |
+| `/ai-logical-bug-scan` | `ai-logical-bug-scan.md` | Scan module for logic vulnerabilities (auth bypass, state errors, TOCTOU) with AI-driven verification |
 | `/memory-scan`       | `memory-scan.md`       | Scan module for memory corruption (buffer overflows, integer issues, UAF, format strings)         |
 | `/callgraph`         | `callgraph.md`         | Build, query, and visualize call graphs: stats, SCCs, hubs, roots/leaves, path queries, diagrams |
 | `/imports`           | `imports.md`           | Query PE import/export relationships: who exports, who imports, dependency graphs, forwarders     |
-| `/strings`           | `strings.md`           | Categorize string literals by security relevance: credentials, paths, pipes, URLs, format strings |
 | `/scan`              | `scan.md`              | Unified vulnerability scan: memory + logic + taint with verification and exploitability scoring   |
 | `/diff`              | `diff.md`              | Compare two versions of a module: function deltas, classification shifts, attack surface changes  |
 | `/prioritize`        | `prioritize.md`        | Cross-module finding ranking: load scan/audit results, normalize, rank by exploitability          |
@@ -66,23 +57,16 @@ flowchart TD
     Recon --> Triage["/triage module -- deep orientation"]
     Recon --> FullReport["/full-report module"]
     Recon --> Compare["/compare-modules A B"]
-    Recon --> Quickstart["/quickstart -- first time? start here"]
-
     Function --> Explain["/explain module func"]
     Function --> Xref["/xref module func"]
-    Function --> DataFlow["/data-flow module func"]
-    Function --> StateMachines["/state-machines module"]
     Function --> Search["/search module term"]
-    Function --> Strings["/strings module"]
 
-    Security --> VerifySec["/verify-decompiler module func -- check decompiler first"]
-    Security --> VerifyFinding["/verify-finding module func -- confirm a vulnerability"]
     Security --> Audit["/audit module func"]
     Security --> BatchAudit["/batch-audit module --top N or --privilege-boundary"]
     Security --> Taint["/taint module func"]
     Security --> HuntPlan["/hunt-plan module"]
     Security --> HuntExec["/hunt-execute module"]
-    Security --> LogicScan["/logic-scan module"]
+    Security --> AiLogicScan["/ai-logical-bug-scan module"]
     Security --> MemScan["/memory-scan module"]
     Security --> Scan["/scan module"]
     Security --> Winrt["/winrt module -- WinRT server analysis"]
@@ -91,11 +75,8 @@ flowchart TD
     Recon --> Callgraph["/callgraph module"]
     Recon --> Imports["/imports module"]
 
-    Code --> Verify["/verify-decompiler module func"]
     Code --> LiftClass["/lift-class module class"]
     Code --> ReconstructTypes["/reconstruct-types module"]
-
-    Plan --> Brainstorm["/brainstorm module | cross | replan | design"]
 
     Start --> Utils["Utilities"]
     Utils --> Health["/health -- diagnose workspace issues"]
@@ -115,24 +96,17 @@ Type `/` in the Cursor chat input to see all available commands, then select one
 /lift-class appinfo.dll CSecurityDescriptor
 /full-report cmd.exe
 /compare-modules appinfo.dll cmd.exe
-/verify-decompiler appinfo.dll AiCheckSecureApplicationDirectory
-/verify-finding srvsvc.dll ClientCertificatesAccessCheck
 /explain appinfo.dll AiLaunchProcess
 /search CreateProcess
 /runs latest appinfo.dll
 /reconstruct-types appinfo.dll CSecurityDescriptor
-/brainstorm appinfo.dll
-/brainstorm cross appinfo.dll consent.exe
-/brainstorm replan
-/brainstorm design new-detection-skill
 /hunt-plan appinfo.dll
 /hunt-plan hypothesis TOCTOU appinfo.dll
 /hunt-plan variant junction appinfo.dll
 /hunt-plan validate appinfo.dll AiLaunchProcess
 /hunt-plan surface appinfo.dll
 /batch-audit appinfo.dll --privilege-boundary --top 8
-/data-flow forward appinfo.dll AiLaunchProcess --param 1
-/state-machines cmd.exe FParseWork --diagram
+/taint appinfo.dll AiLaunchProcess
 /pipeline list-steps
 /pipeline validate config/pipelines/security-sweep.yaml
 /pipeline run config/pipelines/security-sweep.yaml --dry-run
@@ -169,11 +143,11 @@ When module is optional and omitted, commands should:
 6. Optionally runs a lightweight taint pass over top-ranked entry points when `--with-security` is present
 7. Synthesizes a triage report with prioritized function list and recommended next steps
 
-**Output**: Structured triage report in chat. With `--with-security`, adds a quick security findings section based on lightweight taint results. Suggests `/explain` or `/verify-decompiler` for quick follow-ups, and `/audit`, `/lift-class`, `/scan`, or `/full-report` for deeper analysis.
+**Output**: Structured triage report in chat. With `--with-security`, adds a quick security findings section based on lightweight taint results. Suggests `/explain` for quick follow-ups, and `/audit`, `/lift-class`, `/scan`, or `/full-report` for deeper analysis.
 
 **Agents used**: triage-coordinator (`analyze_module.py --goal triage` script)
 
-**Skills used**: decompiled-code-extractor, taint-analysis (optional, for `--with-security`)
+**Skills used**: decompiled-code-extractor, ai-taint-scanner (optional, for `--with-security`)
 
 ---
 
@@ -195,7 +169,7 @@ When module is optional and omitted, commands should:
 
 **Agents used**: security-auditor (verification subagent)
 
-**Skills used**: decompiled-code-extractor, security-dossier, map-attack-surface, data-flow-tracer, verify-decompiled, callgraph-tracer, classify-functions, taint-analysis
+**Skills used**: decompiled-code-extractor, security-dossier, map-attack-surface, callgraph-tracer, classify-functions, ai-taint-scanner
 
 ---
 
@@ -216,7 +190,7 @@ When module is optional and omitted, commands should:
 
 **Uses grind loop**: Yes -- creates `.agent/hooks/scratchpads/{session_id}.md` with one checkbox per method. The stop hook automatically re-invokes the agent until all methods are lifted (up to 10 iterations).
 
-**Skills used**: decompiled-code-extractor, code-lifting, batch-lift, reconstruct-types
+**Skills used**: decompiled-code-extractor, batch-lift, reconstruct-types
 
 ---
 
@@ -239,7 +213,7 @@ When module is optional and omitted, commands should:
 
 **Agents used**: triage-coordinator (`generate_analysis_plan.py` for adaptive routing), re-analyst (`explain_function.py` for entry point explanations)
 
-**Skills used**: decompiled-code-extractor, generate-re-report, classify-functions, map-attack-surface, callgraph-tracer, com-interface-reconstruction, state-machine-extractor, data-flow-tracer, taint-analysis, security-dossier
+**Skills used**: decompiled-code-extractor, generate-re-report, classify-functions, map-attack-surface, callgraph-tracer, com-interface-reconstruction, ai-taint-scanner, security-dossier
 
 ---
 
@@ -261,21 +235,6 @@ When module is optional and omitted, commands should:
 **Output**: Cross-module comparison report with side-by-side profiles, dependency diagrams, shared function calls, capability differences, and recommended cross-boundary audit targets.
 
 **Skills used**: decompiled-code-extractor, callgraph-tracer, generate-re-report, classify-functions, import-export-resolver
-
----
-
-### `/verify-decompiler` -- Verify Decompiler Accuracy
-
-**Input**: `/verify-decompiler [module] [function_name]` (e.g., `/verify-decompiler appinfo.dll AiCheckSecureApplicationDirectory`)
-
-**What it does**:
-
-- **Per-function** (function name provided): Runs `verify_function.py` to compare decompiled output against assembly ground truth, reporting issue severity, affected lines, and accuracy assessment
-- **Module-wide** (module only): Runs `scan_module.py` to scan all functions and rank by decompiler issue severity
-
-**Output**: Verification report in chat with issue list (CRITICAL/HIGH/MODERATE/LOW), accuracy assessment, and follow-up suggestions.
-
-**Skills used**: verify-decompiled, function-index
 
 ---
 
@@ -327,13 +286,13 @@ Examples:
 1. Detects research mode from arguments (campaign, hypothesis, variant, validate, surface)
 2. Gathers existing context (cached triage/attack-surface data)
 3. Asks mode-specific questions about threat model, hypothesis, or pattern
-4. Applies the adversarial-reasoning methodology: hypothesis generation, attack pattern matching, prioritization
+4. Applies hypothesis generation, attack pattern matching, prioritization methodology
 5. Presents a research plan with ranked hypotheses, per-hypothesis commands, and validation criteria
 6. Iterates on feedback and transitions to an implementation plan via CreatePlan
 
 **Output**: Collaborative dialogue producing an approved research design. No files are written.
 
-**Skills used**: adversarial-reasoning, classify-functions, map-attack-surface, security-dossier, taint-analysis
+**Skills used**: classify-functions, map-attack-surface, security-dossier, ai-taint-scanner
 
 ---
 
@@ -355,7 +314,7 @@ Examples:
 
 **Agents used**: security-auditor (verification subagent)
 
-**Skills used**: taint-analysis, security-dossier, map-attack-surface, data-flow-tracer, verify-decompiled, callgraph-tracer, exploitability-assessment
+**Skills used**: ai-taint-scanner, security-dossier, map-attack-surface, callgraph-tracer, exploitability-assessment
 
 ---
 
@@ -374,7 +333,7 @@ Examples:
 
 **Uses grind loop**: Yes -- one checkbox per function.
 
-**Skills used**: security-dossier, taint-analysis, exploitability-assessment, classify-functions, map-attack-surface
+**Skills used**: security-dossier, ai-taint-scanner, exploitability-assessment, classify-functions, map-attack-surface
 
 ---
 
@@ -478,19 +437,19 @@ Examples:
 
 **Agents used**: security-auditor (Phase D2 verification subagent)
 
-**Skills used**: memory-corruption-detector, taint-analysis, batch-lift, decompiled-code-extractor, security-dossier, classify-functions
+**Skills used**: ai-memory-corruption-scanner, ai-taint-scanner, batch-lift, decompiled-code-extractor, security-dossier, classify-functions
 
 ---
 
-### `/logic-scan` -- Logic Vulnerability Scan
+### `/ai-logical-bug-scan` -- AI Logic Vulnerability Scan
 
-**Input**: `/logic-scan <module> [function] [--depth N]` (e.g., `/logic-scan appinfo.dll`)
+**Input**: `/ai-logical-bug-scan <module> [function] [--depth N]` (e.g., `/ai-logical-bug-scan appinfo.dll`)
 
-**What it does**: Scans for authentication bypasses, state machine errors, TOCTOU, confused deputy, missing security checks, and API misuse. Includes chain scanning, taint cross-referencing, heuristic verification, and skeptical subagent verification.
+**What it does**: AI-driven scan for authentication bypasses, state machine errors, TOCTOU, confused deputy, missing security checks, and API misuse. Uses LLM agents with adversarial prompting, type-specific specialists, and skeptic verification.
 
-**Agents used**: security-auditor (Phase D2 verification subagent)
+**Agents used**: logic-scanner (specialist and skeptic subagents)
 
-**Skills used**: logic-vulnerability-detector, taint-analysis, batch-lift, decompiled-code-extractor, security-dossier, classify-functions
+**Skills used**: ai-logic-scanner, ai-taint-scanner, decompiled-code-extractor, security-dossier, classify-functions
 
 ---
 
@@ -502,19 +461,7 @@ Examples:
 
 **Agents used**: security-auditor (Step 4 verification subagent)
 
-**Skills used**: taint-analysis, security-dossier, map-attack-surface, data-flow-tracer, verify-decompiled, callgraph-tracer, exploitability-assessment
-
----
-
-### `/data-flow` -- Data Flow Trace
-
-**Input**: `/data-flow forward|backward|string|globals <module> <function> [--param N] [--depth N]`
-
-**What it does**: Traces parameter flow, argument origins, global variable maps, and string usage chains. Enriches source/sink functions with classification metadata.
-
-**Agents used**: re-analyst (`re_query.py` for classification metadata on source/sink functions)
-
-**Skills used**: data-flow-tracer, decompiled-code-extractor, function-index
+**Skills used**: ai-taint-scanner, security-dossier, map-attack-surface, callgraph-tracer, exploitability-assessment
 
 ---
 
@@ -547,26 +494,6 @@ Examples:
 
 ---
 
-### `/verify-finding` -- Verify Vulnerability Findings
-
-**Input**: `/verify-finding <module> <function>` or `/verify-finding <module> --findings <path>`
-
-**What it does**:
-
-1. Gathers findings to verify (from scan output, taint results, or by running scanners on the target function)
-2. Restates each claim in precise terms (half of false positives collapse at this step)
-3. Routes each finding to Standard or Deep verification
-4. Verifies data flow, attacker control, and argues devil's advocate for each finding
-5. Renders TRUE POSITIVE or FALSE POSITIVE verdicts with evidence
-
-**Output**: Verification report with per-finding verdicts, evidence summaries, and confidence levels. Saved to `extracted_code/<module>/reports/verify_finding_<target>_<timestamp>.md`.
-
-**Skills used**: finding-verification, taint-analysis, data-flow-tracer, callgraph-tracer, security-dossier, decompiled-code-extractor
-
-**Agents used**: verifier (for deep verification), security-auditor
-
----
-
 ## Design
 
 ### Hybrid Skill References
@@ -589,7 +516,6 @@ The current registry marks these commands as grind-loop workflows:
 
 - `/lift-class`
 - `/full-report`
-- `/verify-decompiler-batch`
 - `/hunt-execute`
 - `/batch-audit`
 - `/scan`
@@ -604,7 +530,7 @@ automatically, bounded by `loop_limit: 10` in root-level `hooks.json`. See
 
 ### Recommended Workflow
 
-Start broad, then drill down. Use lightweight commands (`/explain`, `/verify-decompiler`, `/search`) for quick answers, and heavyweight commands (`/audit`, `/lift-class`) for deep analysis:
+Start broad, then drill down. Use lightweight commands (`/explain`, `/search`) for quick answers, and heavyweight commands (`/audit`, `/lift-class`) for deep analysis:
 
 ```
 /hunt-plan appinfo.dll           # Strategic: plan a hypothesis-driven VR campaign
@@ -612,7 +538,6 @@ Start broad, then drill down. Use lightweight commands (`/explain`, `/verify-dec
   |
   |-- Quick (lightweight, single-step) --
   +--> /explain appinfo.dll FuncX          # What does this function do?
-  +--> /verify-decompiler appinfo.dll FuncX  # Is the decompiler output accurate?
   +--> /search appinfo.dll "token"         # Find everything related to a term
   |
   |-- Deep (multi-step pipelines) --
@@ -620,8 +545,7 @@ Start broad, then drill down. Use lightweight commands (`/explain`, `/verify-dec
   +--> /audit appinfo.dll ExportY --diagram  # Audit with call graph diagram
   +--> /lift-class appinfo.dll ClassZ      # Reconstruct a class
   +--> /reconstruct-types appinfo.dll      # Reconstruct struct/class definitions
-  +--> /data-flow forward appinfo.dll FuncX --param 1  # Trace parameter flow
-  +--> /state-machines appinfo.dll FuncX   # Extract dispatch tables / state machines
+  +--> /taint appinfo.dll FuncX                       # Trace taint flow
   |
   +--> /full-report appinfo.dll            # Comprehensive when you need everything
 ```
@@ -637,10 +561,9 @@ For multi-module analysis:
 ## Skill Integration Map
 
 Shows a representative core integration map for the most commonly chained
-commands (abbreviated headers for width; `/types` = `/reconstruct-types`,
-`/states` = `/state-machines`):
+commands (abbreviated headers for width; `/types` = `/reconstruct-types`):
 
-| Skill                        | `/triage` | `/audit` | `/lift-class` | `/full-report` | `/compare-modules` | `/verify-decompiler` | `/explain` | `/search` | `/hunt-plan` |
+| Skill                        | `/triage` | `/audit` | `/lift-class` | `/full-report` | `/compare-modules` | `/explain` | `/search` | `/hunt-plan` |
 | ---------------------------- | :-------: | :------: | :-----------: | :------------: | :----------------: | :-------: | :--------: | :-------: | :----------: |
 | decompiled-code-extractor    |     x     |    x     |       x       |       x        |         x          |           |            |           |         |
 | generate-re-report           |     x     |          |               |       x        |         x          |           |            |           |         |
@@ -648,17 +571,12 @@ commands (abbreviated headers for width; `/types` = `/reconstruct-types`,
 | callgraph-tracer             |     x     |    x     |               |       x        |         x          |           |            |           |         |
 | map-attack-surface           |     x     |          |               |       x        |                    |           |            |           |    x    |
 | security-dossier             |           |    x     |               |                |                    |           |            |           |    x    |
-| verify-decompiled            |           |    x     |               |                |                    |     x     |            |           |         |
 | batch-lift                   |           |          |       x       |                |                    |           |            |           |         |
 | reconstruct-types            |           |          |       x       |                |                    |           |            |           |         |
 | com-interface-reconstruction |           |          |               |      x\*       |                    |           |            |           |         |
-| state-machine-extractor      |           |          |               |      x\*       |                    |           |            |           |         |
-| data-flow-tracer             |           |    x     |               |      x\*       |                    |           |            |           |         |
 | function-index               |     x     |    x     |               |       x        |         x          |     x     |     x      |           |         |
 | import-export-resolver       |           |    x     |               |                |                    |           |            |           |         |
 | re-analyst                   |           |          |               |                |                    |           |     x      |           |         |
-| adversarial-reasoning        |           |          |               |                |                    |           |            |           |    x    |
-| taint-analysis               |           |    x     |               |       x        |                    |           |            |           |    x    |
 | unified-search               |           |          |               |                |                    |           |            |     x     |
 
 \*Conditional -- only if relevant signals are detected in earlier phases.
@@ -674,14 +592,6 @@ Some commands reference **methodology skills** -- documentation-only skills that
 
 | Command          | Methodology Skill        | Effect                                                                                      |
 | ---------------- | ------------------------ | ------------------------------------------------------------------------------------------- |
-| `/audit`         | finding-verification     | Findings are verified against assembly ground truth before severity assignment               |
-| `/audit`         | deep-context-builder     | Agent builds block-by-block understanding before drawing conclusions                        |
-| `/explain`       | deep-context-builder     | Agent builds block-by-block understanding of the function before synthesizing explanation    |
-| `/hunt-plan`     | adversarial-reasoning    | Hypothesis generation, attack pattern matching, and variant analysis guide research planning |
-| `/hunt-execute`  | finding-verification     | Each hypothesis is validated against evidence with confidence scoring                       |
-| `/scan`          | finding-verification     | Detected vulnerabilities are verified to eliminate false positives before reporting          |
-| `/verify-finding` | finding-verification    | Dedicated command for verifying findings with full gate review workflow                      |
-| `/brainstorm`    | brainstorming, adversarial-reasoning | Strategic planning with pipeline templates; reads adversarial-reasoning on demand for VR campaigns |
 
 ## Vulnerability Scanning: `/scan` vs Focused Commands
 
@@ -691,11 +601,10 @@ Some commands reference **methodology skills** -- documentation-only skills that
 | ----------------------- | ------------------------------------------ |
 | Comprehensive module-wide vulnerability coverage | `/scan <module>` -- runs all scanners, adds exploitability scoring |
 | Only memory corruption (buffer overflow, UAF, integer, format string) | `/memory-scan <module>` |
-| Only logic vulnerabilities (auth bypass, state errors, TOCTOU) | `/logic-scan <module>` |
+| Only logic vulnerabilities (auth bypass, state errors, TOCTOU) | `/ai-logical-bug-scan <module>` |
 | Only taint analysis (source-to-sink tracing) | `/taint <module> <function>` |
 | Breadth-first audit of top entry points | `/batch-audit <module>` -- dossier + taint + exploitability per function |
 | Deep single-function audit | `/audit <module> <function>` -- full pipeline with backward trace, verification, call chain |
-| Verify specific findings are real (not false positives) | `/verify-finding <module> <function>` -- gate review with data flow + attacker control + devil's advocate |
 
 `/batch-audit` trades depth for breadth: it runs dossier + taint + exploitability + classification for each function, but omits the full `/audit` pipeline (backward trace, decompiler verification, call chain analysis). Use `/batch-audit` to prioritize targets, then `/audit` for the most interesting ones.
 
@@ -705,13 +614,11 @@ The reconnaissance commands form a strict depth progression, while the security 
 
 ```mermaid
 flowchart LR
-    QS["/quickstart"] -->|"subset of"| TR["/triage"]
     TR -->|"subset of"| FR["/full-report"]
     TR -->|"--with-security overlaps"| SC["/scan"]
     TR -->|"--with-security overlaps"| BA["/batch-audit"]
 
     subgraph recon ["Reconnaissance Commands"]
-        QS
         TR
         FR
     end
@@ -724,13 +631,12 @@ flowchart LR
 
 | Command | Scope | Depth | Steps | Grind Loop | Security Coverage |
 |---------|-------|-------|-------|------------|-------------------|
-| `/quickstart` | Module | Quick look | 3 (classify, entries, callgraph) | No | None |
 | `/triage` | Module | Thorough orientation | 5-6 (identity, classify, callgraph, attack surface, optional taint) | No | Optional lightweight taint on top 3-5 entries (`--with-security`) |
 | `/full-report` | Module | Exhaustive | 6 phases (identity, classify, attack surface + dossiers + taint, topology + diagrams, specialized, synthesis) | Yes | Taint + dossiers on top entries (always), COM/dispatch/types (adaptive) |
 | `/scan` | Module | Deep (security-only) | 5 phases (8 scanners + taint, merge, verify, exploitability, synthesis) | Yes | Full: memory corruption + logic flaws + taint + verification + exploitability |
 | `/batch-audit` | Per-function | Deep (security-only) | Per-function pipeline (dossier, taint, exploitability, classify) | Yes | Dossier + taint + exploitability per function; privilege-boundary discovery |
 
-No two commands are redundant -- each occupies a distinct point on the depth/breadth spectrum. `/triage` is the natural "second command" after `/quickstart` and the natural stepping stone toward `/full-report`, `/scan`, or `/audit`.
+No two commands are redundant -- each occupies a distinct point on the depth/breadth spectrum. `/triage` is the natural first command and the natural stepping stone toward `/full-report`, `/scan`, or `/audit`.
 
 ## Files
 
@@ -743,30 +649,21 @@ No two commands are redundant -- each occupies a distinct point on the depth/bre
   lift-class.md             # /lift-class
   full-report.md            # /full-report
   compare-modules.md        # /compare-modules
-  verify-decompiler.md      # /verify-decompiler
-  verify-finding.md         # /verify-finding
   explain.md                # /explain
   search.md                 # /search
   reconstruct-types.md      # /reconstruct-types
-  data-flow.md              # /data-flow
-  state-machines.md         # /state-machines
   cache-manage.md           # /cache-manage
   runs.md                   # /runs
-  data-flow-cross.md        # /data-flow-cross
-  verify-decompiler-batch.md # /verify-decompiler-batch
   health.md                 # /health
   taint.md                  # /taint
-  brainstorm.md             # /brainstorm
   hunt-plan.md              # /hunt-plan
   hunt-execute.md           # /hunt-execute
   batch-audit.md            # /batch-audit
   xref.md                   # /xref
-  quickstart.md             # /quickstart
   memory-scan.md            # /memory-scan
-  logic-scan.md             # /logic-scan
+  ai-logical-bug-scan.md    # /ai-logical-bug-scan
   callgraph.md              # /callgraph
   imports.md                # /imports
-  strings.md                # /strings
   scan.md                   # /scan
   diff.md                   # /diff
   prioritize.md             # /prioritize

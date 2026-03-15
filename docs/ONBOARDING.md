@@ -10,7 +10,7 @@ using IDA Pro. The `.agent` directory provides the Agent Analysis Runtime
 built on top of that extracted data: specialized agents, analysis skills,
 slash commands, and a shared helper library.
 
-## Quickstart (5 Minutes)
+## Getting Started (5 Minutes)
 
 ### 1. Check health
 
@@ -95,7 +95,6 @@ Each module has:
 /explain appinfo.dll <function>       # What does it do?
 /search appinfo.dll CreateProcess     # Find related functions
 /audit appinfo.dll <export> --diagram  # Audit export with call graph
-/data-flow appinfo.dll <function>     # Where does data go?
 ```
 
 ### Code Lifting Workflow
@@ -103,7 +102,6 @@ Each module has:
 ```
 /reconstruct-types appinfo.dll        # Discover structs/classes
 /lift-class appinfo.dll CMyClass      # Lift all class methods
-/verify-decompiler appinfo.dll <method>          # Verify lifted code accuracy
 ```
 
 ### Full Analysis Workflow
@@ -122,14 +120,9 @@ Each module has:
 | `/explain <module> <function>`    | Explain what a function does              |
 | `/search <module> <term>`         | Search functions, strings, APIs           |
 | `/audit <module> <function>`      | Security audit with dossier               |
-| `/verify-decompiler <module> <function>`     | Check decompiler accuracy                 |
-| `/verify-decompiler-batch <module>`          | Batch verify all functions                |
 | `/lift-class <module> <class>`    | Lift C++ class methods                    |
 | `/audit <module> <export> --diagram` | Audit with call graph from export      |
-| `/data-flow <module> <function>`  | Trace data flow (forward/backward)        |
-| `/data-flow-cross <function>`     | Cross-module data flow                    |
 | `/reconstruct-types <module>`     | Reconstruct struct/class types            |
-| `/state-machines <module>`        | Find dispatch tables and state machines   |
 | `/compare-modules <A> <B>`        | Compare two modules                       |
 | `/full-report <module>`           | Comprehensive multi-phase report          |
 | `/cache-manage`                   | View/clear analysis cache                 |
@@ -143,7 +136,6 @@ Each module has:
     re-analyst/      # General RE analysis and explanation
     triage-coordinator/  # Orchestrates multi-skill pipelines
     type-reconstructor/  # Reconstructs C++ structs/classes
-    verifier/        # Verifies lifted code against assembly
   skills/          # Analysis skills (each with scripts/)
   helpers/         # Shared library: DB access, errors, caching, search
   commands/        # Slash command definitions

@@ -157,11 +157,40 @@ Each run directory:
 
 - Cleaned by sessionEnd hook when older than `workspace_cleanup_age_hours` (default 48)
 
-### No Dedicated Findings Storage
+### Findings Store (Persistent, Cross-Session)
 
-- **Findings** from scans/audits are stored in **workspace run step outputs** (`results.json`, `summary.json`), not in a central findings DB
-- **Prioritized findings** (`/prioritize`) are output in chat; no persistent store unless the user saves them
-- **Brainstorm** and **replan** read from `.agent/cache/` and `.agent/workspace/` manifests
+A SQLite-backed findings store at `.agent/cache/findings.db` accumulates confirmed findings across scan runs, enabling cross-session prioritization without re-running scans.
+
+**Path:** `.agent/cache/findings.db`
+
+**Retention policy:** 30 days default (configurable via `findings_store.retention_days` in `config/defaults.json`). Older entries are purged automatically during workspace cleanup.
+
+**Upsert semantics (score monotone-increasing):**
+- New finding → INSERT
+- Same `dedup_key`, higher score → UPDATE all fields
+- Same `dedup_key`, equal or lower score → UPDATE metadata only (`verification_status`, `updated_at`)
+
+This ensures findings never regress to a lower-confidence state from a noisier scan run.
+
+**Primary consumer:** `/prioritize` reads from the store first (via `load_findings(module=module_name)`), falling back to cache file glob patterns only when the store has no results for a given module.
+
+**Populated by:** `run_security_scan.py` Phase 6 (`_phase_report(..., persist=True)`) — only the final merged+deduped report is persisted, not interim phase outputs.
+
+**Public API** (`helpers.findings_store`):
+
+| Function | Description |
+|----------|-------------|
+| `upsert_finding(finding, run_id)` | Insert or update by `dedup_key` (monotone-increasing score) |
+| `load_findings(module, min_score, severity, source_type, limit)` | Load findings with optional filters |
+| `load_findings_for_run(run_id)` | Load all findings from a specific scan run |
+| `update_verification(dedup_key, status, score)` | Update verification status and score |
+| `update_exploitability(dedup_key, score, rating)` | Update exploitability fields |
+| `purge_old_findings(older_than_days)` | Delete stale findings; returns count deleted |
+| `get_summary(module)` | Aggregate counts by severity/module/source_type |
+
+Also available via `FindingsStore` class for bound `db_path` usage.
+
+**Brainstorm** and **replan** continue to read from `.agent/cache/` and `.agent/workspace/` manifests.
 
 ---
 
@@ -182,6 +211,7 @@ Each run directory:
 | Hunt plans | `.agent/workspace/*_hunt_plan_*.json` | Same as workspace runs |
 | Cache | `.agent/cache/{module}/{operation}.json` | 24h TTL, or size eviction |
 | Agent state | `.agent/agents/<agent>/state/*.json` | Until 48h stale |
+| Findings store | `.agent/cache/findings.db` | 30d TTL (`findings_store.retention_days`); purged on workspace cleanup |
 
 ### Session Lifecycle Hooks
 
@@ -198,6 +228,8 @@ Each run directory:
   - `hooks.workspace_cleanup_age_hours`: 48
   - `cache.max_age_hours`: 24
   - `cache.max_cache_size_mb`: 500
+  - `findings_store.db_path`: `.agent/cache/findings.db`
+  - `findings_store.retention_days`: 30
 
 ---
 
@@ -210,3 +242,4 @@ Each run directory:
 | Hunt plan | Cross-session | 48h default | Hypotheses for `/hunt-execute` |
 | Cache | Cross-session | 24h TTL | Skill script results |
 | Agent state | Cross-session | 48h default | Per-agent iteration state |
+| Findings store | Cross-session | 30d default | Accumulated scan findings for `/prioritize` |

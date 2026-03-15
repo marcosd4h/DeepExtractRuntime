@@ -2,17 +2,17 @@
 
 ## Overview
 
-Unified vulnerability scan that orchestrates all three detection pipelines (memory corruption, logic vulnerabilities, and taint analysis), deduplicates overlapping findings, verifies them against assembly, and scores exploitability. Produces a consolidated, severity-ranked findings report.
+Unified vulnerability scan that orchestrates recon, AI scanner context preparation, taint analysis, assembly verification, exploitability scoring, and deduplication into a single pipeline. Produces a consolidated, severity-ranked findings report.
 
-This command is the comprehensive alternative to running `/memory-scan`, `/logic-scan`, and `/taint` separately.
+The pipeline prepares workspace context for the AI-driven memory-corruption, logic, and taint scanners, launches LLM scanner subagents, scores exploitability across all finding types, and merges everything into a deduplicated report.
 
 Usage:
 
-- `/scan appinfo.dll` -- full scan (all detectors + taint on top entries + verification + exploitability)
-- `/scan appinfo.dll --top 15` -- limit to top 15 findings per category
-- `/scan appinfo.dll --memory-only` -- only memory corruption detection
-- `/scan appinfo.dll --logic-only` -- only logic vulnerability detection
-- `/scan appinfo.dll --taint-only` -- only taint analysis on entry points
+- `/scan appinfo.dll` -- full scan (recon + AI context + taint + verify + exploit + report)
+- `/scan appinfo.dll --top 15` -- analyze top 15 entry points
+- `/scan appinfo.dll --taint-only` -- delegate to `/taint` (AI-driven taint scanner)
+- `/scan appinfo.dll --memory-only` -- delegate to `/memory-scan` (AI-driven scanner)
+- `/scan appinfo.dll --logic-only` -- delegate to `/ai-logical-bug-scan` (AI-driven scanner)
 - `/scan appinfo.dll <function>` -- all detectors on a specific function
 - `/scan appinfo.dll --auto-audit` -- after scanning, automatically audit the top 3 CRITICAL/HIGH findings
 - `/scan appinfo.dll --no-cache` -- bypass cached results for all scanners
@@ -71,16 +71,24 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module
    ```
 
    The script handles all phases internally with parallel execution and deduplication:
+
    - **Phase 1 (Recon)**: Classify functions, discover entry points, rank by attack value, gather IPC context (RPC/COM/WinRT)
-   - **Phase 2 (Vulnerability Scanning)**: Memory corruption (4 scanners) + logic vulnerability (4 scanners) in parallel
-   - **Phase 3 (Taint Analysis)**: Taint analysis on top ranked entry points
-   - **Phase 4 (Verification)**: `verify_findings.py` for both memory and logic findings
-   - **Phase 5 (Exploitability)**: `assess_finding.py` / `batch_assess.py` with guard bypass and primitive quality scoring
-   - **Phase 6 (Synthesis)**: Merged, deduplicated, severity-ranked findings report
+   - **Phase 2 (Scanner Context Preparation)**: Build threat models and callgraph context for all three AI scanners (memory-corruption, logic, taint). Runs `build_threat_model.py` and `prepare_context.py` for each scanner skill. These workspace artifacts are consumed by the coordinator-launched scanner subagents.
+   - **Phase 3 (Taint Context)**: Per-function taint-enriched callgraph context for top entry points (consumed by taint-scanner subagent)
+   - **Phase 4 (Exploitability)**: `assess_finding.py` with `--taint-report`, `--memory-findings`, and `--logic-findings` for unified scoring with guard bypass and primitive quality analysis
+   - **Phase 5 (Synthesis)**: Merged, deduplicated, severity-ranked findings report
+
+3. **Launch AI scanner subagents** (coordinator responsibility)
+   After Phase 2 completes, the coordinator launches scanner subagents that consume the prepared workspace:
+   - **memory-corruption-scanner**: Reads `mem_threat_model` and `mem_context` from workspace, performs LLM-driven memory corruption analysis, writes results to `mem_findings/results.json`
+   - **logic-scanner**: Reads `logic_threat_model` and `logic_context` from workspace, performs LLM-driven logic vulnerability analysis, writes results to `logic_findings/results.json`
+   - **taint-scanner**: Reads `taint_threat_model`, `taint_context`, and per-function taint contexts from workspace, performs LLM-driven taint analysis, writes results to `taint_findings/results.json`
+
+   These subagents run after Phase 2 (or in parallel with Phase 3 context prep). Their output is picked up by Phase 4 for exploitability scoring.
 
    **Cache bypass:** When the user specifies `--no-cache`, pass `--no-cache` to `run_security_scan.py`.
 
-   **Mode mapping:** `--memory-only`, `--logic-only`, and `--taint-only` modes are not directly supported by `run_security_scan.py`. For these, fall back to running the individual skill scripts directly (as documented in the memory-corruption-detector, logic-vulnerability-detector, and taint-analysis skills respectively).
+   **Mode mapping:** `--logic-only`, `--taint-only`, and `--memory-only` modes delegate to their respective commands: `/ai-logical-bug-scan`, `/taint`, and `/memory-scan`.
 
 ### Synthesize Report
 
@@ -104,9 +112,9 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module
 - Cross-pipeline correlation (if the same function flagged by multiple pipelines)
 
 **Pipeline Breakdown:**
-- Memory corruption: buffer overflows, integer issues, UAF, format strings
-- Logic vulnerabilities: auth bypass, state errors, TOCTOU, missing checks
-- Taint analysis: attacker-reachable sinks with guard/bypass analysis
+- Memory corruption: threat model + callgraph context prepared in Phase 2, scanned by memory-corruption-scanner subagent
+- Logic vulnerabilities: threat model + callgraph context prepared in Phase 2, scanned by logic-scanner subagent
+- Taint analysis: threat model + taint-enriched callgraph context prepared in Phases 2-3, scanned by taint-scanner subagent
 
 **Recommended Next Steps:**
 - `/audit <module> <function>` -- deep audit on CRITICAL/HIGH findings
@@ -114,24 +122,23 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module
 - `/hunt-plan hypothesis <type> <module>` -- hypothesis-driven investigation on patterns
 - `/explain <module> <function>` -- understand what a flagged function does
 
-Check off Phase 5.
+Check off Phase 4.
 
-### Phase 6: Auto-Audit (conditional -- only when `--auto-audit` is specified)
+### Phase 5: Auto-Audit (conditional -- only when `--auto-audit` is specified)
 
 If `--auto-audit` was passed, automatically run `/audit` on the top 3 CRITICAL or HIGH exploitability findings:
 
 1. Select up to 3 findings with exploitability rating CRITICAL or HIGH (skip duplicates from the same function).
 2. For each finding, execute the `/audit` pipeline:
    - Security dossier + decompiled code extraction
-   - Backward taint trace to confirm attacker control
-   - Decompiler verification
+   - Skeptic verification against assembly ground truth
    - Deep-context analysis
 3. Store per-function audit results in `<run_dir>/auto_audit/<function_name>/results.json`.
 4. Append an **Auto-Audit Findings** section to the report with each audited function's detailed assessment.
 
 This phase uses the grind loop -- add auto-audit items to the scratchpad and process them iteratively.
 
-Set Status to DONE after Phase 5 (or Phase 6 if auto-audit is active).
+Set Status to DONE after Phase 4 (or Phase 5 if auto-audit is active).
 
 ## Output
 
@@ -143,7 +150,8 @@ All saved files must include a provenance header: generation date, module name, 
 
 - **Module not found**: List available modules via `find_module_db.py --list` and ask user
 - **Function not found**: Run fuzzy search and suggest close matches
-- **Scanner failure**: Log error, continue with results from successful scanners
+- **Scanner context failure**: Log warning, continue with available scanners (graceful degradation)
+- **Scanner subagent failure**: Log error, continue with results from successful scanners
 - **Verification failure**: Present unverified findings with a note
 - **Exploitability assessment failure**: Present findings without exploitability scores
 - **No findings**: Report "no vulnerabilities detected across all pipelines" as a valid result

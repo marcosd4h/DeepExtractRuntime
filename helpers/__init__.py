@@ -13,7 +13,6 @@ Modules:
     progress            -- Progress indicators for long-running operations
     validation          -- DB schema validation and integrity checking
     config              -- Hierarchical configuration with env-var overrides
-    asm_metrics         -- Assembly instruction metric extraction heuristics
     logging_config      -- Centralized logging configuration for debug/trace output
     module_discovery    -- Canonical module/DB directory scanning (iter_module_dirs, iter_module_dbs)
     workspace           -- Workspace run-directory I/O primitives (create_run_dir, list_runs, write_results, ...)
@@ -37,6 +36,8 @@ Standalone scripts:
                            Run directly:  python .agent/helpers/select_audit_callees.py <db_path> --dossier <path> [--json]
     select_backward_traces.py -- Select backward trace targets for /audit Step 3c.
                            Run directly:  python .agent/helpers/select_backward_traces.py --dossier <path> [--json]
+    ipc_index_inspect.py    -- IPC index diagnostics (COM/RPC/WinRT server counts, module attribution, edge counts).
+                           Run directly:  python .agent/helpers/ipc_index_inspect.py --summary [--json]
 
 All public symbols are lazily imported on first access to avoid loading
 all 30+ submodules when only a few are needed.
@@ -113,13 +114,6 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     # function_resolver
     "resolve_function": (".function_resolver", None),
     "search_functions_by_pattern": (".function_resolver", None),
-    # string_taxonomy
-    "STRING_CATEGORIES_LIST": (".string_taxonomy", "CATEGORIES"),
-    "STRING_TAXONOMY": (".string_taxonomy", None),
-    "TAXONOMY_TO_CLASSIFICATION": (".string_taxonomy", None),
-    "_categorize_string": (".string_taxonomy", "categorize_string"),
-    "_categorize_string_simple": (".string_taxonomy", "categorize_string_simple"),
-    "_categorize_strings": (".string_taxonomy", "categorize_strings"),
     # type_constants
     "IDA_TO_C_TYPE": (".type_constants", None),
     "SIZE_TO_C_TYPE": (".type_constants", None),
@@ -206,9 +200,9 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     "ImportEntry": (".import_export_index", None),
     "ImportExportIndex": (".import_export_index", None),
     # param_risk
-    "HIGH_RISK_PARAM_PATTERNS": (".param_risk", None),
+    "PARAM_TYPE_PATTERNS": (".param_risk", None),
     "BUFFER_SIZE_PAIR_PATTERNS": (".param_risk", None),
-    "score_parameter_risk": (".param_risk", None),
+    "describe_parameter_surface": (".param_risk", None),
     # progress
     "ProgressReporter": (".progress", None),
     "progress_iter": (".progress", None),
@@ -229,20 +223,9 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     "AgentOrchestrator": (".agent_common", None),
     "AgentStep": (".agent_common", None),
     "AgentStepResult": (".agent_common", None),
-    # asm_patterns
-    "ASM_BRANCH_RE": (".asm_patterns", None),
-    "ASM_CALL_RE": (".asm_patterns", None),
-    "ASM_GLOBAL_RE": (".asm_patterns", None),
-    "ASM_LOAD_RE": (".asm_patterns", None),
-    "ASM_MEM_OFFSET_RE": (".asm_patterns", None),
-    "ASM_PROLOGUE_SAVE_RE": (".asm_patterns", None),
-    "ASM_PTR_RE": (".asm_patterns", None),
-    "ASM_RET_RE": (".asm_patterns", None),
-    "ASM_SYSCALL_RE": (".asm_patterns", None),
-    "CALL_TARGET_RE": (".asm_patterns", None),
-    "IMP_PREFIX_RE": (".asm_patterns", None),
-    "IDA_PARAM_RE": (".asm_patterns", None),
-    "strip_import_prefix": (".asm_patterns", None),
+    # api_taxonomy (import-prefix utilities)
+    "strip_import_prefix": (".api_taxonomy", None),
+    "IMP_PREFIX_RE": (".api_taxonomy", None),
     # calling_conventions
     "ASM_PTR_SIZES": (".calling_conventions", None),
     "ASM_REG_SIZES": (".calling_conventions", None),
@@ -254,7 +237,6 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     # decompiled_parser
     "extract_balanced_parens": (".decompiled_parser", None),
     "extract_function_calls": (".decompiled_parser", None),
-    "find_param_in_calls": (".decompiled_parser", None),
     "split_arguments": (".decompiled_parser", None),
     # struct_scanner
     "merge_scanned_struct_fields": (".struct_scanner", "merge_struct_fields"),
@@ -286,24 +268,6 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     # workspace_bootstrap
     "prepare_step": (".workspace_bootstrap", None),
     "complete_step": (".workspace_bootstrap", None),
-    # guard_classifier
-    "Guard": (".guard_classifier", None),
-    "classify_guard": (".guard_classifier", None),
-    "find_guards_between": (".guard_classifier", None),
-    # def_use_chain
-    "TaintResult": (".def_use_chain", None),
-    "VarDef": (".def_use_chain", None),
-    "VarUse": (".def_use_chain", None),
-    "analyze_taint": (".def_use_chain", None),
-    "parse_def_use": (".def_use_chain", None),
-    "propagate_taint": (".def_use_chain", None),
-    # constraint_collector
-    "Constraint": (".constraint_collector", None),
-    "ConstraintSet": (".constraint_collector", None),
-    "collect_constraints": (".constraint_collector", None),
-    # constraint_solver
-    "FeasibilityResult": (".constraint_solver", None),
-    "check_feasibility": (".constraint_solver", None),
     # sddl_parser
     "ParsedACE": (".sddl_parser", None),
     "parse_sddl_aces": (".sddl_parser", None),
@@ -314,11 +278,6 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     "validate_command_args": (".command_validation", None),
     "validate_function_arg": (".command_validation", None),
     "validate_module": (".command_validation", None),
-    # asm_metrics
-    "AsmMetrics": (".asm_metrics", None),
-    "count_asm_calls": (".asm_metrics", None),
-    "count_asm_instructions": (".asm_metrics", None),
-    "get_asm_metrics": (".asm_metrics", None),
     # finding_schema
     "Finding": (".finding_schema", None),
     "from_taint_finding": (".finding_schema", None),
@@ -340,11 +299,6 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     "RpcStubFile": (".rpc_stub_parser", None),
     "parse_stub_file": (".rpc_stub_parser", None),
     "load_stubs_from_directory": (".rpc_stub_parser", None),
-    # rpc_procedure_classifier
-    "ProcedureClassification": (".rpc_procedure_classifier", None),
-    "classify_procedure": (".rpc_procedure_classifier", None),
-    "classify_procedures": (".rpc_procedure_classifier", None),
-    "summarize_classifications": (".rpc_procedure_classifier", None),
     # winrt_index
     "WinrtIndex": (".winrt_index", None),
     "WinrtServer": (".winrt_index", None),
@@ -363,6 +317,31 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     "invalidate_com_index": (".com_index", None),
     # ipc_workspace
     "discover_workspace_ipc_servers": (".ipc_workspace", None),
+    # findings_store
+    "FindingsStore":         (".findings_store", None),
+    "upsert_finding":        (".findings_store", None),
+    "load_findings":         (".findings_store", None),
+    "load_findings_for_run": (".findings_store", None),
+    "update_verification":   (".findings_store", None),
+    "update_exploitability": (".findings_store", None),
+    "purge_old_findings":    (".findings_store", None),
+    "get_summary":           (".findings_store", "get_summary"),
+    # taint_helpers
+    "TaintContext": (".taint_helpers", None),
+    "classify_sink": (".taint_helpers", None),
+    "classify_module_trust": (".taint_helpers", None),
+    "classify_trust_transition": (".taint_helpers", None),
+    "resolve_tainted_params": (".taint_helpers", None),
+    "compute_finding_score": (".taint_helpers", None),
+    "resolve_vtable_callees": (".taint_helpers", None),
+    "detect_rpc_boundaries": (".taint_helpers", None),
+    "detect_return_taint": (".taint_helpers", None),
+    "find_return_assignment_targets": (".taint_helpers", None),
+    "SINK_SEVERITY": (".taint_helpers", None),
+    "SOURCE_SEVERITY": (".taint_helpers", None),
+    "UNTRUSTED_INPUT_APIS": (".taint_helpers", None),
+    "TRUST_LEVELS": (".taint_helpers", None),
+    "TRUST_LEVEL_RANK": (".taint_helpers", None),
 }
 # Standalone CLI scripts (not importable library modules):
 #   json_extract -- run via: python .agent/helpers/json_extract.py <file> <key>

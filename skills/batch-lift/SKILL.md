@@ -25,7 +25,7 @@ This skill orchestrates **batch lifting** by:
 ## When NOT to Use
 
 - Lifting a single function in isolation -- use **code-lifting** or the **code-lifter** agent
-- Vulnerability scanning or security analysis of functions -- use **memory-corruption-detector** or **logic-vulnerability-detector**
+- Vulnerability scanning or security analysis of functions -- use **ai-memory-corruption-scanner** or **ai-logic-scanner**
 - Understanding what a function does without rewriting it -- use **re-analyst** or `/explain`
 - Reconstructing types without lifting code -- use **reconstruct-types**
 - Tracing call chains without lifting the functions -- use **callgraph-tracer**
@@ -149,7 +149,6 @@ Batch Lift Progress:
 - [ ] Step 4: Review struct definitions and lift order
 - [ ] Step 5: Lift each function in dependency order
 - [ ] Step 6: Assemble final .cpp output
-- [ ] Step 7: Independent verification -- verifier agent confirms equivalence
 ```
 
 **Step 1**: Find the module DB
@@ -195,9 +194,7 @@ python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> -
 - **Accumulate constants** -- when a constant is identified in one function, apply it to all
 - **Check off each function** in the scratchpad as you complete it
 
-**Step 6**: Assemble the final output file (see Output Format below).
-
-**Step 7**: Run independent verification (see [Independent Verification](#independent-verification-verifier-agent) below). Verify the most critical functions first -- constructors, destructors, and any methods with complex control flow. Set scratchpad Status to `DONE` after verification passes or issues are resolved.
+**Step 6**: Assemble the final output file (see Output Format below). Set scratchpad Status to `DONE` after all functions are lifted and assembled.
 
 ### Workflow 2: "Lift a Call Chain"
 
@@ -215,7 +212,6 @@ Batch Lift Progress:
 - [ ] Step 4: Generate the lift plan
 - [ ] Step 5: Lift in dependency order (callees first)
 - [ ] Step 6: Assemble final output
-- [ ] Step 7: Independent verification -- verifier agent confirms equivalence
 ```
 
 **Step 1**: Find the module DB
@@ -252,8 +248,6 @@ python .agent/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.
 
 **Step 6**: Assemble (see Output Format).
 
-**Step 7**: Run independent verification (see [Independent Verification](#independent-verification-verifier-agent) below). Focus on the root function and any complex callees.
-
 ### Workflow 3: "Lift from Export Down N Levels"
 
 Starts from a module's exported function and lifts its implementation subtree.
@@ -266,53 +260,7 @@ python .agent/skills/batch-lift/scripts/collect_functions.py <db_path> --export 
 python .agent/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json
 ```
 
-Follows the same Steps 4-7 as Workflow 2, including independent verification. The script confirms whether the starting function is actually in the module's export table.
-
-## Independent Verification (Verifier Agent)
-
-After assembling the final output (Step 6 in all workflows), run independent verification using the **verifier subagent**. The verifier operates with fresh context -- it has no knowledge of your lifting process, preventing confirmation bias.
-
-### Why verify after batch lifting?
-
-Batch lifting compounds error risk: a wrong struct offset propagated to all functions, a constant misidentified early that infects later lifts, or cross-reference naming inconsistencies. The verifier catches these systematically.
-
-### How to verify
-
-**1. Save the assembled output** to a file (e.g., `<module>_<class>_lifted.cpp`).
-
-**2. Launch the verifier** for the most critical functions using the `Task` tool with `subagent_type="verifier"`. For a batch of N functions, prioritize:
-
-- **Always verify**: constructors, destructors, exported functions, functions with complex control flow (high branch count)
-- **Verify if time allows**: simple getters/setters, small helper functions
-
-For each function to verify, provide the verifier with:
-
-- The **DB path**
-- The **function name** (or function ID)
-- The **path to the saved lifted code file**
-
-Example prompt for the verifier subagent:
-
-> Verify that the lifted code at `<lifted_file_path>` faithfully represents the original binary behavior for function `<function_name>` in `<db_path>`.
->
-> Run `compare_lifted.py` with `--json`, then perform block-by-block manual verification using `extract_basic_blocks.py`. Report your verdict (PASS/WARN/FAIL) with evidence for any discrepancies.
-
-The verifier runs automated checks (call count, branch count, string literals, API names, globals, memory offsets) and then performs manual block-by-block comparison against assembly.
-
-**3. Act on the verdict:**
-
-| Verdict | Action |
-| ------- | ------ |
-| **PASS** | Deliver the lifted code as-is |
-| **WARN** | Review the specific warnings; fix if genuine, then re-verify or deliver with noted caveats |
-| **FAIL** | Fix the identified discrepancies, update the shared struct if needed (changes propagate to all functions), then re-run the verifier on affected functions |
-
-**4. For large batches (10+ functions)**, verify in stages:
-
-- Verify the constructor first (it defines the struct)
-- Verify 2-3 complex methods
-- If those pass, spot-check 1-2 simpler methods
-- If any fail due to shared struct issues, fix the struct and re-verify all functions that use the affected fields
+Follows the same Steps 4-6 as Workflow 2. The script confirms whether the starting function is actually in the module's export table.
 
 ## Progressive Struct Accumulation
 
@@ -424,7 +372,6 @@ For programmatic use without skill scripts:
 |------|-------------------|
 | Extract function data before lifting | decompiled-code-extractor |
 | Reconstruct struct types for field access | reconstruct-types |
-| Verify lifted code against assembly | verify-decompiled |
 | Trace call chains to find related functions | callgraph-tracer |
 | Classify functions to prioritize lifting targets | classify-functions |
 
@@ -442,6 +389,5 @@ For programmatic use without skill scripts:
 - For individual function lifting workflow, see [code-lifting](../code-lifting/SKILL.md)
 - For call graph analysis and chain tracing, see [callgraph-tracer](../callgraph-tracer/SKILL.md)
 - For deep struct/class reconstruction, see [reconstruct-types](../reconstruct-types/SKILL.md)
-- For code analysis, see [analyze-ida-decompiled](../analyze-ida-decompiled/SKILL.md)
 - For detailed technical reference, see [reference.md](reference.md)
 - For DB schema and JSON field formats, see [data_format_reference.md](../../docs/data_format_reference.md)

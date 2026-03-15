@@ -35,7 +35,8 @@ Before fetching any data, determine which tool to use:
 | Computed analysis (classification, taint, call graph, etc.) | **Shell** -- run the skill script with `--json`, read output from Shell result |
 | Workspace step results from a prior pipeline run | **Read tool** on `<run_dir>/<step>/results.json` |
 | Module identity (file size, hashes, PDB, security posture) | Already in coordinator output `module_identity` dict (triage/security/full goals) |
-| Specific field from a large JSON file (agent-tools output, workspace results) | `python .agent/helpers/json_extract.py <file> <key>`, or Read tool with line range, or Grep tool |
+| Specific field from a large JSON file (agent-tools output, workspace results) | `python .agent/helpers/json_extract.py <file> <key>` (auto-unwraps workspace envelopes), or Read tool with line range, or Grep tool |
+| IPC index diagnostics (COM/RPC/WinRT server counts, module attribution, edge counts) | `python .agent/helpers/ipc_index_inspect.py --summary` or `--com`/`--rpc`/`--winrt` `--module <name>` or `--edges` or `--check-hosts` |
 
 ## Positive Alternatives
 
@@ -43,8 +44,9 @@ Before fetching any data, determine which tool to use:
 |---|---|
 | `script.py --json 2>/dev/null` | `script.py --json` (let stderr flow) |
 | `script.py --json \| python -c "..."` | `script.py --json` then read Shell output directly |
-| Extract specific data from large JSON output | `python .agent/helpers/json_extract.py <file> <key>` or `Grep` tool on the file |
+| Extract specific data from large JSON output | `python .agent/helpers/json_extract.py <file> <key>` or `Grep` tool on the file (json_extract auto-unwraps workspace envelopes; use `--raw` to query the envelope itself) |
 | `script.py --json 2>&1 \| ...` | `script.py --json` (streams stay separate automatically) |
 | Shell to read a JSON file | Read tool on the file path |
 | `extract_function_data.py` for module metadata | Read `file_info.json` or `module_profile.json`, or use coordinator `module_identity` |
+| `extract_function_data.py ... 2>/dev/null \| python -c "...d.get('assembly'...)"` | Run `extract_function_data.py <db_path> --function <name> --json` standalone; read **`assembly_code`** and **`decompiled_code`** directly from Shell output (wrong name `assembly` returns `None` silently -- see field schema in script-invocation-guide) |
 | Unquoted backslash path: `json_extract.py C:\path\file` | Quoted: `json_extract.py "C:\path\file"` or forward slashes: `json_extract.py C:/path/file` |

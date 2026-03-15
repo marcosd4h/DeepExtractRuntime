@@ -76,7 +76,7 @@ Match the level of specificity in your instructions to the task's fragility. Thi
 
 ```markdown
 Run exactly this command:
-python .agent/skills/verify-decompiled/scripts/verify_function.py <db_path> --id <func_id> --json
+python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> --id <func_id> --json
 Do not modify flags or add additional arguments.
 ```
 
@@ -117,7 +117,6 @@ The `.agent/helpers/` library (35+ modules, 100+ public symbols) is the shared f
 - Building custom path resolution instead of using `resolve_db_path()` / `resolve_tracking_db()`
 - Writing ad-hoc API classification instead of using `classify_api()` or `classify_api_security()`
 - Rolling custom error output instead of using `emit_error()` / `log_warning()`
-- Implementing string categorization instead of using `categorize_string()` / `STRING_TAXONOMY`
 
 Using helpers ensures consistency across skills, prevents subtle bugs from divergent implementations, and lets every skill benefit when a helper is improved. Import helpers through your skill's `scripts/_common.py` so they are available to every script in the skill via a single import.
 
@@ -179,11 +178,11 @@ How will you know the skill is working?
 
 | Category        | Purpose                                     | Examples                                                            |
 | --------------- | ------------------------------------------- | ------------------------------------------------------------------- |
-| Analysis        | Automated inspection of binary data         | `classify-functions`, `data-flow-tracer`, `state-machine-extractor` |
+| Analysis        | Automated inspection of binary data         | `classify-functions`, `callgraph-tracer`                            |
 | Reconstruction  | Recovering higher-level structures          | `reconstruct-types`, `com-interface-reconstruction`                 |
 | Security        | Attack surface and vulnerability assessment | `map-attack-surface`, `security-dossier`                            |
-| Code Generation | Producing cleaned or lifted code            | `code-lifting`, `batch-lift`, `verify-decompiled`                   |
-| Reporting       | Synthesizing multi-source summaries         | `generate-re-report`, `deep-research-prompt`                        |
+| Code Generation | Producing cleaned or lifted code            | `batch-lift`                                                        |
+| Reporting       | Synthesizing multi-source summaries         | `generate-re-report`                                                |
 | Foundation      | Infrastructure used by other skills         | `decompiled-code-extractor`, `function-index`                       |
 
 ## 4. Skill Directory Structure
@@ -213,7 +212,7 @@ your-skill-name/
 - No spaces, no underscores, no capitals
 - The folder name must match the `name` field in YAML frontmatter
 
-**Documentation-only and workflow-only skills:** Not all skills require scripts. Skills like `analyze-ida-decompiled` (documentation) and `code-lifting` (workflow guidance) contain only SKILL.md, README.md, and reference material. They teach the agent _how to think_ about a task rather than providing executable entry points. If your skill is pure guidance with no computation, omit the `scripts/` directory entirely.
+**Documentation-only and workflow-only skills:** Not all skills require scripts. Some skills contain only SKILL.md, README.md, and reference material. They teach the agent _how to think_ about a task rather than providing executable entry points. If your skill is pure guidance with no computation, omit the `scripts/` directory entirely.
 
 ## 5. The SKILL.md File
 
@@ -502,7 +501,7 @@ COM VTable Layout Reference, Issue Categories and Severity, etc.)
 | Task | Recommended Skill |
 |------|------------------|
 | Follow up with deeper call chain analysis | callgraph-tracer |
-| Lift interesting functions to clean code | code-lifting / batch-lift |
+| Lift interesting functions to clean code | batch-lift |
 | Reconstruct struct types used by functions | reconstruct-types |
 
 ## Direct Helper Module Access
@@ -778,16 +777,16 @@ Beyond these, existing skills use a common vocabulary of additional arguments. U
 
 | Argument               | Purpose                                         | Used by                                                                    |
 | ---------------------- | ----------------------------------------------- | -------------------------------------------------------------------------- |
-| `--id <function_id>`   | Select function by numeric ID                   | callgraph-tracer, data-flow-tracer, security-dossier, verify-decompiled    |
-| `--function <name>`    | Select function by name                         | callgraph-tracer, deep-research-prompt                                     |
+| `--id <function_id>`   | Select function by numeric ID                   | callgraph-tracer, security-dossier                                          |
+| `--function <name>`    | Select function by name                         | callgraph-tracer                                                            |
 | `--search <pattern>`   | Regex pattern search                            | security-dossier, reconstruct-types                                        |
 | `--class <ClassName>`  | Filter to class methods                         | batch-lift, reconstruct-types                                              |
-| `--depth N`            | Traversal depth limit                           | callgraph-tracer, data-flow-tracer, deep-research-prompt, security-dossier |
+| `--depth N`            | Traversal depth limit                           | callgraph-tracer, security-dossier                                          |
 | `--top N`              | Limit to top-N results                          | classify-functions, map-attack-surface                                     |
 | `--output <file>`      | Write output to file                            | generate-re-report, com-interface-reconstruction, reconstruct-types        |
 | `--summary`            | Produce abbreviated output                      | batch-lift, callgraph-tracer, generate-re-report                           |
 | `--module <name>`      | Scope to a specific module                      | function-index, callgraph-tracer                                           |
-| `--tracking-db <path>` | Provide tracking DB for cross-module resolution | callgraph-tracer, deep-research-prompt                                     |
+| `--tracking-db <path>` | Provide tracking DB for cross-module resolution | callgraph-tracer                                                            |
 
 ### Script Entry Point Pattern
 
@@ -878,7 +877,7 @@ def resolve_module_db(module_name):
 **No voodoo constants.** Configuration parameters must be justified and documented. If you don't know the right value, the agent won't either.
 
 ```python
-CALLEE_DEPTH = 2
+CALLEE_DEPTH = 3
 MAX_RESULTS = 50
 ```
 
@@ -916,7 +915,7 @@ misinterpret values if the scale isn't stated:
 
 | Field                | Scale   | Misread Trap                   |
 |----------------------|---------|--------------------------------|
-| `param_risk_score`   | 0.0-1.0 | `0.7` = 70th percentile risk  |
+| `param_surface`      | dict    | Structured metadata: `has_buffer_size_pair`, `has_string_pointer`, `has_com_interface`, etc. |
 | `interest_score`     | 0-10    | Integer, not a fraction        |
 
 **Treat empty results as data points.** When an analysis produces zero results,
@@ -1027,17 +1026,15 @@ __all__ = [
 
 In practice, most skills add substantial domain logic to `_common.py`. Examples from existing skills:
 
-- **classify-functions**: `ClassificationResult` dataclass, `classify_function()` algorithm, `NAME_RULES`/`STRING_RULES` constants, category definitions
+- **classify-functions**: `ClassificationResult` dataclass, `classify_function()` algorithm, `NAME_RULES` constants, category definitions
 - **com-interface-reconstruction**: `COMInterface`/`WRLClassInfo`/`QIImplementation` dataclasses, COM vtable constants, mangled name parsing functions
-- **state-machine-extractor**: `CaseEntry`/`DispatchTable`/`StateMachine` dataclasses, switch/case regex patterns, case handler extraction functions
-- **verify-decompiled**: `VerificationIssue`/`VerificationResult` dataclasses, severity enum, assembly/decompiled parsing, heuristic check functions
 - **map-attack-surface**: `EntryPointType` enum, `EntryPoint` dataclass, callback/dangerous-sink API pattern lists, risk scoring functions
 
 When your skill has domain types or algorithms used by multiple scripts, define them in `_common.py` rather than duplicating across scripts.
 
 ### Cross-Skill Imports
 
-Skills can import logic from other skills using `helpers.load_skill_module()`. For example, `deep-research-prompt` imports the classification algorithm from `classify-functions`:
+Skills can import logic from other skills using `helpers.load_skill_module()`. For example, a skill can import the classification algorithm from `classify-functions`:
 
 ```python
 classify_mod = load_skill_module("classify-functions", "classify_function")
@@ -1087,8 +1084,6 @@ All helpers are importable from the top-level `helpers` package. Skills should u
 | Classify API for security relevance | `helpers.classify_api_security(api_name)`    |
 | Get fingerprint for API set         | `helpers.classify_api_fingerprint(api_list)` |
 | Get known dangerous API set         | `helpers.get_dangerous_api_set()`            |
-| Categorize a string literal         | `helpers.categorize_string(string)`          |
-| Access string taxonomy              | `helpers.STRING_TAXONOMY`                    |
 | Access API taxonomy                 | `helpers.API_TAXONOMY`                       |
 
 ### Call Graph and Cross-Module Analysis
@@ -1847,7 +1842,7 @@ Keep reference files one level deep from SKILL.md. Chains where SKILL.md links t
 
 Workflows that end with "output the results" and no validation produce plausible but incorrect output. Every workflow should conclude with some form of output check -- the form depends on the skill:
 
-- **Script-based skills**: Run a validation script on the output (`verify_findings.py`, `validate_layout.py`)
+- **Script-based skills**: Run a validation script on the output (`validate_layout.py`)
 - **Classification skills**: Spot-check a sample of results against known ground truth
 - **Report skills**: Verify that all input data is represented and no placeholder text remains
 - **Lifting skills**: Run the verifier agent against the lifted code
@@ -1973,221 +1968,3 @@ Use this checklist to validate a skill before considering it complete.
 - [ ] All three external files updated: `registry.json`, `skills/README.md`, `.agent/README.md`
 - [ ] Automated tests added or updated in `.agent/tests/` (see section 9.10)
 - [ ] Existing test suite passes: `cd .agent && python -m pytest tests/ -v`
-
-## 15. Worked Example: `string-intelligence`
-
-This example demonstrates the complete skill structure with proper frontmatter, an effective description, clear instructions, and a compliant script.
-
-### `SKILL.md`
-
-```markdown
----
-name: string-intelligence
-description: >-
-  Analyze string literals extracted from decompiled functions for
-  security-relevant patterns including URLs, file paths, registry keys,
-  format strings, error messages, ETW provider GUIDs, and hardcoded
-  credentials. Use when the user asks to find URLs, file paths, or
-  registry keys in strings, wants to understand what strings a function
-  or module references, asks about hardcoded secrets, or needs string
-  categorization for triage.
----
-
-# String Intelligence
-
-## Purpose
-
-Scan string literals from individual analysis databases and classify them
-into security-relevant categories. Researchers use this to quickly identify
-interesting strings (URLs pointing to C2 infrastructure, registry keys
-indicating persistence, format strings suggesting logging) without manually
-reading every function.
-
-## Data Sources
-
-- `string_literals` table in individual analysis DBs
-- `function_name` for context on which function owns each string
-- See [data_format_reference.md](../docs/data_format_reference.md) for schema
-
-## Utility Scripts
-
-### analyze_strings_deep.py -- Deep String Categorization (Start Here)
-
-Scan all string literals in a module and classify them by security relevance.
-
-```bash
-# Basic human-readable output
-python .agent/skills/string-intelligence/scripts/analyze_strings_deep.py <db_path>
-
-# JSON output for downstream processing
-python .agent/skills/string-intelligence/scripts/analyze_strings_deep.py <db_path> --json
-
-# Filter to a specific function
-python .agent/skills/string-intelligence/scripts/analyze_strings_deep.py <db_path> --id <func_id>
-```
-
-Output includes: category, matched pattern, source function, and risk indicator for each string.
-
-## Workflows
-
-### Workflow 1: "What interesting strings does this binary reference?"
-
-String Triage Progress:
-- [ ] Step 1: Resolve the module DB
-- [ ] Step 2: Run deep string analysis
-- [ ] Step 3: Review high-value categories
-
-**Step 1**: Resolve the module DB.
-
-```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name>
-```
-
-**Step 2**: Run the analysis.
-
-```bash
-python .agent/skills/string-intelligence/scripts/analyze_strings_deep.py <db_path> --json
-```
-
-**Step 3**: Review output -- focus on `url`, `registry_key`, and `credential` categories.
-
-## Direct Helper Module Access
-
-For programmatic use without the script wrapper:
-
-- `helpers.categorize_string(s)` -- Classify a single string
-- `helpers.STRING_TAXONOMY` -- Full taxonomy dict for custom filtering
-
-## Performance
-
-| Operation | Typical Time | Notes |
-|-----------|-------------|-------|
-| Analyze single function | ~0.1s | Per-function string scan |
-| Full module scan | ~3-5s | Scales linearly with total string count |
-| Module with 10k+ strings | ~5-8s | I/O bound on large DBs |
-
-## Additional Resources
-
-- [reference.md](reference.md) -- Regex patterns and category definitions
-- [data_format_reference.md](../docs/data_format_reference.md) -- `string_literals` table schema
-- Related skills: [classify-functions](../classify-functions/SKILL.md) for function-level triage,
-  [security-dossier](../security-dossier/SKILL.md) for per-function security context
-```
-
-### `scripts/_common.py`
-
-```python
-"""Shared utilities for string-intelligence skill."""
-
-from __future__ import annotations
-from pathlib import Path
-from skills._shared import bootstrap, make_db_resolvers
-
-WORKSPACE_ROOT = bootstrap(__file__)
-resolve_db_path, resolve_tracking_db = make_db_resolvers(WORKSPACE_ROOT)
-
-from helpers import (  # noqa: E402
-    open_individual_analysis_db,
-    emit_error,
-    categorize_string,
-)
-
-__all__ = [
-    "WORKSPACE_ROOT",
-    "resolve_db_path",
-    "open_individual_analysis_db",
-    "emit_error",
-    "categorize_string",
-]
-```
-
-### `scripts/analyze_strings_deep.py`
-
-```python
-import sys
-import argparse
-from pathlib import Path
-
-_SCRIPT_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(_SCRIPT_DIR))
-
-from _common import (
-    resolve_db_path,
-    open_individual_analysis_db,
-    emit_error,
-    categorize_string,
-)
-from helpers import db_error_handler, emit_json, validate_function_id
-
-
-def analyze(db_path, function_id=None):
-    """Core analysis -- returns a data dict."""
-    with db_error_handler(db_path, "analyzing strings"):
-        with open_individual_analysis_db(db_path) as db:
-            func = db.get_function_by_id(function_id or 1)
-            if not func:
-                emit_error("Function not found", "NOT_FOUND")
-
-            return {
-                "status": "ok",
-                "function": func.function_name,
-                "results": [categorize_string(s) for s in func.strings],
-            }
-
-
-def print_text(data):
-    """Human-readable formatting."""
-    print(f"=== Strings for {data['function']} ===")
-    for r in data["results"]:
-        print(f"  [{r['category']}] {r['value']}")
-    print(f"\n{len(data['results'])} strings categorized.")
-
-
-def main():
-    parser = argparse.ArgumentParser(
-        description="Deep string analysis for security-relevant patterns"
-    )
-    parser.add_argument("db_path", help="Path to the individual analysis database")
-    parser.add_argument("--id", type=int, dest="function_id", help="Function ID")
-    parser.add_argument("--json", action="store_true", help="JSON output mode")
-    args = parser.parse_args()
-
-    db_path = resolve_db_path(args.db_path)
-    if args.function_id is not None:
-        args.function_id = validate_function_id(args.function_id)
-
-    result = analyze(db_path, function_id=args.function_id)
-
-    if args.json:
-        emit_json(result)
-    else:
-        print_text(result)
-
-
-if __name__ == "__main__":
-    main()
-```
-
-### `registry.json` Entry
-
-```json
-{
-  "string-intelligence": {
-    "purpose": "Categorize string literals by security relevance",
-    "type": "analysis",
-    "entry_scripts": [
-      {
-        "script": "analyze_strings_deep.py",
-        "accepts": {
-          "required": ["db_path"],
-          "flags": ["--json"]
-        }
-      }
-    ],
-    "depends_on": ["decompiled-code-extractor"],
-    "cacheable": true,
-    "cache_keys": ["string_analysis"],
-    "json_output": true
-  }
-}
-```

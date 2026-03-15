@@ -115,13 +115,7 @@ Focus on these high-priority indicators:
 
 Based on dossier findings, use complementary skills:
 
-- **Taint analysis** -- trace tainted parameters forward to dangerous sinks with guard/bypass analysis:
-
-```bash
-python .agent/skills/taint-analysis/scripts/taint_function.py <db_path> <function> --depth 2
-```
-
-- **Code lifting** -- lift the function for detailed review:
+- **Code extraction** -- extract the function for detailed review:
 
 ```bash
 python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> <function>
@@ -131,12 +125,6 @@ python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py 
 
 ```bash
 python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> <function> --depth 3
-```
-
-- **Data flow tracing** -- trace specific parameter flows:
-
-```bash
-python .agent/skills/data-flow-tracer/scripts/forward_trace.py <db_path> <function> --param 1
 ```
 
 ## Dossier Section Reference
@@ -153,7 +141,7 @@ Source: `file_info.exports`, `file_info.entry_point`, `simple_inbound_xrefs`. BF
 
 ### 3. Untrusted Data Exposure
 
-Combines reachability with exports analysis. Functions reachable from exports may receive untrusted external input. Traces data paths from export callers to the target. Now includes `param_risk_score` (0.0-1.0) from signature analysis, and considers entry points and IPC handlers as data sources alongside exports.
+Combines reachability with exports analysis. Functions reachable from exports may receive untrusted external input. Traces data paths from export callers to the target. Now includes `param_surface` (structured metadata) from signature analysis, and considers entry points and IPC handlers as data sources alongside exports.
 
 ### 4. Dangerous Operations
 
@@ -165,7 +153,7 @@ Source: `simple_outbound_xrefs` classified for sync/memory/file APIs. `global_va
 
 ### 6. Complexity Assessment
 
-Source: `assembly_code` (instruction/branch/call counts), `loop_analysis` (loop count, cyclomatic complexity), `stack_frame` (sizes, exception handler). Includes `has_syscall` for direct syscall detection and `string_categories` from `categorize_strings()`.
+Source: `assembly_code` (instruction/branch/call counts), `loop_analysis` (loop count, cyclomatic complexity), `stack_frame` (sizes, exception handler). Includes `has_syscall` for direct syscall detection.
 
 ### 7. Neighboring Context
 
@@ -178,19 +166,16 @@ For programmatic use without skill scripts:
 - `helpers.classify_api_security(api_name)` -- Classify API for security relevance
 - `helpers.get_dangerous_api_set()` -- Get the set of known dangerous APIs
 - `helpers.CallGraph.from_functions(functions)` -- Build call graph for reachability analysis
-- `helpers.categorize_string(string)` -- Categorize a string literal for security relevance
 - `helpers.resolve_function(db, name_or_id)` -- Resolve function by name or ID
 
 ## Integration with Other Skills
 
 | Task | Recommended Skill |
 |------|-------------------|
-| Trace tainted parameters to dangerous sinks | taint-analysis |
 | Trace call chains from audited functions | callgraph-tracer |
-| Trace data flow for sensitive parameters | data-flow-tracer |
 | Classify functions in the audit neighborhood | classify-functions |
 | Map entry points reachable from audited function | map-attack-surface |
-| Lift audited functions to clean code for review | code-lifting / batch-lift |
+| Lift audited functions to clean code for review | batch-lift |
 
 ## Performance
 
@@ -204,7 +189,5 @@ For programmatic use without skill scripts:
 - For detailed technical reference, see [reference.md](reference.md)
 - For DB schema and JSON formats, see [data_format_reference.md](../../docs/data_format_reference.md)
 - For file_info.json schema, see [file_info_format_reference.md](../../docs/file_info_format_reference.md)
-- For code lifting, see [code-lifting](../code-lifting/SKILL.md)
 - For call graph tracing, see [callgraph-tracer](../callgraph-tracer/SKILL.md)
-- For data flow tracing, see [data-flow-tracer](../data-flow-tracer/SKILL.md)
 - For function classification, see [classify-functions](../classify-functions/SKILL.md)

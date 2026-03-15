@@ -22,12 +22,30 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Optional
 
-from .asm_patterns import strip_import_prefix as _strip_api_prefix
-
 _log = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# IDA import-thunk prefix stripping
+# ---------------------------------------------------------------------------
+
+IMP_PREFIX_RE = re.compile(r"(?:__imp_|_imp_|__imp__|j_)(.+)")
+
+_IDA_IMPORT_PREFIXES = ("__imp_", "_imp_", "j_", "cs:")
+
+
+def strip_import_prefix(api_name: str) -> str:
+    """Remove IDA import-thunk prefixes (``__imp_``, ``_imp_``, ``j_``, ``cs:``) from *api_name*."""
+    for pfx in _IDA_IMPORT_PREFIXES:
+        if api_name.startswith(pfx):
+            return api_name[len(pfx):]
+    return api_name
+
+
+_strip_api_prefix = strip_import_prefix
 
 # ---------------------------------------------------------------------------
 # Comprehensive Win32 API Taxonomy  (functional-area classification)

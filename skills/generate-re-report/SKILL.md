@@ -17,9 +17,8 @@ Generate synthesized reverse engineering reports from DeepExtractIDA analysis da
 
 - Deep security analysis of a specific function -- use **security-dossier** or **taint-analysis**
 - Classifying functions by purpose with interest scoring -- use **classify-functions**
-- Generating structured research prompts for deep investigation -- use **deep-research-prompt**
-- Scanning for specific vulnerability classes -- use **memory-corruption-detector** or **logic-vulnerability-detector**
-- Lifting or rewriting decompiled code -- use **code-lifting** or the **code-lifter** agent
+- Scanning for specific vulnerability classes -- use **ai-memory-corruption-scanner** or **ai-logic-scanner**
+- Lifting or rewriting decompiled code -- use the **code-lifter** agent
 
 ## Data Sources
 
@@ -238,8 +237,6 @@ python .agent/skills/generate-re-report/scripts/generate_report.py <db_path> --j
 | Trace call chains for reported hotspots | callgraph-tracer |
 | Map attack surface using report findings | map-attack-surface |
 | Classify functions for focused follow-up | classify-functions |
-| Generate deep research prompts from report areas | deep-research-prompt |
-
 ## API Taxonomy
 
 The import categorizer uses a canonical taxonomy of ~500 Win32/NT API prefixes across 15 categories. Defined in `helpers/api_taxonomy.py:API_TAXONOMY` and shared by all skills. Categories: `file_io`, `registry`, `network`, `process_thread`, `crypto`, `security`, `com_ole`, `rpc`, `memory`, `ui_shell`, `sync`, `string_manipulation`, `error_handling`, `service`, `telemetry`, `debug_diagnostics`.
@@ -273,7 +270,5 @@ with open_individual_analysis_db("extracted_dbs/module_hash.db") as db:
 - For detailed report section definitions, see [reference.md](reference.md)
 - For DB schema and JSON field formats, see [data_format_reference.md](../../docs/data_format_reference.md)
 - For file_info.json schema, see [file_info_format_reference.md](../../docs/file_info_format_reference.md)
-- For code analysis skill, see [analyze-ida-decompiled](../analyze-ida-decompiled/SKILL.md)
 - For function classification, see [classify-functions](../classify-functions/SKILL.md)
 - For call graph tracing, see [callgraph-tracer](../callgraph-tracer/SKILL.md)
-- For code lifting, see [code-lifting](../code-lifting/SKILL.md)

@@ -8,16 +8,16 @@ This document describes the `/scan` command, how researchers drill down on findi
 
 ### What It Runs
 
-The `/scan` command is a **unified vulnerability scan** that orchestrates multiple detection pipelines, verification, and exploitability scoring. It is the comprehensive alternative to running `/memory-scan`, `/logic-scan`, and `/taint` separately.
+The `/scan` command is a **unified vulnerability scan** that orchestrates multiple detection pipelines, verification, and exploitability scoring. It is the comprehensive alternative to running `/memory-scan`, `/ai-logical-bug-scan`, and `/taint` separately.
 
 **Primary mechanism:** The **security-auditor** agent's `run_security_scan.py` script handles the full 6-phase pipeline (recon, scanning, taint, verification, exploitability, synthesis) with parallel execution and deduplication. The individual skill scripts listed below are called internally by `run_security_scan.py`.
 
 | Pipeline | Scripts / Components |
 |----------|----------------------|
-| **Memory corruption** | `scan_buffer_overflows.py`, `scan_integer_issues.py`, `scan_use_after_free.py`, `scan_format_strings.py` |
-| **Logic vulnerabilities** | `scan_auth_bypass.py`, `scan_state_errors.py`, `scan_logic_flaws.py`, `scan_api_misuse.py` |
-| **Taint analysis** | Entry point discovery → `rank_entrypoints.py` → `taint_function.py` on top 5 ranked entry points |
-| **Verification** | `verify_findings.py` (memory + logic pipelines only; taint has no separate verifier) |
+| **Memory corruption** | `build_threat_model.py`, `prepare_context.py` + LLM-driven analysis via `/memory-scan` |
+| **Logic vulnerabilities** | `build_threat_model.py`, `prepare_context.py` + LLM-driven analysis via `/ai-logical-bug-scan` |
+| **Taint analysis** | Entry point discovery → `rank_entrypoints.py` → AI-driven taint via `taint-scanner` subagent on top 5 ranked entry points |
+| **Verification** | Skeptic verification (memory, logic, and taint pipelines all include skeptic verification) |
 | **Exploitability** | `assess_finding.py` or `batch_assess.py` for CRITICAL/HIGH findings |
 
 ### Modes
@@ -60,7 +60,7 @@ The scan produces a consolidated report with:
 
 4. **Pipeline Breakdown**
    - Memory: buffer overflows, integer issues, UAF, format strings
-   - Logic: auth bypass, state errors, TOCTOU, missing checks
+   - Logic: auth bypass, state errors, missing checks
    - Taint: attacker-reachable sinks with guard/bypass analysis
 
 5. **Recommended Next Steps**
@@ -155,10 +155,12 @@ Researcher: "I want to understand finding #2"
 
 **Resolution:** Uses `lookup_function.py` or `find_module_db.py` to get `function_id` and `db_path`.
 
-**Key scripts:**
+**Key scripts (ai-taint-scanner skill):**
 
-- `taint_function.py <db_path> --id <fid> [--params N] [--depth N] [--direction forward|backward|both] [--cross-module] [--cross-depth N] --json`
-- `trace_taint_cross_module.py <db_path> --id <fid> [--from-entrypoints] [--top N] [--min-score S] --json`
+- `build_threat_model.py <db_path> --json` -- Build taint threat model
+- `prepare_context.py <db_path> --function <name> --with-code --json` -- Prepare function context for LLM-driven analysis
+
+The `taint-scanner` subagent consumes the prepared context and performs LLM-driven taint analysis with trust boundary analysis and skeptic verification.
 
 **Output:** Taint report in chat; optionally saved to `extracted_code/<module>/reports/taint_<function>_<timestamp>.md`.
 
@@ -212,4 +214,4 @@ To support "tell me more about finding #3":
 
 ---
 
-*Generated from `.agent/commands/scan.md`, `audit.md`, `taint.md`, `memory-scan.md`, `logic-scan.md`, and related skill/helper references.*
+*Generated from `.agent/commands/scan.md`, `audit.md`, `taint.md`, `memory-scan.md`, `ai-logical-bug-scan.md`, and related skill/agent/helper references.*

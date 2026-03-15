@@ -116,7 +116,6 @@ python .agent/skills/rpc-interface-analysis/scripts/rpc_topology.py --top 20 --j
 - `helpers.rpc_index.RpcIndex.cross_reference_strings(strings)` -- string-to-RPC matching
 - `helpers.rpc_index.RpcIndex.get_procedure_signatures(uuid)` -- stub signatures
 - `helpers.rpc_stub_parser.parse_stub_file(path)` -- parse a single stub
-- `helpers.rpc_procedure_classifier.classify_procedure(name)` -- semantic classification
 
 ## Workflows
 
@@ -169,3 +168,9 @@ python .agent/skills/rpc-interface-analysis/scripts/rpc_topology.py --top 20 --j
   scripts degrade gracefully with an informative message.
 - Module-specific commands require either a module name or DB path.
 - Stub queries return empty results when stubs are not loaded.
+
+## Diagnostics
+
+Use `python .agent/helpers/ipc_index_inspect.py --rpc [--module <name>]` to
+inspect RPC index state and module attribution. Use `--edges` to verify
+cross-module RPC edge injection counts.

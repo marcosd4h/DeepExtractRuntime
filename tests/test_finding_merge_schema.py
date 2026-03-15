@@ -84,7 +84,7 @@ class TestFromMemoryFinding:
 
 
 class TestFromLogicFinding:
-    def test_basic_conversion(self):
+    def test_legacy_format_conversion(self):
         raw = {"function_name": "fn", "function_id": 2, "category": "missing_auth",
                "dangerous_op": "CreateProcessW", "severity": "HIGH", "score": 0.7,
                "guards_on_path": [{"guard_type": "if"}]}
@@ -93,6 +93,81 @@ class TestFromLogicFinding:
         assert f.source_category == "missing_auth"
         assert f.sink == "CreateProcessW"
         assert len(f.guards) == 1
+
+    def test_ai_format_conversion(self):
+        raw = {
+            "vulnerability_type": "auth_bypass_missing_check",
+            "cwe_id": "CWE-287",
+            "affected_functions": ["NetrShareAdd"],
+            "entry_point": "NetrShareAdd",
+            "call_chain": ["NetrShareAdd", "SsShareAdd"],
+            "description": "Missing auth check",
+            "evidence": {
+                "code_lines": ["CreateFileW(...)"],
+                "assembly_confirmation": "call CreateFileW",
+            },
+            "severity_assessment": "HIGH because...",
+        }
+        f = from_logic_finding(raw)
+        assert f.source_type == "logic_vulnerability"
+        assert f.source_category == "auth_bypass_missing_check"
+        assert f.severity == "HIGH"
+
+    def test_ai_format_severity_parsing_critical(self):
+        raw = {"vulnerability_type": "toctou", "severity_assessment": "CRITICAL -- remote RCE"}
+        f = from_logic_finding(raw)
+        assert f.severity == "CRITICAL"
+        assert f.score == 0.95
+
+    def test_ai_format_severity_parsing_garbage(self):
+        raw = {"vulnerability_type": "toctou", "severity_assessment": "maybe bad"}
+        f = from_logic_finding(raw)
+        assert f.severity == "MEDIUM"
+        assert f.score == 0.5
+
+    def test_ai_format_evidence_aggregation(self):
+        raw = {
+            "vulnerability_type": "dll_injection",
+            "evidence": {
+                "code_lines": ["LoadLibraryW(v3)", "v3 = *(a2 + 0x10)"],
+                "assembly_confirmation": "call cs:LoadLibraryW",
+            },
+        }
+        f = from_logic_finding(raw)
+        assert len(f.evidence_lines) == 3
+        assert "LoadLibraryW(v3)" in f.evidence_lines
+        assert "call cs:LoadLibraryW" in f.evidence_lines
+
+    def test_ai_format_extra_fields(self):
+        raw = {
+            "vulnerability_type": "service_binary_injection",
+            "cwe_id": "CWE-426",
+            "affected_functions": ["SvcRegister", "CreateServiceW"],
+            "entry_point": "SvcRegister",
+            "data_flow": "RPC a2 -> lpBinaryPathName",
+            "exploitation_assessment": "SYSTEM service creation",
+            "mitigations_present": ["none"],
+        }
+        f = from_logic_finding(raw)
+        assert f.extra["cwe_id"] == "CWE-426"
+        assert f.extra["data_flow"] == "RPC a2 -> lpBinaryPathName"
+        assert f.extra["exploitation_assessment"] == "SYSTEM service creation"
+        assert f.extra["affected_functions"] == ["SvcRegister", "CreateServiceW"]
+
+    def test_ai_format_empty_affected_functions(self):
+        raw = {"vulnerability_type": "test", "entry_point": "FallbackFunc"}
+        f = from_logic_finding(raw)
+        assert f.function_name == "FallbackFunc"
+
+    def test_dispatch_routes_ai_format(self):
+        ai_raw = {"vulnerability_type": "auth_bypass"}
+        legacy_raw = {"category": "missing_auth", "function_name": "fn"}
+        ai_f = from_logic_finding(ai_raw)
+        legacy_f = from_logic_finding(legacy_raw)
+        assert ai_f.sink_category == "logic_unsafe"
+        assert legacy_f.sink_category == "logic_unsafe"
+        assert ai_f.source_category == "auth_bypass"
+        assert legacy_f.source_category == "missing_auth"
 
 
 class TestFromVerifiedFinding:

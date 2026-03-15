@@ -161,8 +161,7 @@ batch-lift/
 
 ## Related Skills
 
-- [code-lifting](../code-lifting/SKILL.md) -- Per-function lifting workflow (the core lifting rules this skill orchestrates)
 - [reconstruct-types](../reconstruct-types/SKILL.md) -- Deep struct/class reconstruction with assembly-backed scanning
 - [callgraph-tracer](../callgraph-tracer/SKILL.md) -- Call graph analysis and cross-module chain tracing
 - [classify-functions](../classify-functions/SKILL.md) -- Categorize functions to identify which ones to batch-lift
-- [analyze-ida-decompiled](../analyze-ida-decompiled/SKILL.md) -- Understand decompiled code and module metadata
+- [ida_conventions_reference.md](../../docs/ida_conventions_reference.md) -- IDA conventions, file layout, and analysis patterns

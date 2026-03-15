@@ -2,24 +2,6 @@
   "$schema": "DeepExtractIDA Skill Registry v1",
   "$description": "Machine-readable contracts for all analysis skills. Used by inject-module-context.py to enrich AI session context and enable intelligent skill routing.",
   "skills": {
-    "analyze-ida-decompiled": {
-      "purpose": "Navigate, explain, and annotate IDA Pro decompiled code",
-      "type": "documentation",
-      "methodology_only": true,
-      "entry_scripts": [],
-      "depends_on": ["function-index"],
-      "cacheable": false,
-      "json_output": false
-    },
-    "brainstorming": {
-      "purpose": "Strategic VR planning: campaign strategy, cross-module campaigns, post-analysis re-planning, tool/skill design via structured dialogue",
-      "type": "methodology",
-      "methodology_only": true,
-      "entry_scripts": [],
-      "depends_on": ["adversarial-reasoning"],
-      "cacheable": false,
-      "json_output": false
-    },
     "batch-lift": {
       "purpose": "Lift related function groups (class methods, call chains) with shared context",
       "type": "code_generation",
@@ -27,7 +9,7 @@
         {"script": "collect_functions.py", "accepts": {"db_path": "required", "--class": "optional", "--chain": "optional", "--export": "optional", "--depth": "optional", "--json": "optional"}},
         {"script": "prepare_batch_lift.py", "accepts": {"db_path": "required", "--from-json": "optional", "--ids": "optional", "--structs-only": "flag", "--summary": "flag", "--json": "flag"}}
       ],
-      "depends_on": ["decompiled-code-extractor", "code-lifting", "callgraph-tracer", "reconstruct-types"],
+      "depends_on": ["decompiled-code-extractor", "callgraph-tracer", "reconstruct-types"],
       "cacheable": false,
       "json_output": true
     },
@@ -74,33 +56,6 @@
       "cache_keys": ["scan_com_interfaces"],
       "json_output": true
     },
-    "data-flow-tracer": {
-      "purpose": "Trace parameter flow, argument origins, global variable producers/consumers",
-      "type": "analysis",
-      "entry_scripts": [
-        {"script": "forward_trace.py", "accepts": {"db_path": "required", "function_name": "optional", "--id": "optional", "--param": "optional", "--depth": "optional", "--json": "optional", "--no-cache": "flag"}},
-        {"script": "backward_trace.py", "accepts": {"db_path": "required", "function_name": "optional", "--id": "optional", "--target": "optional", "--arg": "optional", "--callers": "flag", "--depth": "optional", "--json": "flag", "--no-cache": "flag"}},
-        {"script": "global_state_map.py", "accepts": {"db_path": "required", "--global": "optional", "--summary": "flag", "--json": "optional", "--no-cache": "flag"}},
-        {"script": "string_trace.py", "accepts": {"db_path": "required", "--string": "optional", "--function": "optional", "--list-strings": "flag", "--callers": "flag", "--depth": "optional", "--limit": "optional", "--assembly": "flag", "--json": "flag", "--no-cache": "flag"}}
-      ],
-      "depends_on": ["decompiled-code-extractor"],
-      "cacheable": true,
-      "cache_keys": ["forward_trace", "backward_trace", "global_state_map", "string_trace"],
-      "json_output": true
-    },
-    "deep-research-prompt": {
-      "purpose": "Generate comprehensive research prompts by gathering multi-skill context",
-      "type": "meta",
-      "entry_scripts": [
-        {"script": "gather_function_context.py", "accepts": {"db_path": "required", "function_name": "optional", "--id": "optional", "--depth": "optional", "--with-taint": "flag", "--with-code": "flag", "--cross-module": "flag", "--json": "optional", "--no-cache": "flag"}},
-        {"script": "gather_module_context.py", "accepts": {"db_path": "required", "--categories": "optional", "--top": "optional", "--json": "optional"}},
-        {"script": "generate_research_prompt.py", "accepts": {"db_path": "required", "function_name": "optional", "--id": "optional", "--area": "optional", "--from-json": "optional", "--depth": "optional", "--cross-module": "flag", "--detail": "optional", "--output": "optional"}}
-      ],
-      "depends_on": ["classify-functions", "callgraph-tracer", "data-flow-tracer", "generate-re-report", "state-machine-extractor", "com-interface-reconstruction", "reconstruct-types", "taint-analysis"],
-      "cacheable": true,
-      "cache_keys": ["gather_function_context"],
-      "json_output": true
-    },
     "function-index": {
       "purpose": "Fast function-to-file resolution and library-tag filtering",
       "type": "index",
@@ -128,15 +83,6 @@
       "cacheable": true,
       "cache_keys": ["analyze_topology", "analyze_imports", "analyze_strings", "analyze_complexity"],
       "json_output": true
-    },
-    "code-lifting": {
-      "purpose": "Lifting workflow/recipe for rewriting decompiled functions into clean, readable code",
-      "type": "code_generation",
-      "methodology_only": true,
-      "entry_scripts": [],
-      "depends_on": ["decompiled-code-extractor", "reconstruct-types", "verify-decompiled"],
-      "cacheable": false,
-      "json_output": false
     },
     "decompiled-code-extractor": {
       "purpose": "Extract function data from analysis databases (decompiled code, assembly, xrefs, signatures)",
@@ -189,47 +135,6 @@
       "cache_keys": ["security_dossier"],
       "json_output": true
     },
-    "state-machine-extractor": {
-      "purpose": "Extract dispatch tables, switch/case mappings, and state machines",
-      "type": "analysis",
-      "entry_scripts": [
-        {"script": "detect_dispatchers.py", "accepts": {"db_path": "required", "--min-cases": "optional", "--with-loops": "flag", "--json": "flag", "--app-only": "flag", "--no-cache": "flag"}},
-        {"script": "extract_dispatch_table.py", "accepts": {"db_path": "required", "function_name": "optional", "--id": "optional", "--search": "optional", "--json": "flag", "--no-cache": "flag"}},
-        {"script": "extract_state_machine.py", "accepts": {"db_path": "required", "function_name": "optional", "--id": "optional", "--json": "optional"}},
-        {"script": "generate_state_diagram.py", "accepts": {"db_path": "required", "--function": "optional", "--id": "optional", "--mode": "optional", "--format": "optional"}}
-      ],
-      "depends_on": ["decompiled-code-extractor"],
-      "cacheable": true,
-      "cache_keys": ["detect_dispatchers"],
-      "json_output": true
-    },
-    "verify-decompiled": {
-      "purpose": "Verify decompiler accuracy by comparing Hex-Rays output against assembly ground truth",
-      "type": "verification",
-      "entry_scripts": [
-        {"script": "scan_module.py", "accepts": {"db_path": "required", "--min-severity": "optional", "--top": "optional", "--json": "optional", "--app-only": "flag", "--no-cache": "flag"}},
-        {"script": "verify_function.py", "accepts": {"db_path": "required", "function_name": "optional", "--id": "optional", "--search": "optional", "--json": "flag"}}
-      ],
-      "depends_on": ["decompiled-code-extractor"],
-      "cacheable": true,
-      "cache_keys": ["scan_module_verify"],
-      "json_output": true
-    },
-    "taint-analysis": {
-      "purpose": "Trace attacker-controlled inputs to dangerous sinks with bypass/guard analysis, deep cross-module taint propagation with parameter mapping, trust boundary analysis, COM vtable resolution, and RPC boundary detection",
-      "type": "security",
-      "entry_scripts": [
-        {"script": "taint_function.py", "accepts": {"db_path": "required", "function_name": "optional", "--id": "optional", "--params": "optional", "--depth": "optional", "--direction": "optional", "--cross-module": "flag", "--cross-depth": "optional", "--json": "flag", "--no-cache": "flag"}},
-        {"script": "trace_taint_forward.py", "accepts": {"db_path": "required", "function_name": "optional", "--id": "optional", "--params": "optional", "--depth": "optional", "--cross-module": "flag", "--cross-depth": "optional", "--json": "flag", "--no-cache": "flag"}},
-        {"script": "trace_taint_backward.py", "accepts": {"db_path": "required", "function_name": "optional", "--id": "optional", "--params": "optional", "--depth": "optional", "--json": "flag", "--no-cache": "flag"}},
-        {"script": "trace_taint_cross_module.py", "accepts": {"db_path": "required", "function_name": "optional", "--id": "optional", "--from-entrypoints": "flag", "--params": "optional", "--depth": "optional", "--cross-depth": "optional", "--top": "optional", "--min-score": "optional", "--no-trust-analysis": "flag", "--no-com-resolve": "flag", "--json": "flag", "--no-cache": "flag"}},
-        {"script": "generate_taint_report.py", "accepts": {"--forward": "optional", "--backward": "optional", "--direction": "optional", "--json": "flag"}, "note": "At least one of --forward or --backward is required for meaningful output"}
-      ],
-      "depends_on": ["data-flow-tracer", "callgraph-tracer", "decompiled-code-extractor", "com-interface-reconstruction"],
-      "cacheable": true,
-      "cache_keys": ["taint_forward", "taint_backward"],
-      "json_output": true
-    },
     "exploitability-assessment": {
       "purpose": "Assess exploitability of findings from any scanner (taint, memory-corruption, logic-vulnerability) using mitigations, guard bypass, primitive quality, and reachability",
       "type": "security",
@@ -237,54 +142,19 @@
         {"script": "assess_finding.py", "accepts": {"--taint-report": "optional", "--memory-findings": "optional", "--logic-findings": "optional", "--dossier": "optional", "--module-db": "optional", "--json": "flag"}, "note": "At least one of --taint-report, --memory-findings, or --logic-findings is required"},
         {"script": "batch_assess.py", "accepts": {"db_path": "required", "--top": "optional", "--min-score": "optional", "--depth": "optional", "--json": "flag", "--no-cache": "flag"}}
       ],
-      "depends_on": ["taint-analysis", "security-dossier", "map-attack-surface", "memory-corruption-detector", "logic-vulnerability-detector"],
+      "depends_on": ["ai-taint-scanner", "security-dossier", "map-attack-surface", "ai-memory-corruption-scanner", "ai-logic-scanner"],
       "cacheable": false,
       "json_output": true
     },
-    "adversarial-reasoning": {
-      "purpose": "Hypothesis-driven VR methodology with Windows attack pattern playbooks and variant analysis",
-      "type": "methodology",
-      "methodology_only": true,
-      "entry_scripts": [],
-      "depends_on": ["classify-functions", "map-attack-surface", "security-dossier", "taint-analysis", "data-flow-tracer", "callgraph-tracer"],
-      "cacheable": false,
-      "json_output": false
-    },
-    "string-intelligence": {
-      "purpose": "Categorize string literals by security relevance (URLs, registry keys, named pipes, certificates, etc.)",
-      "type": "analysis",
-      "entry_scripts": [
-        {
-          "script": "analyze_strings_deep.py",
-          "accepts": {
-            "db_path": "required",
-            "--id": "optional",
-            "--function": "optional",
-            "--json": "flag",
-            "--top": "optional",
-            "--category": "optional",
-            "--no-cache": "flag"
-          }
-        }
-      ],
-      "depends_on": ["decompiled-code-extractor"],
-      "cacheable": true,
-      "cache_keys": ["string_analysis"],
-      "json_output": true
-    },
-    "memory-corruption-detector": {
-      "purpose": "Detect memory corruption: buffer overflows, integer overflow/truncation, use-after-free, double-free, format strings",
+    "ai-memory-corruption-scanner": {
+      "purpose": "AI-driven memory corruption scanning with callgraph navigation, adversarial prompting, and skeptic verification",
       "type": "security",
       "entry_scripts": [
-        {"script": "scan_buffer_overflows.py", "accepts": {"db_path": "required", "--id": "optional", "--top": "optional", "--json": "flag", "--no-cache": "flag"}},
-        {"script": "scan_integer_issues.py", "accepts": {"db_path": "required", "--id": "optional", "--top": "optional", "--json": "flag", "--no-cache": "flag"}},
-        {"script": "scan_use_after_free.py", "accepts": {"db_path": "required", "--id": "optional", "--top": "optional", "--json": "flag", "--no-cache": "flag"}},
-        {"script": "scan_format_strings.py", "accepts": {"db_path": "required", "--id": "optional", "--top": "optional", "--json": "flag", "--no-cache": "flag"}},
-        {"script": "verify_findings.py", "accepts": {"--findings": "required", "--db-path": "required", "--json": "flag"}}
+        {"script": "prepare_context.py", "accepts": {"db_path": "required", "--function": "optional", "--entry-points": "flag", "--depth": "optional", "--json": "flag"}},
+        {"script": "build_threat_model.py", "accepts": {"db_path": "required", "--json": "flag"}}
       ],
-      "depends_on": ["decompiled-code-extractor", "callgraph-tracer", "taint-analysis"],
-      "cacheable": true,
-      "cache_keys": ["memcorrupt_buffer", "memcorrupt_integer", "memcorrupt_uaf", "memcorrupt_format"],
+      "depends_on": ["decompiled-code-extractor", "map-attack-surface"],
+      "cacheable": false,
       "json_output": true
     },
     "import-export-resolver": {
@@ -301,24 +171,6 @@
       "cache_keys": ["import_export_index"],
       "json_output": true
     },
-    "deep-context-builder": {
-      "purpose": "Build deep block-by-block understanding of decompiled functions before vulnerability hunting",
-      "type": "documentation",
-      "methodology_only": true,
-      "entry_scripts": [],
-      "depends_on": ["decompiled-code-extractor", "classify-functions", "callgraph-tracer", "data-flow-tracer", "map-attack-surface"],
-      "cacheable": false,
-      "json_output": false
-    },
-    "finding-verification": {
-      "purpose": "Verify suspected vulnerabilities against assembly ground truth to eliminate false positives",
-      "type": "security",
-      "methodology_only": true,
-      "entry_scripts": [],
-      "depends_on": ["taint-analysis", "data-flow-tracer", "security-dossier", "exploitability-assessment", "import-export-resolver"],
-      "cacheable": false,
-      "json_output": false
-    },
     "rpc-interface-analysis": {
       "purpose": "Analyze RPC interfaces: enumerate UUIDs, map attack surface, audit security, trace handler chains, find clients, build topology, show blast-radius, query stubs",
       "type": "security",
@@ -334,20 +186,26 @@
       "cacheable": false,
       "json_output": true
     },
-    "logic-vulnerability-detector": {
-      "purpose": "Detect logic vulnerabilities: auth bypasses, state machine errors, TOCTOU, confused deputy, missing security checks",
+    "ai-logic-scanner": {
+      "purpose": "AI-driven logic vulnerability scanning with callgraph navigation and adversarial prompting",
       "type": "security",
       "entry_scripts": [
-        {"script": "scan_auth_bypass.py", "accepts": {"db_path": "required", "--id": "optional", "--top": "optional", "--json": "flag", "--no-cache": "flag"}},
-        {"script": "scan_state_errors.py", "accepts": {"db_path": "required", "--id": "optional", "--top": "optional", "--json": "flag", "--no-cache": "flag"}},
-        {"script": "scan_logic_flaws.py", "accepts": {"db_path": "required", "--id": "optional", "--top": "optional", "--json": "flag", "--no-cache": "flag"}},
-        {"script": "scan_api_misuse.py", "accepts": {"db_path": "required", "--id": "optional", "--top": "optional", "--json": "flag", "--no-cache": "flag"}},
-        {"script": "verify_findings.py", "accepts": {"--findings": "required", "--db-path": "required", "--json": "flag"}},
-        {"script": "generate_logic_report.py", "accepts": {"--findings": "required", "--json": "flag", "--output": "optional"}}
+        {"script": "build_threat_model.py", "accepts": {"db_path": "required", "--json": "flag"}},
+        {"script": "prepare_context.py", "accepts": {"db_path": "required", "--function": "optional", "--entry-points": "flag", "--depth": "optional", "--json": "flag"}}
       ],
-      "depends_on": ["decompiled-code-extractor", "callgraph-tracer", "taint-analysis", "state-machine-extractor", "security-dossier", "map-attack-surface"],
-      "cacheable": true,
-      "cache_keys": ["logic_auth_bypass", "logic_state_errors", "logic_flaws", "logic_api_misuse"],
+      "depends_on": ["decompiled-code-extractor", "map-attack-surface"],
+      "cacheable": false,
+      "json_output": true
+    },
+    "ai-taint-scanner": {
+      "purpose": "AI-driven taint analysis: trace attacker-controlled data from entry points to dangerous sinks across module boundaries with trust boundary analysis and skeptic verification",
+      "type": "security",
+      "entry_scripts": [
+        {"script": "build_threat_model.py", "accepts": {"db_path": "required", "--json": "flag"}},
+        {"script": "prepare_context.py", "accepts": {"db_path": "required", "--function": "optional", "--entry-points": "flag", "--depth": "optional", "--with-code": "flag", "--json": "flag"}}
+      ],
+      "depends_on": ["decompiled-code-extractor", "map-attack-surface"],
+      "cacheable": false,
       "json_output": true
     },
     "winrt-interface-analysis": {

@@ -1,7 +1,7 @@
 """Shared verification pipeline for vulnerability findings.
 
-Provides the common scaffolding used by both logic-vulnerability-detector
-and memory-corruption-detector ``verify_findings.py`` scripts.  Each scanner
+Provides the common scaffolding used by both ai-logic-scanner
+and ai-memory-corruption-scanner ``verify_findings.py`` scripts.  Each scanner
 supplies its own category-specific verifiers and feasibility function; the
 loop, scoring, output formatting, and CLI plumbing live here.
 """

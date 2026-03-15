@@ -105,6 +105,18 @@ def cleanup_workspace(
     else:
         result["cache_evicted"] = 0
 
+    if not dry_run:
+        try:
+            from helpers.findings_store import purge_old_findings
+            from helpers.config import get_config_value
+            retention_days = get_config_value("findings_store.retention_days", default=30)
+            purged = purge_old_findings(older_than_days=max(1, int(retention_days)))
+            result["findings_purged"] = purged
+        except Exception:
+            pass
+    else:
+        result["findings_purged"] = 0
+
     return result
 
 

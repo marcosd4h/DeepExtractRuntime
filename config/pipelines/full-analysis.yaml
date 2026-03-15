@@ -15,7 +15,7 @@ steps:
   - types: {}
   - memory-scan:
       top: 50
-  - logic-scan:
+  - ai-logic-scan:
       top: 50
   - entrypoints:
       top: 15

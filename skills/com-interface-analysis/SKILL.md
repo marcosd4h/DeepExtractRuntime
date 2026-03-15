@@ -186,3 +186,11 @@ python .agent/skills/com-interface-analysis/scripts/find_com_privesc.py --includ
    warning for missing ones. Analysis continues with partial data.
 3. **No interfaces on server**: Server metadata is still available for
    security audit; interface/method enumeration returns empty.
+
+## Diagnostics
+
+Use `python .agent/helpers/ipc_index_inspect.py --com [--module <name>]` to
+inspect COM index state, verify module attribution, and check that no servers
+are misattributed to generic host processes (svchost.exe, dllhost.exe).
+Use `--check-hosts` to scan for misattribution. Use `--edges` to verify
+cross-module COM edge injection counts.

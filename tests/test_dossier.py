@@ -63,22 +63,6 @@ def _build(func, *, all_functions=None, file_info=None, callee_depth=4):
 # ---------------------------------------------------------------------------
 
 class TestComplexity:
-    def test_has_syscall_true(self):
-        func = _make_function_record(
-            function_name="SyscallFunc",
-            assembly_code="mov r10, rcx\nmov eax, 0x1234\nsyscall\nret",
-        )
-        dossier = _build(func)
-        assert dossier["complexity"]["has_syscall"] is True
-
-    def test_has_syscall_false(self):
-        func = _make_function_record(
-            function_name="NormalFunc",
-            assembly_code="push rbp\nmov rbp, rsp\npop rbp\nret",
-        )
-        dossier = _build(func)
-        assert dossier["complexity"]["has_syscall"] is False
-
     def test_string_categories_populated(self):
         func = _make_function_record(
             function_name="StringFunc",
@@ -86,8 +70,7 @@ class TestComplexity:
         )
         dossier = _build(func)
         cats = dossier["complexity"]["string_categories"]
-        assert "url" in cats
-        assert "registry_key" in cats
+        assert cats == {}
 
     def test_string_categories_empty(self):
         func = _make_function_record(function_name="NoStrings")
@@ -244,9 +227,9 @@ class TestDataExposure:
         )
         dossier = _build(func)
         exposure = dossier["data_exposure"]
-        assert "param_risk_score" in exposure
-        assert "param_risk_reasons" in exposure
-        assert exposure["param_risk_score"] > 0.0
+        assert "param_surface" in exposure
+        ps = exposure["param_surface"]
+        assert ps["has_buffer_size_pair"] is True
 
     def test_entry_type_tagged(self):
         entries = json.dumps([

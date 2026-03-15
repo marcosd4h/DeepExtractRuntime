@@ -208,7 +208,6 @@ This skill provides the function-to-file mapping that other skills need. The cor
 
 Use it as a **first step** before:
 
-- **analyze-ida-decompiled**: Locate the `.cpp` file to read
 - **code-lifting**: Find both the `.cpp` file and confirm function exists before extracting from DB
 - **classify-functions**: Pre-filter application code before classification
 - **batch-lift**: Resolve a batch of function names to files
@@ -293,5 +292,4 @@ Available via `from helpers import ...` or `from helpers.function_index import .
 - [function_index_format_reference.md](../../docs/function_index_format_reference.md) -- full format spec
 - [file_info_format_reference.md](../../docs/file_info_format_reference.md) -- file_info.json schema (signatures, imports, exports)
 - [data_format_reference.md](../../docs/data_format_reference.md) -- SQLite DB schema and JSON field formats
-- [analyze-ida-decompiled](../analyze-ida-decompiled/SKILL.md) -- code analysis skill
 - [code-lifting](../code-lifting/SKILL.md) -- code lifting skill (uses DB helpers)

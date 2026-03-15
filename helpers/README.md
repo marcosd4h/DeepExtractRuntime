@@ -141,9 +141,9 @@ Look up, search, filter, and batch-resolve functions.
 | Filter application-only functions | `filter_application_functions(index)` | `function_index` |
 | Check if function is library code | `is_library_function(entry)` | `function_index` |
 
-### API and String Classification
+### API Classification
 
-Classify Win32/NT APIs and string literals by category and security relevance.
+Classify Win32/NT APIs by category and security relevance.
 
 | Operation | Helper | Module |
 |-----------|--------|--------|
@@ -151,8 +151,6 @@ Classify Win32/NT APIs and string literals by category and security relevance.
 | Classify API for security impact | `classify_api_security(api_name)` | `api_taxonomy` |
 | Get API fingerprint for a set | `classify_api_fingerprint(api_list)` | `api_taxonomy` |
 | Get dangerous API set | `get_dangerous_api_set()` | `api_taxonomy` |
-| Categorize a string literal | `categorize_string(string)` | `string_taxonomy` |
-| Full string taxonomy | `STRING_TAXONOMY` | `string_taxonomy` |
 | Full API taxonomy (17 categories) | `API_TAXONOMY` | `api_taxonomy` |
 | Security API categories (11 cats) | `SECURITY_API_CATEGORIES` | `api_taxonomy` |
 
@@ -182,17 +180,11 @@ Query pre-computed module fingerprints (noise ratio, API surface, complexity).
 
 ### param_risk
 
-Parameter-type risk scoring from C-style function signatures. Relocated from
-`map-attack-surface` skill to enable cross-skill reuse.
+Parameter surface metadata from C-style signatures.
 
-| Symbol | Type | Description |
-|--------|------|-------------|
-| `score_parameter_risk(signature)` | function | Returns `(risk_score: float, reasons: list[str])` |
-| `HIGH_RISK_PARAM_PATTERNS` | list | 11 regex patterns with risk scores for parameter types |
-| `BUFFER_SIZE_PAIR_PATTERNS` | list | 3 compiled regexes detecting buffer+size parameter pairs |
-
-The risk score is 0.0-1.0: weighted combination of max parameter type risk and
-average across all parameters, with bonus for parameter count.
+- `describe_parameter_surface(signature)` → `dict` with keys: `param_count`, `has_buffer_pointer`, `has_string_pointer`, `has_size_param`, `has_buffer_size_pair`, `has_handle`, `has_com_interface`, `has_struct_pointer`, `has_flags_param`, `pointer_param_count`, `characteristics`
+- `PARAM_TYPE_PATTERNS` -- 11 regex patterns mapping Windows types to categories
+- `BUFFER_SIZE_PAIR_PATTERNS` -- 3 compiled regexes detecting buffer+size parameter pairs
 
 ### winrt_index
 
@@ -348,16 +340,13 @@ Helpers for parsing decompiled code, assembly, mangled names, and types.
 | Parse class from mangled name | `parse_class_from_mangled(name)` | `mangled_names` |
 | Extract function calls from source | `extract_function_calls(source)` | `decompiled_parser` |
 | Split function arguments | `split_arguments(arg_string)` | `decompiled_parser` |
-| Find parameter usage in calls | `find_param_in_calls(source, param)` | `decompiled_parser` |
 | Scan struct accesses (decompiled) | `scan_decompiled_struct_accesses(src)` | `struct_scanner` |
 | Scan struct accesses (assembly) | `scan_assembly_struct_accesses(asm)` | `struct_scanner` |
 | Batch struct scanning | `scan_batch_struct_accesses(funcs)` | `struct_scanner` |
 | Merge scanned struct fields | `merge_scanned_struct_fields(fields)` | `struct_scanner` |
-| Get assembly metrics | `get_asm_metrics(asm_text)` | `asm_metrics` |
-| x64 assembly regex patterns | `ASM_CALL_RE`, `ASM_BRANCH_RE`, etc. | `asm_patterns` |
 | x64 calling convention tables | `PARAM_REGISTERS`, `REGISTER_TO_PARAM` | `calling_conventions` |
 | IDA type to C type mapping | `IDA_TO_C_TYPE`, `TYPE_SIZES` | `type_constants` |
-| Classify guard conditions | `classify_guard(condition)` | `guard_classifier` |
+| Strip IDA import prefixes | `strip_import_prefix(api_name)` | `api_taxonomy` |
 
 ### Script Runner (Inter-Skill Calls)
 
@@ -388,6 +377,21 @@ multi-module analysis runs.
 | Write batch manifest | `write_batch_manifest(batch_dir, definition, progress)` | `pipeline_executor` |
 | Write batch summary | `write_batch_summary(batch_dir, result)` | `pipeline_executor` |
 
+### Findings Store
+
+SQLite-backed cross-session finding accumulation. Stores confirmed findings from scan runs with score-monotone upsert semantics. See `docs/persistence-and-lifecycle.md` for full documentation.
+
+| Operation | Helper | Module |
+|-----------|--------|--------|
+| Insert or update finding (score monotone) | `upsert_finding(finding, run_id)` | `findings_store` |
+| Load findings with filters | `load_findings(module, min_score, severity, source_type, limit)` | `findings_store` |
+| Load findings for a specific run | `load_findings_for_run(run_id)` | `findings_store` |
+| Update verification status | `update_verification(dedup_key, status, score)` | `findings_store` |
+| Update exploitability fields | `update_exploitability(dedup_key, score, rating)` | `findings_store` |
+| Delete findings older than N days | `purge_old_findings(older_than_days)` | `findings_store` |
+| Aggregate counts by severity/source | `get_summary(module)` | `findings_store` |
+| Bound store with fixed db_path | `FindingsStore(db_path)` | `findings_store` |
+
 ### Workspace and Orchestration
 
 Multi-step workflow handoff and agent orchestration.
@@ -417,7 +421,8 @@ Run directly from the command line (not imported as modules):
 | `health_check.py` | Validate workspace data, DBs, registries, and config | `python .agent/helpers/health_check.py [--quick|--full] [--json]` |
 | `select_audit_callees.py` | Select callees for deep extraction during /audit (Steps 3h+3i) | `python .agent/helpers/select_audit_callees.py <db> --dossier <path> [--attack-surface <path>] [--json]` |
 | `select_backward_traces.py` | Select backward trace targets for /audit Step 3c | `python .agent/helpers/select_backward_traces.py --dossier <path> [--extract-callee <path>] [--json]` |
-| `json_extract.py` | Extract specific keys or search within large JSON files | `python .agent/helpers/json_extract.py <file> <key> [--grep <pattern>] [--keys]` |
+| `json_extract.py` | Extract specific keys or search within large JSON files (auto-unwraps workspace envelopes) | `python .agent/helpers/json_extract.py <file> <key> [--grep <pattern>] [--keys] [--raw]` |
+| `ipc_index_inspect.py` | Diagnose IPC index state: COM/RPC/WinRT server counts, module attribution, edge counts, generic-host check | `python .agent/helpers/ipc_index_inspect.py --summary \| --com \| --rpc \| --winrt [--module <name>] \| --edges \| --check-hosts [--json]` |
 
 > **Programmatic search**: Skill scripts that need to combine search with other
 > logic should import `run_search` directly instead of spawning a subprocess:
@@ -450,7 +455,6 @@ by using the appropriate helper.
 | Hand-parsing function/class names | `parse_class_from_mangled(name)` |
 | Custom API categorization | `classify_api(name)` or `classify_api_security(name)` |
 | `print("Processing...")` to stdout | `status_message("Processing...")` (writes to stderr) |
-| Ad-hoc string classification | `categorize_string(s)` |
 | Manual cache file management | `get_cached()` / `cache_result()` |
 
 ---
@@ -482,7 +486,7 @@ Detailed documentation for the database subpackages:
 
 | Document | Description |
 |----------|-------------|
-| [Helper API Reference](../docs/helper_api_reference.md) | Full public API for all 30+ modules |
+| [Helper API Reference](../docs/helper_api_reference.md) | Full public API for all helper modules |
 | [Skill Authoring Guide](../docs/skill_authoring_guide.md) | Section 7: Helper Integration Reference |
 | [Command Authoring Guide](../docs/command_authoring_guide.md) | Section 4: Python Execution Context |
 | [Agent Authoring Guide](../docs/agent_authoring_guide.md) | Section 4: Shared Utilities |

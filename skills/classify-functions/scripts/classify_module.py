@@ -33,7 +33,6 @@ from _common import (
     WORKSPACE_ROOT,
     CATEGORIES,
     LOW_INTEREST_CATEGORIES,
-    AsmMetrics,
     ClassificationResult,
     classify_function,
     resolve_db_path,
@@ -53,31 +52,11 @@ from helpers.progress import progress_iter
 
 def _result_to_cacheable(r: ClassificationResult) -> dict:
     """Serialize a ClassificationResult to a JSON-safe dict (lossless)."""
-    d = r.to_dict()
-    if r.asm_metrics:
-        d["_asm_metrics"] = {
-            "instruction_count": r.asm_metrics.instruction_count,
-            "call_count": r.asm_metrics.call_count,
-            "branch_count": r.asm_metrics.branch_count,
-            "ret_count": r.asm_metrics.ret_count,
-            "has_syscall": r.asm_metrics.has_syscall,
-            "is_leaf": r.asm_metrics.is_leaf,
-            "is_tiny": r.asm_metrics.is_tiny,
-        }
-    return d
+    return r.to_dict()
 
 
 def _result_from_cached(d: dict) -> ClassificationResult:
     """Reconstruct a ClassificationResult from a cached dict."""
-    asm = None
-    asm_data = d.get("_asm_metrics")
-    if asm_data:
-        asm = AsmMetrics(**asm_data)
-    elif d.get("asm_instruction_count", 0) or d.get("asm_call_count", 0):
-        asm = AsmMetrics(
-            instruction_count=d.get("asm_instruction_count", 0),
-            call_count=d.get("asm_call_count", 0),
-        )
     return ClassificationResult(
         function_id=d["function_id"],
         function_name=d["function_name"],
@@ -86,7 +65,6 @@ def _result_from_cached(d: dict) -> ClassificationResult:
         scores=d.get("scores", {}),
         signals=d.get("signals", {}),
         interest_score=d.get("interest_score", 0),
-        asm_metrics=asm,
         has_decompiled=d.get("has_decompiled", False),
         loop_count=d.get("loop_count", 0),
         api_count=d.get("api_count", 0),
@@ -233,19 +211,17 @@ def print_text_output(
         print(f"\n{'=' * 80}")
         print(f"  {cat.upper()} ({len(shown)} function{'s' if len(shown) != 1 else ''})")
         print(f"{'=' * 80}")
-        print(f"{'ID':>6}  {'Interest':>8}  {'Loops':>5}  {'ASM':>5}  {'APIs':>5}  {'Function Name'}")
-        print(f"{'-' * 6}  {'-' * 8}  {'-' * 5}  {'-' * 5}  {'-' * 5}  {'-' * 50}")
+        print(f"{'ID':>6}  {'Interest':>8}  {'Loops':>5}  {'APIs':>5}  {'Function Name'}")
+        print(f"{'-' * 6}  {'-' * 8}  {'-' * 5}  {'-' * 5}  {'-' * 50}")
         for r in shown:
             name = r.function_name or "(unnamed)"
             if len(name) > 50:
                 name = name[:47] + "..."
-            asm_count = r.asm_metrics.instruction_count if r.asm_metrics else 0
             dec = "D" if r.has_decompiled else " "
             print(
                 f"{r.function_id:>6}  "
                 f"{r.interest_score:>6}  {dec} "
                 f"{r.loop_count:>5}  "
-                f"{asm_count:>5}  "
                 f"{r.api_count:>5}  "
                 f"{name}"
             )

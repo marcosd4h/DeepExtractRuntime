@@ -149,7 +149,7 @@ The current top-level step vocabulary includes:
 
 - goal-backed steps: `triage`, `security`, `full-analysis`, `types`
 - scan orchestration: `scan`
-- direct skill-group steps: `memory-scan`, `logic-scan`, `taint`, `classify`,
+- direct skill-group steps: `memory-scan`, `ai-logic-scan`, `taint`, `classify`,
   `entrypoints`, `callgraph`, `dossiers`
 
 ### 2. Batch Output Setup
@@ -242,7 +242,7 @@ When a function crosses a DLL boundary:
 4. Function resolution proceeds in the target module
 
 This is what enables cross-module call chain tracing for commands like
-`/audit` (Step 4c), `/data-flow-cross`, `/imports`, and `/compare-modules`.
+`/audit` (Step 4c), `/imports`, and `/compare-modules`.
 
 ---
 
