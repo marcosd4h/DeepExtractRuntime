@@ -11,7 +11,7 @@ Usage:
     python run_security_scan.py <db_path> --goal scan --json
 
 Goals:
-    scan:   full 5-phase vulnerability scan (default)
+    scan:   full 4-phase vulnerability scan (default)
     audit:  targeted audit on a specific function
     hunt:   hypothesis-driven scan on top entry points
 
@@ -363,46 +363,12 @@ def _phase_taint(
     return results
 
 
-def _phase_exploitability(db_path: str, workspace_dir: str, timeout: int) -> dict:
-    """Phase 4: Exploitability assessment with all finding types."""
-    results: dict = {}
-
-    taint_path = _find_step_results_path(workspace_dir, "taint_")
-    mem_path = _find_step_results_path(workspace_dir, "mem_findings")
-    logic_path = _find_step_results_path(workspace_dir, "logic_findings")
-
-    args = ["--module-db", db_path, "--json"]
-    if taint_path:
-        args.extend(["--taint-report", taint_path])
-    if mem_path:
-        args.extend(["--memory-findings", mem_path])
-    if logic_path:
-        args.extend(["--logic-findings", logic_path])
-
-    if not taint_path and not mem_path and not logic_path:
-        status_message("[SKIP] No findings for exploitability assessment")
-        return results
-
-    try:
-        result = run_skill_script(
-            "exploitability-assessment", "assess_finding.py", args,
-            timeout=timeout, json_output=True,
-            workspace_dir=workspace_dir, workspace_step="exploitability",
-        )
-        results["exploitability"] = result
-    except Exception as exc:
-        status_message(f"[FAIL] exploitability: {exc}")
-        results["exploitability"] = {"success": False, "error": str(exc)}
-
-    return results
-
-
 def _phase_report(
     all_phase_results: dict,
     workspace_dir: str,
     persist: bool = False,
 ) -> dict:
-    """Phase 5: Merge, deduplicate, and rank all findings into final report."""
+    """Phase 4: Merge, deduplicate, and rank all findings into final report."""
     scanner_pairs: list[tuple[dict, str]] = []
 
     for step_name, result in all_phase_results.items():
@@ -509,7 +475,7 @@ def run_security_pipeline(
     if top_n <= 0:
         top_n = adaptive_top_n(0)
 
-    progress = ProgressReporter(total=5, label="Security scan")
+    progress = ProgressReporter(total=4, label="Security scan")
     all_results: dict = {}
     phase_log: list[dict] = []
 
@@ -521,7 +487,7 @@ def run_security_pipeline(
         phase_log.append(entry)
 
     # Phase 1: Recon
-    status_message("Phase 1/5: Recon -- classifying functions and mapping attack surface")
+    status_message("Phase 1/4: Recon -- classifying functions and mapping attack surface")
     t0 = time.time()
     recon = _phase_recon(
         db_path,
@@ -560,7 +526,7 @@ def run_security_pipeline(
                   f"(RPC/COM/WinRT)", file=sys.stderr)
 
     # Phase 2: Vulnerability scan
-    status_message("Phase 2/5: Preparing AI scanner contexts (threat models + callgraphs)")
+    status_message("Phase 2/4: Preparing AI scanner contexts (threat models + callgraphs)")
     t0 = time.time()
     vuln = _phase_vuln_scan(
         db_path,
@@ -576,7 +542,7 @@ def run_security_pipeline(
     progress.update(2)
 
     # Phase 3: Taint context preparation for AI taint scanner
-    status_message("Phase 3/5: Preparing taint-enriched callgraph context for top entry points")
+    status_message("Phase 3/4: Preparing taint-enriched callgraph context for top entry points")
     t0 = time.time()
     taint = _phase_taint(
         db_path,
@@ -593,22 +559,12 @@ def run_security_pipeline(
     ) if taint else True)
     progress.update(3)
 
-    # Phase 4: Exploitability assessment
-    status_message("Phase 4/5: Scoring exploitability")
-    t0 = time.time()
-    exploit = _phase_exploitability(db_path, workspace_dir, timeout)
-    all_results.update(exploit)
-    _log_phase("exploitability", t0, exploit, any(
-        isinstance(v, dict) and v.get("success") for v in exploit.values()
-    ) if exploit else True)
-    progress.update(4)
-
-    # Phase 5: Report synthesis
-    status_message("Phase 5/5: Merging and ranking findings")
+    # Phase 4: Report synthesis
+    status_message("Phase 4/4: Merging and ranking findings")
     t0 = time.time()
     report = _phase_report(all_results, workspace_dir, persist=True)
     _log_phase("report", t0, report, bool(report.get("findings") is not None))
-    progress.update(5)
+    progress.update(4)
 
     total_elapsed = round(time.time() - start_time, 2)
     succeeded = sum(1 for p in phase_log if p["success"])

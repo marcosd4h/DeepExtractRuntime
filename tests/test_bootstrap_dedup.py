@@ -46,7 +46,6 @@ EXPECTED_SKILLS = [
     "com-interface-analysis",
     "com-interface-reconstruction",
     "decompiled-code-extractor",
-    "exploitability-assessment",
     "function-index",
     "generate-re-report",
     "import-export-resolver",

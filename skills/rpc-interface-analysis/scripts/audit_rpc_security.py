@@ -190,8 +190,17 @@ def audit_module(db_path: str, *, depth: int = _DEFAULT_DEPTH) -> tuple[list[Rpc
                         risk_tier=risk_tier,
                         finding_type="rpc_missing_revert",
                         severity=0.75,
-                        description="RpcImpersonateClient without matching RpcRevertToSelf",
-                        details=[f"Called: {', '.join(transitive_apis & _IMPERSONATION_APIS)}"],
+                        description=(
+                            "RpcImpersonateClient is reachable but RpcRevertToSelf "
+                            "is NOT reachable within the BFS subtree. "
+                            "NOTE: This is a path-insensitive check. The revert may "
+                            "exist on some paths but not on error paths. "
+                            "Verify with /ai-logical-bug-scan for path-sensitive analysis."
+                        ),
+                        details=[
+                            f"Called: {', '.join(transitive_apis & _IMPERSONATION_APIS)}",
+                            "path_sensitive_verification_required: true",
+                        ],
                     ))
 
                 if priv_ops and not has_impersonate:

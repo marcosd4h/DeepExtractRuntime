@@ -18,7 +18,7 @@ The `/scan` command is a **unified vulnerability scan** that orchestrates multip
 | **Logic vulnerabilities** | `build_threat_model.py`, `prepare_context.py` + self-driving LLM scanner via `/ai-logical-bug-scan` (single subagent launch; scanner reads deeper code itself via Shell) |
 | **Taint analysis** | Entry point discovery → `rank_entrypoints.py` → self-driving taint via `taint-scanner` subagent on top 5 ranked entry points (single subagent launch; scanner reads deeper code itself via Shell) |
 | **Verification** | Skeptic verification (memory, logic, and taint pipelines all include skeptic verification) |
-| **Exploitability** | `assess_finding.py` or `batch_assess.py` for CRITICAL/HIGH findings |
+| **Ranking** | Findings ranked by LLM-assigned severity and scanner score |
 
 ### Modes
 

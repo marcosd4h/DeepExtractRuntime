@@ -9,9 +9,9 @@ depends_on: ["decompiled-code-extractor"]
 
 ## Purpose
 
-Module-wide type reconstruction from DeepExtractIDA analysis databases. Scans ALL functions in a module using **both decompiled C++ code and raw x64 assembly** to collect every memory access pattern, merges with vtable contexts and mangled name data, and produces compilable C/C++ header files with struct/class definitions.
+Module-wide type reconstruction from DeepExtractIDA analysis databases. Scans ALL functions in a module using **x64 assembly** to collect every memory access pattern, merges with vtable contexts and mangled name data, and produces compilable C/C++ header files with struct/class definitions.
 
-Assembly is the **ground truth** -- it provides exact field sizes from instruction operands and catches accesses the decompiler may optimise away. The scanner cross-validates decompiled patterns against assembly and uses assembly-derived sizes as authoritative.
+Assembly is the **sole evidence source** -- it provides exact field sizes from instruction operands and is deterministic across Hex-Rays versions. Functions without assembly data are skipped.
 
 This skill feeds directly into code lifting -- once you have accurate structs, every subsequent lift replaces raw pointer arithmetic with readable field access.
 
@@ -31,8 +31,7 @@ This skill feeds directly into code lifting -- once you have accurate structs, e
 
 Individual analysis DBs in `extracted_dbs/` contain per-function data:
 
-- `assembly_code` -- **ground truth**: exact offsets/sizes from x64 instructions
-- `decompiled_code` -- scan for `*(TYPE*)(base + offset)` patterns (structural context)
+- `assembly_code` -- sole evidence source: exact offsets/sizes from x64 instructions
 - `mangled_name` -- decode class names, namespaces, inheritance
 - `vtable_contexts` -- reconstructed class skeletons with virtual method tables
 - `function_signature` / `function_signature_extended` -- parameter types
@@ -178,8 +177,7 @@ python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> -
 The scanner:
 
 1. Finds ALL functions belonging to the class (via mangled names) plus functions whose signatures reference the class type
-2. Parses **decompiled code** for `*(TYPE*)(base + offset)` patterns (structural context)
-3. Parses **assembly code** for `[reg+offset]` patterns (ground-truth sizes and offsets)
+2. Parses **assembly code** for `[reg+offset]` patterns (deterministic sizes and offsets)
 4. Detects prologue register saves (e.g., `mov r13, rcx`) to track struct pointers through callee-saved registers
 5. Maps base variables/registers to parameter types using function signatures and calling convention
 6. Cross-validates and merges fields from both sources -- assembly sizes are authoritative

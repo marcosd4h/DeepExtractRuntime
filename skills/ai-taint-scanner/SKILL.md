@@ -282,8 +282,8 @@ or taint analysis inline.
 - Phase 3: `Task(subagent_type="taint-scanner")` for deep analysis
 
 Each finding from Phase 3 MUST include `verification_subgraph` (nodes,
-edges, must_read, db_path) for downstream consumers (exploitability
-assessment, cross-scanner correlation).
+edges, must_read, db_path) for downstream consumers (cross-scanner
+correlation).
 
 ## Integration with Other Skills
 
@@ -291,7 +291,6 @@ assessment, cross-scanner correlation).
 |------|-------------------|
 | Memory corruption scanning | ai-memory-corruption-scanner |
 | Logic vulnerability scanning | ai-logic-scanner |
-| Assess exploitability of findings | exploitability-assessment |
 | Check function reachability from exports | security-dossier |
 | Reconstruct struct layouts | reconstruct-types |
 | Map full attack surface | map-attack-surface |

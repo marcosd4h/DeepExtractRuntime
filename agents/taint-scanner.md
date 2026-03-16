@@ -400,8 +400,8 @@ Every finding MUST include `verification_subgraph` extracted from the callgraph
 JSON. The scanner constructs this by filtering the callgraph nodes/edges to only
 those on the finding's propagation chain path. Include any branch-point functions
 or guard functions adjacent to the chain that are relevant to the taint flow.
-Downstream consumers (exploitability-assessment, cross-scanner correlation) use
-this subgraph to independently verify propagation paths.
+Downstream consumers (cross-scanner correlation, verification) use this subgraph
+to independently verify propagation paths.
 
 - `call_chain`: ordered function names from source to sink
 - `nodes`: node metadata (module, function, function_id, depth) for each chain member

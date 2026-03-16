@@ -499,7 +499,3 @@ class TestSkillCommonAdoption:
         """security-dossier _common.py should use skill_common for standard helpers."""
         source = (AGENT_DIR / "skills" / "security-dossier" / "scripts" / "_common.py").read_text()
         assert "from skills._shared.skill_common import" in source
-
-    def test_exploitability_imports_from_skill_common(self):
-        source = (AGENT_DIR / "skills" / "exploitability-assessment" / "scripts" / "_common.py").read_text()
-        assert "from skills._shared.skill_common import" in source

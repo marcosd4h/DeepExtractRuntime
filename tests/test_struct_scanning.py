@@ -1,4 +1,4 @@
-"""Tests for struct field scanning from decompiled and assembly code.
+"""Tests for struct field scanning from assembly code.
 
 Target: skills/reconstruct-types/scripts/scan_struct_fields.py
 """
@@ -9,103 +9,12 @@ import pytest
 
 from conftest import import_skill_module
 
-# Load the reconstruct-types modules (hyphenated dir)
 _scan_mod = import_skill_module("reconstruct-types", "scan_struct_fields")
-scan_decompiled_code = _scan_mod.scan_decompiled_code
 scan_assembly_code = _scan_mod.scan_assembly_code
 parse_signature_params = _scan_mod.parse_signature_params
 
 _common_mod = import_skill_module("reconstruct-types")
 TYPE_SIZES = _common_mod.TYPE_SIZES
-
-
-# ===================================================================
-# scan_decompiled_code
-# ===================================================================
-
-class TestScanDecompiledCode:
-    def test_empty_input(self):
-        assert scan_decompiled_code("") == []
-        assert scan_decompiled_code(None) == []
-
-    def test_pattern1_typed_ptr_arith(self):
-        """*((_DWORD *)this + 5) -> offset = 5 * 4 = 20, size = 4."""
-        code = "  *((_DWORD *)this + 5) = 0;"
-        results = scan_decompiled_code(code)
-        assert len(results) >= 1
-        hit = results[0]
-        assert hit["base"] == "this"
-        assert hit["byte_offset"] == 20
-        assert hit["size"] == 4
-        assert hit["pattern"] == "typed_ptr_arith"
-
-    def test_pattern2_byte_offset(self):
-        """*(_BYTE *)(this + 0x10) -> offset = 16, size = 1."""
-        code = "  *(_BYTE *)(this + 0x10) = 1;"
-        results = scan_decompiled_code(code)
-        assert len(results) >= 1
-        hit = results[0]
-        assert hit["base"] == "this"
-        assert hit["byte_offset"] == 16
-        assert hit["size"] == 1
-        assert hit["pattern"] == "byte_offset"
-
-    def test_pattern3_zero_offset(self):
-        """*(_QWORD *)this -> offset = 0, size = 8."""
-        code = "  v1 = *(_QWORD *)this;"
-        results = scan_decompiled_code(code)
-        assert len(results) >= 1
-        hit = results[0]
-        assert hit["base"] == "this"
-        assert hit["byte_offset"] == 0
-        assert hit["size"] == 8
-        assert hit["pattern"] == "zero_offset"
-
-    def test_multiple_accesses_different_bases(self):
-        code = (
-            "  *((_DWORD *)a1 + 2) = 0;\n"
-            "  *((_QWORD *)a2 + 1) = 0;\n"
-        )
-        results = scan_decompiled_code(code)
-        bases = {r["base"] for r in results}
-        assert "a1" in bases
-        assert "a2" in bases
-
-    def test_no_struct_access(self):
-        code = "  int x = 42;\n  return x + 1;\n"
-        assert scan_decompiled_code(code) == []
-
-    def test_hex_offset(self):
-        """*(_DWORD *)(this + 0x20) -> offset = 32."""
-        code = "  *(_DWORD *)(this + 0x20) = 99;"
-        results = scan_decompiled_code(code)
-        assert len(results) >= 1
-        assert results[0]["byte_offset"] == 32
-
-    def test_decimal_offset(self):
-        """*((_DWORD *)this + 3) -> offset = 12."""
-        code = "  *((_DWORD *)this + 3) = 0;"
-        results = scan_decompiled_code(code)
-        assert len(results) >= 1
-        assert results[0]["byte_offset"] == 12
-
-    def test_skips_comments(self):
-        code = "// *((_DWORD *)this + 5) = 0;\n  ret;"
-        results = scan_decompiled_code(code)
-        assert len(results) == 0
-
-    def test_word_type(self):
-        """*((_WORD *)this + 8) -> offset = 8 * 2 = 16, size = 2."""
-        code = "  *((_WORD *)this + 8) = 0;"
-        results = scan_decompiled_code(code)
-        assert len(results) >= 1
-        assert results[0]["size"] == 2
-        assert results[0]["byte_offset"] == 16
-
-    def test_line_numbers(self):
-        code = "line1\n  *((_DWORD *)this + 1) = 0;\nline3\n"
-        results = scan_decompiled_code(code)
-        assert results[0]["line_num"] == 2
 
 
 # ===================================================================

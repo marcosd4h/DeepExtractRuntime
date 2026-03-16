@@ -165,7 +165,6 @@ edges, must_read, db_path) so the skeptic has a focused verification target.
 
 | Task | Recommended Skill |
 |------|------------------|
-| Assess exploitability of findings | exploitability-assessment |
 | Check function reachability from exports | security-dossier |
 | Reconstruct struct layouts | reconstruct-types |
 | Map full attack surface | map-attack-surface |

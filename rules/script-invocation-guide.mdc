@@ -239,13 +239,6 @@ prepare_batch_lift.py       --from-json <file> | --ids <id,id,...>  [<db_path>] 
 reconstruct_all.py          <db_path> [--class <name>] [--include-com] [--validate] [--output <file>] [--json]
 ```
 
-### Exploitability assessment
-
-```
-assess_finding.py           [--taint-report <file>] [--memory-findings <file>] [--logic-findings <file>] [--dossier <file>] [--module-db <db_path>] [--verify-report <file>] [--json]
-batch_assess.py             <db_path> [--top N] [--min-score F] [--depth N] [--json] [--no-cache]
-```
-
 ### Audit selection helpers
 
 ```

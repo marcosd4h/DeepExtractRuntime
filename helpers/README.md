@@ -340,7 +340,6 @@ Helpers for parsing decompiled code, assembly, mangled names, and types.
 | Parse class from mangled name | `parse_class_from_mangled(name)` | `mangled_names` |
 | Extract function calls from source | `extract_function_calls(source)` | `decompiled_parser` |
 | Split function arguments | `split_arguments(arg_string)` | `decompiled_parser` |
-| Scan struct accesses (decompiled) | `scan_decompiled_struct_accesses(src)` | `struct_scanner` |
 | Scan struct accesses (assembly) | `scan_assembly_struct_accesses(asm)` | `struct_scanner` |
 | Batch struct scanning | `scan_batch_struct_accesses(funcs)` | `struct_scanner` |
 | Merge scanned struct fields | `merge_scanned_struct_fields(fields)` | `struct_scanner` |

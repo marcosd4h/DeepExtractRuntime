@@ -51,7 +51,6 @@ from hooks._scanners import (  # noqa: E402
     save_module_list_sidecar,
 )
 from hooks._context_builder import build_context, _is_level_enabled  # noqa: E402
-from hooks._context_builder import build_context  # noqa: E402
 from hooks._readme_loader import (  # noqa: E402
     load_skills_readme_overview,
     load_commands_readme_overview,

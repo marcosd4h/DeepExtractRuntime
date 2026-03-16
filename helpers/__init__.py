@@ -241,7 +241,6 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     "parse_signature_params": (".struct_scanner", None),
     "scan_assembly_struct_accesses": (".struct_scanner", None),
     "scan_batch_struct_accesses": (".struct_scanner", None),
-    "scan_decompiled_struct_accesses": (".struct_scanner", None),
     # workspace_validation
     "WorkspaceValidationResult": (".workspace_validation", None),
     "validate_workspace_run": (".workspace_validation", None),

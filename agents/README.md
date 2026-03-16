@@ -18,7 +18,7 @@ Parent Agent (main conversation)
   ├─ re-analyst                  Explain and analyze decompiled functions
   ├─ triage-coordinator          Orchestrate multi-skill analysis workflows
   ├─ type-reconstructor          Reconstruct C++ structs/classes from memory patterns
-  ├─ security-auditor            Vulnerability scanning and exploitability assessment
+  ├─ security-auditor            Vulnerability scanning and security assessment
   ├─ code-lifter                 Lift/rewrite class methods with shared context
   ├─ memory-corruption-scanner   AI-driven memory corruption vulnerability scanner (LLM-only)
   ├─ logic-scanner               AI-driven logic vulnerability scanner (LLM-only)
@@ -239,7 +239,7 @@ python .agent/agents/type-reconstructor/scripts/merge_evidence.py --scan-output 
 
 ### security-auditor
 
-**Purpose:** Dedicated security assessment agent for vulnerability scanning and exploitability analysis. Composes memory corruption detection, logic vulnerability detection, taint analysis, and exploitability assessment under a security-focused persona with built-in adversarial reasoning methodology.
+**Purpose:** Dedicated security assessment agent for vulnerability scanning. Composes memory corruption detection, logic vulnerability detection, and taint analysis under a security-focused persona with built-in adversarial reasoning methodology.
 
 **When to use:**
 - Running a security audit on one or more functions with taint, exploitability, and verification
@@ -252,7 +252,7 @@ python .agent/agents/type-reconstructor/scripts/merge_evidence.py --scan-output 
 - Lifting decompiled code -- use **code-lifter**
 - Orchestrating general analysis pipelines -- use **triage-coordinator**
 
-**Skills used:** decompiled-code-extractor, classify-functions, map-attack-surface, security-dossier, ai-taint-scanner, exploitability-assessment, ai-memory-corruption-scanner, ai-logic-scanner
+**Skills used:** decompiled-code-extractor, classify-functions, map-attack-surface, security-dossier, ai-taint-scanner, ai-memory-corruption-scanner, ai-logic-scanner
 
 
 **Script:** `run_security_scan.py` -- main entry point for module- or

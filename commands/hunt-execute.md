@@ -9,8 +9,9 @@ Usage:
 - `/hunt-execute appinfo.dll` -- execute the most recent hunt plan for this module
 - `/hunt-execute` -- execute the plan from the most recent `/hunt-plan` session
 - `/hunt-execute --plan-file .agent/workspace/appinfo_hunt_plan_20260304.json` -- execute a specific plan file
+- `/hunt-execute appinfo.dll --hypothesis "TOCTOU in file path handler"` -- execute an inline hypothesis without a prior `/hunt-plan`
 
-This command is the "action" counterpart to `/hunt-plan`'s "planning" phase. While `/hunt-plan` produces hypotheses and maps them to commands, `/hunt-execute` runs those commands and interprets results.
+This command is the "action" counterpart to `/hunt-plan`'s "planning" phase. While `/hunt-plan` produces hypotheses and maps them to commands, `/hunt-execute` runs those commands and interprets results. The `--hypothesis` flag allows skipping the planning step for quick, targeted investigations.
 
 ## IMPORTANT: Execution Model
 
@@ -38,12 +39,40 @@ This command orchestrates multiple analysis steps per hypothesis:
 
 Check for an existing `/hunt-plan` plan using this priority order:
 
-1. **Explicit plan file** (highest priority): If `--plan-file <path>` is provided, load that file directly. Fail with a clear error if the file does not exist or is not valid JSON.
-2. **Workspace files** (preferred): Scan `.agent/workspace/` for `*_hunt_plan_*.json` files. If a module name is provided, filter to plans matching that module. Use the most recent file by timestamp.
-3. **Conversation history** (fallback): If no workspace file is found, look in the conversation history for the most recent `/hunt-plan` output.
-4. If no plan is found by any method, suggest running `/hunt-plan <module>` first.
+1. **Inline hypothesis** (highest priority): If `--hypothesis "<statement>"` is provided, construct a synthetic plan in memory (see below). No prior `/hunt-plan` session is required.
+2. **Explicit plan file**: If `--plan-file <path>` is provided, load that file directly. Fail with a clear error if the file does not exist or is not valid JSON.
+3. **Workspace files** (preferred): Scan `.agent/workspace/` for `*_hunt_plan_*.json` files. If a module name is provided, filter to plans matching that module. Use the most recent file by timestamp.
+4. **Conversation history** (fallback): If no workspace file is found, look in the conversation history for the most recent `/hunt-plan` output.
+5. If no plan is found by any method, suggest running `/hunt-plan <module>` first, or using `--hypothesis` for a quick targeted investigation.
 
-Extract from the plan:
+**Synthetic plan construction (for inline hypothesis):**
+
+When `--hypothesis` is provided, build an in-memory plan with one hypothesis:
+
+```json
+{
+  "module": "<module_name>",
+  "mode": "hypothesis",
+  "hypotheses": [
+    {
+      "id": 1,
+      "statement": "<the user's hypothesis text>",
+      "priority": 10,
+      "commands": [],
+      "validation_criteria": {
+        "confirms": "Direct evidence of the hypothesized vulnerability pattern",
+        "refutes": "Strong guards or structural impossibility"
+      }
+    }
+  ],
+  "threat_model": {},
+  "created_at": "<ISO 8601 timestamp>"
+}
+```
+
+The commands list is empty because the agent infers appropriate investigation commands from the hypothesis statement and the module's characteristics (entry points, IPC surface, function classifications). Use the hypothesis type mapping table in Step 3 to select commands. If the module has not been triaged, run triage first to gather context before investigation.
+
+Extract from the plan (inline or file-based):
 - **Hypotheses**: Each hypothesis statement with its priority score
 - **Per-hypothesis commands**: The specific commands mapped to each hypothesis
 - **Validation criteria**: What confirms vs refutes each hypothesis
@@ -104,31 +133,12 @@ Rate the hypothesis using the evidence:
 
 **d. Update scratchpad:** Check off the hypothesis.
 
-### 4. Score exploitability of confirmed findings
-
-For each hypothesis scored CONFIRMED or LIKELY, run **exploitability-assessment** to get a structured exploitability score:
-
-```bash
-python .agent/skills/exploitability-assessment/scripts/assess_finding.py \
-    --taint-report <run_dir>/hypothesis_<N>/taint_results.json \
-    --dossier <run_dir>/hypothesis_<N>/dossier.json \
-    --module-db <db_path> --json
-```
-
-If multiple confirmed findings exist, use the batch assessor:
-
-```bash
-python .agent/skills/exploitability-assessment/scripts/batch_assess.py <db_path> --json
-```
-
-The assessment considers: guard bypass difficulty, primitive quality (read/write/exec), and reachability from entry points.
-
-### 5. Synthesize findings report
+### 4. Synthesize findings report
 
 After all hypotheses are investigated and scored:
 
-**Confirmed/Likely findings (with exploitability):**
-- Hypothesis statement, confidence level, and exploitability score
+**Confirmed/Likely findings:**
+- Hypothesis statement and confidence level
 - Evidence summary (taint paths, missing checks, dangerous operations)
 - Exploitation primitive (what the attacker gets) with quality rating
 - Guard coverage and bypass feasibility
@@ -139,8 +149,8 @@ After all hypotheses are investigated and scored:
 - What compensating controls were found
 
 **Overall assessment:**
-- Module risk level based on confirmed findings and exploitability scores
-- Priority-ordered list of findings for follow-up, ranked by exploitability
+- Module risk level based on confirmed findings
+- Priority-ordered list of findings for follow-up, ranked by severity and impact
 
 ## Output
 
@@ -152,11 +162,11 @@ All saved files must include a provenance header: generation date, module name, 
 
 - `/audit <module> <function>` -- deeper audit on confirmed findings
 - `/taint <module> <function> --cross-module` -- trace cross-module impact
-- `/hunt-plan validate <module> <function>` -- plan PoC development for confirmed findings
+- `/hunt-plan hypothesis <module> <function>` -- plan PoC development for confirmed findings
 
 ## Error Handling
 
-- **No hunt plan found**: Suggest running `/hunt-plan <module>` first
+- **No hunt plan found**: Suggest running `/hunt-plan <module>` first, or using `--hypothesis` for quick targeted investigation
 - **Module not found**: List available modules and ask user to choose
 - **Command failure**: Log the error, mark hypothesis as "investigation incomplete", continue with next
 - **Partial results**: Always report what was successfully investigated, even if some hypotheses couldn't be tested

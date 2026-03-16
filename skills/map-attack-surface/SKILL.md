@@ -17,7 +17,6 @@ Automatically discover, classify, and rank every possible entry point in an anal
 
 - General module-level triage or function classification -- use **classify-functions** or **generate-re-report**
 - Tracing attacker-controlled input to specific sinks -- use **taint-analysis**
-- Assessing exploitability of specific findings -- use **exploitability-assessment**
 - Understanding what a specific function does -- use **re-analyst** or `/explain`
 - PE-level import/export dependency mapping -- use **import-export-resolver**
 

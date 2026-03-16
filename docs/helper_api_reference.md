@@ -290,12 +290,10 @@ Regex-based extraction of function calls, arguments, and parameter usage from ID
   - Extracts content from balanced parentheses starting at `text[start]`.
 
 ### struct_scanner
-Scans decompiled and assembly code for struct/class field accesses to infer memory layouts.
+Scans x64 assembly code for struct/class field accesses to infer memory layouts. Assembly is the sole evidence source -- it provides deterministic sizes from instruction operands.
 
-- `scan_decompiled_struct_accesses(code: str, type_sizes: dict[str, int])` -> list[dict]
-  - Scans decompiled code for `*(_TYPE *)(base + offset)` and `base->field` patterns. Returns dicts with: `base`, `offset`, `size`, `type_name`, `pattern`.
 - `scan_assembly_struct_accesses(asm: str)` -> list[dict]
-  - Scans x64 assembly for `[reg+offset]` memory access patterns with ptr-size inference.
+  - Scans x64 assembly for `[reg+offset]` memory access patterns with ptr-size inference. Returns dicts with: `base`, `byte_offset`, `size`, `param_num`, `source`, `line_num`.
 - `scan_batch_struct_accesses(code: str, type_sizes: dict[str, int])` -> list[dict]
   - Batch-lift style scanning: returns `base`, `offset`, `size`, `type_name`, `pattern` for indexed, direct, and zero-offset accesses.
 - `merge_struct_fields(fields: list[dict])` -> list[dict]

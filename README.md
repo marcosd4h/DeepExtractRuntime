@@ -153,8 +153,7 @@ catalog and the exhaustive file listing.
 ## Skills
 
 There are 17 registered skills spanning extraction, reporting, indexing,
-analysis, reconstruction, security scanning, exploitability assessment, and
-methodology guidance.
+analysis, reconstruction, security scanning, and methodology guidance.
 
 Representative groups:
 
@@ -162,7 +161,7 @@ Representative groups:
 - Reporting and orientation: `generate-re-report`, `classify-functions`, `map-attack-surface`
 - Dataflow and topology: `callgraph-tracer`, `import-export-resolver`
 - Reconstruction: `reconstruct-types`, `com-interface-reconstruction`, `batch-lift`
-- Security scanning: `security-dossier`, `ai-taint-scanner`, `ai-memory-corruption-scanner`, `ai-logic-scanner`, `exploitability-assessment`, `rpc-interface-analysis`, `winrt-interface-analysis`, `com-interface-analysis`
+- Security scanning: `security-dossier`, `ai-taint-scanner`, `ai-memory-corruption-scanner`, `ai-logic-scanner`, `rpc-interface-analysis`, `winrt-interface-analysis`, `com-interface-analysis`
 
 See [skills/README.md](skills/README.md) and
 [`skills/registry.json`](skills/registry.json) for the full inventory.

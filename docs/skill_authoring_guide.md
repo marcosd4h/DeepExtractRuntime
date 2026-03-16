@@ -1139,7 +1139,6 @@ All helpers are importable from the top-level `helpers` package. Skills should u
 | Parse class from mangled name      | `helpers.parse_class_from_mangled(name)`       |
 | Extract function calls from source | `helpers.extract_function_calls(source)`       |
 | Scan struct accesses in assembly   | `helpers.scan_assembly_struct_accesses(asm)`   |
-| Scan struct accesses in decompiled | `helpers.scan_decompiled_struct_accesses(src)` |
 | IDA type to C type mapping         | `helpers.IDA_TO_C_TYPE`                        |
 
 ### Script Runner (Inter-Skill Calls)

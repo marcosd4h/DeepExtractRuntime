@@ -149,4 +149,3 @@ class TestTriagePipelineRegistry:
         )
         agent = agent_registry["agents"]["security-auditor"]
         assert "ai-taint-scanner" in agent["skills_used"]
-        assert "exploitability-assessment" in agent["skills_used"]

@@ -370,20 +370,18 @@ class TestScanStructFieldsCache:
         result = self.mod.scan_module(str(rpt_db), all_classes=True)
         assert "functions_scanned" in result
         cached = get_cached(str(rpt_db), "scan_struct_fields",
-                            params={"all_classes": True,
-                                    "no_asm": False, "app_only": False})
+                            params={"all_classes": True, "app_only": False})
         assert cached is not None
         assert cached["functions_scanned"] == result["functions_scanned"]
 
     def test_single_function_does_not_cache(self, rpt_db):
         self.mod.scan_module(str(rpt_db), function_filter="DllMain")
-        # No scan_struct_fields cache should exist (function mode skips caching)
         cached_bare = get_cached(str(rpt_db), "scan_struct_fields")
         assert cached_bare is None
 
     def test_no_cache_bypasses(self, rpt_db):
         self.mod.scan_module(str(rpt_db), all_classes=True)
-        params = {"all_classes": True, "no_asm": False, "app_only": False}
+        params = {"all_classes": True, "app_only": False}
         cache_result(str(rpt_db), "scan_struct_fields",
                      {"functions_scanned": -1}, params=params)
         result = self.mod.scan_module(str(rpt_db), all_classes=True,

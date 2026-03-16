@@ -116,7 +116,7 @@
       "entry_scripts": [
         {"script": "list_types.py", "accepts": {"db_path": "required", "--with-vtables": "flag", "--json": "optional"}},
         {"script": "extract_class_hierarchy.py", "accepts": {"db_path": "required", "--class": "optional", "--json": "optional"}},
-        {"script": "scan_struct_fields.py", "accepts": {"db_path": "required", "--class": "optional", "--function": "optional", "--all-classes": "flag", "--json": "flag", "--no-asm": "flag", "--app-only": "flag", "--no-cache": "flag"}},
+        {"script": "scan_struct_fields.py", "accepts": {"db_path": "required", "--class": "optional", "--function": "optional", "--all-classes": "flag", "--json": "flag", "--app-only": "flag", "--no-cache": "flag"}},
         {"script": "generate_header.py", "accepts": {"db_path": "required", "--class": "optional", "--all": "flag", "--from-json": "optional", "--output": "optional"}}
       ],
       "depends_on": ["decompiled-code-extractor"],
@@ -133,17 +133,6 @@
       "depends_on": ["decompiled-code-extractor", "callgraph-tracer"],
       "cacheable": true,
       "cache_keys": ["security_dossier"],
-      "json_output": true
-    },
-    "exploitability-assessment": {
-      "purpose": "Assess exploitability of findings from any scanner (taint, memory-corruption, logic-vulnerability) using mitigations, guard bypass, primitive quality, and reachability",
-      "type": "security",
-      "entry_scripts": [
-        {"script": "assess_finding.py", "accepts": {"--taint-report": "optional", "--memory-findings": "optional", "--logic-findings": "optional", "--dossier": "optional", "--module-db": "optional", "--json": "flag"}, "note": "At least one of --taint-report, --memory-findings, or --logic-findings is required"},
-        {"script": "batch_assess.py", "accepts": {"db_path": "required", "--top": "optional", "--min-score": "optional", "--depth": "optional", "--json": "flag", "--no-cache": "flag"}}
-      ],
-      "depends_on": ["ai-taint-scanner", "security-dossier", "map-attack-surface", "ai-memory-corruption-scanner", "ai-logic-scanner"],
-      "cacheable": false,
       "json_output": true
     },
     "ai-memory-corruption-scanner": {

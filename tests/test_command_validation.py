@@ -411,8 +411,8 @@ class TestValidateCommandArgs:
         result = validate_command_args("hunt-plan", {"args": ["replan"]})
         assert result.ok, str(result.errors)
 
-    def test_hunt_plan_design_mode(self):
-        result = validate_command_args("hunt-plan", {"args": ["design", "new skill"]})
+    def test_hunt_plan_hypothesis_mode(self):
+        result = validate_command_args("hunt-plan", {"args": ["hypothesis", "TOCTOU"]})
         assert result.ok, str(result.errors)
 
 

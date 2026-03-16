@@ -111,7 +111,7 @@
       "workspace_protocol": true
     },
     "hunt-plan": {
-      "purpose": "Hypothesis-driven VR and strategic research planning: campaign planning, cross-module campaigns, post-analysis re-planning, tool/skill design, attack pattern matching, variant analysis, finding validation",
+      "purpose": "Hypothesis-driven VR and strategic research planning: campaign planning (with trust boundary mapping), hypothesis testing (including variant hunting and finding validation), cross-module campaigns, post-analysis re-planning",
       "file": "hunt-plan.md",
       "skills_used": ["classify-functions", "map-attack-surface", "security-dossier"],
       "agents_used": [],
@@ -120,18 +120,18 @@
       "workspace_protocol": true
     },
     "hunt-execute": {
-      "purpose": "Execute a /hunt-plan research plan: run investigation commands, collect evidence, score confidence",
+      "purpose": "Execute a /hunt-plan research plan or inline hypothesis: run investigation commands, collect evidence, score confidence",
       "file": "hunt-execute.md",
-      "skills_used": ["security-dossier", "map-attack-surface", "callgraph-tracer", "exploitability-assessment"],
+      "skills_used": ["security-dossier", "map-attack-surface", "callgraph-tracer"],
       "agents_used": ["security-auditor"],
-      "parameters": "[module] [--plan-file <path>]",
+      "parameters": "[module] [--plan-file <path>] [--hypothesis \"<statement>\"]",
       "grind_loop": true,
       "workspace_protocol": true
     },
     "batch-audit": {
       "purpose": "Audit top N entry points or privilege-boundary handlers in parallel with consolidated security and exploitability report",
       "file": "batch-audit.md",
-      "skills_used": ["security-dossier", "exploitability-assessment", "classify-functions", "map-attack-surface", "rpc-interface-analysis", "com-interface-analysis", "winrt-interface-analysis"],
+      "skills_used": ["security-dossier", "classify-functions", "map-attack-surface", "rpc-interface-analysis", "com-interface-analysis", "winrt-interface-analysis"],
       "agents_used": ["security-auditor"],
       "parameters": "<module> [func1 func2 ...] [--top N] [--min-score S] [--class ClassName] [--privilege-boundary]",
       "grind_loop": true,
@@ -194,7 +194,7 @@
     "scan": {
       "purpose": "Unified vulnerability scan: memory corruption + logic flaws + taint analysis with verification and exploitability scoring",
       "file": "scan.md",
-      "skills_used": ["decompiled-code-extractor", "ai-memory-corruption-scanner", "ai-logic-scanner", "ai-taint-scanner", "map-attack-surface", "exploitability-assessment", "security-dossier"],
+      "skills_used": ["decompiled-code-extractor", "ai-memory-corruption-scanner", "ai-logic-scanner", "ai-taint-scanner", "map-attack-surface", "security-dossier"],
       "agents_used": ["security-auditor"],
       "parameters": "<module> [function] [--top N] [--memory-only] [--logic-only] [--taint-only] [--auto-audit]",
       "grind_loop": true,
@@ -203,7 +203,7 @@
     "prioritize": {
       "purpose": "Cross-module finding prioritization: load cached scan/audit results, normalize, rank by exploitability x reachability x impact",
       "file": "prioritize.md",
-      "skills_used": ["decompiled-code-extractor", "exploitability-assessment"],
+      "skills_used": ["decompiled-code-extractor"],
       "agents_used": [],
       "parameters": "[--modules A B C | --all] [--top N] [--min-score S]",
       "grind_loop": false,

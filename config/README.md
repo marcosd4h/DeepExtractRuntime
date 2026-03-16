@@ -92,7 +92,7 @@ interest scores to decompiled functions.
 ## `scoring` -- Finding and Severity Scoring
 
 Controls confidence thresholds and severity weights used by vulnerability
-scanners, taint analysis, and exploitability assessment.
+scanners and taint analysis.
 
 | Setting | Type | Default | Description | Constraints |
 |---|---|---|---|---|

@@ -30,6 +30,7 @@ sys.path.insert(0, str(_AGENT_DIR))
 from helpers.config import get_config_value  # noqa: E402
 from helpers.cleanup_workspace import cleanup_workspace  # noqa: E402
 from helpers.errors import log_warning  # noqa: E402
+from helpers.progress import status_message  # noqa: E402
 from helpers.session_utils import read_hook_input  # noqa: E402
 
 
@@ -47,11 +48,10 @@ def main() -> None:
         )
         total = result["runs_deleted"] + result["states_deleted"] + result.get("cache_evicted", 0)
         if total > 0:
-            print(
+            status_message(
                 f"Session cleanup: {result['runs_deleted']} run(s), "
                 f"{result['states_deleted']} state file(s), "
-                f"{result.get('cache_evicted', 0)} cache entries evicted",
-                file=sys.stderr,
+                f"{result.get('cache_evicted', 0)} cache entries evicted"
             )
     except Exception as exc:
         log_warning(f"Cleanup error: {exc}", "UNKNOWN")

@@ -106,7 +106,7 @@ composite_score = exploitability_score × reachability_weight × impact_multipli
 ```
 
 Where:
-- `exploitability_score` comes from the finding's exploitability assessment (fall back to raw `.score` if unavailable)
+- `exploitability_score` comes from the scanner's severity/score output (fall back to raw `.score` if unavailable)
 - `reachability_weight` is `1.0` for exported/entry-point functions, `0.7` for internally reachable, `0.4` for deep internal
 - `impact_multiplier` is derived from severity: CRITICAL=1.0, HIGH=0.8, MEDIUM=0.5, LOW=0.2
 

@@ -41,7 +41,6 @@ _UUID_RE = re.compile(
 # RPC authentication level detection patterns for decompiled code
 RPC_AUTHN_LEVEL_RE = re.compile(
     r"RPC_C_AUTHN_LEVEL_(DEFAULT|NONE|CONNECT|CALL|PKT|PKT_INTEGRITY|PKT_PRIVACY)"
-    r"|(?<!\w)(?:0x[0-6]|[0-6])(?=\s*[,;)\]])"  # numeric constants 0-6
     r"|\bRpcServerRegisterAuthInfo\w*",
     re.IGNORECASE,
 )

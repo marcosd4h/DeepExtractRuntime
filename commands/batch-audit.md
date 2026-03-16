@@ -144,31 +144,24 @@ For each target function, run a condensed audit pipeline:
 python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> --id <fid> --json
 ```
 
-**b. Run exploitability assessment** (if dossier found dangerous sinks):
-
-```bash
-python .agent/skills/exploitability-assessment/scripts/assess_finding.py \
-    --dossier <dossier.json> --module-db <db_path> --json
-```
-
-**c. Classify function purpose:**
+**b. Classify function purpose:**
 
 ```bash
 python .agent/skills/classify-functions/scripts/classify_function.py <db_path> --id <fid> --json
 ```
 
-**d. Synthesize per-function audit summary:**
-- Risk rating (CRITICAL/HIGH/MEDIUM/LOW) based on highest exploitability score
+**c. Synthesize per-function audit summary:**
+- Risk rating (CRITICAL/HIGH/MEDIUM/LOW) based on dossier findings and severity
 - Top findings with dangerous operations and guard analysis
 - Key dangerous operations and reachability status
 
-**e. Update scratchpad:** Check off the function.
+**d. Update scratchpad:** Check off the function.
 
 ### Step Dependencies
 
 - Step 1 is sequential (resolve targets).
 - In `--privilege-boundary` mode, the RPC, COM, and WinRT discovery sub-steps are independent and should run in parallel before candidate resolution.
-- Step 3a-3c: For each function, dossier, exploitability, and classification can run in parallel.
+- Step 3a-3c: For each function, dossier and classification can run in parallel.
 - Step 3d depends on 3a-3c completion.
 - Functions are independent -- audit up to 3-4 functions concurrently (subject to agent limits).
 
@@ -178,13 +171,13 @@ After all functions are audited:
 
 **Executive Summary:**
 - Total functions audited, risk distribution (N CRITICAL, N HIGH, etc.)
-- Top 3 most exploitable findings across all functions
+- Top 3 highest-severity findings across all functions
 
 **Per-Function Results** (table format):
 
-| Function | Risk | Top Finding | Exploitability | Entry Type |
-|----------|------|-------------|---------------|------------|
-| ... | ... | ... | ... | ... |
+| Function | Risk | Top Finding | Entry Type |
+|----------|------|-------------|------------|
+| ... | ... | ... | ... |
 
 **Cross-Function Patterns:**
 - Common dangerous API sinks reached by multiple entry points
@@ -206,7 +199,7 @@ All saved files must include a provenance header: generation date, module name, 
 
 - `/audit <module> <function>` -- full deep audit on critical findings
 - `/taint <module> <function> --cross-module` -- trace critical findings across DLL boundaries
-- `/hunt-plan validate <module> <function>` -- plan PoC for confirmed findings
+- `/hunt-plan hypothesis <module> <function>` -- plan PoC for confirmed findings
 - `/lift-class <module> <class>` -- lift flagged class for manual code review
 - `/rpc audit <module>` -- inspect interface-level RPC security findings
 - `/com audit <module_or_clsid>` -- inspect COM permission and activation details

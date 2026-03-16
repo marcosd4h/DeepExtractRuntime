@@ -96,7 +96,8 @@ def id_test_db(tmp_path):
          None, None, None, None),
         (30, "void __fastcall Gamma(void)", None,
          "??0CFoo@@QEAA@XZ", "Gamma",
-         "mov eax, 1\nret", "void Gamma() { *(DWORD*)(this + 8) = 1; }",
+         "mov dword ptr [rcx+8h], 1\nxor eax, eax\nret",
+         "void Gamma() { *(DWORD*)(this + 8) = 1; }",
          None, None,
          json.dumps([
              {"function_name": "Beta", "function_id": 20,

@@ -1,8 +1,4 @@
-"""Tests for helpers/struct_scanner.py (batch scanning and merge).
-
-The skill reconstruct-types uses scan_decompiled_struct_accesses; this file
-tests scan_batch_struct_accesses and merge_struct_fields from the helper.
-"""
+"""Tests for helpers/struct_scanner.py (batch scanning, assembly scanning, and merge)."""
 
 from __future__ import annotations
 
@@ -13,7 +9,6 @@ from helpers.struct_scanner import (
     parse_signature_params,
     scan_assembly_struct_accesses,
     scan_batch_struct_accesses,
-    scan_decompiled_struct_accesses,
 )
 
 
@@ -57,26 +52,6 @@ class TestScanBatchStructAccesses:
         assert hit is not None, "Expected 'zero_offset' pattern in accesses"
         assert hit["offset"] == 0
         assert hit["size"] == 8
-
-
-# ===================================================================
-# scan_decompiled_struct_accesses (helper directly)
-# ===================================================================
-
-
-class TestScanDecompiledStructAccesses:
-    def test_empty_returns_empty(self):
-        assert scan_decompiled_struct_accesses("", _TYPE_SIZES) == []
-
-    def test_typed_ptr_arith(self):
-        code = "  *((_DWORD *)this + 5) = 0;"
-        accesses = scan_decompiled_struct_accesses(code, _TYPE_SIZES)
-        assert len(accesses) >= 1
-        hit = accesses[0]
-        assert hit["base"] == "this"
-        assert hit["byte_offset"] == 20
-        assert hit["size"] == 4
-        assert hit["pattern"] == "typed_ptr_arith"
 
 
 # ===================================================================

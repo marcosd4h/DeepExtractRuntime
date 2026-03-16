@@ -18,7 +18,7 @@ _RUNTIME_ROOT = _SCRIPT_DIR.parent
 if str(_RUNTIME_ROOT) not in sys.path:
     sys.path.insert(0, str(_RUNTIME_ROOT))
 
-from helpers.errors import emit_error, log_warning  # noqa: E402
+from helpers.errors import emit_error, log_warning, safe_parse_args  # noqa: E402
 from helpers.json_output import emit_json  # noqa: E402
 from helpers.progress import status_message  # noqa: E402
 
@@ -125,7 +125,7 @@ def main() -> None:
     parser.add_argument("--older-than", type=int, default=7, help="Delete runs older than N days (default: 7)")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be deleted without actually deleting")
     parser.add_argument("--json", action="store_true", help="Emit JSON output to stdout")
-    args = parser.parse_args()
+    args = safe_parse_args(parser)
 
     result = cleanup_workspace(args.older_than, args.dry_run)
 

@@ -267,10 +267,6 @@ This capability uses LLM agents with taint-specific context enrichment to trace 
 - **prepare_context.py**: Prepares rich function context (decompiled code, assembly, xrefs, data flow) for LLM-driven taint analysis.
 - Actual scanning is LLM-driven via the `/taint` command, which orchestrates specialist and skeptic agents.
 
-### exploitability-assessment
-This capability processes output from detection capabilities, normalizing data into a unified schema and calculating a comprehensive exploitability index based on reachability and guard bypass difficulty.
-- **assess_finding.py**: Calculates exploitability for discrete findings across five weighted dimensions.
-- **batch_assess.py**: Processes aggregate finding sets for prioritization sorting.
 
 ## Code Reconstruction
 
@@ -288,7 +284,7 @@ This capability processes memory access offsets across an entire module to synth
 
 ## Methodology and Strategy
 
-The `/hunt-plan` command provides strategic campaign planning, cross-module campaigns, post-analysis re-planning, and tool/skill design through modes `cross`, `replan`, and `design`.
+The `/hunt-plan` command provides strategic campaign planning (with trust boundary mapping), hypothesis testing (including variant hunting and finding validation), cross-module campaigns, and post-analysis re-planning through 4 modes: `campaign`, `hypothesis`, `cross`, and `replan`.
 
 # Agents Reference
 
@@ -326,14 +322,14 @@ The runtime deploys eight specialized subagents operating in isolated context en
 - **Purpose**: Executes vulnerability detection routines, correlates taint propagation data, computes exploitability indices, and synthesizes security audit reports.
 - **Entry Scripts**:
   - **run_security_scan.py**: Orchestrates the detection and verification sequence. Parameters include database path, goal string, function string, top integer, JSON flag, and timeout integer.
-- **Composed Skills**: decompiled-code-extractor, classify-functions, map-attack-surface, security-dossier, ai-taint-scanner, exploitability-assessment, ai-memory-corruption-scanner, ai-logic-scanner.
+- **Composed Skills**: decompiled-code-extractor, classify-functions, map-attack-surface, security-dossier, ai-taint-scanner, ai-memory-corruption-scanner, ai-logic-scanner.
 - **Workflow**:
   - Executes entry point discovery and risk ranking.
   - Deploys memory corruption and logic vulnerability capabilities in parallel.
   - Maps taint flow across high-priority boundaries.
   - Discards findings exhibiting a verification confidence coefficient below 0.70.
-  - Calculates the final exploitability score and generates the composite audit payload.
-- **Usage Boundaries**: Employ this agent for batch vulnerability detection and exploitability assessment. Do not utilize for code rewriting or type structure reconstruction.
+  - Generates the composite audit payload with ranked findings.
+- **Usage Boundaries**: Employ this agent for batch vulnerability detection. Do not utilize for code rewriting or type structure reconstruction.
 
 ## code-lifter
 
@@ -533,7 +529,7 @@ Executes a composite diagnostic utilizing iterative state tracking.
   - Applies verification against the merged vector set to establish confidence thresholds.
   - Computes the derived exploitability score for findings validated at CRITICAL or HIGH levels.
   - Conditionally executes the audit pipeline for the highest-ranking vulnerabilities.
-- **Composed Elements**: ai-memory-corruption-scanner, ai-logic-scanner, ai-taint-scanner, map-attack-surface, exploitability-assessment, decompiled-code-extractor.
+- **Composed Elements**: ai-memory-corruption-scanner, ai-logic-scanner, ai-taint-scanner, map-attack-surface, decompiled-code-extractor.
 
 ### memory-scan
 Executes deterministic bounds-checking and memory safety analysis.
@@ -582,7 +578,7 @@ Executes parallel initialization of multiple audit processes.
   - Instantiates the iteration scratchpad mapped to the specific function array.
   - Triggers the dossier compilation, taint evaluation, exploitability calculation, and semantic classification sequence for each iteration target.
   - Synthesizes findings into a unified matrix structure.
-- **Composed Elements**: security-dossier, ai-taint-scanner, exploitability-assessment, classify-functions, map-attack-surface, rpc-interface-analysis, com-interface-analysis, winrt-interface-analysis, function-index, decompiled-code-extractor.
+- **Composed Elements**: security-dossier, ai-taint-scanner, classify-functions, map-attack-surface, rpc-interface-analysis, com-interface-analysis, winrt-interface-analysis, function-index, decompiled-code-extractor.
 
 ## VR Campaign Operations
 
@@ -603,10 +599,10 @@ Executes the operations specified within a structured task definition file.
   - Orchestrates the defined command executions.
   - Appends confidence thresholds to findings arrays.
   - Renders the resulting payload to an output file.
-- **Composed Elements**: ai-taint-scanner, security-dossier, map-attack-surface, callgraph-tracer, exploitability-assessment.
+- **Composed Elements**: ai-taint-scanner, security-dossier, map-attack-surface, callgraph-tracer.
 
 ### brainstorm (removed -- use /hunt-plan)
-This command has been merged into `/hunt-plan`. Use `/hunt-plan cross`, `/hunt-plan replan`, or `/hunt-plan design` for strategic campaign planning, post-analysis re-planning, or tool/skill design respectively.
+This command has been merged into `/hunt-plan`. Use `/hunt-plan cross` for cross-module campaigns, or `/hunt-plan replan` for post-analysis re-planning.
 - **Composed Elements**: now part of hunt-plan.
 
 ## Code Quality Operations
@@ -692,9 +688,9 @@ The library contains 59 Python files (3 subpackages, 36 library modules, 9 stand
 | **rpc_stub_parser** | Interface | Parses auto-generated C# client templates. Exports `parse_stub_file`, `load_stubs_from_directory`, `RpcStubFile`. |
 | **import_export_index** | Interface | Structures PE-level execution dependencies. Exports `ImportExportIndex`, `ExportEntry`, `ImportEntry`. |
 | **ipc_workspace** | Interface | Intersects workspace modules with COM/RPC/WinRT indices. Exports `discover_workspace_ipc_servers`. |
-| **taint_helpers** | Taint/Flow | Taint enrichment: sink/source classification, trust levels, finding scores. Exports `TaintContext`, `classify_sink`, `classify_trust_transition`, `resolve_tainted_params`, `compute_finding_score`. |
+| **taint_helpers** | Taint/Flow | Taint enrichment: sink/source classification, trust levels. Exports `TaintContext`, `classify_sink`, `classify_trust_transition`, `resolve_tainted_params`. |
 | **decompiled_parser** | Parsing | Extracts structural components from decompiled syntax trees. Exports `extract_function_calls`, `split_arguments`, `discover_calls_with_xrefs`. |
-| **struct_scanner** | Parsing | Processes base offset arithmetic from decompiled and assembly code. Exports `scan_decompiled_struct_accesses`, `scan_assembly_struct_accesses`, `merge_scanned_struct_fields`. |
+| **struct_scanner** | Parsing | Processes base offset arithmetic from x64 assembly code. Exports `scan_assembly_struct_accesses`, `scan_batch_struct_accesses`, `merge_struct_fields`, `parse_signature_params`. |
 | **mangled_names** | Parsing | Computes standard class terminology from compiler naming conventions. Exports `parse_class_from_mangled`. |
 | **calling_conventions** | Parsing | Maps x64 registers to parameter definitions. Exports `PARAM_REGISTERS`, `REGISTER_TO_PARAM`, `ASM_REG_SIZES`. |
 | **type_constants** | Parsing | Translates IDA type syntax to standardized C representations. Exports `TYPE_SIZES`, `IDA_TO_C_TYPE`, `SIZE_TO_C_TYPE`. |
@@ -748,7 +744,7 @@ The library contains 59 Python files (3 subpackages, 36 library modules, 9 stand
 
 - **ai-logical-bug-scan**: ai-logic-scanner, decompiled-code-extractor, map-attack-surface
 - **audit**: decompiled-code-extractor, security-dossier, map-attack-surface, callgraph-tracer, classify-functions, import-export-resolver
-- **batch-audit**: security-dossier, exploitability-assessment, classify-functions, map-attack-surface, rpc-interface-analysis, com-interface-analysis, winrt-interface-analysis
+- **batch-audit**: security-dossier, classify-functions, map-attack-surface, rpc-interface-analysis, com-interface-analysis, winrt-interface-analysis
 - **cache-manage**: (helpers only)
 - **callgraph**: decompiled-code-extractor, callgraph-tracer
 - **com**: com-interface-analysis, decompiled-code-extractor, map-attack-surface
@@ -757,17 +753,17 @@ The library contains 59 Python files (3 subpackages, 36 library modules, 9 stand
 - **explain**: decompiled-code-extractor, classify-functions
 - **full-report**: decompiled-code-extractor, generate-re-report, classify-functions, map-attack-surface, callgraph-tracer, com-interface-reconstruction, reconstruct-types
 - **health**: (helpers only)
-- **hunt-execute**: security-dossier, map-attack-surface, callgraph-tracer, exploitability-assessment
+- **hunt-execute**: security-dossier, map-attack-surface, callgraph-tracer
 - **hunt-plan**: classify-functions, map-attack-surface, security-dossier
 - **imports**: import-export-resolver, decompiled-code-extractor
 - **lift-class**: decompiled-code-extractor, reconstruct-types, batch-lift
 - **memory-scan**: ai-memory-corruption-scanner, decompiled-code-extractor, map-attack-surface
 - **pipeline**: (agents: triage-coordinator, security-auditor)
-- **prioritize**: decompiled-code-extractor, exploitability-assessment
+- **prioritize**: decompiled-code-extractor
 - **reconstruct-types**: decompiled-code-extractor, reconstruct-types, com-interface-reconstruction
 - **rpc**: rpc-interface-analysis, decompiled-code-extractor, map-attack-surface
 - **runs**: (helpers only)
-- **scan**: decompiled-code-extractor, ai-memory-corruption-scanner, ai-logic-scanner, ai-taint-scanner, map-attack-surface, exploitability-assessment, security-dossier
+- **scan**: decompiled-code-extractor, ai-memory-corruption-scanner, ai-logic-scanner, ai-taint-scanner, map-attack-surface, security-dossier
 - **search**: decompiled-code-extractor
 - **taint**: ai-taint-scanner, decompiled-code-extractor, map-attack-surface
 - **triage**: decompiled-code-extractor, generate-re-report, classify-functions, callgraph-tracer, map-attack-surface
@@ -778,7 +774,7 @@ The library contains 59 Python files (3 subpackages, 36 library modules, 9 stand
 
 - **re-analyst**: classify-functions, generate-re-report, decompiled-code-extractor, callgraph-tracer
 - **triage-coordinator**: classify-functions, map-attack-surface, callgraph-tracer, security-dossier, generate-re-report, reconstruct-types, com-interface-reconstruction, decompiled-code-extractor, import-export-resolver, batch-lift
-- **security-auditor**: decompiled-code-extractor, classify-functions, map-attack-surface, security-dossier, exploitability-assessment, ai-memory-corruption-scanner, ai-logic-scanner, ai-taint-scanner
+- **security-auditor**: decompiled-code-extractor, classify-functions, map-attack-surface, security-dossier, ai-memory-corruption-scanner, ai-logic-scanner, ai-taint-scanner
 - **code-lifter**: decompiled-code-extractor, batch-lift, reconstruct-types, function-index
 - **type-reconstructor**: decompiled-code-extractor, reconstruct-types, com-interface-reconstruction
 - **memory-corruption-scanner**: ai-memory-corruption-scanner, decompiled-code-extractor, map-attack-surface

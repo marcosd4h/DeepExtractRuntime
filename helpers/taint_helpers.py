@@ -474,8 +474,13 @@ def classify_module_trust(db_path: str) -> str:
                 trust = _refine_com_trust(fi.file_name or "", "com_server")
             elif any(n.startswith("rpcserverregisterif") for n in import_names):
                 trust = _refine_rpc_trust(fi.file_name or "", trust)
-            elif {"servicemain"} & export_names or any(
-                "startservicectrldispatcher" in n for n in import_names
+            elif (
+                {"servicemain", "svchostpushserviceglobals"} & export_names
+                or any(
+                    "startservicectrldispatcher" in n
+                    or "registerservicectrlhandlerex" in n
+                    for n in import_names
+                )
             ):
                 trust = "system_service"
             elif sum(1 for n in import_names if "ntdeviceiocontrolfile" in n) >= 2:

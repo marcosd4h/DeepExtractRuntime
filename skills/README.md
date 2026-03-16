@@ -31,7 +31,6 @@ arguments, dependencies, and caching contracts for each skill.
 | [security-dossier](#security-dossier) | security | Security context dossier (reachability, dangerous ops) | 1 | Yes | decompiled-code-extractor, callgraph-tracer |
 | [import-export-resolver](#import-export-resolver) | analysis | Resolve PE import/export relationships across modules | 4 | Yes | decompiled-code-extractor |
 | [ai-memory-corruption-scanner](#ai-memory-corruption-scanner) | security | AI-driven memory corruption scanning with callgraph navigation, adversarial prompting, and skeptic verification | 2 | No | decompiled-code-extractor, map-attack-surface |
-| [exploitability-assessment](#exploitability-assessment) | security | Assess exploitability of taint findings with guard analysis | 2 | No | ai-taint-scanner, security-dossier, map-attack-surface, ai-memory-corruption-scanner, ai-logic-scanner |
 | [ai-logic-scanner](#ai-logic-scanner) | security | AI-driven logic vulnerability scanning with callgraph navigation and adversarial prompting | 2 | No | decompiled-code-extractor, map-attack-surface |
 | [rpc-interface-analysis](#rpc-interface-analysis) | security | Analyze RPC interfaces: enumerate UUIDs, map attack surface, audit security, trace chains, find clients, build topology, blast-radius, query stubs | 6 | No | decompiled-code-extractor, map-attack-surface, callgraph-tracer |
 | [winrt-interface-analysis](#winrt-interface-analysis) | security | Analyze WinRT servers: enumerate classes, map privilege-boundary surface, audit security, classify methods, find EoP | 6 | No | decompiled-code-extractor, map-attack-surface |
@@ -399,24 +398,6 @@ LLM-driven analysis.
 **Typical use:** Build a threat model for the module, prepare context for
 high-priority entry points, then run the `/memory-scan` command which
 orchestrates LLM-driven analysis across the callgraph.
-
----
-
-#### exploitability-assessment
-
-Assesses how practical a candidate vulnerability is to turn into a real
-security issue. Instead of just reporting that a sink is reachable, it
-scores the quality of the primitive, required attacker control, available
-guards, mitigations, and reachability context across taint, memory, and
-logic findings.
-
-**Key scripts:** `assess_finding.py` (single finding assessment from taint,
-memory, or logic inputs), `batch_assess.py` (score the top module findings
-in one pass).
-
-**Typical use:** Run `assess_finding.py` when you already have a dossier or
-scanner output for a suspected bug, or `batch_assess.py <db_path> --top 20`
-to prioritize the most realistically exploitable findings in a module.
 
 ---
 

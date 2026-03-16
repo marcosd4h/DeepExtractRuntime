@@ -296,8 +296,7 @@ Self-driving AI scanner model for memory-corruption, logic, and taint scanners. 
 2. **Phase 1 -- Context Prep**: Run `build_threat_model.py` and `prepare_context.py`
 3. **Phase 2 -- AI Analysis**: Launch scanner subagent (memory-corruption-scanner, logic-scanner, or taint-scanner)
 4. **Phase 3 -- Skeptic Verification**: Independent verification of findings against assembly
-5. **Phase 4 -- Exploitability**: Score verified findings via `assess_finding.py`
-6. **Phase 5 -- Report**: Synthesize final report with ranked findings
+5. **Phase 4 -- Report**: Synthesize final report with ranked findings
 
 Scanners operate as LLM-only subagents receiving pre-built callgraph + code batches. They follow a mandatory quick-triage-then-deep-analysis workflow with area decomposition.
 
@@ -338,7 +337,6 @@ Cached results live in `.agent/cache/`. Cache is keyed by DB path + script + arg
 | 13 | ai-memory-corruption-scanner | security | no | -- | 2 |
 | 14 | ai-logic-scanner | security | no | -- | 2 |
 | 15 | ai-taint-scanner | security | no | -- | 2 |
-| 16 | exploitability-assessment | security | no | -- | 2 |
 | 17 | batch-lift | code_generation | no | -- | 2 |
 | 18 | reconstruct-types | reconstruction | yes | scan_struct_fields | 4 |
 
@@ -1090,7 +1088,7 @@ Labels: high (>=0.70), medium (>=0.40), low (<0.40).
 
 #### 3.7.2 brainstorming
 
-**Merged into /hunt-plan.** The brainstorming methodology (strategic campaign planning, cross-module campaigns, post-analysis re-planning, and tool/skill design) has been incorporated into the  command as modes , , and . Use , , or  instead.
+**Merged into /hunt-plan.** The brainstorming methodology (strategic campaign planning, cross-module campaigns, and post-analysis re-planning) has been incorporated into the `/hunt-plan` command as modes `campaign`, `cross`, and `replan`.
 
 
 ## 4. Agents Reference
@@ -1233,7 +1231,7 @@ Labels: high (>=0.70), medium (>=0.40), low (<0.40).
 | `--json` | flag | no | JSON output |
 | `--timeout` | int | no | Timeout |
 
-**Composed skills:** decompiled-code-extractor, classify-functions, map-attack-surface, security-dossier, ai-taint-scanner, exploitability-assessment, ai-memory-corruption-scanner, ai-logic-scanner.
+**Composed skills:** decompiled-code-extractor, classify-functions, map-attack-surface, security-dossier, ai-taint-scanner, ai-memory-corruption-scanner, ai-logic-scanner.
 
 **6-phase workflow:**
 
@@ -1241,8 +1239,7 @@ Labels: high (>=0.70), medium (>=0.40), low (<0.40).
 2. **Vulnerability scanning** -- Run 8 scanners (4 memory + 4 logic) in parallel
 3. **Taint analysis** -- AI-driven taint scanning via `taint-scanner` subagent for top findings
 4. **Verification** -- Drop findings with confidence < 0.7
-5. **Exploitability assessment** -- `assess_finding.py` for verified findings
-6. **Report synthesis** -- Security dossiers, consolidated report with evidence
+5. **Report synthesis** -- Security dossiers, consolidated report with evidence
 
 **Severity criteria:**
 
@@ -1806,11 +1803,10 @@ EOF## 5. Commands Reference
 1. **Detection** -- Run memory (4 scanners), logic (4 scanners), taint (top 5 entries) in parallel
 2. **Merge/Deduplicate** -- Normalize to common schema, cross-reference intersections
 3. **Verify** -- Apply FALSE_POSITIVE/UNCERTAIN adjustments
-4. **Score Exploitability** -- `assess_finding.py` / `batch_assess.py` for CRITICAL/HIGH
-5. **Synthesize** -- Executive summary, top findings, pipeline breakdown, recommendations
+4. **Synthesize** -- Executive summary, top findings, pipeline breakdown, recommendations
 6. (Optional) **Auto-audit** -- `/audit` pipeline on top 3 CRITICAL/HIGH
 
-**Skills:** ai-memory-corruption-scanner, ai-logic-scanner, ai-taint-scanner, map-attack-surface, exploitability-assessment, decompiled-code-extractor.
+**Skills:** ai-memory-corruption-scanner, ai-logic-scanner, ai-taint-scanner, map-attack-surface, decompiled-code-extractor.
 
 **Grind loop:** Yes -- 5-6 phase checkboxes.
 
@@ -1950,7 +1946,7 @@ EOF## 5. Commands Reference
 3. Per-function: dossier + taint + exploitability + classify + synthesize + update scratchpad
 4. Synthesize batch report (executive summary, per-function table, cross-function patterns, recommendations)
 
-**Skills:** security-dossier, ai-taint-scanner, exploitability-assessment, classify-functions, map-attack-surface, rpc-interface-analysis, com-interface-analysis, winrt-interface-analysis, function-index, decompiled-code-extractor.
+**Skills:** security-dossier, ai-taint-scanner, classify-functions, map-attack-surface, rpc-interface-analysis, com-interface-analysis, winrt-interface-analysis, function-index, decompiled-code-extractor.
 
 **Grind loop:** Yes -- one checkbox per function.
 
@@ -1968,7 +1964,7 @@ EOF## 5. Commands Reference
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `mode` | positional | no | `campaign` (default), `hypothesis`, `variant`, `validate`, `surface` |
+| `mode` | positional | no | `campaign` (default), `hypothesis`, `cross`, `replan` |
 | `module` | positional | no | Module name |
 | `target` | positional | no | Vulnerability class, function, or pattern |
 
@@ -2006,7 +2002,7 @@ EOF## 5. Commands Reference
 4. Score exploitability for CONFIRMED/LIKELY findings
 5. Synthesize findings report
 
-**Skills:** ai-taint-scanner, security-dossier, map-attack-surface, callgraph-tracer, exploitability-assessment.
+**Skills:** ai-taint-scanner, security-dossier, map-attack-surface, callgraph-tracer.
 
 **Grind loop:** Yes -- one checkbox per hypothesis.
 
@@ -2191,9 +2187,9 @@ The shared Python library (`.agent/helpers/`) provides 59 Python files (3 subpac
 | `rpc_stub_parser` | Interface | Parse C# RPC client stubs. Exports `parse_stub_file`, `load_stubs_from_directory`, `RpcStubFile`. |
 | `import_export_index` | Interface | PE import/export index across modules. Exports `ImportExportIndex`, `ExportEntry`, `ImportEntry`. |
 | `ipc_workspace` | Interface | Intersect workspace modules with COM/RPC/WinRT indices. Exports `discover_workspace_ipc_servers`. |
-| `taint_helpers` | Taint/Flow | Taint enrichment: sink/source classification, trust levels, finding scores. Exports `TaintContext`, `classify_sink`, `classify_trust_transition`, `resolve_tainted_params`, `compute_finding_score`. |
+| `taint_helpers` | Taint/Flow | Taint enrichment: sink/source classification, trust levels. Exports `TaintContext`, `classify_sink`, `classify_trust_transition`, `resolve_tainted_params`. |
 | `decompiled_parser` | Parsing | Extract function calls, split arguments, merge with xrefs. Exports `extract_function_calls`, `split_arguments`, `discover_calls_with_xrefs`. |
-| `struct_scanner` | Parsing | Scan struct access patterns (decompiled + assembly). Exports `scan_decompiled_struct_accesses`, `scan_assembly_struct_accesses`, `merge_scanned_struct_fields`. |
+| `struct_scanner` | Parsing | Scan struct access patterns from x64 assembly. Exports `scan_assembly_struct_accesses`, `scan_batch_struct_accesses`, `merge_struct_fields`, `parse_signature_params`. |
 | `mangled_names` | Parsing | Parse C++ class from mangled name. Exports `parse_class_from_mangled`. |
 | `calling_conventions` | Parsing | x64 param registers, register-to-param mapping. Exports `PARAM_REGISTERS`, `REGISTER_TO_PARAM`, `ASM_REG_SIZES`. |
 | `type_constants` | Parsing | IDA-to-C type mapping, type sizes. Exports `TYPE_SIZES`, `IDA_TO_C_TYPE`, `SIZE_TO_C_TYPE`. |
@@ -2373,7 +2369,7 @@ Data sourced from `commands/registry.json`.
 |---------|------------|-------------|
 | `/ai-logical-bug-scan` | ai-logic-scanner, decompiled-code-extractor, map-attack-surface | logic-scanner |
 | `/audit` | decompiled-code-extractor, security-dossier, map-attack-surface, callgraph-tracer, classify-functions, import-export-resolver | re-analyst, security-auditor |
-| `/batch-audit` | security-dossier, exploitability-assessment, classify-functions, map-attack-surface, rpc-interface-analysis, com-interface-analysis, winrt-interface-analysis | security-auditor |
+| `/batch-audit` | security-dossier, classify-functions, map-attack-surface, rpc-interface-analysis, com-interface-analysis, winrt-interface-analysis | security-auditor |
 | `/cache-manage` | (helpers only) | -- |
 | `/callgraph` | decompiled-code-extractor, callgraph-tracer | re-analyst |
 | `/com` | com-interface-analysis, decompiled-code-extractor, map-attack-surface | -- |
@@ -2383,17 +2379,17 @@ Data sourced from `commands/registry.json`.
 | `/explain` | decompiled-code-extractor, classify-functions | re-analyst |
 | `/full-report` | decompiled-code-extractor, generate-re-report, classify-functions, map-attack-surface, callgraph-tracer, com-interface-reconstruction, reconstruct-types | triage-coordinator, re-analyst |
 | `/health` | (helpers only) | -- |
-| `/hunt-execute` | security-dossier, map-attack-surface, callgraph-tracer, exploitability-assessment | security-auditor |
+| `/hunt-execute` | security-dossier, map-attack-surface, callgraph-tracer | security-auditor |
 | `/hunt-plan` | classify-functions, map-attack-surface, security-dossier | -- |
 | `/imports` | import-export-resolver, decompiled-code-extractor | -- |
 | `/lift-class` | decompiled-code-extractor, reconstruct-types, batch-lift | code-lifter |
 | `/memory-scan` | ai-memory-corruption-scanner, decompiled-code-extractor, map-attack-surface | memory-corruption-scanner |
 | `/pipeline` | (varies by YAML) | triage-coordinator, security-auditor |
-| `/prioritize` | decompiled-code-extractor, exploitability-assessment | -- |
+| `/prioritize` | decompiled-code-extractor | -- |
 | `/reconstruct-types` | decompiled-code-extractor, reconstruct-types, com-interface-reconstruction | type-reconstructor |
 | `/rpc` | rpc-interface-analysis, decompiled-code-extractor, map-attack-surface | -- |
 | `/runs` | (helpers only) | -- |
-| `/scan` | decompiled-code-extractor, ai-memory-corruption-scanner, ai-logic-scanner, ai-taint-scanner, map-attack-surface, exploitability-assessment, security-dossier | security-auditor |
+| `/scan` | decompiled-code-extractor, ai-memory-corruption-scanner, ai-logic-scanner, ai-taint-scanner, map-attack-surface, security-dossier | security-auditor |
 | `/search` | decompiled-code-extractor | -- |
 | `/taint` | ai-taint-scanner, decompiled-code-extractor, map-attack-surface | taint-scanner, security-auditor |
 | `/triage` | decompiled-code-extractor, generate-re-report, classify-functions, callgraph-tracer, map-attack-surface | triage-coordinator |
@@ -2408,7 +2404,7 @@ Data sourced from `agents/registry.json`.
 |-------|------|----------------|
 | **re-analyst** | analyst | classify-functions, generate-re-report, decompiled-code-extractor, callgraph-tracer |
 | **triage-coordinator** | coordinator | classify-functions, map-attack-surface, callgraph-tracer, security-dossier, generate-re-report, reconstruct-types, com-interface-reconstruction, decompiled-code-extractor, import-export-resolver, batch-lift |
-| **security-auditor** | analyst | decompiled-code-extractor, classify-functions, map-attack-surface, security-dossier, exploitability-assessment, ai-memory-corruption-scanner, ai-logic-scanner, ai-taint-scanner |
+| **security-auditor** | analyst | decompiled-code-extractor, classify-functions, map-attack-surface, security-dossier, ai-memory-corruption-scanner, ai-logic-scanner, ai-taint-scanner |
 | **code-lifter** | lifter | decompiled-code-extractor, batch-lift, reconstruct-types, function-index |
 | **type-reconstructor** | reconstructor | decompiled-code-extractor, reconstruct-types, com-interface-reconstruction |
 | **memory-corruption-scanner** | analyst (LLM-only) | ai-memory-corruption-scanner, decompiled-code-extractor, map-attack-surface |

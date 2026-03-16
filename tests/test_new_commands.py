@@ -108,9 +108,6 @@ class TestHuntExecuteCommand:
         assert "CONFIRMED" in self.text
         assert "REFUTED" in self.text
 
-    def test_references_exploitability(self):
-        assert "exploitability-assessment" in self.reg["skills_used"]
-
 
 class TestBatchAuditCommand:
 
@@ -133,9 +130,6 @@ class TestBatchAuditCommand:
 
     def test_references_security_dossier(self):
         assert "security-dossier" in self.reg["skills_used"]
-
-    def test_references_exploitability(self):
-        assert "exploitability-assessment" in self.reg["skills_used"]
 
     def test_has_class_mode(self):
         assert "--class" in self.text

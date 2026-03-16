@@ -109,94 +109,6 @@ def scan_batch_struct_accesses(
     return accesses
 
 
-def scan_decompiled_struct_accesses(
-    code: str,
-    type_sizes: dict[str, int],
-    *,
-    default_size: int = 8,
-) -> list[dict]:
-    """Extract struct-field accesses from decompiled C++ code.
-
-    Output schema:
-      ``base``, ``type``, ``byte_offset``, ``size``, ``pattern``, ``line_num``
-    """
-    if not code:
-        return []
-
-    type_choice = _type_choice_regex(type_sizes)
-    var_name = r"[a-zA-Z_]\w*"
-    num = r"(?:0[xX][0-9a-fA-F]+|\d+)"
-
-    re_elem = re.compile(
-        r"\*\s*\(\s*\(\s*(" + type_choice + r")\s*\*\s*\)\s*(" + var_name + r")\s*\+\s*(" + num + r")\s*\)"
-    )
-    re_byte = re.compile(
-        r"\*\s*\(\s*(" + type_choice + r")\s*\*\s*\)\s*\(\s*(?:\(\s*char\s*\*\s*\)\s*)?"
-        + "(" + var_name + r")\s*\+\s*(" + num + r")\s*\)"
-    )
-    re_zero = re.compile(
-        r"\*\s*\(\s*(" + type_choice + r")\s*\*\s*\)\s*(" + var_name + r")(?!\s*[+\-({\[\w])"
-    )
-
-    accesses: list[dict] = []
-    for line_num, line in enumerate(code.splitlines(), 1):
-        stripped = line.strip()
-        if not stripped or stripped.startswith("//"):
-            continue
-
-        for match in re_elem.finditer(stripped):
-            type_name = match.group(1).strip()
-            base = match.group(2)
-            elem_offset = _parse_int_literal(match.group(3))
-            size = _type_size(type_name, type_sizes, default_size)
-            accesses.append(
-                {
-                    "base": base,
-                    "type": type_name,
-                    "byte_offset": elem_offset * size,
-                    "size": size,
-                    "pattern": "typed_ptr_arith",
-                    "line_num": line_num,
-                }
-            )
-
-        for match in re_byte.finditer(stripped):
-            type_name = match.group(1).strip()
-            base = match.group(2)
-            byte_offset = _parse_int_literal(match.group(3))
-            size = _type_size(type_name, type_sizes, default_size)
-            accesses.append(
-                {
-                    "base": base,
-                    "type": type_name,
-                    "byte_offset": byte_offset,
-                    "size": size,
-                    "pattern": "byte_offset",
-                    "line_num": line_num,
-                }
-            )
-
-        already = {a["base"] for a in accesses if a["line_num"] == line_num}
-        for match in re_zero.finditer(stripped):
-            type_name = match.group(1).strip()
-            base = match.group(2)
-            if base in already:
-                continue
-            size = _type_size(type_name, type_sizes, default_size)
-            accesses.append(
-                {
-                    "base": base,
-                    "type": type_name,
-                    "byte_offset": 0,
-                    "size": size,
-                    "pattern": "zero_offset",
-                    "line_num": line_num,
-                }
-            )
-
-    return accesses
-
-
 # [reg+offseth] -- struct field access in IDA assembly (h suffix = hex)
 _RE_ASM_MEM = re.compile(r"\[\s*([a-zA-Z]\w*)\s*\+\s*([0-9A-Fa-f]+)h?\s*\]")
 # [reg] -- zero-offset dereference
@@ -380,7 +292,7 @@ def merge_struct_fields(
     """Merge struct accesses from multiple functions by byte offset.
 
     Accepts output from both ``scan_batch_struct_accesses``
-    (keys: ``offset``, ``type_name``) and ``scan_decompiled_struct_accesses``
+    (keys: ``offset``, ``type_name``) and ``scan_assembly_struct_accesses``
     (keys: ``byte_offset``, ``type``).
     """
     merged: dict[int, dict[str, Any]] = {}
@@ -403,5 +315,4 @@ __all__ = [
     "parse_signature_params",
     "scan_assembly_struct_accesses",
     "scan_batch_struct_accesses",
-    "scan_decompiled_struct_accesses",
 ]

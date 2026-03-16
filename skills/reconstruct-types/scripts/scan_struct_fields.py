@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Scan decompiled code AND assembly for struct/class field access patterns.
+"""Scan x64 assembly for struct/class field access patterns.
 
-Uses both decompiled C++ (structural context) and x64 assembly (ground truth)
-to extract accurate struct field layouts. Assembly provides exact sizes from
-instruction operands and catches accesses the decompiler may optimize away.
+Uses x64 assembly as the sole evidence source for struct field layouts.
+Assembly provides exact sizes from instruction operands and is deterministic
+across Hex-Rays versions, unlike decompiled C++ which varies with
+optimization levels, version, and formatting quirks.
+
+Functions without assembly data produce no struct field results.
 
 Usage:
     python scan_struct_fields.py <db_path> --class <ClassName>
@@ -11,7 +14,6 @@ Usage:
     python scan_struct_fields.py <db_path> --id <function_id>
     python scan_struct_fields.py <db_path> --all-classes
     python scan_struct_fields.py <db_path> --all-classes --json
-    python scan_struct_fields.py <db_path> --function BatLoop --no-asm
 
 Examples:
     python scan_struct_fields.py extracted_dbs/appinfo_dll_e98d25a9e8.db --class CSecurityDescriptor
@@ -21,14 +23,12 @@ Examples:
 Output:
     Struct field layout: byte offsets, sizes, access types, and source functions.
     With --class or --all-classes, merges accesses across functions into unified layouts.
-    Fields confirmed by assembly are marked as asm_verified.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -48,98 +48,11 @@ from helpers.json_output import emit_json
 from helpers.struct_scanner import (
     parse_signature_params as _parse_signature_params,
     scan_assembly_struct_accesses as _scan_assembly_struct_accesses,
-    scan_decompiled_struct_accesses as _scan_decompiled_struct_accesses,
 )
 
 # ---------------------------------------------------------------------------
-# Regex patterns for IDA decompiled memory access extraction
-#
-# NOTE: A simpler version of this scanning logic exists in
-# batch-lift/scripts/_common.py (scan_struct_accesses) used by the lifting
-# pipeline.  That version produces a different output schema ({base, offset,
-# size, type_name, pattern}) and includes merge_struct_fields() /
-# format_struct_definition() for generating C struct definitions.
+# Assembly scanning (sole evidence source for struct field layouts)
 # ---------------------------------------------------------------------------
-
-# Allowed type names in IDA cast expressions
-_T = (
-    r"(?:unsigned\s+)?(?:_BYTE|_WORD|_DWORD|_QWORD|BYTE|WORD|DWORD|QWORD"
-    r"|__int64|__int32|__int16|__int8|char|short|int|bool|HRESULT|LONG)"
-)
-_V = r"[a-zA-Z_]\w*"              # base variable identifier
-_N = r"(?:0[xX][0-9a-fA-F]+|\d+)"  # numeric literal (decimal or hex)
-
-# Pattern 1: *((_TYPE *)base + N) -- typed pointer arithmetic
-#   byte_offset = N * sizeof(TYPE)
-RE_ELEM = re.compile(
-    r"\*\s*\(\s*\(\s*(" + _T + r")\s*\*\s*\)\s*(" + _V + r")\s*\+\s*(" + _N + r")\s*\)"
-)
-
-# Pattern 2: *(_TYPE *)(base + N) -- direct byte offset
-#   byte_offset = N
-RE_BYTE = re.compile(
-    r"\*\s*\(\s*(" + _T + r")\s*\*\s*\)\s*\("
-    r"\s*(?:\(\s*char\s*\*\s*\)\s*)?" + "(" + _V + r")\s*\+\s*(" + _N + r")\s*\)"
-)
-
-# Pattern 3: *(_TYPE *)base -- zero offset dereference
-RE_ZERO = re.compile(
-    r"\*\s*\(\s*(" + _T + r")\s*\*\s*\)\s*(" + _V + r")(?!\s*[+\-({\[\w])"
-)
-
-
-def _parse_int(s: str) -> int:
-    s = s.strip()
-    return int(s, 16) if s.startswith(("0x", "0X")) else int(s)
-
-
-def _type_size(name: str) -> int:
-    return TYPE_SIZES.get(name.strip(), 8)
-
-
-def scan_decompiled_code(code: str) -> list[dict]:
-    """Extract struct field accesses from decompiled C++ code.
-
-    Returns list of dicts with: base, type, byte_offset, size, pattern, line_num.
-    """
-    return _scan_decompiled_struct_accesses(code, TYPE_SIZES)
-
-
-# ---------------------------------------------------------------------------
-# Assembly scanning (ground-truth sizes and offsets)
-# ---------------------------------------------------------------------------
-
-# [reg+offseth] -- struct field access in IDA assembly (h suffix = hex)
-RE_ASM_MEM = re.compile(r"\[\s*([a-zA-Z]\w*)\s*\+\s*([0-9A-Fa-f]+)h?\s*\]")
-# [reg] -- zero-offset dereference
-RE_ASM_MEM_ZERO = re.compile(r"\[\s*([a-zA-Z]\w*)\s*\]")
-# ptr size qualifier: byte/word/dword/qword ptr
-RE_ASM_PTR = re.compile(r"(byte|word|dword|qword|xmmword)\s+ptr", re.IGNORECASE)
-# Destination register in load-type instructions
-RE_ASM_LOAD = re.compile(r"(?:movs?[xz]?x?|lea|cmp|test)\s+(\w+)", re.IGNORECASE)
-# Prologue pattern: mov CALLEE_SAVED, PARAM_REG (parameter register save)
-RE_PROLOGUE_SAVE = re.compile(
-    r"mov\s+(\w+)\s*,\s*(rcx|ecx|rdx|edx|r8d?|r9d?)\b", re.IGNORECASE
-)
-
-
-def _detect_param_reg_aliases(asm_lines: list[str], max_prologue: int = 30) -> dict[str, int]:
-    """Detect parameter register saves in the function prologue.
-
-    Returns mapping of callee-saved register -> parameter number.
-    E.g., if the prologue has ``mov r13, rcx``, returns ``{'r13': 1}``.
-    """
-    aliases: dict[str, int] = {}
-    for line in asm_lines[:max_prologue]:
-        m = RE_PROLOGUE_SAVE.search(line.lower())
-        if not m:
-            continue
-        dest = m.group(1)
-        src = m.group(2)
-        param_num = PARAM_REGS_X64.get(src, 0)
-        if param_num and dest not in PARAM_REGS_X64 and dest not in STACK_REGS:
-            aliases[dest] = param_num
-    return aliases
 
 
 def scan_assembly_code(code: str) -> list[dict]:
@@ -174,17 +87,16 @@ def scan_module(
     class_filter: str | None = None,
     function_filter: str | None = None,
     all_classes: bool = False,
-    include_asm: bool = True,
     app_only: bool = False,
     *,
     no_cache: bool = False,
     function_id: int | None = None,
 ) -> dict:
-    """Scan functions for struct field access patterns.
+    """Scan functions for struct field access patterns using x64 assembly.
 
-    Scans both decompiled C++ code and (when *include_asm* is True) the raw
-    assembly.  Assembly provides ground-truth sizes and catches accesses the
-    decompiler may optimise away.
+    Assembly is the sole evidence source -- it provides deterministic sizes
+    and offsets from instruction operands.  Functions without assembly data
+    are skipped (no struct field results).
 
     When *app_only* is True, library/boilerplate functions (WIL/STL/WRL/CRT/ETW)
     are skipped using the function_index.
@@ -193,7 +105,7 @@ def scan_module(
     """
     # Cache only the expensive --all-classes scan (per-function / per-class are cheap)
     if all_classes and not no_cache:
-        params = {"all_classes": True, "no_asm": not include_asm, "app_only": app_only}
+        params = {"all_classes": True, "app_only": app_only}
         cached = get_cached(db_path, "scan_struct_fields", params=params)
         if cached is not None:
             return cached
@@ -232,7 +144,7 @@ def scan_module(
     per_function: dict[str, dict] = {}
 
     for func in progress_iter(functions, label="scan_struct_fields", json_mode=all_classes):
-        if not func.decompiled_code and not func.assembly_code:
+        if not func.assembly_code:
             continue
 
         # Skip library functions when --app-only
@@ -241,31 +153,21 @@ def scan_module(
 
         sig = func.function_signature_extended or func.function_signature or ""
         param_types = parse_signature_params(sig)
-        # Fallback: parse first line of decompiled code (has named params like a1, a2)
         if not param_types and func.decompiled_code:
             first_line = func.decompiled_code.split("\n", 1)[0].strip()
             if "(" in first_line:
                 param_types = parse_signature_params(first_line)
-        param_names = list(param_types.keys())  # ordered: param1, param2, ...
+        param_names = list(param_types.keys())
         func_class_info = parse_class_from_mangled(func.mangled_name)
         func_class = func_class_info["class_name"] if func_class_info else None
 
-        # -- Scan decompiled code -----------------------------------------------
-        decomp_accesses = scan_decompiled_code(func.decompiled_code) if func.decompiled_code else []
-
-        # -- Scan assembly (ground truth) ---------------------------------------
-        asm_accesses_raw: list[dict] = []
-        if include_asm and func.assembly_code:
-            asm_accesses_raw = scan_assembly_code(func.assembly_code)
-            # Map register bases to decompiled parameter variable names
-            for acc in asm_accesses_raw:
-                pn = acc.get("param_num", 0)
-                if 0 < pn <= len(param_names):
-                    acc["base"] = param_names[pn - 1]
-                # Synthesise an IDA-style type label for uniform handling
-                acc["type"] = f"asm_{acc['size']}B"
-
-        all_accesses = decomp_accesses + asm_accesses_raw
+        # -- Scan assembly (sole evidence source) -------------------------------
+        all_accesses: list[dict] = scan_assembly_code(func.assembly_code)
+        for acc in all_accesses:
+            pn = acc.get("param_num", 0)
+            if 0 < pn <= len(param_names):
+                acc["base"] = param_names[pn - 1]
+            acc["type"] = f"asm_{acc['size']}B"
         if not all_accesses:
             continue
 
@@ -376,7 +278,7 @@ def scan_module(
 
     # Cache only the expensive --all-classes scan
     if all_classes:
-        params = {"all_classes": True, "no_asm": not include_asm, "app_only": app_only}
+        params = {"all_classes": True, "app_only": app_only}
         cache_result(db_path, "scan_struct_fields", result, params=params)
 
     return result
@@ -398,8 +300,6 @@ def main() -> None:
                        help="Scan a specific function by ID (preferred after initial lookup)")
     group.add_argument("--all-classes", action="store_true", help="Scan all class methods")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
-    parser.add_argument("--no-asm", action="store_true",
-                        help="Skip assembly scanning (faster, less accurate)")
     parser.add_argument("--app-only", action="store_true",
                         help="Exclude library/boilerplate functions (WIL/STL/WRL/CRT/ETW)")
     parser.add_argument("--no-cache", action="store_true",
@@ -409,7 +309,7 @@ def main() -> None:
     db_path = resolve_db_path(args.db_path)
     result = scan_module(db_path, class_filter=args.class_name,
                          function_filter=args.func_name, all_classes=args.all_classes,
-                         include_asm=not args.no_asm, app_only=args.app_only,
+                         app_only=args.app_only,
                          no_cache=args.no_cache, function_id=args.function_id)
 
     if args.json:

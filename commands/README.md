@@ -25,17 +25,17 @@ Documentation: https://cursor.com/docs/context/commands
 | `/runs`              | `runs.md`              | List, inspect, and reopen prior workspace runs and step summaries                                  |
 | `/health`            | `health.md`            | Pre-flight workspace validation: check extraction data, DBs, skills, and config                   |
 | `/taint`             | `taint.md`             | Trace attacker-controlled inputs to dangerous sinks with guard/bypass analysis                     |
-| `/hunt-plan`         | `hunt-plan.md`         | Hypothesis-driven VR and strategic research planning: campaign planning, cross-module campaigns, replan, tool/skill design, attack pattern matching, variant analysis, validation |
+| `/hunt-plan`         | `hunt-plan.md`         | Hypothesis-driven VR and strategic research planning: campaign planning (with trust boundary mapping), hypothesis testing (including variant hunting and finding validation), cross-module campaigns, re-planning |
 | `/hunt-execute`      | `hunt-execute.md`      | Execute a `/hunt-plan` research plan: run investigation commands, collect evidence, score confidence    |
-| `/batch-audit`       | `batch-audit.md`       | Audit top N entry points or privilege-boundary handlers in parallel with consolidated security and exploitability report |
+| `/batch-audit`       | `batch-audit.md`       | Audit top N entry points or privilege-boundary handlers in parallel with consolidated security report |
 | `/xref`              | `xref.md`              | Quick cross-reference lookup: show callers and callees in a compact table                         |
 | `/ai-logical-bug-scan` | `ai-logical-bug-scan.md` | Scan module for logic vulnerabilities (auth bypass, state errors, TOCTOU) with AI-driven verification |
 | `/memory-scan`       | `memory-scan.md`       | Scan module for memory corruption (buffer overflows, integer issues, UAF, format strings)         |
 | `/callgraph`         | `callgraph.md`         | Build, query, and visualize call graphs: stats, SCCs, hubs, roots/leaves, path queries, diagrams |
 | `/imports`           | `imports.md`           | Query PE import/export relationships: who exports, who imports, dependency graphs, forwarders     |
-| `/scan`              | `scan.md`              | Unified vulnerability scan: memory + logic + taint with verification and exploitability scoring   |
+| `/scan`              | `scan.md`              | Unified vulnerability scan: memory + logic + taint with verification and severity ranking   |
 | `/diff`              | `diff.md`              | Compare two versions of a module: function deltas, classification shifts, attack surface changes  |
-| `/prioritize`        | `prioritize.md`        | Cross-module finding ranking: load scan/audit results, normalize, rank by exploitability          |
+| `/prioritize`        | `prioritize.md`        | Cross-module finding ranking: load scan/audit results, normalize, rank by severity and score       |
 | `/rpc`               | `rpc.md`               | RPC analysis: enumerate interfaces, map attack surface, audit security, trace chains, find clients, build topology, blast-radius, query stubs |
 | `/winrt`             | `winrt.md`             | WinRT analysis: enumerate server classes, map privilege-boundary attack surface, audit security, classify entry points, find EoP targets |
 | `/com`               | `com.md`               | COM analysis: enumerate servers by module/CLSID, map privilege-boundary attack surface, audit security (permissions, elevation, DCOM), classify entry points, find EoP/UAC bypass targets |
@@ -104,9 +104,8 @@ Type `/` in the Cursor chat input to see all available commands, then select one
 /reconstruct-types appinfo.dll CSecurityDescriptor
 /hunt-plan appinfo.dll
 /hunt-plan hypothesis TOCTOU appinfo.dll
-/hunt-plan variant junction appinfo.dll
-/hunt-plan validate appinfo.dll AiLaunchProcess
-/hunt-plan surface appinfo.dll
+/hunt-plan cross appinfo.dll consent.exe
+/hunt-plan replan
 /batch-audit appinfo.dll --privilege-boundary --top 8
 /taint appinfo.dll AiLaunchProcess
 /pipeline list-steps
@@ -277,15 +276,14 @@ When module is optional and omitted, commands should:
 **Input**: `/hunt-plan [mode] [module] [target]`
 
 Examples:
-- `/hunt-plan appinfo.dll` -- campaign mode (default): plan a full VR campaign
-- `/hunt-plan hypothesis TOCTOU appinfo.dll` -- test a specific vulnerability hypothesis
-- `/hunt-plan variant junction appinfo.dll` -- find variants of a known attack pattern
-- `/hunt-plan validate appinfo.dll AiLaunchProcess` -- validate a suspected finding
-- `/hunt-plan surface appinfo.dll` -- map trust boundaries and prioritize attack vectors
+- `/hunt-plan appinfo.dll` -- campaign mode (default): plan a full VR campaign with trust boundary mapping
+- `/hunt-plan hypothesis TOCTOU appinfo.dll` -- test a hypothesis, find pattern variants, or validate a finding
+- `/hunt-plan cross appinfo.dll consent.exe` -- plan a cross-module investigation
+- `/hunt-plan replan` -- re-plan from prior analysis results
 
 **What it does**:
 
-1. Detects research mode from arguments (campaign, hypothesis, variant, validate, surface)
+1. Detects research mode from arguments (campaign, hypothesis, cross, replan)
 2. Gathers existing context (cached triage/attack-surface data)
 3. Asks mode-specific questions about threat model, hypothesis, or pattern
 4. Applies hypothesis generation, attack pattern matching, prioritization methodology
@@ -316,7 +314,7 @@ Examples:
 
 **Agents used**: security-auditor (verification subagent)
 
-**Skills used**: ai-taint-scanner, security-dossier, map-attack-surface, callgraph-tracer, exploitability-assessment
+**Skills used**: ai-taint-scanner, security-dossier, map-attack-surface, callgraph-tracer
 
 ---
 
@@ -328,14 +326,14 @@ Examples:
 
 1. Resolves audit targets (top N entry points, specific functions, class methods, or module-scoped RPC/COM/WinRT privilege-boundary handlers)
 2. Creates a grind-loop scratchpad with one item per function
-3. For each function: builds security dossier, runs taint analysis, assesses exploitability, classifies purpose
+3. For each function: builds security dossier, runs taint analysis, classifies purpose
 4. Synthesizes a consolidated batch audit report with cross-function patterns and privilege-boundary highlights when relevant
 
 **Output**: Batch audit report with per-function risk ratings, top exploitable findings, cross-function patterns, and prioritized recommendations.
 
 **Uses grind loop**: Yes -- one checkbox per function.
 
-**Skills used**: security-dossier, ai-taint-scanner, exploitability-assessment, classify-functions, map-attack-surface
+**Skills used**: security-dossier, ai-taint-scanner, classify-functions, map-attack-surface
 
 ---
 
@@ -423,9 +421,9 @@ Examples:
 **What it does**:
 
 1. Resolves the module DB
-2. Runs the full 6-phase scan pipeline via `run_security_scan.py` (recon, scanning, taint, verification, exploitability, synthesis)
+2. Runs the full scan pipeline via `run_security_scan.py` (recon, scanning, taint, verification, synthesis)
 
-**Output**: Consolidated, severity-ranked findings report with exploitability scores.
+**Output**: Consolidated, severity-ranked findings report.
 
 **Agents used**: security-auditor (`run_security_scan.py` script)
 
@@ -463,7 +461,7 @@ Examples:
 
 **Agents used**: security-auditor (Step 4 verification subagent)
 
-**Skills used**: ai-taint-scanner, security-dossier, map-attack-surface, callgraph-tracer, exploitability-assessment
+**Skills used**: ai-taint-scanner, security-dossier, map-attack-surface, callgraph-tracer
 
 ---
 
@@ -597,18 +595,18 @@ Some commands reference **methodology skills** -- documentation-only skills that
 
 ## Vulnerability Scanning: `/scan` vs Focused Commands
 
-`/scan` is the **unified vulnerability pipeline** that runs memory corruption detection, logic vulnerability detection, and taint analysis in a single workflow with exploitability scoring. The focused commands provide narrower analysis when you know what you're looking for.
+`/scan` is the **unified vulnerability pipeline** that runs memory corruption detection, logic vulnerability detection, and taint analysis in a single workflow with severity ranking. The focused commands provide narrower analysis when you know what you're looking for.
 
 | When to use             | Command                                    |
 | ----------------------- | ------------------------------------------ |
-| Comprehensive module-wide vulnerability coverage | `/scan <module>` -- runs all scanners, adds exploitability scoring |
+| Comprehensive module-wide vulnerability coverage | `/scan <module>` -- runs all scanners, adds severity ranking |
 | Only memory corruption (buffer overflow, UAF, integer, format string) | `/memory-scan <module>` |
 | Only logic vulnerabilities (auth bypass, state errors, TOCTOU) | `/ai-logical-bug-scan <module>` |
 | Only taint analysis (source-to-sink tracing) | `/taint <module> <function>` |
-| Breadth-first audit of top entry points | `/batch-audit <module>` -- dossier + taint + exploitability per function |
+| Breadth-first audit of top entry points | `/batch-audit <module>` -- dossier + taint per function |
 | Deep single-function audit | `/audit <module> <function>` -- full pipeline with backward trace, verification, call chain |
 
-`/batch-audit` trades depth for breadth: it runs dossier + taint + exploitability + classification for each function, but omits the full `/audit` pipeline (backward trace, decompiler verification, call chain analysis). Use `/batch-audit` to prioritize targets, then `/audit` for the most interesting ones.
+`/batch-audit` trades depth for breadth: it runs dossier + taint + classification for each function, but omits the full `/audit` pipeline (backward trace, decompiler verification, call chain analysis). Use `/batch-audit` to prioritize targets, then `/audit` for the most interesting ones.
 
 ## Command Depth Spectrum
 
@@ -635,8 +633,8 @@ flowchart LR
 |---------|-------|-------|-------|------------|-------------------|
 | `/triage` | Module | Thorough orientation | 5-6 (identity, classify, callgraph, attack surface, optional taint) | No | Optional lightweight taint on top 3-5 entries (`--with-security`) |
 | `/full-report` | Module | Exhaustive | 6 phases (identity, classify, attack surface + dossiers + taint, topology + diagrams, specialized, synthesis) | Yes | Taint + dossiers on top entries (always), COM/dispatch/types (adaptive) |
-| `/scan` | Module | Deep (security-only) | 5 phases (8 scanners + taint, merge, verify, exploitability, synthesis) | Yes | Full: memory corruption + logic flaws + taint + verification + exploitability |
-| `/batch-audit` | Per-function | Deep (security-only) | Per-function pipeline (dossier, taint, exploitability, classify) | Yes | Dossier + taint + exploitability per function; privilege-boundary discovery |
+| `/scan` | Module | Deep (security-only) | 4 phases (8 scanners + taint, merge, verify, synthesis) | Yes | Full: memory corruption + logic flaws + taint + verification |
+| `/batch-audit` | Per-function | Deep (security-only) | Per-function pipeline (dossier, taint, classify) | Yes | Dossier + taint per function; privilege-boundary discovery |
 
 No two commands are redundant -- each occupies a distinct point on the depth/breadth spectrum. `/triage` is the natural first command and the natural stepping stone toward `/full-report`, `/scan`, or `/audit`.
 

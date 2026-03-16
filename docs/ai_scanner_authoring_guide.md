@@ -44,10 +44,10 @@ These had fundamental limitations:
   look independent to regex. UAF bugs across aliases are invisible.
 - **No path sensitivity.** A bounds check inside an if-branch suppresses a
   finding even when the overflow is on the else-branch.
-- **Naive scoring.** The additive scoring model (`compute_finding_score`)
-  rated confirmed false positives at 0.80 (HIGH) because high reachability
-  compensated for zero confidence. A guard count of 5 null-checks scored
-  harder to trigger than 1 admin check.
+- **Naive scoring.** The old additive scoring model rated confirmed false
+  positives at 0.80 (HIGH) because high reachability compensated for zero
+  confidence. A guard count of 5 null-checks scored harder to trigger than
+  1 admin check.
 - **Context-free.** Each function was analyzed in isolation. Cross-function
   data flow, wrapper functions, and multi-hop taint were invisible.
 
@@ -820,7 +820,7 @@ __all__ = [
 **What NOT to import:**
 - NO `ALLOC_APIS`, `FREE_APIS`, `COPY_APIS` (API taxonomy)
 - NO `analyze_taint`, `build_taint_summary` (taint analysis)
-- NO `compute_finding_score`, `severity_label` (scoring model)
+- NO `severity_label` (scoring model)
 - NO `find_param_in_calls` (parameter mapping)
 
 The LLM handles all of these by reading code directly.
@@ -1500,17 +1500,7 @@ with `from_memory_finding()` (or you need a new adapter like
 - `helpers/finding_schema.py`: add adapter function if needed
 - `helpers/finding_merge.py`: update source type mapping if needed
 
-### 14.6 The `exploitability-assessment` Skill
-
-This skill consumes scanner findings and assesses exploitability. Document
-your scanner's output format so the exploitability assessment knows what
-fields are available.
-
-**Files to update:**
-- `skills/exploitability-assessment/SKILL.md`: document your output format
-  in the "Input Formats" section
-
-### 14.7 The Triage Coordinator
+### 14.6 The Triage Coordinator
 
 The triage coordinator (`analyze_module.py`) runs multi-skill pipelines.
 Currently it does NOT include memory scanning in its `security` or `full`

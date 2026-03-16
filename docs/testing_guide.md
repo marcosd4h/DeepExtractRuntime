@@ -1793,44 +1793,44 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Flags-Tested**: hypothesis, type
 - **Protocol**: none
 
-### TEST-VR-003: Hunt variant
+### TEST-VR-003: Hunt hypothesis (variant hunting)
 
 - **Category**: vr-campaign
 - **Component**: command
 - **Component-Name**: /hunt-plan
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/hunt-plan variant junction srvsvc.dll`
-- **Expected**: Junction-based attack variant analysis
-- **Validates**: variant mode with pattern
-- **Flags-Tested**: variant, pattern
+- **Command**: `/hunt-plan hypothesis junction srvsvc.dll`
+- **Expected**: Junction-based attack variant analysis via hypothesis mode
+- **Validates**: hypothesis mode with variant hunting pattern
+- **Flags-Tested**: hypothesis, pattern
 - **Protocol**: none
 
-### TEST-VR-004: Hunt validate
+### TEST-VR-004: Hunt hypothesis (validation)
 
 - **Category**: vr-campaign
 - **Component**: command
 - **Component-Name**: /hunt-plan
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `/hunt-plan validate srvsvc.dll SsServerFsControl`
-- **Expected**: Validation strategy for suspected finding
-- **Validates**: validate mode with function
-- **Flags-Tested**: validate, function
+- **Command**: `/hunt-plan hypothesis srvsvc.dll SsServerFsControl`
+- **Expected**: Validation strategy for suspected finding via hypothesis mode
+- **Validates**: hypothesis mode with validation
+- **Flags-Tested**: hypothesis, function
 - **Protocol**: none
 
-### TEST-VR-005: Hunt surface
+### TEST-VR-005: Hunt execute with inline hypothesis
 
 - **Category**: vr-campaign
 - **Component**: command
-- **Component-Name**: /hunt-plan
+- **Component-Name**: /hunt-execute
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/hunt-plan surface srvsvc.dll`
-- **Expected**: Trust boundary mapping
-- **Validates**: surface mode
-- **Flags-Tested**: surface
-- **Protocol**: none
+- **Command**: `/hunt-execute srvsvc.dll --hypothesis "TOCTOU in file path handler"`
+- **Expected**: Inline hypothesis execution without prior /hunt-plan
+- **Validates**: --hypothesis flag with synthetic plan construction
+- **Flags-Tested**: --hypothesis, module
+- **Protocol**: grind-loop, workspace
 
 ### TEST-VR-006: Hunt execute
 
@@ -1865,9 +1865,9 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: /hunt-plan
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/hunt-plan cross srvsvc.dll ntoskrnl.exe` or `/hunt-plan replan` or `/hunt-plan design new-scanner`
+- **Command**: `/hunt-plan cross srvsvc.dll ntoskrnl.exe` or `/hunt-plan replan`
 - **Expected**: Interactive strategy dialogue with pipeline templates and research phase reference
-- **Validates**: hunt-plan cross/replan/design mode engagement (formerly /brainstorm)
+- **Validates**: hunt-plan cross/replan mode engagement (formerly /brainstorm)
 - **Flags-Tested**: mode
 - **Protocol**: none
 
@@ -2869,32 +2869,6 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Expected**: JSON with status ok, root_functions containing NetrShareGetInfo, callgraph, traversal_plan, preloaded_code
 - **Validates**: Single-function callgraph preparation
 - **Flags-Tested**: --function, --depth, --with-code, --json
-- **Protocol**: none
-
-### TEST-SKILL-073: assess_finding placeholder
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: exploitability-assessment/assess_finding.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/exploitability-assessment/scripts/assess_finding.py --taint-report <path> --module-db <db:srvsvc> --json`
-- **Expected**: NOT_FOUND or PARSE_ERROR because placeholder path has no valid data
-- **Validates**: Graceful handling of missing or empty taint report
-- **Flags-Tested**: --taint-report, --module-db, --json
-- **Protocol**: none
-
-### TEST-SKILL-074: batch_assess
-
-- **Category**: skill-script
-- **Component**: skill-script
-- **Component-Name**: exploitability-assessment/batch_assess.py
-- **Target-Module**: srvsvc.dll
-- **Target-Function**: N/A
-- **Command**: `python .agent/skills/exploitability-assessment/scripts/batch_assess.py <db:srvsvc> --top 10 --min-score 0.3 --json`
-- **Expected**: Batch findings sorted by exploitability
-- **Validates**: Batch assessment
-- **Flags-Tested**: --top, --min-score, --json
 - **Protocol**: none
 
 ### TEST-SKILL-086: generate_report
