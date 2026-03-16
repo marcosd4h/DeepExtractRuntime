@@ -288,6 +288,9 @@ class EntryPoint:
     winrt_risk_tier: str = ""
     winrt_access_contexts: str = ""
 
+    # Tainted argument recommendations (populated by ranker or left empty)
+    tainted_args: list[dict] = field(default_factory=list)
+
     # Final composite score
     attack_score: float = 0.0
     attack_rank: int = 0
@@ -326,6 +329,7 @@ class EntryPoint:
             "winrt_activation_type": self.winrt_activation_type,
             "winrt_risk_tier": self.winrt_risk_tier,
             "winrt_access_contexts": self.winrt_access_contexts,
+            "tainted_args": self.tainted_args,
             "attack_score": round(self.attack_score, 3),
             "attack_rank": self.attack_rank,
             "notes": self.notes,
