@@ -112,7 +112,6 @@ def _entrypoints_from_cached(data: list[dict]) -> list[EntryPoint]:
             winrt_access_contexts=d.get("winrt_access_contexts", ""),
             attack_score=d.get("attack_score", 0.0),
             attack_rank=d.get("attack_rank", 0),
-            tainted_args=d.get("tainted_args", []),
             notes=d.get("notes", []),
         )
         results.append(ep)

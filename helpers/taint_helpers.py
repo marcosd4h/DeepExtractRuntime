@@ -17,7 +17,6 @@ from typing import Any, Optional
 
 from helpers import parse_json_safe, open_individual_analysis_db
 from helpers.api_taxonomy import classify_api_security, strip_import_prefix, is_in_dangerous_apis_json
-from skills._shared.finding_base import severity_label as _finding_severity_label
 
 # ---------------------------------------------------------------------------
 # Extended sink detection (supplements helpers.api_taxonomy)
@@ -250,40 +249,6 @@ SOURCE_SEVERITY: dict[str, float] = {
     "string_literal": 0.1,
     "constant": 0.0,
 }
-
-UNTRUSTED_INPUT_APIS: tuple[str, ...] = (
-    "recv", "recvfrom", "WSARecv",
-    "ReadFile", "NtReadFile",
-    "InternetReadFile", "WinHttpReadData", "HttpQueryInfo",
-    "RegQueryValue", "RegGetValue", "NtQueryValueKey",
-    "GetEnvironmentVariable",
-    "GetWindowText", "PeekMessage", "GetMessage",
-    "fgets", "fread",
-)
-
-SEVERITY_BANDS: list[tuple[float, str]] = [
-    (0.8, "CRITICAL"),
-    (0.6, "HIGH"),
-    (0.3, "MEDIUM"),
-    (0.0, "LOW"),
-]
-
-
-def severity_label(score: float) -> str:
-    return _finding_severity_label(score, bands=SEVERITY_BANDS)
-
-
-def compute_finding_score(
-    sink_category: str,
-    path_hops: int,
-) -> float:
-    """Compute a composite severity score for a taint finding."""
-    import math
-
-    sink_w = SINK_SEVERITY.get(sink_category, 0.3)
-    path_penalty = 1.0 / math.sqrt(max(path_hops, 1))
-    return round(min(1.0, sink_w * path_penalty), 3)
-
 
 # ---------------------------------------------------------------------------
 # Parameter inference
@@ -747,15 +712,11 @@ __all__ = [
     "EXTENDED_SINK_PREFIXES",
     "SINK_SEVERITY",
     "SOURCE_SEVERITY",
-    "UNTRUSTED_INPUT_APIS",
-    "SEVERITY_BANDS",
     "TRUST_LEVELS",
     "TRUST_LEVEL_RANK",
     "TRUST_ESCALATION_MULTIPLIER",
     "TaintContext",
     "classify_sink",
-    "severity_label",
-    "compute_finding_score",
     "infer_param_count",
     "resolve_tainted_params",
     "classify_module_trust",

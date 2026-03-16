@@ -305,29 +305,6 @@ Scans decompiled and assembly code for struct/class field accesses to infer memo
 
 ## 10. Taint & Data Flow Analysis
 
-### def_use_chain
-Lightweight def-use chain analysis with scope-aware taint propagation for IDA Hex-Rays output.
-
-- **VarDef**(dataclass) -- Variable definition (assignment target).
-  - Fields: `var`, `line`, `rhs_expr`, `rhs_vars`, `block_idx`, `rhs_call`
-- **VarUse**(dataclass) -- Variable use site.
-  - Fields: `var`, `line`, `context` (`call_arg`, `condition`, `return`, `array_index`, `struct_write`, `assignment_rhs`), `target_func`, `arg_position`
-- **TaintResult**(dataclass) -- Result of taint propagation.
-  - Fields: `tainted_vars`, `tainted_calls`, `tainted_conditions`, `tainted_returns`, `tainted_struct_writes`
-  - `to_dict()` -> dict
-- **TaintSummary**(dataclass) -- Procedure summary for inter-procedural taint.
-  - Fields: `function_name`, `tainted_params`, `returns_tainted_from`, `sinks_reached`
-- **TaintVar** -- Type alias: `str | tuple[str, str]` (plain variable or field-qualified).
-- `parse_def_use(code: str)` -> tuple[list[VarDef], list[VarUse]]
-  - Parses decompiled code into variable definitions and uses.
-- `propagate_taint(defs, uses, initial_tainted, max_iterations=50, *, scope_aware=True, field_sensitive=False, sanitizer_kill=True)` -> TaintResult
-  - Fixed-point taint propagation through def-use chains. Supports scope-aware propagation, field-sensitive taint (`a1->buffer` vs `a1->length`), and sanitizer-kill.
-- `analyze_taint(code: str, initial_tainted: set[str], *, scope_aware=True, field_sensitive=False, sanitizer_kill=True)` -> TaintResult
-  - One-shot convenience: parses code and propagates taint.
-- `build_taint_summary(code: str, param_count: int, function_name: str = "")` -> TaintSummary
-  - Runs `analyze_taint` for each parameter and builds an inter-procedural summary.
-- `SANITIZER_APIS`: frozenset of APIs that produce trusted output from tainted input.
-
 ## 11. Finding Normalization & Merging
 
 ### finding_schema
@@ -348,8 +325,6 @@ Unified finding schema for normalizing results across all vulnerability scanners
   - Converts a VerificationResult dict to a unified Finding (handles both memory and logic verified outputs).
 - `normalize_scanner_output(data: dict, source_type: str)` -> list[Finding]
   - Extracts findings from a scanner's JSON output and normalizes them. Handles both raw and verified finding lists.
-- `graduated_reachability_score(entry_type: str | None, hops: int)` -> float
-  - Computes a graduated reachability score (0.0-1.0) based on entry type and hop distance.
 
 ### finding_merge
 Merges, deduplicates, and ranks findings across multiple scanner outputs.

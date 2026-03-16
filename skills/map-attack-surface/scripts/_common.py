@@ -291,7 +291,6 @@ class EntryPoint:
     # Final composite score
     attack_score: float = 0.0
     attack_rank: int = 0
-    tainted_args: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -329,7 +328,6 @@ class EntryPoint:
             "winrt_access_contexts": self.winrt_access_contexts,
             "attack_score": round(self.attack_score, 3),
             "attack_rank": self.attack_rank,
-            "tainted_args": self.tainted_args,
             "notes": self.notes,
         }
 

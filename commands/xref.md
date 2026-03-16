@@ -113,7 +113,7 @@ Present the xref table directly in chat. No file is saved for this lightweight c
 - `/explain <module> <callee>` -- understand what a callee does
 - `/audit <module> <function> --diagram` -- full security audit with call graph diagram
 - `/audit <module> <function>` -- security audit on the function
-- `/data-flow forward <module> <function> --param N` -- trace parameter into callees
+- `/taint <module> <function>` -- trace parameter data flow into callees
 - `/taint <module> <function>` -- check if tainted data reaches dangerous callees
 
 ## Error Handling

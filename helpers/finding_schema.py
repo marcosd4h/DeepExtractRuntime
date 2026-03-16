@@ -9,9 +9,26 @@ deduplication, and ranking via :mod:`helpers.finding_merge`.
 from __future__ import annotations
 
 import hashlib
-import math
 from dataclasses import asdict, dataclass, field
 from typing import Any, Optional
+
+from helpers.config import get_config_value
+
+_SEVERITY_SORT_KEY_DEFAULT = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}
+
+
+def severity_to_sort_key(severity: str) -> int:
+    """Map an LLM-assigned severity label to an ordinal sort key.
+
+    The sort key is used for ranking and deduplication only -- it is NOT
+    a probability, confidence score, or exploitability metric.  The LLM
+    is the sole scoring authority; this function converts qualitative
+    labels into ordinals so findings can be sorted deterministically.
+    """
+    mapping = get_config_value("severity_sort_key", _SEVERITY_SORT_KEY_DEFAULT)
+    if isinstance(mapping, dict):
+        return mapping.get(severity, mapping.get("MEDIUM", 2))
+    return _SEVERITY_SORT_KEY_DEFAULT.get(severity, 2)
 
 
 @dataclass
@@ -51,28 +68,6 @@ class Finding:
         """Hash of the sorted path elements, for path-aware dedup."""
         canon = "|".join(sorted(self.path)) if self.path else ""
         return hashlib.sha256(canon.encode()).hexdigest()[:16]
-
-
-def graduated_reachability_score(entry_type: str | None, hops: int) -> float:
-    """Compute a graduated reachability score based on entry type and hop distance.
-
-    Closer to the entry point = higher score.  Different entry types
-    start with different base values reflecting their typical attack
-    accessibility.
-
-    Returns a float in ``[0.0, 1.0]``.
-    """
-    base_map = {
-        "rpc_handler": 1.0,
-        "com_method": 0.9,
-        "export": 0.75,
-        "entry_point": 0.8,
-    }
-    base = base_map.get(entry_type or "", 0.4)
-    hop_factor = 1.0 / math.sqrt(max(hops, 1) + 1)
-    if entry_type in (None, "internal"):
-        base = min(base, 0.6)
-    return min(base * hop_factor, 1.0)
 
 
 def from_taint_finding(finding: dict, func_info: dict | None = None) -> Finding:
@@ -159,7 +154,7 @@ def _from_ai_memory_finding(finding: dict) -> Finding:
         sink=finding.get("vulnerability_type", ""),
         sink_category="memory_unsafe",
         severity=severity,
-        score={"CRITICAL": 0.95, "HIGH": 0.8, "MEDIUM": 0.5, "LOW": 0.2}.get(severity, 0.5),
+        score=severity_to_sort_key(severity),
         guards=[{"description": g} for g in finding.get("guards_on_path", [])],
         path=finding.get("call_chain", []),
         evidence_lines=code_lines + ([asm_confirmation] if asm_confirmation else []),
@@ -237,7 +232,7 @@ def _from_ai_logic_finding(finding: dict) -> Finding:
         sink=finding.get("vulnerability_type", ""),
         sink_category="logic_unsafe",
         severity=severity,
-        score={"CRITICAL": 0.95, "HIGH": 0.8, "MEDIUM": 0.5, "LOW": 0.2}.get(severity, 0.5),
+        score=severity_to_sort_key(severity),
         guards=[{"description": g} for g in finding.get("guards_on_path", [])],
         path=finding.get("call_chain", []),
         evidence_lines=code_lines + ([asm_confirmation] if asm_confirmation else []),

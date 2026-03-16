@@ -244,29 +244,6 @@ def load_all_functions_slim(db_path: str) -> list[dict[str, Any]]:
     return records
 
 
-DEFAULT_SEVERITY_BANDS: list[tuple[float, str]] = [
-    (0.75, "CRITICAL"),
-    (0.55, "HIGH"),
-    (0.35, "MEDIUM"),
-    (0.0, "LOW"),
-]
-
-
-def severity_label(
-    score: float,
-    bands: list[tuple[float, str]] | None = None,
-) -> str:
-    """Map a numeric score to a severity label using threshold bands.
-
-    *bands* is a list of ``(threshold, label)`` tuples sorted descending
-    by threshold.  The first band whose threshold is <= *score* wins.
-    Defaults to CRITICAL/HIGH/MEDIUM/LOW at 0.75/0.55/0.35/0.0.
-    """
-    for threshold, label in (bands or DEFAULT_SEVERITY_BANDS):
-        if score >= threshold:
-            return label
-    return "LOW"
-
 
 # ------------------------------------------------------------------
 # Batch xref resolution: collect outbound targets across functions

@@ -16,7 +16,14 @@ from typing import Any, Callable
 
 from helpers.errors import ErrorCode, ScriptError, safe_parse_args
 
-from .finding_base import CONFIDENCE_SCORES, VerificationResult
+from .finding_base import VerificationResult
+
+_CONFIDENCE_MULTIPLIERS: dict[str, float] = {
+    "CONFIRMED": 1.0,
+    "LIKELY": 0.7,
+    "UNCERTAIN": 0.3,
+    "FALSE_POSITIVE": 0.0,
+}
 
 
 def verify_generic(finding: dict, func: dict) -> VerificationResult:
@@ -114,7 +121,7 @@ def verify_findings(
                 ],
             )
             old_score = finding.get("score", 0.0)
-            conf_multiplier = CONFIDENCE_SCORES.get(vr.confidence, 0.3)
+            conf_multiplier = _CONFIDENCE_MULTIPLIERS.get(vr.confidence, 0.3)
             vr.verified_score = round(old_score * conf_multiplier, 3)
             results.append(vr)
             continue
@@ -140,7 +147,7 @@ def verify_findings(
             vr.mitigating_factors.append("Path infeasible per constraint analysis")
 
         old_score = finding.get("score", 0.0)
-        conf_multiplier = CONFIDENCE_SCORES.get(vr.confidence, 0.3)
+        conf_multiplier = _CONFIDENCE_MULTIPLIERS.get(vr.confidence, 0.3)
         vr.verified_score = round(old_score * conf_multiplier, 3)
 
         results.append(vr)

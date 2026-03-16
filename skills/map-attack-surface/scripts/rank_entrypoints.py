@@ -180,8 +180,6 @@ def rank_entrypoints(
             key=lambda n: reachable[n],
         )[:50]
 
-        ep.tainted_args = _infer_tainted_args(ep)
-
     module_trust = _infer_module_trust(entries)
     module_roles = _detect_module_roles(entries, module_name) if module_name else set()
 
@@ -444,49 +442,6 @@ def _count_cross_module_callers(
         return {}
 
 
-def _infer_tainted_args(ep: EntryPoint) -> list[str]:
-    """Infer which arguments should be considered tainted from the signature."""
-    tainted: list[str] = []
-    if not ep.signature:
-        return tainted
-
-    paren_match = re.search(r"\(([^)]*)\)", ep.signature)
-    if not paren_match:
-        return tainted
-
-    param_str = paren_match.group(1)
-    if not param_str.strip() or param_str.strip().lower() == "void":
-        return tainted
-
-    params = [p.strip() for p in param_str.split(",") if p.strip()]
-    for i, param in enumerate(params):
-        if re.search(r"(?:void|char|BYTE|wchar_t|WCHAR)\s*\*", param, re.I):
-            tainted.append(f"arg{i} ({param[:40]}): buffer pointer - TAINT")
-        elif re.search(r"\bBSTR\b", param, re.I):
-            tainted.append(f"arg{i} ({param[:40]}): BSTR (OLECHAR*) - TAINT")
-        elif re.search(r"(?:LPWSTR|LPSTR|PWSTR|PSTR|LPCWSTR|LPCSTR|PCWSTR|PCSTR)", param, re.I):
-            tainted.append(f"arg{i} ({param[:40]}): string pointer - TAINT")
-        elif re.search(r"(?:LPVOID|PVOID|LPBYTE|PBYTE)", param, re.I):
-            tainted.append(f"arg{i} ({param[:40]}): raw buffer - TAINT")
-        elif re.search(r"(?:IUnknown|IDispatch|I[A-Z]\w+)\s*\*", param, re.I):
-            tainted.append(f"arg{i} ({param[:40]}): COM interface - TAINT")
-        elif re.search(r"(?:VARIANT|SAFEARRAY)", param, re.I):
-            tainted.append(f"arg{i} ({param[:40]}): variant/array - TAINT")
-        elif re.search(r"(?:REFIID|REFCLSID|GUID|IID)\b", param, re.I):
-            tainted.append(f"arg{i} ({param[:40]}): GUID/IID - PARTIAL_TAINT")
-        elif re.search(r"(?:SECURITY_ATTRIBUTES|OVERLAPPED|struct)\s*\*", param, re.I):
-            tainted.append(f"arg{i} ({param[:40]}): struct pointer - PARTIAL_TAINT")
-        elif re.search(r"(?:HANDLE|HKEY|HMODULE|HINSTANCE|HWND|SOCKET)\b", param, re.I):
-            tainted.append(f"arg{i} ({param[:40]}): handle - PARTIAL_TAINT")
-        elif re.search(r"(?:DWORD|ULONG|SIZE_T|size_t|unsigned)\b", param, re.I):
-            if i > 0 and any("buffer" in t or "string" in t or "raw buffer" in t or "BSTR" in t for t in tainted):
-                tainted.append(f"arg{i} ({param[:40]}): size/length - TAINT (controls buffer bounds)")
-            elif re.search(r"(?:size|len|count|cb[A-Z]|cch[A-Z]|dw(?:Size|Length|Count|Bytes))\b", param, re.I):
-                tainted.append(f"arg{i} ({param[:40]}): size/length - TAINT (name suggests size)")
-
-    return tainted
-
-
 # ===========================================================================
 # Output Formatting
 # ===========================================================================
@@ -545,10 +500,6 @@ def print_ranked(entries: list[EntryPoint], as_json: bool = False, top_n: int = 
             print(f"  Danger APIs:    {', '.join(ep.dangerous_ops_list[:10])}")
         chars = ep.param_surface.get("characteristics", [])
         print(f"  Param surface:  {', '.join(chars) if chars else 'none'}")
-        if ep.tainted_args:
-            print(f"  Tainted args:")
-            for ta in ep.tainted_args[:8]:
-                print(f"    - {ta}")
         if ep.notes:
             print(f"  Notes:")
             for note in ep.notes[:5]:
@@ -641,8 +592,6 @@ def rank_single_function(
         [name for name, depth in reachable.items() if name != function_name],
         key=lambda n: reachable[n],
     )[:50]
-
-    ep.tainted_args = _infer_tainted_args(ep)
 
     _compute_composite_scores([ep])
     ep.attack_rank = 1

@@ -123,32 +123,6 @@ class TestFindingBase:
         assert d["confidence"] == "LIKELY"
         assert d["finding"]["name"] == "test"
 
-    def test_compute_finding_score_basic(self):
-        from skills._shared.finding_base import compute_finding_score
-
-        score, label = compute_finding_score(
-            impact_severity=1.0,
-            guard_count=0,
-            is_exported=True,
-            confidence="CONFIRMED",
-            path_hops=1,
-        )
-        assert 0.0 < score <= 1.0
-        assert label in ("CRITICAL", "HIGH", "MEDIUM", "LOW")
-
-    def test_compute_finding_score_guards_reduce(self):
-        from skills._shared.finding_base import compute_finding_score
-
-        score_no_guard, _ = compute_finding_score(1.0, guard_count=0, is_exported=True)
-        score_guarded, _ = compute_finding_score(1.0, guard_count=5, is_exported=True)
-        assert score_guarded < score_no_guard
-
-    def test_severity_label(self):
-        from skills._shared.finding_base import severity_label
-
-        assert severity_label(0.8) == "CRITICAL"
-        assert severity_label(0.1) == "LOW"
-
     def test_matches_api_list(self):
         from skills._shared.finding_base import matches_api_list
 

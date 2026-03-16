@@ -117,13 +117,13 @@ class TestFromLogicFinding:
         raw = {"vulnerability_type": "toctou", "severity_assessment": "CRITICAL -- remote RCE"}
         f = from_logic_finding(raw)
         assert f.severity == "CRITICAL"
-        assert f.score == 0.95
+        assert f.score == 4  # ordinal sort key
 
     def test_ai_format_severity_parsing_garbage(self):
         raw = {"vulnerability_type": "toctou", "severity_assessment": "maybe bad"}
         f = from_logic_finding(raw)
         assert f.severity == "MEDIUM"
-        assert f.score == 0.5
+        assert f.score == 2  # ordinal sort key
 
     def test_ai_format_evidence_aggregation(self):
         raw = {

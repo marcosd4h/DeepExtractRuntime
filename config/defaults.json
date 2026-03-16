@@ -110,6 +110,13 @@
     "enabled": true,
     "cache_loaded_index": true
   },
+  "severity_sort_key": {
+    "CRITICAL": 4,
+    "HIGH": 3,
+    "MEDIUM": 2,
+    "LOW": 1,
+    "_doc": "Ordinal sort key for ranking LLM-assigned severity. NOT a probability or confidence score."
+  },
   "scale": {
     "compact_mode_threshold": 25,
     "context_truncation_threshold": 1000,

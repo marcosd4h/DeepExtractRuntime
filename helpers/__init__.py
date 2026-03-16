@@ -190,8 +190,6 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     "batch_resolve_xref_targets": (".batch_operations", None),
     "load_all_functions_slim": (".batch_operations", None),
     "load_function_record": (".batch_operations", None),
-    "severity_label": (".batch_operations", None),
-    "DEFAULT_SEVERITY_BANDS": (".batch_operations", None),
     # cross_module_graph
     "CrossModuleGraph": (".cross_module_graph", None),
     "ModuleResolver": (".cross_module_graph", None),
@@ -337,14 +335,12 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     "classify_module_trust": (".taint_helpers", None),
     "classify_trust_transition": (".taint_helpers", None),
     "resolve_tainted_params": (".taint_helpers", None),
-    "compute_finding_score": (".taint_helpers", None),
     "resolve_vtable_callees": (".taint_helpers", None),
     "detect_rpc_boundaries": (".taint_helpers", None),
     "detect_return_taint": (".taint_helpers", None),
     "find_return_assignment_targets": (".taint_helpers", None),
     "SINK_SEVERITY": (".taint_helpers", None),
     "SOURCE_SEVERITY": (".taint_helpers", None),
-    "UNTRUSTED_INPUT_APIS": (".taint_helpers", None),
     "TRUST_LEVELS": (".taint_helpers", None),
     "TRUST_LEVEL_RANK": (".taint_helpers", None),
 }

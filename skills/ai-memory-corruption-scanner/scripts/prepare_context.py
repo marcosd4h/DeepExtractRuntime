@@ -376,7 +376,6 @@ def prepare_context(
                     "rpc_interface_id": ep.get("rpc_interface_id", ""),
                     "com_clsid": ep.get("com_clsid", ""),
                     "dangerous_ops_reachable": ep.get("dangerous_ops_reachable", 0),
-                    "tainted_args": ep.get("tainted_args", []),
                 }]
                 break
     elif entry_points_mode:
@@ -393,7 +392,6 @@ def prepare_context(
                 "rpc_interface_id": ep.get("rpc_interface_id", ""),
                 "com_clsid": ep.get("com_clsid", ""),
                 "dangerous_ops_reachable": ep.get("dangerous_ops_reachable", 0),
-                "tainted_args": ep.get("tainted_args", []),
             }
             for ep in eps_sorted[:10]
         ]

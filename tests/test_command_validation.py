@@ -329,20 +329,6 @@ class TestValidateCommandArgs:
         assert r.ok is True
         assert called is False
 
-    def test_verify_decompiler_allows_moduleless_form(self, monkeypatch):
-        called = False
-
-        def _validate_module(module_name, workspace_root=None):
-            nonlocal called
-            called = True
-            return CommandValidationResult()
-
-        monkeypatch.setattr("helpers.command_validation.validate_module", _validate_module)
-
-        r = validate_command_args("verify-decompiler", {"function": "DllMain"})
-        assert r.ok is True
-        assert called is False
-
     def test_audit_allows_optional_module(self, monkeypatch):
         called = False
 
