@@ -14,7 +14,7 @@ denial-of-service scanner, crypto weakness scanner).
 1. [Background and Rationale](#1-background-and-rationale)
 2. [Architecture Overview](#2-architecture-overview)
 3. [Core Design Principles](#3-core-design-principles)
-4. [The 5-Stage Pipeline](#4-the-5-stage-pipeline)
+4. [The 6-Stage Pipeline](#4-the-6-stage-pipeline)
 5. [Callgraph JSON Schema](#5-callgraph-json-schema)
 6. [Helpers and Infrastructure](#6-helpers-and-infrastructure)
 7. [Skill Structure](#7-skill-structure)
@@ -128,7 +128,9 @@ These techniques were validated across 30+ CVEs in production software:
 
 ## 2. Architecture Overview
 
-Every AI scanner follows the same 5-stage pipeline:
+Every AI scanner follows the same pipeline. Stages 0-4 form the core scanner
+pipeline; stages 5-6 are added by the command layer (report writing and
+cross-report comparison):
 
 ```
 Stage 0: Threat Model      -- Compact module context (service type, attacker model, entry points)
@@ -136,11 +138,14 @@ Stage 1: Callgraph Prep    -- Cross-module callgraph JSON via CrossModuleGraph
 Stage 2: Quick Triage       -- Cheap LLM pass: likely/unlikely per entry point
 Stage 3: Deep Analysis      -- Expensive LLM: adversarial prompting + type specialists
 Stage 4: Skeptic Verify     -- Gate 0 pre-filter + independent LLM: 4-criteria self-checks + PoC reasoning
+Stage 5: Report + JSON      -- Markdown report + .findings.json companion (command layer)
+Stage 6: Cross-Report Compare -- Compare against previous scan (command layer)
 ```
 
 Stages 0-1 are **programmatic** (Python scripts producing JSON via workspace
 handoff). Stages 2-4 are **LLM-driven** (Cursor subagents reading JSON context
-and function code on demand).
+and function code on demand). Stages 5-6 are **command orchestration** (writing
+reports and comparing to prior runs).
 
 ### Key Architectural Decisions
 
@@ -151,12 +156,16 @@ The LLM must read 100% of MUST_READ functions.  Code is delivered
 iteratively: depth 0+1 is pre-loaded, deeper levels are batch-fetched
 based on the LLM's taint-guided `next_depth_requests`.
 
-**Iterative depth-expansion with batch code delivery.** Function code is
-NOT retrieved one-at-a-time via Shell calls.  `prepare_context.py --with-code`
-pre-loads depth 0+1 MUST_READ functions.  For deeper levels, the coordinator
-batch-fetches code via `batch_extract.py --functions name1 name2 --json`
-based on the scanner subagent's `next_depth_requests`.  This eliminates
-per-function Shell overhead while keeping context focused on taint paths.
+**Self-driving depth expansion.** `prepare_context.py --with-code`
+pre-loads depth 0+1 MUST_READ functions.  The scanner subagent drives its
+own depth expansion -- it reads deeper functions itself via Shell using
+`extract_function_data.py`.  The coordinator launches the scanner ONCE and
+does NOT batch-fetch code or re-launch/resume for deeper depths.  This
+preserves the scanner's full analysis context across all depths, eliminates
+orchestrator bias injection, and enables cross-depth vulnerability
+correlation.  The scanner can also read functions outside the callgraph
+(globals writers, module initializers, dispatch populators) using the same
+Shell mechanism -- the callgraph is a guide, not a constraint.
 
 **IPC context is metadata, not BFS edges.** IPC reachability (RPC handler,
 COM method, WinRT activation) describes how the entry point is reached from
@@ -256,7 +265,7 @@ Common out-of-graph scenarios:
 
 ---
 
-## 4. The 5-Stage Pipeline
+## 4. The 6-Stage Pipeline
 
 ### Stage 0: Threat Model Pre-Pass
 
@@ -431,6 +440,70 @@ fresh context and no confirmation bias from the scanning process. It receives
 only the finding and the raw data -- not the scanner's reasoning.
 
 **Output:** `TRUE_POSITIVE` or `FALSE_POSITIVE` with detailed reasoning.
+
+### Stage 5 -- Report and Companion JSON
+
+After skeptic verification, the coordinator writes two artifacts:
+
+1. **Markdown report** at `extracted_code/<module>/reports/ai_<type>_scan_<YYYYMMDD_HHMM>.md`
+2. **Structured JSON companion** at `extracted_code/<module>/reports/ai_<type>_scan_<YYYYMMDD_HHMM>.findings.json`
+
+The `.findings.json` is the authoritative structured record of the scan. The
+`.md` report is rendered from this JSON. The companion must contain the same
+or more information than the markdown report.
+
+**Required top-level fields:**
+
+- `scan_type`, `module`, `entry_point`, `entry_point_opnum`, `entry_point_interface`
+- `depth`, `timestamp`, `db_path`, `workspace_run_dir`, `report_path`
+- `callgraph_stats` (total_nodes, must_read_count, module_count, modules)
+- `functions_analyzed` (array of all function names read)
+- `threat_model` (full structured object with narrative)
+
+**Required per-finding fields (true_positives and false_positives):**
+
+- `id`, `vulnerability_type`, `vulnerability_class`, `severity`, `title`
+- `description` (full LLM-written bug description)
+- `call_chain`, `primary_function`
+- `evidence` (code snippets), `assembly_confirmation` (asm verification)
+- `impact_assessment` (what happens if triggered)
+- `practical_exploitability` (how hard to exploit)
+- `structural_mitigation` (existing defenses)
+- `remediation` (concrete fix recommendation)
+- `verification_subgraph` (nodes, edges, must_read, db_path)
+- `skeptic_verdict`, `skeptic_summary`, `skeptic_criteria`
+- `dedup_key`
+
+**Additional false_positive fields:** `hypothesis`, `why_dismissed`
+
+**Required top-level analysis sections:**
+
+- `false_leads` (scanner's dismissed hypotheses)
+- `attack_chain_analysis` (narrative on finding relationships)
+- `overall_severity`, `overall_severity_justification`
+- `coverage_summary` (per-phase results), `coverage` (functions read/skipped)
+- `provenance` (workspace artifact paths)
+
+### Stage 6 -- Cross-Report Comparison
+
+After writing the report and companion JSON, compare against the most
+recent previous scan of the same type for the same module.
+
+1. Use `helpers.report_comparison.discover_reports()` to find previous
+   `.findings.json` files of the same scan type
+2. If no previous report exists, note "First scan" and skip
+3. Load the most recent previous companion with `load_findings_json()`
+4. Run `compare_findings(current, previous)` to identify recurring, new,
+   missed, and changed findings
+5. Append a `## Previous Findings Comparison` section to the markdown report
+6. Present the comparison summary to the user
+
+The comparison uses `vulnerability_type + primary_function` for matching,
+which is deliberately looser than `dedup_key` to catch findings described
+with slightly different framing across runs.
+
+**Status messaging:** Report before ("Checking for previous scan reports...")
+and after ("Cross-report: 2 recurring, 1 new, 3 missed").
 
 ---
 
@@ -806,7 +879,7 @@ Create `.agent/agents/<vuln-class>-scanner.md` following the
 6. **Workflow**: The stages with concrete instructions for this vulnerability class
 7. **Error Handling**: Table of scenario -> behavior
 8. **Mandatory Quick Triage Protocol**: What the triage reads (callgraph + threat model only, NOT code), domain-specific decision signals, structured output format (`{entry_point, assessment, reasoning}`), workspace output contract (`triage/results.json`), single-function scan behavior, enforcement language ("protocol violation" if skipped)
-9. **Mandatory Callgraph Traversal Protocol**: Per-iteration behavior, structured output format (findings + next_depth_requests + coverage_report), coverage requirements, termination conditions, out-of-callgraph read guidance
+9. **How You Read Code**: Unified section covering three self-driving code-reading modes: (1) depth expansion via Shell, (2) out-of-callgraph exploration via Shell, (3) escalation protocol for orchestrator assistance. Coverage requirements, termination conditions, final output format
 
 ### Persona Template
 
@@ -829,17 +902,34 @@ Create `.agent/agents/<vuln-class>-scanner.md` following the
 > exactly how an attacker triggers the bug and what exploitation primitive
 > it gives, do not report it.
 
-### Callgraph Navigation Instructions
+### How You Read Code (Unified Section)
 
-Include these instructions in every scanner agent definition:
+Include a "How You Read Code" section in every scanner agent definition.
+This section replaces the old "Mandatory Callgraph Traversal Protocol" and
+"Out-of-Callgraph Code Reads" sections with a unified self-driving model.
 
-> **How to navigate the callgraph:**
-> 1. Read the callgraph JSON from workspace. This is your map.
-> 2. Choose which functions to investigate. Start from entry points.
-> 3. Read function code on demand via Shell:
->    `python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> --function "Name" --json`
-> 4. You can request ANY function, including outside the callgraph.
-> 5. The callgraph is your guide, not your constraint.
+The section MUST cover three modes:
+
+**Mode 1 -- Depth expansion:** The scanner drives the depth-expansion loop
+internally. It receives preloaded code for depth 0+1 MUST_READ functions,
+analyzes them, identifies deeper targets, and reads them itself via Shell.
+
+**Mode 2 -- Out-of-callgraph exploration:** The scanner reads globals writers,
+module initializers, dispatch table populators, and other functions outside
+the callgraph via Shell. The callgraph is a guide, not a constraint.
+
+**Mode 3 -- Escalation protocol:** When the scanner needs orchestrator help
+(cross-module DB, additional skill output, user input), it returns a
+structured `needs_escalation` response. The orchestrator resolves the
+request and resumes the same scanner instance.
+
+Template:
+
+> **You are a self-driving scanner.** The coordinator provides initial context
+> (threat model, callgraph, preloaded code for depth 0+1, DB path, max_depth).
+> You read all additional function code yourself via Shell. The callgraph
+> `traversal_plan` is a prioritized worklist, not a boundary -- you can read
+> ANY function in the DB.
 
 ### Finding Schema
 
@@ -899,6 +989,17 @@ adjacent to the chain that are relevant to the vulnerability.
 The skeptic subagent receives this subgraph and independently reads all
 `must_read` functions to verify the finding.  The full callgraph is also
 available for broader context if needed.
+
+This requirement applies to ALL findings the scanner produces -- including
+secondary findings outside the scanner's primary vulnerability class (e.g.
+access control issues found during a memory corruption scan).  If a scanner
+cannot produce a subgraph for a secondary finding, the coordinator MUST
+construct one from the finding's location and the callgraph context before
+passing to the skeptic:
+- `call_chain`: `[entry_point, ..., finding_function]`
+- `must_read`: at minimum the finding function and its immediate caller
+- `db_path`: from the scan context
+- `nodes`/`edges`: extracted from `<run_dir>/context/results.json`
 
 ---
 
@@ -1038,24 +1139,87 @@ full callgraph (which may have 1,000+ nodes).
 
 1. The finding JSON (including `verification_subgraph` with `call_chain`,
    `nodes`, `edges`, `must_read`, `db_path`)
-2. The full callgraph path (`<run_dir>/context/results.json`) for broader
-   context if the skeptic needs to check adjacent functions
-3. Reference materials (vulnerability_patterns.md, decompiler_pitfalls.md)
+2. The MUST_READ sub-callgraph extracted from `<run_dir>/context/results.json`
+   by the coordinator:
+   - MUST_READ functions by depth (from `traversal_plan.by_depth`)
+   - Edges between MUST_READ functions (filtered from `callgraph.edges` to
+     only edges where both source and target are MUST_READ nodes)
+   This gives the skeptic a navigable neighborhood map (~50-100 application
+   functions) so it can explore beyond the finding's narrow chain without
+   parsing the full callgraph (which may have 1,000+ nodes).
+3. The full callgraph path (`<run_dir>/context/results.json`) for full detail
+   if the sub-callgraph is insufficient
+4. The `extract_function_data.py` command template with `db_path` filled in
+5. Explicit permission to read any function in the DB beyond `must_read`
+6. Reference materials (vulnerability_patterns.md, decompiler_pitfalls.md)
 
 **What the skeptic does:**
 
 1. Reads ALL functions listed in `verification_subgraph.must_read`
    independently via `extract_function_data.py`
-2. Applies the 4 validation criteria (TAINT FLOW, VALIDATION CHECKS,
+2. May read ANY other function in the DB -- the MUST_READ list by depth shows
+   what application functions exist at each level for broader exploration
+3. Applies the 4 validation criteria (TAINT FLOW, VALIDATION CHECKS,
    REACHABILITY, EXPLOITABILITY) against independently-read code
-3. Does NOT rely on the scanner's `evidence.code_lines` excerpts
-4. Returns `TRUE_POSITIVE` or `FALSE_POSITIVE` with per-criterion reasoning
+4. Does NOT rely on the scanner's `evidence.code_lines` excerpts
+5. Returns `TRUE_POSITIVE` or `FALSE_POSITIVE` with per-criterion reasoning
 
 **Subagent isolation requirement:** The skeptic MUST be a SEPARATE subagent
 launched via the Task tool with fresh context.  It MUST NOT run in the same
 context as the scanner.  Same-context verification has confirmation bias --
 the model already "knows" why it thinks the bug is real and will rationalize
 the evidence to fit its prior conclusion.
+
+### Canonical Skeptic Prompt Template
+
+The coordinator fills in all `[bracketed]` values and passes this as the
+Task prompt. Scanner-specific command `.md` files derive from this template.
+
+> You are an independent skeptic verifier. Your job is to determine whether
+> the following vulnerability finding is TRUE_POSITIVE or FALSE_POSITIVE by
+> independently reading and analyzing the code.
+>
+> ## Finding
+> [Paste the complete finding JSON here, including verification_subgraph]
+>
+> ## Callgraph Neighborhood (MUST_READ sub-callgraph)
+> These are all application-logic functions in the scan callgraph, organized
+> by depth from the entry point.
+>
+> **MUST_READ by depth:**
+> [Paste traversal_plan.by_depth content -- function names grouped by depth]
+>
+> **Edges between MUST_READ functions:**
+> [Paste filtered edges -- source -> target, MUST_READ nodes only]
+>
+> The full callgraph is at: `[run_dir]/context/results.json`
+>
+> ## How to Read Function Code
+> ```
+> python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py "[db_path]" --function "FunctionName" --json
+> ```
+> You MUST read all functions in `verification_subgraph.must_read`.
+> You MAY read ANY other function in the database if needed.
+>
+> ## Reference Materials
+> - `.agent/skills/ai-[scanner-type]-scanner/reference/vulnerability_patterns.md`
+> - `.agent/skills/ai-[scanner-type]-scanner/reference/decompiler_pitfalls.md`
+>
+> ## Verification Protocol
+> CONSIDER YOU MAY BE WRONG. FULLY TEST ALL OTHER POSSIBILITIES.
+> Use at least 2 independent methods: (1) decompiled code, (2) assembly.
+>
+> Apply these 4 criteria:
+> 1. [Scanner-specific criterion 1]
+> 2. [Scanner-specific criterion 2]
+> 3. REACHABILITY: Is the path reachable from entry point? No dead code?
+> 4. EXPLOITABILITY: Construct exact inputs that trigger the vulnerability.
+>
+> ## Output
+> Write verdict to `[run_dir]/skeptic/results.json`.
+
+See the reference implementations in `memory-scan.md`, `ai-logical-bug-scan.md`,
+and `taint.md` for scanner-specific criteria.
 
 ### Adding Verification for Your Scanner
 
@@ -1067,6 +1231,9 @@ existing memory corruption scanner's skeptic verification. Include:
 - The self-doubt prompting template
 - Output format (TRUE_POSITIVE/FALSE_POSITIVE with reasoning per criterion)
 - Requirement that the skeptic reads `verification_subgraph.must_read` independently
+- The MUST_READ sub-callgraph extraction step (coordinator responsibility)
+- The `extract_function_data.py` command with `db_path` for on-demand code reads
+- Explicit permission for the skeptic to read beyond `must_read`
 
 ---
 
@@ -1079,7 +1246,7 @@ Create `.agent/commands/<command-name>.md` per
 
 1. **Header and Overview** with usage examples
 2. **Step 0: Preflight validation** via `validate_command_args()`
-3. **Phase 0-5** implementing the pipeline
+3. **Phase 0-6** implementing the pipeline
 4. **Output** section (report path + format)
 5. **Error handling** table
 
@@ -1098,25 +1265,66 @@ command `.md` describes exactly what prompt to pass.
 
 ### Practical Subagent Invocation Pattern
 
-In the command `.md`, describe the subagent launch like this:
+In the command `.md`, describe the Phase 3 subagent launch like this:
 
 ```
-Launch a `security-auditor` subagent with this prompt:
+Launch a SINGLE `<vuln-class>-scanner` subagent with:
+  1. Threat model content (from Phase 0 -- read <run_dir>/threat_model/results.json)
+  2. Callgraph structure + traversal_plan (from Phase 1 -- read <run_dir>/context/results.json)
+  3. Preloaded code for depth 0+1 MUST_READ functions (from preloaded_code in context results)
+  4. db_path for on-demand code retrieval via Shell
+  5. Reference material paths:
+     - .agent/skills/ai-<vuln-class>-scanner/reference/vulnerability_patterns.md
+     - .agent/skills/ai-<vuln-class>-scanner/reference/decompiler_pitfalls.md
+  6. max_depth parameter
 
-"You are a [vulnerability class] scanner agent. Read the following files:
-- Threat model: <run_dir>/threat_model/results.json
-- Callgraph: <run_dir>/context/results.json
-- Reference patterns: .agent/skills/ai-<vuln-class>-scanner/reference/vulnerability_patterns.md
-- Decompiler pitfalls: .agent/skills/ai-<vuln-class>-scanner/reference/decompiler_pitfalls.md
+The scanner drives its own depth expansion internally using Shell
+to read deeper functions. Do NOT batch-fetch code for the scanner.
+Do NOT launch a second scanner instance.
 
-The analysis database is at: <db_path>
-
-[Full scanner agent prompt from agents/<vuln-class>-scanner.md]"
+Escalation handling: If the scanner returns status: "needs_escalation",
+resolve the request and resume the SAME instance via Task(resume=<agent_id>).
+Provide ONLY the requested data -- no analysis, no summaries.
 ```
 
 The coordinating agent (the user's Cursor session) reads the scanner agent
 `.md` file, incorporates the context paths, and passes the complete prompt
-to the Task tool.
+to the Task tool. The scanner subagent has Shell access and reads any
+additional function code itself.
+
+### Status Messaging
+
+Every scanner command MUST include status messaging instructions at each
+phase boundary. The orchestrator outputs plain-text messages to the user
+**before** each phase starts and **after** it completes.
+
+**Before-phase messages** announce what is starting:
+- `Building threat model for <module>...`
+- `Preparing callgraph from <function> (depth <N>)...`
+- `Running triage assessment...`
+- `Launching <scanner-type> scanner (self-driving, max depth <N>)...`
+- `Verifying <N> findings with independent skeptic...`
+- `Writing final report...`
+
+**After-phase messages** report key stats from the phase output:
+- `Threat model: RPC service, remote unauthenticated attacker, 123 entry points`
+- `Callgraph: 1,597 nodes, 4,098 edges, 67 MUST_READ functions across 11 modules`
+- `Triage: 1 likely, 0 unlikely -- proceeding with NetrShareAdd`
+- `Scanner complete: 0 findings, 7 false leads refuted, depth reached 3, 10 functions analyzed`
+- `Skeptic: 2 TRUE_POSITIVE, 1 FALSE_POSITIVE`
+
+**Rules for status messages:**
+- 1-2 lines each -- enough to know what happened, not a data dump
+- After-phase messages extract key numbers from data the orchestrator
+  already reads (script stdout summary, subagent response JSON)
+- If a phase produces zero results, say so explicitly rather than
+  silently moving on
+- Never suppress status messages to "save time" -- multi-minute scans
+  need user visibility
+
+In the command `.md`, add `**Status (before):**` and `**Status (after):**`
+annotations inline at each phase. See the reference implementations in
+`memory-scan.md`, `ai-logical-bug-scan.md`, and `taint.md`.
 
 ---
 
@@ -1491,6 +1699,15 @@ When adding a new scanner:
 - [ ] Integration test with real module DB (run scripts on actual extraction)
 - [ ] Manual test: run the full command pipeline on a real target
 
+### Phase E -- Report and Comparison
+
+- [ ] Phase 5 writes `.findings.json` companion alongside `.md` report
+- [ ] `.findings.json` contains all per-finding fields (description, evidence,
+      assembly_confirmation, impact_assessment, practical_exploitability,
+      structural_mitigation, remediation, skeptic_verdict, skeptic_criteria)
+- [ ] Phase 6 compares against previous reports using `helpers.report_comparison`
+- [ ] Phase 6 appends `## Previous Findings Comparison` section to report
+
 ---
 
 ## 18. Anti-Patterns
@@ -1591,13 +1808,41 @@ traversal plan will show `must_read: 2` -- state that as evidence.  Do not
 let a scan produce a report that read fewer functions than the `must_read`
 count.
 
-### DO NOT: Retrieve function code one-at-a-time via Shell
+### DO NOT: Launch a new scanner instance for deeper depths
 
-Each Shell call takes ~1-2 seconds.  For 20 MUST_READ functions, that is
-30-40 seconds of serial overhead.  Use `--with-code` to pre-load depth 0+1,
-and `batch_extract.py --functions name1 name2 --json` for deeper levels.
-The iterative depth-expansion pattern ensures the LLM only requests code it
-will actually analyze.
+The scanner subagent is self-driving. It receives initial context (depth 0+1
+code, callgraph, threat model, DB path) and reads deeper functions itself
+via Shell. Launching a NEW scanner instance for depth-N analysis loses all
+accumulated context from depths 0 through N-1, including assembly-verified
+hypotheses, cross-depth correlations, and coverage tracking. If you find
+yourself calling `Task(subagent_type="...-scanner")` more than once for
+Phase 3 of the same scan, that is a protocol violation.
+
+### DO NOT: Pre-analyze function code in the orchestrator prompt
+
+When providing context to the scanner subagent, pass raw data only -- threat
+model JSON, callgraph JSON, preloaded code, DB path, reference material
+paths. Do NOT include your own analysis, verdicts, or summaries of functions
+in the prompt (e.g. "Assessment: Safe linked list lookup. No memory
+corruption."). This injects orchestrator bias and prevents the scanner from
+forming independent adversarial assessments. The scanner must read and
+analyze all code independently.
+
+### DO NOT: Use resume for depth-expansion code delivery
+
+The `Task(resume=<agent_id>)` mechanism exists for the escalation protocol
+(cross-module DB needs, additional skill output, user input). It MUST NOT
+be used to feed depth-N code to the scanner. If the orchestrator finds
+itself batch-fetching code and resuming the scanner between depths, that is
+a protocol violation -- the scanner should be reading its own code via Shell.
+
+### DO NOT: Strip scanner Shell access
+
+Scanner subagents require Shell access to read function code on demand via
+`extract_function_data.py` and `list_functions.py`. Without Shell access,
+the scanner cannot drive its own depth expansion and the orchestrator is
+forced into the broken coordinator-driven batch loop. Never launch a scanner
+subagent in readonly mode.
 
 ### DO NOT: Skip the quick triage stage (Stage 2)
 
@@ -1626,6 +1871,16 @@ For single-function scans, the triage is trivially "likely" but MUST still
 record reasoning that describes the callgraph characteristics.  Jumping from
 callgraph preparation (Stage 1) directly to deep analysis (Stage 3) is a
 **protocol violation**.
+
+### DO NOT: Skip the `.findings.json` companion
+
+The companion is mandatory. Without it, cross-report comparison cannot
+function and the scan's structured data is lost when the workspace is cleaned.
+
+### DO NOT: Skip Phase 6 for single-function scans
+
+Phase 6 applies to all scans regardless of scope. Even a single-function
+re-scan should compare against the previous scan of that function.
 
 ---
 

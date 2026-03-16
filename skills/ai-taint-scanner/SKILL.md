@@ -21,8 +21,8 @@ callgraph from attacker-reachable entry points, classifies every node
 taint-specific metadata (sink density, parameter types, trust boundaries,
 assembly CFG summary), and delivers the enriched context to the AI agent in
 depth-level batches.  The agent traces taint forward through each batch,
-returns requests for deeper functions, and the coordinator batch-fetches the
-next level -- iterating until max depth or taint termination.
+returns requests for deeper functions, and reads deeper code itself via Shell
+-- iterating until max depth or taint termination.
 
 This is NOT a pattern scanner.  All taint propagation decisions are made by
 the LLM agent using the enriched callgraph context.  A separate skeptic agent
@@ -130,8 +130,9 @@ classification), `taint_hints_per_node` (sink density, globals, loops,
 parameters, call arguments per MUST_READ function), entry point metadata with
 IPC reachability and taint parameter hints, trust boundary classification,
 and optionally `preloaded_code` (decompiled code + assembly for depth 0+1
-MUST_READ functions).  Deeper levels are batch-fetched by the coordinator
-based on the scanner agent's `next_depth_requests`.
+MUST_READ functions).  The scanner subagent reads deeper levels itself via
+Shell using `extract_function_data.py` -- the coordinator does NOT
+batch-fetch code for the scanner.
 
 ## Workflows
 
@@ -142,10 +143,10 @@ based on the scanner agent's `next_depth_requests`.
 - [ ] Phase 2: **(MANDATORY)** Quick triage -- LLM assesses likely/unlikely per
       entry point based on callgraph structure and sink density (no code reading).
       Write result to workspace `triage/` step.  See **Mandatory Quick Triage Protocol**.
-- [ ] Phase 3: Iterative depth analysis -- for each **likely** entry point, LLM
-      receives depth 0+1 code plus taint hints, traces data flow forward,
-      returns `next_depth_requests`; coordinator batch-fetches deeper functions
-      and resumes the agent until max depth or taint termination
+- [ ] Phase 3: Self-driving deep analysis -- launch a SINGLE scanner subagent
+      with depth 0+1 code, callgraph, threat model, taint hints, and DB path;
+      the scanner reads deeper functions itself via Shell until max depth or
+      taint termination
 - [ ] Phase 4: Skeptic verification -- independent LLM verifies each finding
 - [ ] Phase 5: Report -- merge verified findings, include coverage report
 
@@ -156,31 +157,33 @@ based on the scanner agent's `next_depth_requests`.
 - [ ] Phase 2: **(MANDATORY)** Quick triage -- single-function scans produce a
       trivial "likely" assessment with recorded reasoning (user-directed target).
       Write result to workspace `triage/` step.
-- [ ] Phase 3: Iterative depth analysis on the single function's callgraph
+- [ ] Phase 3: Self-driving deep analysis on the single function's callgraph
 - [ ] Phase 4: Skeptic verification
 - [ ] Phase 5: Report with per-depth taint flow breakdown
 
 ## Depth-Expansion Strategy
 
-The scanner uses an iterative depth-expansion pattern for efficient context usage:
+The scanner uses a self-driving depth-expansion pattern for efficient context
+usage. The scanner subagent drives the loop internally -- the coordinator
+does NOT batch-fetch code or resume the scanner between depths.
 
-1. **Depth 0+1 upfront**: Entry point code and immediate callees are pre-loaded.
-   The LLM reads these first to identify which parameters carry attacker data
-   and which callees receive tainted arguments.
+1. **Depth 0+1 upfront**: Entry point code and immediate callees are pre-loaded
+   in the context provided to the scanner. The scanner reads these first to
+   identify which parameters carry attacker data and which callees receive
+   tainted arguments.
 
-2. **Taint-guided expansion**: After analyzing depth 0+1, the LLM returns
-   `next_depth_requests` -- a list of functions at deeper levels that received
-   tainted data and need code reading.  Functions where taint terminates
-   (validated, copied to local, consumed by safe API) are NOT requested.
+2. **Taint-guided expansion**: After analyzing depth 0+1, the scanner identifies
+   functions at deeper levels that received tainted data and need code reading.
+   Functions where taint terminates (validated, consumed by safe API) are skipped.
 
-3. **Batch fetch**: The coordinator batch-extracts code for requested functions
-   using `batch_extract_function_data` and delivers the next batch.
+3. **Self-driven reads**: The scanner reads deeper functions itself via Shell
+   using `extract_function_data.py`. No coordinator involvement.
 
-4. **Iteration**: Steps 2-3 repeat until max depth or the LLM reports all
-   taint paths are resolved (terminated at sinks, validated, or dead-ended).
+4. **Iteration**: Steps 2-3 repeat internally until max depth or all taint
+   paths are resolved (terminated at sinks, validated, or dead-ended).
 
 This avoids pre-loading code for the entire callgraph (expensive for deep
-trees) while ensuring every tainted path is followed to its conclusion.
+trees) while preserving full scanner context across all depth levels.
 
 ## Taint-Specific Enrichments (vs. Memory Corruption Scanner)
 

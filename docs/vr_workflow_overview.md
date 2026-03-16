@@ -1,6 +1,6 @@
 # DeepExtract VR Workflow Overview Guide
 
-> Comprehensive reference for vulnerability research workflows using the DeepExtract Agent Analysis Runtime. Covers every command (35), subagent (6), skill (25), rule (6), and helper module (35+).
+> Comprehensive reference for vulnerability research workflows using the DeepExtract Agent Analysis Runtime. Covers every command (27), agent (8), skill (18), rule (11), and helper module (59 files, 171 public symbols).
 
 ---
 
@@ -31,33 +31,38 @@ DeepExtract is an AI-driven analysis runtime that operates on IDA Pro extraction
 | `extracted_code/{module}/` | Decompiled `.cpp` files, `file_info.json`, `file_info.md`, `function_index.json`, `module_profile.json` |
 | `extracted_code/{module}/reports/` | Saved reports, visualizations, and analysis artifacts (`.md`, `.html`, `.h`) |
 | `extracted_dbs/` | Per-binary SQLite analysis databases (read-only) |
-| `.agent/helpers/` | Shared Python library (35+ modules) |
+| `.agent/helpers/` | Shared Python library (59 modules, 171 public symbols, 3 subpackages) |
 | `.agent/skills/` | Analysis skills with scripts in `scripts/` subdirectories |
 | `.agent/agents/` | Subagent definitions, entry scripts, and `registry.json` |
 | `.agent/commands/` | Slash command definitions (`.md` files) |
-| `.agent/hooks/` | Lifecycle hooks (session start context injector, grind-loop stop hook) |
+| `.agent/hooks/` | Lifecycle hooks (session start, grind-loop stop, session-end cleanup) |
+| `.agent/rules/` | Behavioral conventions (`.mdc` files, symlinked from `.cursor/rules/`) |
 | `.agent/cache/` | Cached skill-script results (24h TTL, DB mtime validated) |
 | `.agent/workspace/` | Run directories for multi-step workflow handoff |
-| `.agent/config/` | `defaults.json` -- classification weights, thresholds, timeouts |
-| `.agent/docs/` | Data format references, guides |
+| `.agent/config/` | `defaults.json` -- classification weights, thresholds, timeouts; pipeline YAMLs |
+| `.agent/docs/` | Architecture, authoring guides, format references, onboarding |
 | `.agent/tests/` | Test files and `conftest.py` |
 
-### Three-Layer Architecture
+### Five-Layer Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Commands (36)          User-facing slash commands           │
-│  /triage /scan /audit /hunt-plan /lift-class /com /rpc ...       │
+│  Commands (27)          User-facing slash commands           │
+│  /triage /scan /audit /taint /compare-scans /hunt-plan /lift-class ...     │
 ├─────────────────────────────────────────────────────────────┤
-│  Agents (6)             Specialized subagents                │
+│  Agents (8)             Specialized subagents                │
 │  re-analyst  triage-coordinator  security-auditor            │
-│  code-lifter  type-reconstructor  verifier                   │
+│  code-lifter  type-reconstructor                             │
+│  memory-corruption-scanner  logic-scanner  taint-scanner     │
 ├─────────────────────────────────────────────────────────────┤
-│  Skills (25)            Analysis capabilities with scripts   │
-│  classify-functions  ai-taint-scanner  map-attack-surface ... │
+│  Skills (18)            Analysis capabilities with scripts   │
+│  classify-functions  ai-taint-scanner  map-attack-surface    │
+│  ai-logic-scanner  ai-memory-corruption-scanner  ...         │
 ├─────────────────────────────────────────────────────────────┤
-│  Helpers (35+)          Shared Python library                │
-│  individual_analysis_db  callgraph  api_taxonomy  errors ... │
+│  Helpers (59)           Shared Python library                │
+│  individual_analysis_db  callgraph  api_taxonomy  errors     │
+│  taint_helpers  findings_store  sddl_parser  ...             │
+│  Hooks (3 events) + Rules (11 .mdc files)                    │
 ├─────────────────────────────────────────────────────────────┤
 │  Data Layer             SQLite DBs + Decompiled .cpp files   │
 │  extracted_dbs/*.db     extracted_code/{module}/*.cpp        │
@@ -76,7 +81,7 @@ DeepExtract is an AI-driven analysis runtime that operates on IDA Pro extraction
 
 ## 2. Rules and Conventions
 
-Six workspace rules govern all script development and agent behavior. All rules have `alwaysApply: true`.
+Eleven workspace rules govern all script development and agent behavior. Most rules have `alwaysApply: true`.
 
 ### 2.1 Error Handling Convention
 
@@ -222,8 +227,8 @@ if script is None:
 |------|----------|
 | `extracted_code/{module}/` | Decompiled `.cpp` files + `file_info.json`/`.md` + `module_profile.json` |
 | `extracted_dbs/` | SQLite analysis DBs (assembly, xrefs, strings, loops) |
-| `.agent/helpers/` | Shared Python library (35+ modules) |
-| `.agent/docs/` | Data format references |
+| `.agent/helpers/` | Shared Python library (59 modules, 171 public symbols) |
+| `.agent/docs/` | Architecture, authoring guides, format references |
 | `.agent/skills/` | Analysis skills with helper scripts in `scripts/` subdirs |
 | `.agent/agents/` | Subagent definitions and scripts |
 | `.agent/commands/` | Slash command definitions (`.md` files) |
@@ -269,36 +274,73 @@ Filesystem handoff for multi-step or multi-skill workflows to keep coordinator c
 - Failed steps still write summary/error info and update manifest
 - Coordinators continue where possible using manifest state as source of truth
 
+### 2.7 Script Invocation Guide
+
+Canonical patterns for invoking skill scripts from agents and commands.
+
+**DB path resolution:** Most scripts require an exact analysis DB path (`extracted_dbs/<module>_<hash>.db`). Resolve via `find_module_db.py <module_name> --json` or `find_module_db.py --list --json`.
+
+**Function targeting:** All function-targeting scripts accept `--function <name>` (preferred) or a bare positional name. Use `--id <N>` for ID-based lookup.
+
+**Common mistakes:** Never use `2>/dev/null` (hides structured error JSON), never pipe `--json` through `python -c` (output is already complete), never merge stderr into stdout with `2>&1` (breaks JSON parsing). See the `script-invocation-guide.mdc` rule for the full common-mistakes table.
+
+### 2.8 Call Discovery Convention
+
+When discovering which APIs a function calls, always use `simple_outbound_xrefs` from the analysis DB as the authoritative source. Use `extract_function_calls()` from `helpers.decompiled_parser` only when argument expressions, line numbers, or `result_var` are needed. The preferred pattern is `discover_calls_with_xrefs()`, which merges xref ground truth with parser argument data.
+
+### 2.9 AI Scanner Orchestration
+
+Self-driving AI scanner model for memory-corruption, logic, and taint scanners. Defines 6 orchestrator phases:
+
+1. **Phase 0 -- Recon**: Run `triage_summary.py` and `discover_entrypoints.py`
+2. **Phase 1 -- Context Prep**: Run `build_threat_model.py` and `prepare_context.py`
+3. **Phase 2 -- AI Analysis**: Launch scanner subagent (memory-corruption-scanner, logic-scanner, or taint-scanner)
+4. **Phase 3 -- Skeptic Verification**: Independent verification of findings against assembly
+5. **Phase 4 -- Exploitability**: Score verified findings via `assess_finding.py`
+6. **Phase 5 -- Report**: Synthesize final report with ranked findings
+
+Scanners operate as LLM-only subagents receiving pre-built callgraph + code batches. They follow a mandatory quick-triage-then-deep-analysis workflow with area decomposition.
+
+### 2.10 Agent Tool Guardrails
+
+Six-point checklist before every Shell command:
+1. Check shell type (bash/powershell/cmd) and use matching syntax
+2. No `2>/dev/null` -- stderr carries structured error JSON
+3. No `| python -c` -- `--json` output is already complete
+4. No `2>&1 |` -- merging streams breaks JSON parsing
+5. Prefer Read tool for static files over Shell
+6. Quote all file paths (especially backslash paths on Windows)
+
+### 2.11 Cache Conventions
+
+Cached results live in `.agent/cache/`. Cache is keyed by DB path + script + arguments, validated by DB file modification time with 24h TTL. Use `--no-cache` on any cacheable skill script to force recomputation. Use `/cache-manage` to view stats, clear, or refresh cached results.
+
 ---
 
-EOF## 3. Skills Reference
+## 3. Skills Reference
 
 ### Skills Summary Table
 
-| # | Skill | Type | Cacheable | Scripts |
-|---|-------|------|-----------|---------|
-| 1 | adversarial-reasoning | methodology | no | none |
-| 2 | batch-lift | orchestration | no | 2 |
-| 5 | callgraph-tracer | analysis | no | 6 |
-| 6 | classify-functions | analysis | no | 3 |
-| 7 | code-lifting | workflow/recipe | no | none |
-| 8 | com-interface-analysis | security | no | 6 |
-| 9 | com-interface-reconstruction | reconstruction | no | 4 |
-| 10 | data-flow-tracer | analysis | no | 4 |
-| 11 | decompiled-code-extractor | foundation | no | 3 |
-| 14 | exploitability-assessment | security | no | 2 |
-| 16 | function-index | index | no | 3 |
-| 17 | generate-re-report | reporting | no | 6 |
-| 18 | import-export-resolver | analysis | no | 4 |
-| 19 | ai-logic-scanner | security | no | 6 |
-| 20 | map-attack-surface | security | no | 3 |
-| 21 | ai-memory-corruption-scanner | security | no | 5 |
-| 22 | reconstruct-types | reconstruction | no | 4 |
-| 23 | rpc-interface-analysis | security | no | 6 |
-| 24 | security-dossier | security | no | 1 |
-| 27 | ai-taint-scanner | security | no | 2 |
-| 28 | verify-decompiled | verification | yes | 2 |
-| 29 | winrt-interface-analysis | security | no | 6 |
+| # | Skill | Type | Cacheable | Cache Keys | Scripts |
+|---|-------|------|-----------|------------|---------|
+| 1 | decompiled-code-extractor | foundation | no | -- | 4 |
+| 2 | function-index | index | no | -- | 3 |
+| 3 | import-export-resolver | analysis | yes | import_export_index | 4 |
+| 4 | callgraph-tracer | analysis | yes | call_graph | 6 |
+| 5 | classify-functions | analysis | yes | triage_summary, classify_module | 3 |
+| 6 | generate-re-report | reporting | yes | analyze_topology, analyze_imports, analyze_strings, analyze_complexity | 6 |
+| 7 | map-attack-surface | security | yes | discover_entrypoints | 3 |
+| 8 | security-dossier | security | yes | security_dossier | 1 |
+| 9 | com-interface-analysis | security | no | -- | 6 |
+| 10 | com-interface-reconstruction | reconstruction | yes | scan_com_interfaces | 4 |
+| 11 | rpc-interface-analysis | security | no | -- | 6 |
+| 12 | winrt-interface-analysis | security | no | -- | 6 |
+| 13 | ai-memory-corruption-scanner | security | no | -- | 2 |
+| 14 | ai-logic-scanner | security | no | -- | 2 |
+| 15 | ai-taint-scanner | security | no | -- | 2 |
+| 16 | exploitability-assessment | security | no | -- | 2 |
+| 17 | batch-lift | code_generation | no | -- | 2 |
+| 18 | reconstruct-types | reconstruction | yes | scan_struct_fields | 4 |
 
 ---
 
@@ -522,7 +564,7 @@ EOF## 3. Skills Reference
 
 **Xref sentinel values:** `"data"` (type=4), `"vtable"` (type=8), `"internal"` (type=1), `"static_library"` (type=2)
 
-**Dependencies:** decompiled-code-extractor, classify-functions, security-dossier, data-flow-tracer, map-attack-surface.
+**Dependencies:** decompiled-code-extractor, classify-functions, security-dossier, map-attack-surface.
 
 ---
 
@@ -566,65 +608,6 @@ EOF## 3. Skills Reference
 **Interest score:** 0-10 scale computed from dangerous API calls, string references, complexity, entry point status, and classification signals.
 
 **Dependencies:** decompiled-code-extractor, callgraph-tracer, security-dossier, map-attack-surface.
-
----
-
-#### 3.2.3 data-flow-tracer
-
-**Purpose:** Trace how data moves through binaries -- forward parameter flow, backward argument origins, global variable producer/consumer maps, and string literal usage chains.
-
-**Scripts:**
-
-**`forward_trace.py`** -- Parameter forward trace
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `db_path` | positional | yes | Analysis DB |
-| `function` | positional | yes | Function name |
-| `--param` | int | yes | Parameter number to trace |
-| `--depth` | int | no | Recursive depth (default 1) |
-| `--assembly` | flag | no | Include assembly register tracking |
-| `--id` | string | no | Function ID |
-
-**`backward_trace.py`** -- Argument origin trace
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `db_path` | positional | yes | Analysis DB |
-| `function` | positional | yes | Function name |
-| `--target` | string | yes | Target API call |
-| `--arg` | int | no | Specific argument number |
-| `--callers` | flag | no | Show what each caller passes |
-| `--depth` | int | no | Caller trace depth |
-
-**`global_state_map.py`** -- Global variable producer/consumer map
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `db_path` | positional | yes | Analysis DB |
-| `--global` | string | no | Focus on specific global |
-| `--summary` | flag | no | Summary mode |
-| `--shared-only` | flag | no | Only globals with both readers/writers |
-| `--writers-only` | flag | no | Only written globals |
-| `--json` | flag | no | JSON output |
-
-**`string_trace.py`** -- String origin tracking
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `db_path` | positional | yes | Analysis DB |
-| `--string` | string | no | Find functions referencing string |
-| `--function` | string | no | All strings used by function |
-| `--id` | string | no | Function ID |
-| `--callers` | flag | no | Include caller chain |
-| `--depth` | int | no | Caller depth |
-| `--list-strings` | flag | no | List all unique strings |
-| `--limit` | int | no | Limit results |
-| `--assembly` | flag | no | Include assembly context |
-
-**Argument origin classifications:** parameter, call_result, constant, global, local_variable, expression.
-
-**Dependencies:** callgraph-tracer, classify-functions, security-dossier, reconstruct-types.
 
 ---
 
@@ -737,7 +720,7 @@ EOF## 3. Skills Reference
 | Reachability breadth | 15% |
 | Entry type risk | 15% |
 
-**Dependencies:** callgraph-tracer, classify-functions, data-flow-tracer, reconstruct-types.
+**Dependencies:** callgraph-tracer, classify-functions, reconstruct-types.
 
 ---
 
@@ -762,7 +745,7 @@ EOF## 3. Skills Reference
 
 **7 high-priority indicators:** reachable from export, receives untrusted data, calls dangerous APIs, handles privileged resources, high cyclomatic complexity, has decompiler issues, error handling gaps.
 
-**Dependencies:** ai-taint-scanner, callgraph-tracer, data-flow-tracer, classify-functions, map-attack-surface.
+**Dependencies:** ai-taint-scanner, callgraph-tracer, classify-functions, map-attack-surface.
 
 ---
 
@@ -770,7 +753,7 @@ EOF## 3. Skills Reference
 
 **Categories:** url, file_path, registry_key, named_pipe, rpc_endpoint, certificate, format_string, error_message, ETW provider GUID, debug string.
 
-**Dependencies:** classify-functions, security-dossier, data-flow-tracer, ai-taint-scanner.
+**Dependencies:** classify-functions, security-dossier, ai-taint-scanner.
 
 ---
 
@@ -998,69 +981,8 @@ EOF## 3. Skills Reference
 **Dependencies:** decompiled-code-extractor, map-attack-surface, com-interface-reconstruction.
 
 ---
-EOF### 3.5 Verification
-
-#### 3.5.1 verify-decompiled
-
-**Purpose:** Find and fix specific places where Hex-Rays got something wrong compared to assembly. Produces the original decompiler output with minimal, targeted fixes -- not a rewrite. Cacheable.
-
-**Scripts:**
-
-**`scan_module.py`** -- Triage all functions for decompiler issues
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `db_path` | positional | yes | Analysis DB |
-| `--min-severity` | string | no | Minimum severity filter (e.g., `HIGH`) |
-| `--top` | int | no | Top N |
-| `--json` | flag | no | JSON output |
-
-**`verify_function.py`** -- Deep verification per function
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `db_path` | positional | yes | Analysis DB |
-| `function_name` | positional | no | Function name |
-| `--id` | string | no | Function ID |
-| `--search` | string | no | Search pattern |
-| `--json` | flag | no | JSON output |
-
-**7 heuristic checks:** Return type mismatch, call count mismatch, branch count mismatch, NULL check detection, signedness mismatch, access size mismatch, decompiler artifacts.
-
-**Issue severity:** CRITICAL (missing operations/wrong control flow), HIGH (wrong types/sizes), MODERATE (wrong return/param types), LOW (cosmetic/artifacts).
-
-**Key distinction from code-lifting:** Fixes only what the decompiler got wrong. Keeps IDA names, keeps gotos, makes surgical patches with `[FIX #N: description]` annotations.
-
-**Dependencies:** security-dossier, callgraph-tracer.
-
----
-
----
 
 ### 3.6 Code Reconstruction
-
-#### 3.6.1 code-lifting
-
-**Purpose:** Define the 11-step workflow for lifting decompiled functions into clean, readable, functionally equivalent code. Workflow/recipe skill with no scripts of its own.
-
-**11-step workflow:**
-1. **Gather function data** -- `extract_function_data.py`
-2. **Validate against assembly** -- Map memory access patterns, verify control flow, confirm calling convention, identify artifacts
-3. **Rename parameters** -- Using signature, mangled name, type hints, API context
-4. **Rename local variables** -- Based on purpose, register comments, API context
-5. **Replace magic numbers** -- Win32 constants, HRESULT, message IDs, struct discriminants, bit flags
-6. **Reconstruct structs** -- Collect accesses, compute offsets, determine field types
-7. **Convert pointer arithmetic to field access** -- `*(TYPE*)(base + offset)` -> `obj->field`
-8. **Simplify control flow** -- goto -> else, invert conditions, remove wrappers. Preserve SEH, setjmp/longjmp, lock pairs.
-9. **Add documentation** -- Function doc block, inline comments explaining "why" not "what"
-10. **Final verification** -- 15-point checklist
-11. **Independent verification** -- Launch verifier subagent (PASS/WARN/FAIL)
-
-**Core principle:** Assembly is ground truth. Decompiled code is the structural starting point.
-
-**Dependencies:** decompiled-code-extractor, batch-lift, reconstruct-types, verify-decompiled.
-
----
 
 #### 3.6.2 batch-lift
 
@@ -1099,7 +1021,7 @@ EOF### 3.5 Verification
 - Constants propagate from any function to all
 - Constructor lifted first (reveals struct layout)
 
-**Dependencies:** decompiled-code-extractor, code-lifting, callgraph-tracer, reconstruct-types, verify-decompiled, classify-functions.
+**Dependencies:** decompiled-code-extractor, callgraph-tracer, reconstruct-types, classify-functions.
 
 ---
 
@@ -1160,35 +1082,11 @@ EOF### 3.5 Verification
 
 Labels: high (>=0.70), medium (>=0.40), low (<0.40).
 
-**Dependencies:** code-lifting/batch-lift, com-interface-reconstruction, data-flow-tracer, classify-functions, security-dossier.
+**Dependencies:** batch-lift, com-interface-reconstruction, classify-functions, security-dossier.
 
 ---
 
 ### 3.7 Methodology / Strategy
-
-#### 3.7.1 adversarial-reasoning
-
-**Purpose:** Encode the methodology that separates elite vulnerability researchers from routine auditors. Hypothesis-driven investigation, attack pattern recognition, variant analysis, and structured validation. No scripts -- produces approved research designs.
-
-**Five research modes:**
-
-1. **Campaign** ("Where should I look?") -- Full research campaign planning against a module. Produces 3-7 ranked hypotheses with investigation commands.
-2. **Hypothesis** ("Is this vulnerability real?") -- Classify into vulnerability class, map to validation strategy, produce 3-5 investigation commands.
-3. **Variant** ("Are there more like this?") -- Decompose known pattern into searchable signals, design search queries, produce focused hypotheses per candidate.
-4. **Validate** ("How do I confirm this finding?") -- Check decompiler accuracy, apply validation strategy matrix, produce confirmation checklist and PoC skeleton.
-5. **Surface** ("Where can an attacker get in?") -- Enumerate trust boundaries, identify security checks and failure modes per boundary, rank attack vectors.
-
-**Hypothesis generation framework:** Templates from entry point types (7), classification signals (7), data flow patterns (6), code patterns (7).
-
-**Research prioritization rubric:** 4 dimensions (Exploitability, Impact, Novelty, Feasibility), each 1-5, multiplied. Focus on composite >= 45.
-
-**Validation strategy matrix:** Maps 8 vulnerability classes to static/dynamic validation approaches and PoC skeletons.
-
-**Windows security mental models:** Trust boundary diagram, 7 privilege escalation vectors, IPC security pitfalls (RPC/ALPC, Named Pipes, COM), 5 file system attacks, 6 memory safety risks.
-
-**Dependencies:** security-dossier, ai-taint-scanner, data-flow-tracer, map-attack-surface, classify-functions, callgraph-tracer, reconstruct-types.
-
----
 
 #### 3.7.2 brainstorming
 
@@ -1208,13 +1106,13 @@ Labels: high (>=0.70), medium (>=0.40), low (<0.40).
 | Generate a comprehensive report | **triage-coordinator** (`--goal full`) |
 | Reconstruct struct/class definitions | **type-reconstructor** |
 | Lift all methods of a C++ class | **code-lifter** |
-| Verify lifted code is correct | **verifier** |
+| Verify lifted code is correct | **code-lifter** (assembly comparison step) |
 
 ---
 
 ### 4.1 re-analyst
 
-**Type:** analyst | **Skills:** 8 | **Methodology:** adversarial-reasoning
+**Type:** analyst
 
 **Purpose:** General reverse engineering analyst. Explains functions, understands modules, traces call chains, and classifies code using IDA naming conventions, Hex-Rays artifact recognition, Windows internals, and DeepExtractIDA data.
 
@@ -1246,7 +1144,7 @@ Labels: high (>=0.70), medium (>=0.40), low (<0.40).
 | `--no-assembly` | flag | no | Omit assembly |
 | `--json` | flag | no | JSON output |
 
-**Composed skills:** classify-functions, generate-re-report, decompiled-code-extractor, callgraph-tracer, data-flow-tracer, ai-taint-scanner.
+**Composed skills:** classify-functions, generate-re-report, decompiled-code-extractor, callgraph-tracer.
 
 **Workflows:**
 1. "What does this function do?" -- `explain_function.py` -> read code -> map params/APIs/control flow -> structured explanation with confidence
@@ -1256,7 +1154,7 @@ Labels: high (>=0.70), medium (>=0.40), low (<0.40).
 
 **When to use:** Explaining functions, understanding modules, tracing call chains, identifying IDA artifacts, navigating class hierarchies.
 
-**When NOT to use:** Lifting (code-lifter), verification (verifier), orchestration (triage-coordinator), type reconstruction (type-reconstructor), VR planning (adversarial-reasoning skill).
+**When NOT to use:** Lifting (code-lifter), orchestration (triage-coordinator), type reconstruction (type-reconstructor).
 
 ---
 
@@ -1312,13 +1210,13 @@ Labels: high (>=0.70), medium (>=0.40), low (<0.40).
 
 **Parallelization:** triage_summary + discover_entrypoints + classify_module (parallel); rank_entrypoints depends on discover; dossiers depend on rank; taint depends on rank.
 
-**When to use:** First look at unknown module, security audit, comprehensive analysis, deep-dive into function, type reconstruction. **When NOT to use:** Single-function explanation (re-analyst), lifting (code-lifter), verification (verifier).
+**When to use:** First look at unknown module, security audit, comprehensive analysis, deep-dive into function, type reconstruction. **When NOT to use:** Single-function explanation (re-analyst), lifting (code-lifter).
 
 ---
 
 ### 4.3 security-auditor
 
-**Type:** analyst | **Skills:** 8 | **Methodologies:** adversarial-reasoning
+**Type:** analyst
 
 **Purpose:** Dedicated security assessment: vulnerability scanning, exploitability analysis, and finding verification.
 
@@ -1359,7 +1257,7 @@ Labels: high (>=0.70), medium (>=0.40), low (<0.40).
 
 **When to use:** Security audits with taint/exploitability/verification, batch scanning, finding verification, consolidated security reports.
 
-**When NOT to use:** Explanation (re-analyst), lifting (code-lifter), orchestration (triage-coordinator), type reconstruction (type-reconstructor), lifted-code verification (verifier).
+**When NOT to use:** Explanation (re-analyst), lifting (code-lifter), orchestration (triage-coordinator), type reconstruction (type-reconstructor).
 
 ---
 
@@ -1401,16 +1299,16 @@ Labels: high (>=0.70), medium (>=0.40), low (<0.40).
 | `--asm-verified` | flag | no | Mark field as assembly-verified |
 | `--json` | flag | no | JSON output |
 
-**Composed skills:** decompiled-code-extractor, code-lifting, batch-lift, reconstruct-types, verify-decompiled, function-index.
+**Composed skills:** decompiled-code-extractor, batch-lift, reconstruct-types, function-index.
 
 **7-step workflow:**
 1. **Orient** -- find module DB
 2. **Extract** -- `batch_extract.py --class <Name>` for all method data
 3. **Init state** -- `batch_extract.py --init-state` creates state JSON
 4. **Scan struct** -- deep scan via `scan_struct_fields.py`, record fields
-5. **Lift (loop)** -- for each function in dependency order (constructors first): read state -> lift (10-step code-lifting workflow) -> update state -> mark lifted
+5. **Lift (loop)** -- for each function in dependency order (constructors first): read state -> lift (11-step lifting sequence) -> update state -> mark lifted
 6. **Assemble** -- combine into single `.cpp` file
-7. **Report** -- include `verification_needed` for verifier handoff
+7. **Report** -- assembled output with per-method verification notes
 
 **5 shared state rules:**
 1. Struct definitions accumulate across methods
@@ -1421,7 +1319,7 @@ Labels: high (>=0.70), medium (>=0.40), low (<0.40).
 
 **When to use:** Lifting all class methods, related function groups, batch lifting with shared context.
 
-**When NOT to use:** Explaining (re-analyst), verifying (verifier), type reconstruction (type-reconstructor), orchestration (triage-coordinator), security analysis.
+**When NOT to use:** Explaining (re-analyst), type reconstruction (type-reconstructor), orchestration (triage-coordinator), security analysis.
 
 ---
 
@@ -1479,73 +1377,7 @@ Labels: high (>=0.70), medium (>=0.40), low (<0.40).
 
 **When to use:** Struct/class reconstruction, header generation, type preparation for lifting, COM object layouts.
 
-**When NOT to use:** Lifting (code-lifter), explaining (re-analyst), verifying (verifier), security analysis.
-
----
-
-### 4.6 verifier
-
-**Type:** verifier | **Skills:** 3
-
-**Purpose:** Independently verify that lifted code matches original binary behavior. Operates with fresh eyes in separate context to prevent confirmation bias. Compares against assembly ground truth using systematic checks, basic block mapping, and x64 analysis.
-
-**Entry Scripts:**
-
-**`compare_lifted.py`** -- Core comparison with 7 automated checks
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `db_path` | positional | yes | Analysis DB |
-| `function_name` | positional | no | Function name |
-| `--id` | string | no | Function ID |
-| `--lifted` | string | no | Path to lifted code file |
-| `--lifted-stdin` | flag | no | Read lifted code from stdin |
-| `--json` | flag | no | JSON output |
-
-**7 automated checks:**
-
-| Check | Severity on Fail |
-|-------|------------------|
-| Call count match | CRITICAL |
-| Branch count match | CRITICAL |
-| String literal usage | FAIL/WARNING |
-| Return path analysis | WARNING |
-| API name preservation | CRITICAL |
-| Global variable access | WARNING |
-| Memory access coverage | WARNING |
-
-**`extract_basic_blocks.py`** -- Basic block splitter
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `db_path` | positional | yes | Analysis DB |
-| `function_name` | positional | no | Function name |
-| `--id` | string | no | Function ID |
-| `--json` | flag | no | JSON output |
-
-**`generate_verification_report.py`** -- Report generator
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `--compare-output` | string | yes | compare_lifted.py JSON output |
-| `--agent-findings` | string | no | Agent findings JSON |
-| `--output` | string | no | Output file |
-| `--json` | flag | no | JSON output |
-
-**Composed skills:** verify-decompiled, decompiled-code-extractor, code-lifting.
-
-**5-phase verification methodology:**
-1. **Gather original data** -- save lifted code, run compare_lifted.py, extract function data, split basic blocks
-2. **Automated checks** -- review compare_lifted.py output, examine discrepancies
-3. **Manual block-by-block** -- for each basic block, verify every instruction has C++ equivalent
-4. **Check for common lifting errors** -- 9 error types (missing branches, wrong access sizes, missing NULL guards, lost volatile reads, incorrect offsets, missing error checks, SEH omissions, lock mismatches, wrong signedness)
-5. **Produce verdict** -- PASS (faithful), WARN (minor discrepancies), FAIL (behavioral mismatches)
-
-**5 core principles:** Assume nothing, assembly is ground truth, be systematic, report evidence, no false positives (uncertain = INVESTIGATE).
-
-**When to use:** After lifting, checking code transformations, auditing decompiler accuracy on specific function.
-
-**When NOT to use:** Lifting (code-lifter), explaining (re-analyst), type reconstruction (type-reconstructor), security analysis, decompiler-only verification (verify-decompiled skill).
+**When NOT to use:** Lifting (code-lifter), explaining (re-analyst), security analysis.
 
 ---
 
@@ -1562,8 +1394,6 @@ EOF## 5. Commands Reference
 | | `/search` | Cross-dimensional search | no |
 | | `/xref` | Cross-reference lookup | no |
 | **Module Understanding** | `/callgraph` | Call graph analysis | no |
-| | `/data-flow` | Data flow trace | no |
-| | `/data-flow-cross` | Cross-module data flow | no |
 | | `/imports` | PE import/export relationships | no |
 | | `/compare-modules` | Cross-module comparison | no |
 | | `/diff` | Compare binary versions | no |
@@ -1574,13 +1404,12 @@ EOF## 5. Commands Reference
 | | `/memory-scan` | Memory corruption scan | no |
 | | `/ai-logical-bug-scan` | Logic vulnerability scan | no |
 | | `/taint` | Taint analysis | no |
+| | `/compare-scans` | Cross-report finding comparison | no |
 | **Security Auditing** | `/audit` | Audit single function | no |
 | | `/batch-audit` | Audit multiple functions | yes |
 | **VR Campaigns** | `/hunt-plan` | VR planning | no |
 | | `/hunt-execute` | Execute hunt plan | yes |
-| **Code Quality** | `/verify-decompiler` | Verify decompiler accuracy | no |
-| | `/verify-decompiler-batch` | Batch verify | yes |
-| | `/lift-class` | Batch-lift class methods | yes* |
+| **Code Quality** | `/lift-class` | Batch-lift class methods | yes* |
 | | `/reconstruct-types` | Reconstruct types | no |
 | **Reporting & Ops** | `/prioritize` | Cross-module prioritization | no |
 | | `/pipeline` | Batch pipeline | no |
@@ -1669,7 +1498,7 @@ EOF## 5. Commands Reference
 6. **Phase 5: Specialized** (adaptive) -- COM interfaces, dispatch tables, global state, decompilation quality, types -- triggered by triage-coordinator traits
 7. **Phase 6: Synthesis** -- Assemble 11-section comprehensive report
 
-**Skills:** decompiled-code-extractor, generate-re-report, classify-functions, map-attack-surface, callgraph-tracer, com-interface-reconstruction, data-flow-tracer, ai-taint-scanner, security-dossier, reconstruct-types, verify-decompiled, function-index. **Agent:** triage-coordinator.
+**Skills:** decompiled-code-extractor, generate-re-report, classify-functions, map-attack-surface, callgraph-tracer, com-interface-reconstruction, reconstruct-types. **Agents:** triage-coordinator, re-analyst.
 
 **Grind loop:** Yes -- one checkbox per phase (6 items).
 
@@ -1793,7 +1622,7 @@ EOF## 5. Commands Reference
 | `--limit` | int | no | Limit results |
 | `--address` | string | no | Global variable address |
 
-**Skills:** data-flow-tracer, decompiled-code-extractor, function-index.
+**Skills:** decompiled-code-extractor, function-index.
 
 ---
 
@@ -1817,7 +1646,7 @@ EOF## 5. Commands Reference
 2. Trace within module, resolve external callees via import-export/callgraph, continue in target modules
 3. Synthesize cross-module report (trace path, module transitions, parameter mapping)
 
-**Skills:** data-flow-tracer, callgraph-tracer, import-export-resolver, decompiled-code-extractor, function-index.
+**Skills:** callgraph-tracer, import-export-resolver, decompiled-code-extractor, function-index.
 
 **Output:** `extracted_code/<module>/reports/data_flow_cross_<function>_<timestamp>.md`
 
@@ -2090,9 +1919,9 @@ EOF## 5. Commands Reference
 4. Trace call chain (`chain_analysis.py`)
 5. Classify function purpose (`classify_function.py`)
 6. Synthesize audit report (8-concern checklist C1-C8, risk rubric with 4 dimensions)
-7. Verify concerns with fresh-eyes subagent (re-analyst or verifier, readonly)
+7. Verify concerns with fresh-eyes subagent (re-analyst, readonly)
 
-**Skills:** decompiled-code-extractor, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, classify-functions, ai-taint-scanner, function-index.
+**Skills:** decompiled-code-extractor, security-dossier, map-attack-surface, callgraph-tracer, classify-functions, import-export-resolver.
 
 **Output:** `extracted_code/<module>/reports/audit_<function>_<timestamp>.md`
 
@@ -2147,13 +1976,13 @@ EOF## 5. Commands Reference
 1. Detect research mode
 2. Gather existing context (session, cache, workspace)
 3. Mode-specific questioning via AskQuestion
-4. Apply adversarial-reasoning methodology
+4. Apply research methodology
 5. Present research plan (threat model, ranked hypotheses, estimated effort)
 6. Iterate on disagreement
 7. Persist plan to `.agent/workspace/<module>_hunt_plan_<timestamp>.json`
 8. Transition via CreatePlan
 
-**Skills:** adversarial-reasoning, classify-functions, map-attack-surface, security-dossier, ai-taint-scanner.
+**Skills:** classify-functions, map-attack-surface, security-dossier.
 
 **Note:** Collaborative dialogue only -- does NOT execute analysis.
 
@@ -2177,7 +2006,7 @@ EOF## 5. Commands Reference
 4. Score exploitability for CONFIRMED/LIKELY findings
 5. Synthesize findings report
 
-**Skills:** ai-taint-scanner, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, exploitability-assessment.
+**Skills:** ai-taint-scanner, security-dossier, map-attack-surface, callgraph-tracer, exploitability-assessment.
 
 **Grind loop:** Yes -- one checkbox per hypothesis.
 
@@ -2196,52 +2025,6 @@ This command has been merged into . Use:
 
 ### 5.8 Code Quality
 
-#### `/verify-decompiler`
-
-**Purpose:** Verify decompiler accuracy for a function or module scan.
-
-**Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `module` | positional | no | Module name |
-| `function_name` | positional | no | Function (omit for module scan) |
-| `--top` | int | no | Limit for module scan (default 20) |
-
-**Workflow:**
-- **Per-function:** `verify_function.py` (deep assembly comparison)
-- **Module-wide:** `scan_module.py` (rank all functions by issue severity)
-
-**Skills:** verify-decompiled, function-index.
-
----
-
-#### `/verify-decompiler-batch`
-
-**Purpose:** Batch verify decompiler accuracy for multiple functions or a class.
-
-**Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `module` | positional | yes | Module name |
-| `func1 [func2 ...]` | positional | no | Function names |
-| `ClassName` | positional | no | Class name (all methods) |
-
-**Workflow:**
-1. Resolve functions (via lookup or class methods)
-2. Create scratchpad (one per function)
-3. Launch verifier subagent per function (up to 3-4 concurrent)
-4. Synthesize batch report
-
-**Skills:** verify-decompiled, function-index, reconstruct-types, decompiled-code-extractor. **Agent:** verifier (readonly).
-
-**Grind loop:** Yes -- one checkbox per function.
-
-**Output:** `extracted_code/<module>/reports/verify_batch_<target>_<timestamp>.md`
-
----
-
 #### `/lift-class`
 
 **Purpose:** Batch-lift all methods of a C++ class with shared struct context.
@@ -2259,10 +2042,10 @@ This command has been merged into . Use:
 2. Collect and preview class methods (`batch_extract.py --summary`)
 3. Delegate to code-lifter subagent (extracts, initializes state, lifts in dependency order, assembles `.cpp`)
 4. Handle results
-5. (Optional) Verify with verifier subagent (readonly, separate context)
+5. (Optional) Verify with re-analyst subagent (readonly, separate context)
 6. Summary
 
-**Skills:** decompiled-code-extractor, code-lifting, batch-lift, reconstruct-types. **Agents:** code-lifter (primary), verifier (optional).
+**Skills:** decompiled-code-extractor, reconstruct-types, batch-lift. **Agent:** code-lifter.
 
 **Grind loop:** Yes (fallback only when subagent unavailable).
 
@@ -2383,56 +2166,73 @@ This command has been merged into . Use:
 
 ## 6. Helper Library Overview
 
-The shared Python library (`.agent/helpers/`) provides 35+ modules used by every skill, agent, and command. The golden rule: never reimplement what helpers already provide.
+The shared Python library (`.agent/helpers/`) provides 59 Python files (3 subpackages, 36 library modules, 9 standalone CLI scripts), exposing 171 public symbols via lazy imports. The golden rule: never reimplement what helpers already provide.
 
 ### Module Summary
 
 | Module | Category | Purpose |
 |--------|----------|---------|
-| `individual_analysis_db` | Database | Open per-module analysis DB, query functions/xrefs/strings |
-| `analyzed_files_db` | Database | Tracking DB for module index, cross-module xrefs |
-| `db_paths` | Database | Resolve DB paths, tracking DB, Windows long-path support |
-| `function_resolver` | Resolution | Resolve functions by name/ID, regex search |
-| `function_index` | Resolution | Load JSON index, lookup, filter app-only, detect library code |
-| `batch_operations` | Resolution | Batch resolve/extract functions |
-| `api_taxonomy` | Classification | Classify Win32/NT APIs by area and security impact (~500 prefixes, 17 categories) |
-| `rpc_procedure_classifier` | Classification | Classify RPC procedures by semantics |
-| `callgraph` | Graph | Build directed call graphs, BFS path, reachability, SCCs |
-| `cross_module_graph` | Graph | Cross-module call graph with module resolver |
-| `module_discovery` | Discovery | Iterate module directories and DBs, normalize names |
-| `module_profile` | Discovery | Load pre-computed module fingerprints (noise ratio, tech flags) |
-| `com_index` | Interface | COM server index (CLSID, methods, risk tiers, elevation) |
-| `winrt_index` | Interface | WinRT server index (classes, methods, trust levels) |
-| `rpc_index` | Interface | RPC interface index (UUIDs, procedures) |
-| `rpc_stub_parser` | Interface | Parse C# RPC client stubs |
-| `import_export_index` | Interface | PE import/export index across modules |
-| `def_use_chain` | Taint/Flow | Parse def-use chains, analyze taint, propagate |
-| `decompiled_parser` | Parsing | Extract function calls, split arguments |
-| `struct_scanner` | Parsing | Scan struct access patterns (decompiled + assembly) |
-| `mangled_names` | Parsing | Parse C++ class from mangled name |
-| `calling_conventions` | Parsing | x64 param registers, register-to-param mapping |
-| `type_constants` | Parsing | IDA-to-C type mapping, type sizes |
-| `errors` | Output | `emit_error`, `ScriptError`, `log_warning`, `db_error_handler` |
-| `json_output` | Output | `emit_json`, `emit_json_list`, `should_force_json` |
-| `progress` | Output | `status_message`, `progress_iter`, `ProgressReporter` |
-| `logging_config` | Output | Configure logging levels |
-| `cache` | Cache | Filesystem cache (24h TTL, DB mtime validated) |
-| `validation` | Validation | Validate workspace data, analysis DBs, function IDs |
-| `command_validation` | Validation | Validate command arguments |
-| `finding_schema` | Findings | Unified finding schema, normalize scanner outputs |
-| `finding_merge` | Findings | Merge, deduplicate, rank findings |
-| `workspace` | Workspace | Run directory I/O, manifest management |
-| `workspace_bootstrap` | Workspace | Step setup and completion |
-| `workspace_validation` | Workspace | Validate workspace runs |
-| `pipeline_schema` | Pipeline | Load/validate YAML pipelines, step registry |
-| `pipeline_executor` | Pipeline | Execute pipelines, dispatch skill steps |
-| `pipeline_cli` | Pipeline | CLI: run, validate, list-steps |
-| `cleanup_workspace` | Pipeline | Clean old run directories |
-| `config` | Infrastructure | Load configuration, env overrides via `DEEPEXTRACT_*` |
-| `script_runner` | Infrastructure | Find/run skill and agent scripts |
-| `session_utils` | Infrastructure | Resolve session ID, scratchpad paths |
-| `agent_common` | Infrastructure | Agent base class, orchestrator |
-| `unified_search` | Infrastructure | Multi-dimension search CLI |
+| `individual_analysis_db` | Database | Open per-module analysis DB, query functions/xrefs/strings. Exports `IndividualAnalysisDB`, `FunctionRecord`, `FileInfoRecord`, `open_individual_analysis_db`. |
+| `analyzed_files_db` | Database | Tracking DB for module index, cross-module xrefs. Exports `AnalyzedFilesDB`, `open_analyzed_files_db`. |
+| `db_paths` | Database | Resolve DB paths, tracking DB, Windows long-path support. Exports `resolve_db_path_auto`, `resolve_module_db_auto`, `safe_long_path`. |
+| `sql_utils` | Database | SQL LIKE escaping. Exports `escape_like`, `LIKE_ESCAPE`. |
+| `function_resolver` | Resolution | Resolve functions by name/ID, regex search. Exports `resolve_function`, `search_functions_by_pattern`. |
+| `function_index` | Resolution | Load JSON index, lookup, filter app-only, detect library code. Exports `load_function_index`, `lookup_function`, `filter_application_functions`. |
+| `batch_operations` | Resolution | Batch resolve/extract functions. Exports `batch_resolve_functions`, `batch_extract_function_data`, `load_function_record`. |
+| `api_taxonomy` | Classification | Classify Win32/NT APIs by area and security impact (17 functional + 11 security categories). Exports `classify_api`, `classify_api_security`, `get_dangerous_api_set`. |
+| `param_risk` | Classification | Parameter surface metadata from C-style signatures. Exports `describe_parameter_surface`, `PARAM_TYPE_PATTERNS`. |
+| `callgraph` | Graph | Build directed call graphs, BFS path, reachability, SCCs. Exports `CallGraph`. |
+| `cross_module_graph` | Graph | Cross-module call graph with module resolver. Exports `CrossModuleGraph`, `ModuleResolver`. |
+| `module_discovery` | Discovery | Iterate module directories and DBs, normalize names. Exports `iter_module_dirs`, `iter_module_dbs`, `ModuleDir`, `ModuleDb`. |
+| `module_profile` | Discovery | Load pre-computed module fingerprints (noise ratio, tech flags). Exports `load_module_profile`, `load_all_profiles`, `get_technology_flags`. |
+| `com_index` | Interface | COM server index (CLSID, methods, risk tiers, elevation). Exports `ComIndex`, `ComServer`, `get_com_index`. |
+| `winrt_index` | Interface | WinRT server index (classes, methods, trust levels). Exports `WinrtIndex`, `WinrtServer`, `get_winrt_index`. |
+| `rpc_index` | Interface | RPC interface index (UUIDs, procedures). Exports `RpcIndex`, `RpcInterface`, `get_rpc_index`. |
+| `rpc_stub_parser` | Interface | Parse C# RPC client stubs. Exports `parse_stub_file`, `load_stubs_from_directory`, `RpcStubFile`. |
+| `import_export_index` | Interface | PE import/export index across modules. Exports `ImportExportIndex`, `ExportEntry`, `ImportEntry`. |
+| `ipc_workspace` | Interface | Intersect workspace modules with COM/RPC/WinRT indices. Exports `discover_workspace_ipc_servers`. |
+| `taint_helpers` | Taint/Flow | Taint enrichment: sink/source classification, trust levels, finding scores. Exports `TaintContext`, `classify_sink`, `classify_trust_transition`, `resolve_tainted_params`, `compute_finding_score`. |
+| `decompiled_parser` | Parsing | Extract function calls, split arguments, merge with xrefs. Exports `extract_function_calls`, `split_arguments`, `discover_calls_with_xrefs`. |
+| `struct_scanner` | Parsing | Scan struct access patterns (decompiled + assembly). Exports `scan_decompiled_struct_accesses`, `scan_assembly_struct_accesses`, `merge_scanned_struct_fields`. |
+| `mangled_names` | Parsing | Parse C++ class from mangled name. Exports `parse_class_from_mangled`. |
+| `calling_conventions` | Parsing | x64 param registers, register-to-param mapping. Exports `PARAM_REGISTERS`, `REGISTER_TO_PARAM`, `ASM_REG_SIZES`. |
+| `type_constants` | Parsing | IDA-to-C type mapping, type sizes. Exports `TYPE_SIZES`, `IDA_TO_C_TYPE`, `SIZE_TO_C_TYPE`. |
+| `sddl_parser` | Parsing | SDDL ACE parsing and effective permissions. Exports `ParsedACE`, `parse_sddl_aces`, `effective_permissions_for_sid`. |
+| `errors` | Output | Structured error handling. Exports `emit_error`, `ScriptError`, `ErrorCode`, `db_error_handler`, `log_warning`, `safe_parse_args`. |
+| `json_output` | Output | JSON output with status wrapping. Exports `emit_json`, `emit_json_list`, `should_force_json`. |
+| `progress` | Output | Progress reporting to stderr. Exports `status_message`, `progress_iter`, `ProgressReporter`. |
+| `logging_config` | Output | Configure logging levels via `DEEPEXTRACT_LOG_LEVEL`. |
+| `cache` | Cache | Filesystem cache (24h TTL, DB mtime validated). Exports `get_cached`, `cache_result`, `clear_cache`, `cache_stats`. |
+| `validation` | Validation | Pre-flight and integrity checks. Exports `validate_workspace_data`, `validate_analysis_db`, `quick_validate`, `ValidationResult`. |
+| `command_validation` | Validation | Slash-command argument validation. Exports `command_preflight`, `validate_command_args`, `validate_module`. |
+| `workspace_validation` | Validation | Workspace run handoff validation. Exports `validate_workspace_run`, `WorkspaceValidationResult`. |
+| `finding_schema` | Findings | Unified Finding dataclass from any scanner. Exports `Finding`, `from_taint_finding`, `from_memory_finding`, `from_logic_finding`, `normalize_scanner_output`. |
+| `finding_merge` | Findings | Merge, deduplicate, rank findings across scanners. Exports `merge_findings`, `deduplicate`, `findings_summary`. |
+| `findings_store` | Findings | SQLite-backed persistent findings store. Exports `FindingsStore`, `upsert_finding`, `load_findings`, `update_verification`, `update_exploitability`. |
+| `workspace` | Workspace | Run directory I/O, manifest management. Exports `create_run_dir`, `list_runs`, `write_results`, `read_results`, `update_manifest`. |
+| `workspace_bootstrap` | Workspace | Step setup/teardown for workspace handoff. Exports `prepare_step`, `complete_step`. |
+| `pipeline_schema` | Pipeline | Load/validate YAML pipelines, step registry. Exports `PipelineDef`, `load_pipeline`, `validate_pipeline`, `STEP_REGISTRY`. |
+| `pipeline_executor` | Pipeline | Execute pipelines, dispatch skill steps. Exports `execute_pipeline`, `StepResult`, `ModuleResult`, `BatchResult`. |
+| `config` | Infrastructure | Load configuration, env overrides via `DEEPEXTRACT_*`. Exports `load_config`, `get_config_value`. |
+| `script_runner` | Infrastructure | Find/run skill and agent scripts. Exports `find_skill_script`, `find_agent_script`, `run_skill_script`, `get_workspace_root`. |
+| `session_utils` | Infrastructure | Resolve session ID, scratchpad paths. Exports `resolve_session_id`, `scratchpad_path`, `read_hook_input`. |
+| `agent_common` | Infrastructure | Agent orchestration base classes. Exports `AgentBase`, `AgentOrchestrator`, `AgentStep`, `AgentStepResult`. |
+
+### Standalone CLI Scripts
+
+These helpers double as command-line tools (have `if __name__ == "__main__"`):
+
+| Script | Purpose | Example |
+|--------|---------|---------|
+| `unified_search.py` | Multi-dimension search across module DB | `python .agent/helpers/unified_search.py <db> --query <term> --json` |
+| `pipeline_cli.py` | Headless batch pipeline CLI | `python .agent/helpers/pipeline_cli.py run <yaml> --json` |
+| `cleanup_workspace.py` | Prune old workspace run directories | `python .agent/helpers/cleanup_workspace.py --older-than 2 --dry-run` |
+| `health_check.py` | Workspace data and DB health checks | `python .agent/helpers/health_check.py --full --json` |
+| `qa_runner.py` | QA test plan runner | `python .agent/helpers/qa_runner.py --list --json` |
+| `json_extract.py` | Extract keys/grep in JSON files | `python .agent/helpers/json_extract.py <file> <key>` |
+| `ipc_index_inspect.py` | IPC index diagnostics (COM/RPC/WinRT) | `python .agent/helpers/ipc_index_inspect.py --summary --json` |
+| `select_audit_callees.py` | Select callees for /audit deep extraction | `python .agent/helpers/select_audit_callees.py <db> --dossier <path> --json` |
+| `select_backward_traces.py` | Select backward trace targets for /audit | `python .agent/helpers/select_backward_traces.py --dossier <path> --json` |
 
 ### Anti-Patterns
 
@@ -2463,6 +2263,9 @@ For first contact with an unknown module:
     │
     ▼
 /scan <module>                       Memory + logic + taint detection
+    │
+    ▼
+/compare-scans <module>              Compare against previous scan reports
     │
     ▼
 /prioritize --modules <module>       Rank findings by exploitability
@@ -2521,8 +2324,8 @@ For understanding module relationships:
 /imports <module> --diagram           PE-level dependencies
     │
     ▼
-/data-flow-cross forward <mod> <fn>  Trace data across DLL boundaries
-    │
+/taint <module> <function>           Taint trace across DLL boundaries
+    │                                (--cross-module for multi-module tracing)
     ▼
 /compare-modules <mod_A> <mod_B>     Compare capabilities, APIs, classification
 ```
@@ -2555,12 +2358,7 @@ For producing readable C++ from decompiled code:
     │
     ▼
 /lift-class <module> <ClassName>      Lift all methods with shared context
-    │                                 (code-lifter agent, 10-step workflow)
-    ▼
-[verifier agent]                      Independent verification
-    │                                 (fresh context, assembly comparison)
-    ▼
-/verify-decompiler-batch <module> <ClassName>    Batch verify all methods
+                                       (code-lifter agent, 11-step lifting sequence)
 ```
 
 ---
@@ -2569,57 +2367,57 @@ For producing readable C++ from decompiled code:
 
 ### Command-to-Skill Mapping
 
-| Command | Skills Used |
-|---------|------------|
-| `/audit` | decompiled-code-extractor, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, classify-functions, ai-taint-scanner, function-index |
-| `/batch-audit` | security-dossier, ai-taint-scanner, exploitability-assessment, classify-functions, map-attack-surface, rpc-interface-analysis, com-interface-analysis, winrt-interface-analysis, function-index, decompiled-code-extractor |
-|  | adversarial-reasoning, classify-functions, map-attack-surface, security-dossier, ai-taint-scanner |
-| `/cache-manage` | classify-functions, callgraph-tracer, generate-re-report |
-| `/callgraph` | decompiled-code-extractor, callgraph-tracer |
-| `/com` | com-interface-analysis, decompiled-code-extractor, map-attack-surface |
-| `/compare-modules` | decompiled-code-extractor, callgraph-tracer, generate-re-report, classify-functions, import-export-resolver, function-index |
-| `/data-flow` | data-flow-tracer, decompiled-code-extractor, function-index |
-| `/data-flow-cross` | data-flow-tracer, callgraph-tracer, import-export-resolver, decompiled-code-extractor, function-index |
-| `/diff` | decompiled-code-extractor, classify-functions, map-attack-surface |
-| `/explain` | function-index, decompiled-code-extractor, classify-functions |
-| `/full-report` | decompiled-code-extractor, generate-re-report, classify-functions, map-attack-surface, callgraph-tracer, com-interface-reconstruction, data-flow-tracer, ai-taint-scanner, security-dossier, reconstruct-types, verify-decompiled, function-index |
-| `/health` | (helpers only) |
-| `/hunt-plan` | adversarial-reasoning, classify-functions, map-attack-surface, security-dossier, ai-taint-scanner |
-| `/hunt-execute` | ai-taint-scanner, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, exploitability-assessment |
-| `/imports` | import-export-resolver |
-| `/lift-class` | decompiled-code-extractor, code-lifting, batch-lift, reconstruct-types |
-| `/ai-logical-bug-scan` | ai-logic-scanner, decompiled-code-extractor |
-| `/memory-scan` | ai-memory-corruption-scanner, decompiled-code-extractor |
-| `/pipeline` | (agents: triage-coordinator, security-auditor) |
-| `/prioritize` | decompiled-code-extractor |
-| `/reconstruct-types` | reconstruct-types, decompiled-code-extractor, com-interface-reconstruction |
-| `/rpc` | rpc-interface-analysis, decompiled-code-extractor, map-attack-surface |
-| `/runs` | (helpers only) |
-| `/scan` | ai-memory-corruption-scanner, ai-logic-scanner, ai-taint-scanner, map-attack-surface, exploitability-assessment, decompiled-code-extractor |
-| `/search` | (helpers: unified_search) |
-| `/taint` | ai-taint-scanner, function-index, decompiled-code-extractor |
-| `/audit` | decompiled-code-extractor, security-dossier, map-attack-surface, data-flow-tracer, callgraph-tracer, classify-functions, ai-taint-scanner, import-export-resolver, function-index |
-| `/triage` | decompiled-code-extractor, generate-re-report, classify-functions, callgraph-tracer, map-attack-surface, ai-taint-scanner, function-index |
-| `/verify-decompiler` | verify-decompiled, function-index |
-| `/verify-decompiler-batch` | verify-decompiled, function-index, reconstruct-types, decompiled-code-extractor |
-| `/winrt` | winrt-interface-analysis, decompiled-code-extractor, map-attack-surface |
-| `/xref` | callgraph-tracer, function-index |
+Data sourced from `commands/registry.json`.
+
+| Command | Skills Used | Agents Used |
+|---------|------------|-------------|
+| `/ai-logical-bug-scan` | ai-logic-scanner, decompiled-code-extractor, map-attack-surface | logic-scanner |
+| `/audit` | decompiled-code-extractor, security-dossier, map-attack-surface, callgraph-tracer, classify-functions, import-export-resolver | re-analyst, security-auditor |
+| `/batch-audit` | security-dossier, exploitability-assessment, classify-functions, map-attack-surface, rpc-interface-analysis, com-interface-analysis, winrt-interface-analysis | security-auditor |
+| `/cache-manage` | (helpers only) | -- |
+| `/callgraph` | decompiled-code-extractor, callgraph-tracer | re-analyst |
+| `/com` | com-interface-analysis, decompiled-code-extractor, map-attack-surface | -- |
+| `/compare-scans` | (helpers only) | -- |
+| `/compare-modules` | decompiled-code-extractor, callgraph-tracer, generate-re-report, classify-functions, import-export-resolver | -- |
+| `/diff` | decompiled-code-extractor, classify-functions, map-attack-surface | -- |
+| `/explain` | decompiled-code-extractor, classify-functions | re-analyst |
+| `/full-report` | decompiled-code-extractor, generate-re-report, classify-functions, map-attack-surface, callgraph-tracer, com-interface-reconstruction, reconstruct-types | triage-coordinator, re-analyst |
+| `/health` | (helpers only) | -- |
+| `/hunt-execute` | security-dossier, map-attack-surface, callgraph-tracer, exploitability-assessment | security-auditor |
+| `/hunt-plan` | classify-functions, map-attack-surface, security-dossier | -- |
+| `/imports` | import-export-resolver, decompiled-code-extractor | -- |
+| `/lift-class` | decompiled-code-extractor, reconstruct-types, batch-lift | code-lifter |
+| `/memory-scan` | ai-memory-corruption-scanner, decompiled-code-extractor, map-attack-surface | memory-corruption-scanner |
+| `/pipeline` | (varies by YAML) | triage-coordinator, security-auditor |
+| `/prioritize` | decompiled-code-extractor, exploitability-assessment | -- |
+| `/reconstruct-types` | decompiled-code-extractor, reconstruct-types, com-interface-reconstruction | type-reconstructor |
+| `/rpc` | rpc-interface-analysis, decompiled-code-extractor, map-attack-surface | -- |
+| `/runs` | (helpers only) | -- |
+| `/scan` | decompiled-code-extractor, ai-memory-corruption-scanner, ai-logic-scanner, ai-taint-scanner, map-attack-surface, exploitability-assessment, security-dossier | security-auditor |
+| `/search` | decompiled-code-extractor | -- |
+| `/taint` | ai-taint-scanner, decompiled-code-extractor, map-attack-surface | taint-scanner, security-auditor |
+| `/triage` | decompiled-code-extractor, generate-re-report, classify-functions, callgraph-tracer, map-attack-surface | triage-coordinator |
+| `/winrt` | winrt-interface-analysis, decompiled-code-extractor, map-attack-surface | -- |
+| `/xref` | callgraph-tracer, function-index | re-analyst |
 
 ### Agent-to-Skill Mapping
 
-| Agent | Composed Skills |
-|-------|----------------|
-| **re-analyst** | classify-functions, generate-re-report, decompiled-code-extractor, callgraph-tracer, data-flow-tracer, ai-taint-scanner |
-| **triage-coordinator** | classify-functions, map-attack-surface, callgraph-tracer, security-dossier, reconstruct-types, com-interface-reconstruction, decompiled-code-extractor, ai-taint-scanner, import-export-resolver |
-| **security-auditor** | decompiled-code-extractor, classify-functions, map-attack-surface, security-dossier, ai-taint-scanner, exploitability-assessment, ai-memory-corruption-scanner, ai-logic-scanner |
-| **code-lifter** | decompiled-code-extractor, code-lifting, batch-lift, reconstruct-types, verify-decompiled, function-index |
-| **type-reconstructor** | decompiled-code-extractor, reconstruct-types, com-interface-reconstruction |
-| **verifier** | verify-decompiled, decompiled-code-extractor, code-lifting |
-| **memory-corruption-scanner** | ai-memory-corruption-scanner, decompiled-code-extractor, map-attack-surface |
-| **logic-scanner** | ai-logic-scanner, decompiled-code-extractor, map-attack-surface |
-| **taint-scanner** | ai-taint-scanner, decompiled-code-extractor, map-attack-surface |
+Data sourced from `agents/registry.json`.
+
+| Agent | Type | Composed Skills |
+|-------|------|----------------|
+| **re-analyst** | analyst | classify-functions, generate-re-report, decompiled-code-extractor, callgraph-tracer |
+| **triage-coordinator** | coordinator | classify-functions, map-attack-surface, callgraph-tracer, security-dossier, generate-re-report, reconstruct-types, com-interface-reconstruction, decompiled-code-extractor, import-export-resolver, batch-lift |
+| **security-auditor** | analyst | decompiled-code-extractor, classify-functions, map-attack-surface, security-dossier, exploitability-assessment, ai-memory-corruption-scanner, ai-logic-scanner, ai-taint-scanner |
+| **code-lifter** | lifter | decompiled-code-extractor, batch-lift, reconstruct-types, function-index |
+| **type-reconstructor** | reconstructor | decompiled-code-extractor, reconstruct-types, com-interface-reconstruction |
+| **memory-corruption-scanner** | analyst (LLM-only) | ai-memory-corruption-scanner, decompiled-code-extractor, map-attack-surface |
+| **logic-scanner** | analyst (LLM-only) | ai-logic-scanner, decompiled-code-extractor, map-attack-surface |
+| **taint-scanner** | analyst (LLM-only) | ai-taint-scanner, decompiled-code-extractor, map-attack-surface |
 
 ### Grind-Loop Commands
+
+Commands with `grind_loop: true` in `commands/registry.json`:
 
 | Command | Scratchpad Items |
 |---------|-----------------|
@@ -2627,14 +2425,22 @@ For producing readable C++ from decompiled code:
 | `/scan` | One per phase (5-6 phases) |
 | `/batch-audit` | One per function |
 | `/hunt-execute` | One per hypothesis |
-| `/verify-decompiler-batch` | One per function |
-| `/lift-class` | One per method (fallback only) |
+| `/lift-class` | One per method |
 
 ### Cacheable Skills
 
-| Skill | Cache Key |
-|-------|-----------|
-| `verify-decompiled` | DB path + function ID |
+Skills with `cacheable: true` in `skills/registry.json`:
+
+| Skill | Cache Keys |
+|-------|------------|
+| `callgraph-tracer` | `call_graph` |
+| `classify-functions` | `triage_summary`, `classify_module` |
+| `com-interface-reconstruction` | `scan_com_interfaces` |
+| `generate-re-report` | `analyze_topology`, `analyze_imports`, `analyze_strings`, `analyze_complexity` |
+| `import-export-resolver` | `import_export_index` |
+| `map-attack-surface` | `discover_entrypoints` |
+| `reconstruct-types` | `scan_struct_fields` |
+| `security-dossier` | `security_dossier` |
 
 All cacheable skills accept `--no-cache` to force recomputation. Cache uses 24h TTL validated against DB file modification time.
 

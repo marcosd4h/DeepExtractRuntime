@@ -392,6 +392,15 @@ SQLite-backed cross-session finding accumulation. Stores confirmed findings from
 | Aggregate counts by severity/source | `get_summary(module)` | `findings_store` |
 | Bound store with fixed db_path | `FindingsStore(db_path)` | `findings_store` |
 
+### report_comparison
+
+| Operation | Helper | Module |
+|-----------|--------|--------|
+| Discover report companions in module dir | `discover_reports(reports_dir, scan_type)` | `report_comparison` |
+| Load and validate .findings.json | `load_findings_json(path)` | `report_comparison` |
+| Compare findings across two reports | `compare_findings(current, previous)` | `report_comparison` |
+| Generate comparison markdown section | `format_comparison_section(result, prev_path)` | `report_comparison` |
+
 ### Workspace and Orchestration
 
 Multi-step workflow handoff and agent orchestration.

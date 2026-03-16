@@ -244,6 +244,15 @@
       "parameters": "run <yaml> [--dry-run] [--modules M] [--output DIR] | validate <yaml> | list-steps",
       "grind_loop": false,
       "workspace_protocol": true
+    },
+    "compare-scans": {
+      "purpose": "Compare findings across AI scan reports: recurring, new, missed, severity/verdict changes",
+      "file": "compare-scans.md",
+      "skills_used": [],
+      "agents_used": [],
+      "parameters": "<module> [--type logic|memory|taint] [--reports <path1> <path2>]",
+      "grind_loop": false,
+      "workspace_protocol": false
     }
   }
 }

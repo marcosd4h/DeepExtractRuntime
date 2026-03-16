@@ -81,11 +81,12 @@ Systematic vulnerability hunting from triage through confirmed findings.
 /scan appinfo.dll --top 10               # all 8 scanners + taint + verification + exploitability
 /audit appinfo.dll AiLaunchProcess       # deep audit on highest-risk finding from /scan
 /taint appinfo.dll AiLaunchProcess --depth 5  # focused source-to-sink trace with guard analysis
+/compare-scans srvsvc.dll --type logic  # compare findings across logic scans
 /hunt-plan appinfo.dll                   # collaborative VR planning: ranked hypotheses
 /hunt-execute appinfo.dll               # execute plan: per-hypothesis evidence + confidence score
 ```
 
-Progression: `/triage --with-security` -> `/scan` -> `/audit` (top findings) -> `/taint` -> `/hunt-plan` -> `/hunt-execute`.
+Progression: `/triage --with-security` -> `/scan` -> `/audit` -> `/taint` -> `/compare-scans` -> `/hunt-plan` -> `/hunt-execute`.
 
 `/scan` provides breadth (8 scanner types across all functions). `/audit` provides
 depth (backward trace, decompiler verification, call chain) on individual findings.

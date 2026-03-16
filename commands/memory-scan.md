@@ -8,6 +8,7 @@ Uses LLM agents that navigate cross-module callgraphs, read decompiled code
 on demand, and verify findings against assembly ground truth.
 
 Usage:
+
 - `/memory-scan <module>` -- scan top entry points for the module
 - `/memory-scan <module> <function>` -- scan from a specific function
 - `/memory-scan <module> <function> --depth 3` -- limit callgraph depth
@@ -17,6 +18,13 @@ Usage:
 This command executes immediately. Run the full pipeline and deliver the
 completed report without pausing for confirmation. Use the workspace handoff
 pattern for all phases.
+
+## Status Messaging (MANDATORY)
+
+Keep the user informed at every phase boundary. Output a plain-text status
+message **before** each phase starts and **after** it completes. Messages
+are 1-2 lines summarizing what is happening and what the phase produced.
+Do NOT suppress status messages to "save time."
 
 ## Execution Context
 
@@ -59,12 +67,18 @@ invalidate the scan.
       must_read, and db_path.
 
 **Protocol violations:**
+
 - Writing triage/results.json without a Stage 2 Task call
 - Writing skeptic/results.json without per-finding Task calls
 - Skeptic running in the same context as the scanner (confirmation bias)
 - Finding missing verification_subgraph field
+- Launching a second scanner instance for deeper depths (scanner is self-driving)
+- Pre-analyzing function code in the orchestrator prompt (bias injection)
+- Batch-fetching code for the scanner instead of letting it read via Shell
 
 ### Phase 0 -- Threat Model
+
+**Status (before):** Tell the user: `Building threat model for <module>...`
 
 ```bash
 python .agent/skills/ai-memory-corruption-scanner/scripts/build_threat_model.py <db_path> --json \
@@ -74,9 +88,14 @@ python .agent/skills/ai-memory-corruption-scanner/scripts/build_threat_model.py 
 Read the summary from stdout. This tells you: service type, privilege level,
 attacker model, top entry points with RPC/COM context.
 
+**Status (after):** Tell the user the key facts: service type, attacker model, entry point count (e.g., `Threat model: RPC service, remote unauthenticated attacker, 123 entry points`).
+
 ### Phase 1 -- Callgraph Preparation
 
+**Status (before):** Tell the user: `Preparing callgraph from <function/entry-points> (depth <N>)...`
+
 For module-wide scan:
+
 ```bash
 python .agent/skills/ai-memory-corruption-scanner/scripts/prepare_context.py <db_path> \
     --entry-points --depth 5 --with-code --json \
@@ -84,6 +103,7 @@ python .agent/skills/ai-memory-corruption-scanner/scripts/prepare_context.py <db
 ```
 
 For single-function scan:
+
 ```bash
 python .agent/skills/ai-memory-corruption-scanner/scripts/prepare_context.py <db_path> \
     --function "<function_name>" --depth 5 --with-code --json \
@@ -93,11 +113,15 @@ python .agent/skills/ai-memory-corruption-scanner/scripts/prepare_context.py <db
 Read the summary from stdout. This gives you the callgraph stats (node count,
 edge count, modules involved).
 
+**Status (after):** Tell the user the callgraph size (e.g., `Callgraph: 1,597 nodes, 4,098 edges, 67 MUST_READ functions across 11 modules`).
+
 ### Phase 2 -- Quick Triage (MANDATORY)
+
+**Status (before):** Tell the user: `Running triage assessment...`
 
 > **This phase MUST NOT be skipped.** A scan that proceeds directly from
 > Phase 1 to Phase 3 without a recorded triage decision is a protocol
-> violation.  Write the triage result to `<run_dir>/triage/results.json`
+> violation. Write the triage result to `<run_dir>/triage/results.json`
 > before starting Phase 3.
 
 Read the full callgraph JSON from `<run_dir>/context/results.json` and the
@@ -106,109 +130,178 @@ threat model from `<run_dir>/threat_model/results.json`.
 **For module-wide scans:** Launch a **cheap** `security-auditor` subagent
 with this prompt:
 
-> Read the callgraph JSON and threat model.  For each entry point in the
+> Read the callgraph JSON and threat model. For each entry point in the
 > callgraph, produce a one-line assessment: is memory corruption **likely**
 > or **unlikely** based on the callgraph structure, the number of allocation
-> and copy operations reachable, and the parameter types?  Be conservative
-> -- if unsure, say likely.  Return a JSON object with `status: "ok"`,
+> and copy operations reachable, and the parameter types? Be conservative
+> -- if unsure, say likely. Return a JSON object with `status: "ok"`,
 > `triage` array of `{entry_point, assessment, reasoning}` objects, and
 > `counts: {likely, unlikely, total}`.
 
 The triage operates on callgraph structure only -- no decompiled code or
-assembly is read during this phase.  This is what makes it cheap (~5-10
+assembly is read during this phase. This is what makes it cheap (~5-10
 seconds per entry point).
 
 **For single-function scans:** The triage has exactly one entry with
-`assessment: "likely"`.  The reasoning MUST still describe the callgraph
+`assessment: "likely"`. The reasoning MUST still describe the callgraph
 characteristics (MUST_READ count, allocation/copy APIs reachable, parameter
-types, depth) -- do NOT just say "user-directed."  Write the triage result
+types, depth) -- do NOT just say "user-directed." Write the triage result
 to `<run_dir>/triage/results.json` for workspace completeness.
 
 Keep only the **likely** entry points for Phase 3.
 
-### Phase 3 -- Iterative Depth Analysis
+**Status (after):** Tell the user the triage result (e.g., `Triage: 1 likely, 0 unlikely -- proceeding with NetrShareAdd`).
 
-The deep analysis uses an iterative depth-expansion loop.  The coordinator
-(you) drives the loop; the scanner subagent receives code one depth level
-at a time and returns taint-guided requests for the next level.
+### Phase 3 -- Deep Analysis (Self-Driving Scanner)
 
-**Preparation:** Read the callgraph context from `<run_dir>/context/results.json`.
-It contains `traversal_plan` (functions classified by depth and category) and
-`preloaded_code` (decompiled code for depth 0+1 MUST_READ functions).
+**Status (before):** Tell the user: `Launching memory corruption scanner (self-driving, max depth <N>)...`
 
-**Loop:**
+Launch a **SINGLE** `memory-corruption-scanner` subagent. The scanner drives
+its own depth expansion internally -- it reads deeper functions itself via
+Shell. Do NOT batch-fetch code for the scanner. Do NOT launch a second
+scanner instance for deeper depths. Do NOT pre-analyze any functions in
+the prompt.
 
-```
-current_depth = 1
-code_batch = preloaded_code from Phase 1 output
+**Provide to the scanner subagent:**
 
-LOOP:
-  Launch (or resume) a `memory-corruption-scanner` subagent with:
-    1. Threat model content (from Phase 0)
-    2. Callgraph structure + traversal_plan (from Phase 1)
-    3. code_batch (MUST_READ functions for current depth level)
-    4. db_path for on-demand KNOWN_API retrieval if needed
-    5. Reference material paths:
-       - .agent/skills/ai-memory-corruption-scanner/reference/vulnerability_patterns.md
-       - .agent/skills/ai-memory-corruption-scanner/reference/decompiler_pitfalls.md
+1. Threat model content (from Phase 0 -- read `<run_dir>/threat_model/results.json`)
+2. Callgraph structure + traversal_plan (from Phase 1 -- read `<run_dir>/context/results.json`)
+3. Preloaded code for depth 0+1 MUST_READ functions (from `preloaded_code` in context results)
+4. `db_path` for on-demand code retrieval via Shell
+5. Reference material paths:
+   - `.agent/skills/ai-memory-corruption-scanner/reference/vulnerability_patterns.md`
+   - `.agent/skills/ai-memory-corruption-scanner/reference/decompiler_pitfalls.md`
+6. `max_depth` parameter
 
-  Read subagent output:
-    - findings: [...] (vulnerabilities found so far)
-    - next_depth_requests: [{function, reason}, ...] (depth N+1 functions)
-    - coverage_report: {functions_read, functions_skipped}
+The scanner returns complete findings with `verification_subgraph`, false
+leads, and a `coverage_report` showing all functions read across all depths.
 
-  Accumulate findings and coverage across iterations.
+**Escalation handling:** If the scanner returns `status: "needs_escalation"`,
+resolve the request (find cross-module DB, extract function, run a different
+skill) and **resume the SAME scanner instance** via `Task(resume=<agent_id>)`.
+Provide ONLY the requested data -- no analysis, no summaries.
 
-  IF next_depth_requests is empty OR current_depth >= max_depth:
-    BREAK
+Write scanner output to `<run_dir>/findings/results.json`.
 
-  Batch-fetch requested functions:
-    python .agent/agents/code-lifter/scripts/batch_extract.py <db_path> \
-      --functions <requested_func_names...> --json
+**Status (after):** Tell the user what the scanner found (e.g., `Scanner complete: 0 findings, 7 false leads refuted, depth reached 3, 10 functions analyzed`).
 
-  code_batch = batch_extract output
-  current_depth += 1
-  CONTINUE
-```
+### Phase 4 -- Skeptic Verification
 
-This loop runs at most `max_depth - 1` iterations (depth 0+1 is pre-loaded).
-
-### Phase 4 -- Skeptic verification
+**Status (before):** If findings exist, tell the user: `Verifying <N> findings with independent skeptic...`. If 0 findings, tell the user: `No findings to verify -- skipping skeptic phase.`
 
 For each finding from Stage 3:
 
-1. Extract `finding.verification_subgraph` -- this is the focused subgraph
-   the skeptic must independently verify.
+**Step 1 -- Ensure `verification_subgraph` exists.**
+If a finding lacks `verification_subgraph` (e.g. secondary findings outside the
+primary vulnerability class), the coordinator MUST construct one before launching
+the skeptic:
 
-2. Launch a **SEPARATE** `security-auditor` subagent via the Task tool.
-   The skeptic MUST have fresh context -- do NOT reuse the scanner subagent.
+- `call_chain`: `[entry_point, ..., finding_function]`
+- `must_read`: at minimum the finding function and its immediate caller
+- `db_path`: from the scan context
+- `nodes`/`edges`: extracted from `<run_dir>/context/results.json`
 
-   Pass to the skeptic subagent:
-   - The finding JSON (including `verification_subgraph`)
-   - Full callgraph path: `<run_dir>/context/results.json`
-   - `db_path` for on-demand code retrieval
-   - Reference material paths (vulnerability_patterns.md, decompiler_pitfalls.md)
+**Step 2 -- Extract the MUST_READ sub-callgraph.**
+From `<run_dir>/context/results.json`, extract and include directly in the
+skeptic prompt:
 
-   Skeptic prompt must include:
-   - "CONSIDER YOU MAY BE WRONG. FULLY TEST ALL OTHER POSSIBILITIES."
-   - Instruction to read ALL functions in `verification_subgraph.must_read`
-     independently using `extract_function_data.py`
-   - The 4 verification criteria:
-     1. TAINT FLOW: Re-read each function in the subgraph. Does attacker data
-        actually reach the dangerous operation through the call_chain as claimed?
-     2. ACCESS SIZE: Are buffer sizes and integer arithmetic correct in assembly?
-     3. REACHABILITY: Is the path reachable from entry point? No dead code?
-     4. EXPLOITABILITY: Construct the exact input bytes / parameter values that
-        trigger this memory corruption.
+- **MUST_READ functions by depth** from `traversal_plan.by_depth` -- the full
+  list of application functions at each depth level
+- **Edges between MUST_READ functions** from `callgraph.edges` -- filtered to
+  only edges where both source and target are MUST_READ nodes
 
-3. The skeptic MUST read code independently -- not rely on the scanner's
-   `evidence.code_lines` excerpts.
+This gives the skeptic a navigable map of the callgraph neighborhood (typically
+~50-100 application functions and their call relationships) rather than just the
+3-4 functions on the finding's own chain.
 
-4. Collect verdict: `TRUE_POSITIVE` or `FALSE_POSITIVE` with per-criterion reasoning.
+**Step 3 -- Launch a SEPARATE `security-auditor` subagent via the Task tool.**
+The skeptic MUST have fresh context -- do NOT reuse the scanner subagent.
 
-5. Write results to `<run_dir>/skeptic/results.json`.
+Use this prompt template (fill in all `[bracketed]` values):
+
+> You are an independent skeptic verifier. Your job is to determine whether
+> the following vulnerability finding is TRUE_POSITIVE or FALSE_POSITIVE by
+> independently reading and analyzing the code.
+>
+> ## Finding
+>
+> [Paste the complete finding JSON here, including verification_subgraph
+> > with call_chain, nodes, edges, must_read, and db_path]
+>
+> ## Callgraph Neighborhood (MUST_READ sub-callgraph)
+>
+> These are all application-logic functions in the scan callgraph, organized
+> by depth from the entry point. Use this to understand what exists around
+> the finding's call chain.
+>
+> **MUST_READ by depth:**
+> [Paste traversal_plan.by_depth content -- function names grouped by depth]
+>
+> **Edges between MUST_READ functions:**
+> [Paste filtered edges -- only edges where both source and target are
+> > MUST_READ nodes, in format: source -> target]
+>
+> The full callgraph (including library/API nodes) is at:
+> `[run_dir]/context/results.json`
+> Read it with the Read tool if you need detail beyond the MUST_READ
+> neighborhood.
+>
+> ## How to Read Function Code
+>
+> To read any function's decompiled code and assembly, run:
+>
+> ```
+> python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py "[db_path]" --function "FunctionName" --json
+> ```
+>
+> Read the `decompiled_code` and `assembly_code` fields from the Shell output.
+>
+> You MUST independently read ALL functions in `verification_subgraph.must_read`.
+> You MAY read ANY other function in the database if needed for verification --
+> the MUST_READ list by depth shows what application functions exist at each
+> level. You are not restricted to the finding's call chain.
+>
+> ## Reference Materials
+>
+> - `.agent/skills/ai-memory-corruption-scanner/reference/vulnerability_patterns.md`
+> - `.agent/skills/ai-memory-corruption-scanner/reference/decompiler_pitfalls.md`
+>
+> ## Verification Protocol
+>
+> CONSIDER YOU MAY BE WRONG. If you are wrong in your reasoning, where would
+> it be? FULLY TEST ALL OTHER POSSIBILITIES. Use at least 2 independent
+> methods to verify: (1) trace through decompiled code, (2) verify against
+> assembly.
+>
+> Apply these 4 criteria:
+>
+> 1. TAINT FLOW: Re-read each function in the call chain. Does attacker data
+>    actually reach the dangerous operation through the path as claimed?
+>    Check each hop through concrete assignments and function arguments.
+> 2. ACCESS SIZE: Are buffer sizes and integer arithmetic correct in assembly?
+>    Verify the decompiler's representation of sizes, casts, and truncations
+>    against the actual x64 instructions.
+> 3. REACHABILITY: Is the path actually reachable from the entry point?
+>    Check for dead code, impossible branch conditions, or missing prerequisites.
+> 4. EXPLOITABILITY: Construct the exact input bytes / parameter values that
+>    trigger this memory corruption. If you cannot, explain which specific
+>    constraint prevents exploitation.
+>
+> ## Output
+>
+> Return your verdict as `TRUE_POSITIVE` or `FALSE_POSITIVE` with per-criterion
+> reasoning. Write results to `[run_dir]/skeptic/results.json`.
+
+**Step 4 -- Collect verdict.**
+`TRUE_POSITIVE` or `FALSE_POSITIVE` with per-criterion reasoning.
+
+**Step 5 -- Write results** to `<run_dir>/skeptic/results.json`.
+
+**Status (after):** Tell the user the verification result (e.g., `Skeptic: 2 TRUE_POSITIVE, 1 FALSE_POSITIVE`).
 
 ### Phase 5 -- Report
+
+**Status (before):** Tell the user: `Writing final report...`
 
 1. Collect all `TRUE_POSITIVE` findings
 2. Correlate related findings into attack chains (e.g. integer overflow leads
@@ -221,9 +314,60 @@ For each finding from Stage 3:
      assessment, assembly confirmation
    - FALSE_POSITIVE findings with reasons (for transparency)
 
+### Phase 5 Companion JSON
+
+After writing the markdown report, also write a structured `.findings.json`
+companion file alongside it. The companion path replaces `.md` with
+`.findings.json` (e.g. `ai_logic_scan_20260315_2345.findings.json`).
+
+The companion JSON must contain the **same or more information** than the
+`.md` report. It is the authoritative structured record of the scan. Include:
+
+- All report header metadata: `scan_type`, `module`, `entry_point`,
+  `entry_point_opnum`, `entry_point_interface`, `depth`, `timestamp`,
+  `db_path`, `workspace_run_dir`, `report_path`, `callgraph_stats`,
+  `functions_analyzed`
+- Full `threat_model` object (all table fields + narrative)
+- `true_positives` array: each finding with `id`, `vulnerability_type`,
+  `vulnerability_class`, `severity`, `title`, `description`, `call_chain`,
+  `primary_function`, `evidence`, `assembly_confirmation`,
+  `impact_assessment`, `practical_exploitability`, `structural_mitigation`,
+  `remediation`, `verification_subgraph`, `skeptic_verdict`,
+  `skeptic_summary`, `skeptic_criteria`, `dedup_key`
+- `false_positives` array: same fields plus `hypothesis`, `why_dismissed`
+- `false_leads` array from the scanner
+- `attack_chain_analysis` narrative
+- `overall_severity` and `overall_severity_justification`
+- `coverage_summary` (per-phase) and `coverage` (functions read/skipped)
+- `provenance` (workspace artifact paths)
+
+### Phase 6 -- Cross-Report Comparison
+
+**Status (before):** Tell the user: `Checking for previous scan reports...`
+
+1. Use `helpers.report_comparison.discover_reports()` to find previous
+   `.findings.json` files of the same scan type in
+   `extracted_code/<module>/reports/`
+2. If no previous report exists, tell the user "First scan of this type
+   for this module" and skip
+3. Load the most recent previous `.findings.json` with
+   `helpers.report_comparison.load_findings_json()`
+4. Run `helpers.report_comparison.compare_findings(current, previous)`
+   using the just-written `.findings.json`
+5. Generate comparison markdown with
+   `helpers.report_comparison.format_comparison_section()`
+6. Append the `## Previous Findings Comparison` section to the markdown
+   report file
+7. Present the comparison summary to the user
+
+**Status (after):** Tell the user the comparison result (e.g., `Cross-report:
+2 recurring, 1 new, 3 missed from previous scan`). If this was the first
+scan, say so.
+
 ## Output
 
 Save the report as:
+
 ```
 extracted_code/<module>/reports/ai_memory_scan_<YYYYMMDD_HHMM>.md
 ```
@@ -233,13 +377,13 @@ callgraph depth, timestamp.
 
 ## Error Handling
 
-| Scenario | Behavior |
-|----------|----------|
-| Module not found | Report error, suggest `find_module_db.py --list` |
-| Function not found | Report error, suggest `list_functions.py --search` |
-| No entry points discovered | Report "no attack surface found", stop |
-| Callgraph preparation fails | Report error with stderr details |
-| Quick triage: all unlikely | Report "no likely memory corruption targets", stop |
-| Deep analysis: no findings | Report "no memory corruption found" (valid result) |
+| Scenario                    | Behavior                                                    |
+| --------------------------- | ----------------------------------------------------------- |
+| Module not found            | Report error, suggest `find_module_db.py --list`            |
+| Function not found          | Report error, suggest `list_functions.py --search`          |
+| No entry points discovered  | Report "no attack surface found", stop                      |
+| Callgraph preparation fails | Report error with stderr details                            |
+| Quick triage: all unlikely  | Report "no likely memory corruption targets", stop          |
+| Deep analysis: no findings  | Report "no memory corruption found" (valid result)          |
 | Skeptic: all FALSE_POSITIVE | Report "findings did not survive verification" with reasons |
-| Subagent timeout | Note timeout, continue with remaining findings |
+| Subagent timeout            | Note timeout, continue with remaining findings              |

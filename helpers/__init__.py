@@ -326,6 +326,11 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     "update_exploitability": (".findings_store", None),
     "purge_old_findings":    (".findings_store", None),
     "get_summary":           (".findings_store", "get_summary"),
+    # report_comparison
+    "discover_reports":          (".report_comparison", None),
+    "load_findings_json":        (".report_comparison", None),
+    "compare_findings":          (".report_comparison", None),
+    "format_comparison_section": (".report_comparison", None),
     # taint_helpers
     "TaintContext": (".taint_helpers", None),
     "classify_sink": (".taint_helpers", None),

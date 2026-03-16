@@ -124,6 +124,7 @@ Each module has:
 | `/audit <module> <export> --diagram` | Audit with call graph from export      |
 | `/reconstruct-types <module>`     | Reconstruct struct/class types            |
 | `/compare-modules <A> <B>`        | Compare two modules                       |
+| `/compare-scans <module>`         | Compare scan reports for a module         |
 | `/full-report <module>`           | Comprehensive multi-phase report          |
 | `/cache-manage`                   | View/clear analysis cache                 |
 

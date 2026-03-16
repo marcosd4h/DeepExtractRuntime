@@ -40,6 +40,7 @@ Documentation: https://cursor.com/docs/context/commands
 | `/winrt`             | `winrt.md`             | WinRT analysis: enumerate server classes, map privilege-boundary attack surface, audit security, classify entry points, find EoP targets |
 | `/com`               | `com.md`               | COM analysis: enumerate servers by module/CLSID, map privilege-boundary attack surface, audit security (permissions, elevation, DCOM), classify entry points, find EoP/UAC bypass targets |
 | `/pipeline`          | `pipeline.md`        | Run, validate, or inspect headless batch analysis pipelines from YAML definitions            |
+| `/compare-scans`   | `compare-scans.md`   | Compare findings across AI scan reports: recurring, new, missed, severity/verdict changes |
 
 ## Command Decision Tree
 
@@ -69,6 +70,7 @@ flowchart TD
     Security --> AiLogicScan["/ai-logical-bug-scan module"]
     Security --> MemScan["/memory-scan module"]
     Security --> Scan["/scan module"]
+    Scan --> CompareScan["/compare-scans module"]
     Security --> Winrt["/winrt module -- WinRT server analysis"]
     Security --> Com["/com module -- COM server analysis"]
 

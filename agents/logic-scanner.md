@@ -356,82 +356,48 @@ functions on the path.
 | No findings after deep analysis | Report "no logic vulnerabilities found" (this is a valid result) |
 | Decompiled code appears wrong | Check assembly (decompiler_pitfalls.md), note discrepancy |
 
-## Mandatory Callgraph Traversal Protocol
+## How You Read Code
 
-The callgraph JSON from `prepare_context.py` includes a `traversal_plan`
-that classifies every node by depth and category.  When `--with-code` is
-used, `preloaded_code` contains decompiled code + assembly for all
-MUST_READ functions at depth 0 and 1.  The coordinator drives an iterative
-depth-expansion loop; you (the scanner subagent) operate within it.
+You are a **self-driving scanner**. The coordinator provides initial context
+(threat model, callgraph, preloaded code for depth 0+1, DB path, max_depth).
+You read all additional function code yourself via Shell. This preserves your
+full analysis context across all depth levels -- no information is lost between
+depths, no orchestrator bias is injected, and you can re-read any function at
+any time when new hypotheses demand it.
 
-### Per-Iteration Behavior
+The callgraph `traversal_plan` is a **prioritized worklist, not a boundary**.
+You can read ANY function in the DB, whether it appears in the callgraph or not.
 
-Each iteration you receive code for one depth level's MUST_READ functions.
+### Mode 1: Depth Expansion (Callgraph Callees)
 
-1. **Read `traversal_plan.by_depth`** to see all functions at each depth
-   and their categories (MUST_READ, KNOWN_API, TELEMETRY, LIBRARY).
+Read `traversal_plan.by_depth` to see MUST_READ functions at each depth.
+You receive preloaded code for depth 0+1 MUST_READ functions. For deeper
+levels, **you read functions yourself**:
 
-2. **Analyze every MUST_READ function** in the provided code batch.  For
-   each function:
-   - Read the decompiled code and assembly
-   - Identify attacker-controlled parameters (from entry-point args or
-     caller context)
-   - Trace how tainted values flow to callees
-   - Check authentication, authorization, state management, and trust
-     boundary logic at each hop
-   - Apply adversarial prompting rounds (assert, escalate, compare)
+```bash
+python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py \
+    <db_path> --function "<FunctionName>" --json
+```
 
-3. **For KNOWN_API callees**, use your Windows API knowledge.  Note
-   security-relevant usage patterns (e.g. `CreateFileW` with tainted path
-   under wrong impersonation, `RegSetValueEx` without prior ACL check)
-   without reading their implementation.  Request implementation code only
-   for unusual or suspicious usage.
+**Depth expansion loop (you drive this internally):**
 
-4. **Skip TELEMETRY and LIBRARY functions.**  These are noise.
+1. Analyze the preloaded depth 0+1 MUST_READ functions
+2. Identify which depth-2 callees receive tainted data or are security-relevant
+3. Read those depth-2 functions yourself via Shell
+4. Analyze them, identify depth-3 targets
+5. Continue until max_depth or no tainted data flows deeper
+6. Track your depth budget -- do not exceed the `max_depth` provided
 
-5. **Return structured output** with three required sections:
+**Node classification rules:**
+- **MUST_READ**: Application functions -- analyze every one at each depth you visit
+- **KNOWN_API**: Use your Windows API knowledge for security-relevant patterns
+  (e.g. `CreateFileW` with tainted path under wrong impersonation,
+  `RegSetValueEx` without prior ACL check) without reading their implementation
+- **TELEMETRY / LIBRARY**: Skip -- these are noise
 
-   ```json
-   {
-     "findings": [...],
-     "next_depth_requests": [
-       {"function": "SsCheckAccess", "reason": "authorization gate; must verify check coverage"},
-       {"function": "I_NetrShareAdd", "reason": "tainted SHARE_INFO flows to privileged file creation"}
-     ],
-     "coverage_report": {
-       "depth_analyzed": 1,
-       "functions_read": ["NetrShareGetInfo", "SsServerFsControlCommon"],
-       "functions_skipped": [
-         {"function": "WPP_SF_SLl", "reason": "TELEMETRY"}
-       ]
-     }
-   }
-   ```
+### Mode 2: Out-of-Callgraph Exploration
 
-   `next_depth_requests` drives the loop -- the coordinator batch-fetches
-   these functions and resumes you with their code.
-
-### Coverage Requirements
-
-- You MUST analyze 100% of MUST_READ functions in the provided code batch.
-- You MUST justify every function you request at the next depth level with
-  a taint-flow or security-relevance reason.
-- You MUST justify every MUST_READ function you do NOT request deeper
-  analysis for (e.g. "no tainted data flows to callees" or "auth check
-  verified complete").
-- A scan that reads fewer MUST_READ functions than provided is incomplete.
-
-### Termination
-
-You stop requesting deeper functions when:
-- No tainted data flows to any callee at the next depth
-- Maximum depth has been reached
-- All functions at the next depth are KNOWN_API / TELEMETRY / LIBRARY
-- All authorization paths have been verified to depth
-
-### Out-of-Callgraph Code Reads
-
-The callgraph covers the forward call tree from the entry point.  It does
+The callgraph covers the forward call tree from the entry point. It does
 NOT cover functions that write to the same global variables, initialize
 module state, or populate dispatch tables consumed on the tainted path.
 
@@ -439,29 +405,20 @@ module state, or populate dispatch tables consumed on the tainted path.
 
 - **Global variables on tainted paths.** A function reads a global that
   influences authorization decisions, control flow, or trust boundaries.
-  Find who writes it: check `global_var_accesses` in the function data,
-  or `list_functions.py <db_path> --search "<pattern>" --json`.  Key globals:
-  - Security descriptors used in access checks (e.g. `SsSharePrintSecurityObject`)
-  - Configuration values loaded from the registry (size limits, feature flags,
-    privilege requirements, ACL defaults)
+  Find who writes it: check `global_var_accesses` in the function data, or
+  `list_functions.py <db_path> --search "<pattern>" --json`. Key globals:
+  - Security descriptors used in access checks
+  - Configuration values loaded from the registry (privilege requirements, ACL defaults)
   - Function pointer tables and dispatch arrays
   - "Initialized" / "checked" flags that gate security operations
   - Shared token or impersonation state
-  - String tables, name caches, or path resolution caches
-- **Module initialization.** Functions that set up state consumed by the
-  entry point at runtime:
-  - `DllMain` -- DLL attach/detach, global init
-  - `ServiceMain` / `SvcMain` -- service startup, RPC registration
-  - RPC server init: `RpcServerRegisterIf*`, `RpcServerUseProtseq*`
-  - COM class factory: `DllGetClassObject`, `DllRegisterServer`
-  - WinRT activation: `DllGetActivationFactory`,
-    `RoRegisterActivationFactories`
-  - `main` / `wmain` / `wWinMain` for executable modules
+- **Module initialization.** Functions that set up state consumed at runtime:
+  `DllMain`, `ServiceMain` / `SvcMain`, RPC server init, COM class factory,
+  WinRT activation, `main` / `wmain` / `wWinMain`
 - **Dispatch table / function pointer populators.** If the tainted path
   calls through a function pointer, find where that pointer was stored.
 - **Shared locks and synchronization.** Critical sections, SRW locks, or
-  Interlocked operations protecting state on the tainted path -- find
-  other functions that acquire/release the same lock.
+  Interlocked operations protecting state on the tainted path.
 - **Inbound xrefs revealing unexpected callers.** An inbound xref to a
   function on the tainted path may reveal callers that change assumptions
   about parameter constraints or object state.
@@ -476,9 +433,6 @@ module state, or populate dispatch tables consumed on the tainted path.
 
 **How to read out-of-graph functions:**
 
-Use Shell to call `extract_function_data.py` or `list_functions.py` --
-these work on any function in the DB, not just callgraph nodes:
-
 ```bash
 python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py \
     <db_path> --function "DllMain" --json
@@ -486,13 +440,69 @@ python .agent/skills/decompiled-code-extractor/scripts/list_functions.py \
     <db_path> --search "Init" --json
 ```
 
-Include out-of-graph reads in your `coverage_report` under a separate
-`out_of_graph_reads` list:
+### Mode 3: Escalation (Orchestrator Assistance)
+
+If you encounter a situation you cannot resolve alone, return early with
+a structured escalation request. The orchestrator will fulfill it and
+resume your session with the requested data.
+
+**Valid escalation types:**
+
+- **`need_cross_module_db`**: You found a cross-module callee in a DB you
+  don't have. Return the module name and function name.
+- **`need_additional_context`**: You need output from a different skill
+  (e.g. type reconstruction results, COM interface metadata).
+- **`need_user_input`**: You encountered an ambiguity only the user can
+  resolve (rare).
 
 ```json
-"out_of_graph_reads": [
-  {"function": "ServiceMain", "reason": "verifying RPC server init and SD setup"},
-  {"function": "SsInitialize", "reason": "global SsSharePrintSecurityObject initialized here"},
-  {"function": "CreateShareSecurityObjects", "reason": "SD creation for share access checks"}
-]
+{
+  "status": "needs_escalation",
+  "escalation": {
+    "type": "need_cross_module_db",
+    "reason": "Cross-module xref to advapi32.dll needs code for access-check verification",
+    "details": { "module": "advapi32.dll", "function": "CheckAccessAndAuditAlarmW" }
+  },
+  "partial_findings": [],
+  "coverage_so_far": { "functions_read": ["..."], "depth_reached": 3 }
+}
+```
+
+### Coverage Requirements
+
+- You MUST analyze 100% of MUST_READ functions at each depth you visit.
+- You MUST justify every function you read at deeper levels with a
+  taint-flow or security-relevance reason.
+- You MUST justify every MUST_READ function you do NOT pursue deeper
+  (e.g. "no tainted data flows to callees" or "auth check verified complete").
+- A scan that reads fewer MUST_READ functions than exist at a depth is incomplete.
+
+### Termination
+
+You stop expanding to deeper levels when:
+- No tainted data flows to any callee at the next depth
+- Maximum depth has been reached
+- All functions at the next depth are KNOWN_API / TELEMETRY / LIBRARY
+- All authorization paths have been verified to depth
+
+### Final Output
+
+Return a single JSON result with:
+
+```json
+{
+  "status": "ok",
+  "findings": [...],
+  "false_leads": [...],
+  "coverage_report": {
+    "functions_read": ["NetrShareGetInfo", "I_NetrShareGetInfo", "SsCheckAccess"],
+    "functions_skipped": [{"function": "WPP_SF_SLl", "reason": "TELEMETRY"}],
+    "out_of_graph_reads": [
+      {"function": "ServiceMain", "reason": "verifying RPC server init and SD setup"},
+      {"function": "CreateShareSecurityObjects", "reason": "SD creation for share access checks"}
+    ],
+    "depth_reached": 3,
+    "max_depth": 6
+  }
+}
 ```

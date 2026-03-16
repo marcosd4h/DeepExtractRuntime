@@ -152,7 +152,7 @@ The system employs a standardized filesystem handoff protocol to manage state du
 
 # Skills Reference
 
-The runtime implements 17 distinct skills, categorized by functional purpose. These capabilities operate as discrete analytical units, processing extraction data and generating structured output.
+The runtime implements 18 distinct skills, categorized by functional purpose. These capabilities operate as discrete analytical units, processing extraction data and generating structured output.
 
 ## Foundation and Data Access
 
@@ -288,8 +288,7 @@ This capability processes memory access offsets across an entire module to synth
 
 ## Methodology and Strategy
 
-### brainstorming
-Merged into `/hunt-plan`. Strategic campaign planning, cross-module campaigns, post-analysis re-planning, and tool/skill design are now available as modes `cross`, `replan`, and `design` within the `/hunt-plan` command.
+The `/hunt-plan` command provides strategic campaign planning, cross-module campaigns, post-analysis re-planning, and tool/skill design through modes `cross`, `replan`, and `design`.
 
 # Agents Reference
 
@@ -302,7 +301,7 @@ The runtime deploys eight specialized subagents operating in isolated context en
 - **Entry Scripts**:
   - **re_query.py**: Executes multi-mode module and function queries. Parameters include database path, overview flag, function string, class string, exports flag, search string, context flag, classification flag, ID string, and JSON flag.
   - **explain_function.py**: Executes granular control flow mapping to output structured function explanations. Parameters include database path, function string, ID string, depth integer, assembly suppression flag, and JSON flag.
-- **Composed Skills**: classify-functions, generate-re-report, decompiled-code-extractor, callgraph-tracer, ai-taint-scanner.
+- **Composed Skills**: classify-functions, generate-re-report, decompiled-code-extractor, callgraph-tracer.
 - **Workflow**:
   - Validates input syntax and locates function data.
   - Maps parameters, API invocations, and branching logic.
@@ -317,7 +316,7 @@ The runtime deploys eight specialized subagents operating in isolated context en
 - **Entry Scripts**:
   - **analyze_module.py**: Executes the direct analysis pipeline. Parameters include database path, goal string, function string, JSON flag, timeout integer, and workspace run directory string.
   - **generate_analysis_plan.py**: Outputs a hierarchical task schema without execution. Parameters include database path, goal string, function string, and JSON flag.
-- **Composed Skills**: classify-functions, map-attack-surface, callgraph-tracer, security-dossier, reconstruct-types, com-interface-reconstruction, decompiled-code-extractor, ai-taint-scanner, import-export-resolver.
+- **Composed Skills**: classify-functions, map-attack-surface, callgraph-tracer, security-dossier, generate-re-report, reconstruct-types, com-interface-reconstruction, decompiled-code-extractor, import-export-resolver, batch-lift.
 - **Adaptive Execution**: Evaluates the pre-computed module profile to selectively append specialized analysis phases.
 - **Usage Boundaries**: Employ this agent for complete module triage and security baseline initialization. Do not utilize for single-function explanations or localized instruction verification.
 
@@ -385,7 +384,7 @@ The runtime deploys eight specialized subagents operating in isolated context en
 
 # Commands Reference
 
-The runtime executes 28 predefined operational sequences triggered via slash commands.
+The runtime executes 27 predefined operational sequences triggered via slash commands.
 
 ## Initialization Operations
 
@@ -670,51 +669,64 @@ The shared Python library operates at the foundational tier, exposing core progr
 
 ## Module Index
 
+The library contains 59 Python files (3 subpackages, 36 library modules, 9 standalone CLI scripts, plus internal files), exposing 171 public symbols via lazy imports.
+
 | Module | Category | Functional Purpose |
 |---|---|---|
-| **individual_analysis_db** | Database | Initializes per-module read-only SQLite connections. |
-| **analyzed_files_db** | Database | Initializes the global tracking database for module indexing. |
-| **db_paths** | Database | Computes valid filesystem paths and manages long-path constraints. |
-| **function_resolver** | Resolution | Calculates function offsets based on identifiers and regex mappings. |
-| **function_index** | Resolution | Evaluates JSON indexes to filter non-application library code. |
-| **batch_operations** | Resolution | Executes simultaneous resolution across function arrays. |
-| **api_taxonomy** | Classification | Maps API invocations to predefined security and functional categories. |
-| **callgraph** | Graph | Computes directed topologies and traversal vectors. |
-| **cross_module_graph** | Graph | Computes multi-module topology transitions. |
-| **module_discovery** | Discovery | Enumerates the localized database array. |
-| **module_profile** | Discovery | Evaluates pre-computed baseline fingerprint metrics. |
-| **com_index** | Interface | Structures COM identifiers against extracted security configurations. |
-| **winrt_index** | Interface | Structures WinRT classes against extracted activation conditions. |
-| **rpc_index** | Interface | Structures RPC procedures against exposed endpoint metrics. |
-| **rpc_stub_parser** | Interface | Parses auto-generated C# client templates. |
-| **import_export_index** | Interface | Structures PE-level execution dependencies. |
-| **def_use_chain** | Taint/Flow | Maps variable assignment arrays for propagation computation. |
-| **decompiled_parser** | Parsing | Extracts structural components from decompiled syntax trees. |
-| **struct_scanner** | Parsing | Processes base offset arithmetic. |
-| **mangled_names** | Parsing | Computes standard class terminology from compiler naming conventions. |
-| **calling_conventions** | Parsing | Maps x64 registers to parameter definitions. |
-| **type_constants** | Parsing | Translates IDA type syntax to standardized C representations. |
-| **errors** | Output | Manages the uniform error handling schema. |
-| **json_output** | Output | Formats data structures conforming to JSON conventions. |
-| **progress** | Output | Manages standard error diagnostic output formatting. |
-| **logging_config** | Output | Configures standard environment log parameters. |
-| **cache** | Cache | Manages read/write invalidation using timestamp checks. |
-| **validation** | Validation | Computes schema conformity parameters. |
-| **command_validation** | Validation | Computes user input adherence values. |
-| **finding_schema** | Findings | Restructures discrete module output to unified payload templates. |
-| **finding_merge** | Findings | Executes deduplication logic against concurrent arrays. |
-| **workspace** | Workspace | Manages payload reads and structured directory instantiation. |
-| **workspace_bootstrap** | Workspace | Processes pre-flight configuration for specific isolated processes. |
-| **workspace_validation** | Workspace | Computes state confirmation indices across isolated sequences. |
-| **pipeline_schema** | Pipeline | Loads and evaluates declarative configuration formats. |
-| **pipeline_executor** | Pipeline | Dispatches structural actions based on schema parameters. |
-| **pipeline_cli** | Pipeline | The primary operational interface for headless executions. |
-| **cleanup_workspace** | Pipeline | Deletes outdated execution outputs based on retention policies. |
-| **config** | Infrastructure | Modulates operating variables based on JSON parameter sets. |
-| **script_runner** | Infrastructure | Manages execution path derivation logic. |
-| **session_utils** | Infrastructure | Computes global identifiers for transient session states. |
-| **agent_common** | Infrastructure | Provides base class definitions for agent structures. |
-| **unified_search** | Infrastructure | Computes aggregate relevance rankings across heterogeneous search vectors. |
+| **individual_analysis_db** | Database | Initializes per-module read-only SQLite connections. Exports `IndividualAnalysisDB`, `FunctionRecord`, `FileInfoRecord`, `open_individual_analysis_db`. |
+| **analyzed_files_db** | Database | Initializes the global tracking database for module indexing. Exports `AnalyzedFilesDB`, `AnalyzedFileRecord`, `open_analyzed_files_db`. |
+| **db_paths** | Database | Computes valid filesystem paths and manages long-path constraints. Exports `resolve_db_path_auto`, `resolve_module_db_auto`, `resolve_tracking_db_auto`, `safe_long_path`. |
+| **sql_utils** | Database | SQL LIKE escaping for safe literal matching. Exports `escape_like`, `LIKE_ESCAPE`. |
+| **function_resolver** | Resolution | Calculates function offsets based on identifiers and regex mappings. Exports `resolve_function`, `search_functions_by_pattern`. |
+| **function_index** | Resolution | Evaluates JSON indexes to filter non-application library code. Exports `load_function_index`, `lookup_function`, `filter_application_functions`, `resolve_function_file`. |
+| **batch_operations** | Resolution | Executes simultaneous resolution across function arrays. Exports `batch_resolve_functions`, `batch_extract_function_data`, `load_function_record`. |
+| **api_taxonomy** | Classification | Maps API invocations to 17 functional and 11 security categories. Exports `classify_api`, `classify_api_security`, `get_dangerous_api_set`. |
+| **param_risk** | Classification | Parameter surface metadata from C-style signatures. Exports `describe_parameter_surface`, `PARAM_TYPE_PATTERNS`. |
+| **callgraph** | Graph | Computes directed topologies and traversal vectors. Exports `CallGraph` (from_db, reachable_from, callers_of, bfs_path, strongly_connected_components). |
+| **cross_module_graph** | Graph | Computes multi-module topology transitions. Exports `CrossModuleGraph`, `ModuleResolver`. |
+| **module_discovery** | Discovery | Enumerates the localized database array. Exports `iter_module_dirs`, `iter_module_dbs`, `ModuleDir`, `ModuleDb`. |
+| **module_profile** | Discovery | Evaluates pre-computed baseline fingerprint metrics. Exports `load_module_profile`, `load_all_profiles`, `get_noise_ratio`, `get_technology_flags`. |
+| **com_index** | Interface | Structures COM identifiers against extracted security configurations. Exports `ComIndex`, `ComServer`, `ComInterface`, `get_com_index`. |
+| **winrt_index** | Interface | Structures WinRT classes against extracted activation conditions. Exports `WinrtIndex`, `WinrtServer`, `get_winrt_index`. |
+| **rpc_index** | Interface | Structures RPC procedures against exposed endpoint metrics. Exports `RpcIndex`, `RpcInterface`, `get_rpc_index`. |
+| **rpc_stub_parser** | Interface | Parses auto-generated C# client templates. Exports `parse_stub_file`, `load_stubs_from_directory`, `RpcStubFile`. |
+| **import_export_index** | Interface | Structures PE-level execution dependencies. Exports `ImportExportIndex`, `ExportEntry`, `ImportEntry`. |
+| **ipc_workspace** | Interface | Intersects workspace modules with COM/RPC/WinRT indices. Exports `discover_workspace_ipc_servers`. |
+| **taint_helpers** | Taint/Flow | Taint enrichment: sink/source classification, trust levels, finding scores. Exports `TaintContext`, `classify_sink`, `classify_trust_transition`, `resolve_tainted_params`, `compute_finding_score`. |
+| **decompiled_parser** | Parsing | Extracts structural components from decompiled syntax trees. Exports `extract_function_calls`, `split_arguments`, `discover_calls_with_xrefs`. |
+| **struct_scanner** | Parsing | Processes base offset arithmetic from decompiled and assembly code. Exports `scan_decompiled_struct_accesses`, `scan_assembly_struct_accesses`, `merge_scanned_struct_fields`. |
+| **mangled_names** | Parsing | Computes standard class terminology from compiler naming conventions. Exports `parse_class_from_mangled`. |
+| **calling_conventions** | Parsing | Maps x64 registers to parameter definitions. Exports `PARAM_REGISTERS`, `REGISTER_TO_PARAM`, `ASM_REG_SIZES`. |
+| **type_constants** | Parsing | Translates IDA type syntax to standardized C representations. Exports `TYPE_SIZES`, `IDA_TO_C_TYPE`, `SIZE_TO_C_TYPE`. |
+| **sddl_parser** | Parsing | SDDL ACE parsing and effective permissions. Exports `ParsedACE`, `parse_sddl_aces`, `effective_permissions_for_sid`. |
+| **errors** | Output | Manages the uniform error handling schema. Exports `emit_error`, `ScriptError`, `ErrorCode`, `db_error_handler`, `log_warning`, `safe_parse_args`. |
+| **json_output** | Output | Formats data structures conforming to JSON conventions. Exports `emit_json`, `emit_json_list`, `should_force_json`. |
+| **progress** | Output | Manages standard error diagnostic output formatting. Exports `ProgressReporter`, `progress_iter`, `status_message`. |
+| **logging_config** | Output | Configures standard environment log parameters via `DEEPEXTRACT_LOG_LEVEL`. |
+| **cache** | Cache | Manages read/write invalidation using DB mtime checks and 24h TTL. Exports `get_cached`, `cache_result`, `clear_cache`, `cache_stats`. |
+| **validation** | Validation | Pre-flight and integrity checks. Exports `validate_workspace_data`, `validate_analysis_db`, `quick_validate`, `ValidationResult`. |
+| **command_validation** | Validation | Slash-command argument validation. Exports `command_preflight`, `validate_command_args`, `validate_module`, `validate_function_arg`. |
+| **workspace_validation** | Validation | Workspace run handoff validation. Exports `validate_workspace_run`, `WorkspaceValidationResult`. |
+| **finding_schema** | Findings | Unified Finding dataclass from any scanner output. Exports `Finding`, `from_taint_finding`, `from_memory_finding`, `from_logic_finding`, `normalize_scanner_output`. |
+| **finding_merge** | Findings | Merge, deduplicate, and rank findings across scanners. Exports `merge_findings`, `deduplicate`, `findings_summary`. |
+| **findings_store** | Findings | SQLite-backed persistent findings store. Exports `FindingsStore`, `upsert_finding`, `load_findings`, `update_verification`, `update_exploitability`. |
+| **workspace** | Workspace | Manages payload reads and structured directory instantiation. Exports `create_run_dir`, `list_runs`, `write_results`, `read_results`, `update_manifest`. |
+| **workspace_bootstrap** | Workspace | Step setup/teardown wrappers for workspace handoff. Exports `prepare_step`, `complete_step`. |
+| **pipeline_schema** | Pipeline | Loads and evaluates declarative YAML configuration formats. Exports `PipelineDef`, `load_pipeline`, `validate_pipeline`, `STEP_REGISTRY`. |
+| **pipeline_executor** | Pipeline | Dispatches structural actions based on schema parameters. Exports `execute_pipeline`, `StepResult`, `ModuleResult`, `BatchResult`. |
+| **pipeline_cli** | Pipeline | The primary operational interface for headless executions (standalone CLI). |
+| **cleanup_workspace** | Pipeline | Deletes outdated execution outputs based on retention policies (standalone CLI). |
+| **config** | Infrastructure | Loads JSON config with env overrides. Exports `load_config`, `get_config_value`. |
+| **script_runner** | Infrastructure | Manages skill/agent script path resolution and invocation. Exports `find_skill_script`, `find_agent_script`, `run_skill_script`, `get_workspace_root`. |
+| **session_utils** | Infrastructure | Session ID resolution and scratchpad paths. Exports `resolve_session_id`, `scratchpad_path`, `read_hook_input`. |
+| **agent_common** | Infrastructure | Base classes for agent orchestration. Exports `AgentBase`, `AgentOrchestrator`, `AgentStep`, `AgentStepResult`. |
+| **unified_search** | Infrastructure | Multi-dimension search across module DBs (standalone CLI, also importable). Exports `run_search`. |
+| **health_check** | CLI Script | Workspace data and DB health checks (standalone). |
+| **qa_runner** | CLI Script | QA test plan runner (standalone). |
+| **json_extract** | CLI Script | Extract keys or grep in JSON files with workspace-envelope auto-unwrap (standalone). |
+| **ipc_index_inspect** | CLI Script | IPC index diagnostics: COM/RPC/WinRT server counts, module attribution, edges (standalone). |
+| **select_audit_callees** | CLI Script | Select callees for /audit deep extraction steps (standalone). |
+| **select_backward_traces** | CLI Script | Select backward trace targets for /audit (standalone). |
 
 ## Operational Anti-Patterns
 
@@ -734,36 +746,39 @@ The shared Python library operates at the foundational tier, exposing core progr
 
 ## Command to Skill Matrix
 
-- **audit**: decompiled-code-extractor, security-dossier, map-attack-surface, callgraph-tracer, classify-functions, ai-taint-scanner, function-index
-- **batch-audit**: security-dossier, ai-taint-scanner, exploitability-assessment, classify-functions, map-attack-surface, rpc-interface-analysis, com-interface-analysis, winrt-interface-analysis, function-index, decompiled-code-extractor
-- **cache-manage**: classify-functions, callgraph-tracer, generate-re-report
+- **ai-logical-bug-scan**: ai-logic-scanner, decompiled-code-extractor, map-attack-surface
+- **audit**: decompiled-code-extractor, security-dossier, map-attack-surface, callgraph-tracer, classify-functions, import-export-resolver
+- **batch-audit**: security-dossier, exploitability-assessment, classify-functions, map-attack-surface, rpc-interface-analysis, com-interface-analysis, winrt-interface-analysis
+- **cache-manage**: (helpers only)
 - **callgraph**: decompiled-code-extractor, callgraph-tracer
 - **com**: com-interface-analysis, decompiled-code-extractor, map-attack-surface
-- **compare-modules**: decompiled-code-extractor, callgraph-tracer, generate-re-report, classify-functions, import-export-resolver, function-index
+- **compare-modules**: decompiled-code-extractor, callgraph-tracer, generate-re-report, classify-functions, import-export-resolver
 - **diff**: decompiled-code-extractor, classify-functions, map-attack-surface
-- **explain**: function-index, decompiled-code-extractor, classify-functions
-- **full-report**: decompiled-code-extractor, generate-re-report, classify-functions, map-attack-surface, callgraph-tracer, com-interface-reconstruction, ai-taint-scanner, security-dossier, reconstruct-types, function-index
-- **hunt-plan**: classify-functions, map-attack-surface, security-dossier, ai-taint-scanner
-- **hunt-execute**: ai-taint-scanner, security-dossier, map-attack-surface, callgraph-tracer, exploitability-assessment
-- **imports**: import-export-resolver
-- **lift-class**: decompiled-code-extractor, batch-lift, reconstruct-types
-- **ai-logical-bug-scan**: ai-logic-scanner, decompiled-code-extractor
-- **memory-scan**: ai-memory-corruption-scanner, decompiled-code-extractor
-- **prioritize**: decompiled-code-extractor
-- **reconstruct-types**: reconstruct-types, decompiled-code-extractor, com-interface-reconstruction
+- **explain**: decompiled-code-extractor, classify-functions
+- **full-report**: decompiled-code-extractor, generate-re-report, classify-functions, map-attack-surface, callgraph-tracer, com-interface-reconstruction, reconstruct-types
+- **health**: (helpers only)
+- **hunt-execute**: security-dossier, map-attack-surface, callgraph-tracer, exploitability-assessment
+- **hunt-plan**: classify-functions, map-attack-surface, security-dossier
+- **imports**: import-export-resolver, decompiled-code-extractor
+- **lift-class**: decompiled-code-extractor, reconstruct-types, batch-lift
+- **memory-scan**: ai-memory-corruption-scanner, decompiled-code-extractor, map-attack-surface
+- **pipeline**: (agents: triage-coordinator, security-auditor)
+- **prioritize**: decompiled-code-extractor, exploitability-assessment
+- **reconstruct-types**: decompiled-code-extractor, reconstruct-types, com-interface-reconstruction
 - **rpc**: rpc-interface-analysis, decompiled-code-extractor, map-attack-surface
-- **scan**: ai-memory-corruption-scanner, ai-logic-scanner, ai-taint-scanner, map-attack-surface, exploitability-assessment, decompiled-code-extractor
-- **taint**: ai-taint-scanner, function-index, decompiled-code-extractor
-- **audit**: decompiled-code-extractor, security-dossier, map-attack-surface, callgraph-tracer, classify-functions, ai-taint-scanner, import-export-resolver, function-index
-- **triage**: decompiled-code-extractor, generate-re-report, classify-functions, callgraph-tracer, map-attack-surface, ai-taint-scanner, function-index
+- **runs**: (helpers only)
+- **scan**: decompiled-code-extractor, ai-memory-corruption-scanner, ai-logic-scanner, ai-taint-scanner, map-attack-surface, exploitability-assessment, security-dossier
+- **search**: decompiled-code-extractor
+- **taint**: ai-taint-scanner, decompiled-code-extractor, map-attack-surface
+- **triage**: decompiled-code-extractor, generate-re-report, classify-functions, callgraph-tracer, map-attack-surface
 - **winrt**: winrt-interface-analysis, decompiled-code-extractor, map-attack-surface
 - **xref**: callgraph-tracer, function-index
 
 ## Agent to Skill Matrix
 
-- **re-analyst**: classify-functions, generate-re-report, decompiled-code-extractor, callgraph-tracer, ai-taint-scanner
-- **triage-coordinator**: classify-functions, map-attack-surface, callgraph-tracer, security-dossier, reconstruct-types, com-interface-reconstruction, decompiled-code-extractor, ai-taint-scanner, import-export-resolver
-- **security-auditor**: decompiled-code-extractor, classify-functions, map-attack-surface, security-dossier, ai-taint-scanner, exploitability-assessment, ai-memory-corruption-scanner, ai-logic-scanner
+- **re-analyst**: classify-functions, generate-re-report, decompiled-code-extractor, callgraph-tracer
+- **triage-coordinator**: classify-functions, map-attack-surface, callgraph-tracer, security-dossier, generate-re-report, reconstruct-types, com-interface-reconstruction, decompiled-code-extractor, import-export-resolver, batch-lift
+- **security-auditor**: decompiled-code-extractor, classify-functions, map-attack-surface, security-dossier, exploitability-assessment, ai-memory-corruption-scanner, ai-logic-scanner, ai-taint-scanner
 - **code-lifter**: decompiled-code-extractor, batch-lift, reconstruct-types, function-index
 - **type-reconstructor**: decompiled-code-extractor, reconstruct-types, com-interface-reconstruction
 - **memory-corruption-scanner**: ai-memory-corruption-scanner, decompiled-code-extractor, map-attack-surface
@@ -779,9 +794,20 @@ The following operations mandate the instantiation of a scratchpad artifact:
 - **hunt-execute**
 - **lift-class**
 
-## Cache Target Execution
+## Cacheable Skills
 
-The following processes generate payload artifacts governed by timestamp invalidation matrices:
+The following 8 skills generate cached artifacts governed by DB mtime validation and 24h TTL:
+
+- **callgraph-tracer**: cache key `call_graph`
+- **classify-functions**: cache keys `triage_summary`, `classify_module`
+- **com-interface-reconstruction**: cache key `scan_com_interfaces`
+- **generate-re-report**: cache keys `analyze_topology`, `analyze_imports`, `analyze_strings`, `analyze_complexity`
+- **import-export-resolver**: cache key `import_export_index`
+- **map-attack-surface**: cache key `discover_entrypoints`
+- **reconstruct-types**: cache key `scan_struct_fields`
+- **security-dossier**: cache key `security_dossier`
+
+All cacheable skills accept `--no-cache` to force recomputation.
 
 # Glossary
 

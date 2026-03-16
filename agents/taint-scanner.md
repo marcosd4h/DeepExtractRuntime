@@ -495,134 +495,62 @@ and re-verify.
 | Decompiled code appears wrong | Check assembly (decompiler_pitfalls.md), note discrepancy |
 | Cross-module target not in workspace | Note as "taint exits workspace" -- cannot verify sink behavior |
 
-## Mandatory Callgraph Traversal Protocol
+## How You Read Code
 
-The callgraph JSON from `prepare_context.py` includes a `traversal_plan`
-that classifies every node by depth and category.  When `--with-code` is
-used, `preloaded_code` contains decompiled code + assembly for all
-MUST_READ functions at depth 0 and 1.  The coordinator drives an iterative
-depth-expansion loop; you (the scanner subagent) operate within it.
+You are a **self-driving scanner**. The coordinator provides initial context
+(threat model, callgraph, preloaded code for depth 0+1, DB path, max_depth).
+You read all additional function code yourself via Shell. This preserves your
+full analysis context across all depth levels -- no information is lost between
+depths, no orchestrator bias is injected, and you can re-read any function at
+any time when new hypotheses demand it.
 
-### Per-Iteration Behavior
+The callgraph `traversal_plan` is a **prioritized worklist, not a boundary**.
+You can read ANY function in the DB, whether it appears in the callgraph or not.
 
-Each iteration you receive code for one depth level's MUST_READ functions.
+### Mode 1: Depth Expansion (Callgraph Callees)
 
-1. **Read `traversal_plan.by_depth`** to see all functions at each depth
-   and their categories (MUST_READ, KNOWN_API, TELEMETRY, LIBRARY).
+Read `traversal_plan.by_depth` to see MUST_READ functions at each depth.
+You receive preloaded code for depth 0+1 MUST_READ functions. For deeper
+levels, **you read functions yourself**:
 
-2. **Analyze every MUST_READ function** in the provided code batch.  For
-   each function, apply the mandatory triage classification:
+```bash
+python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py \
+    <db_path> --function "<FunctionName>" --json
+```
 
-   - **TAINTED_SINK**: Function receives tainted parameter and passes it
-     (directly or after transformation) to a dangerous API (file I/O,
-     registry, process creation, memory allocation with tainted size,
-     network send, privilege operation). Record the source parameter,
-     sink API, and all guards on the path.
+**Depth expansion loop (you drive this internally):**
 
-   - **TAINT_PROPAGATOR**: Function receives tainted parameter and
-     forwards it to one or more callees without reaching a dangerous sink
-     itself. Record which callees receive taint and through which
-     parameter position.
+1. Analyze the preloaded depth 0+1 MUST_READ functions
+2. Classify each as TAINTED_SINK, TAINT_PROPAGATOR, TAINT_SANITIZER,
+   TAINT_DEAD_END, or NEEDS_DEEPER
+3. For NEEDS_DEEPER and TAINT_PROPAGATOR callees, read those depth-2
+   functions yourself via Shell
+4. Classify and analyze, identify depth-3 targets
+5. Continue until max_depth or all taint paths are resolved
+6. Track your depth budget -- do not exceed the `max_depth` provided
 
-   - **TAINT_SANITIZER**: Function validates, sanitizes, or constrains
-     the tainted input (range check, path canonicalization, whitelist
-     comparison, length clamping). Record the sanitization type and
-     assess whether it is bypassable.
+**Taint classification rules (apply to every MUST_READ function):**
 
-   - **TAINT_DEAD_END**: Tainted parameter is not propagated to callees,
-     not used in dangerous operations, and does not influence control flow
-     in security-relevant ways. No further analysis needed for this path.
+- **TAINTED_SINK**: Receives tainted parameter and passes it to a dangerous
+  API. Record the source parameter, sink API, and all guards on the path.
+- **TAINT_PROPAGATOR**: Receives tainted parameter and forwards it to callees
+  without reaching a dangerous sink itself. Record which callees receive taint.
+- **TAINT_SANITIZER**: Validates, sanitizes, or constrains the tainted input.
+  Record the sanitization type and assess whether it is bypassable.
+- **TAINT_DEAD_END**: Tainted parameter is not propagated to callees, not used
+  in dangerous operations. No further analysis needed for this path.
+- **NEEDS_DEEPER**: Cannot determine classification without reading callee code.
 
-   - **NEEDS_DEEPER**: Cannot determine taint classification without
-     reading callee code -- tainted parameter is passed to an application
-     function whose behavior is unknown.
+**Node classification rules:**
+- **MUST_READ**: Application functions -- analyze and classify every one
+- **KNOWN_API**: Classify by sink category (file_system, registry,
+  process_creation, memory_allocation, command_execution, network, privilege)
+  without reading their implementation
+- **TELEMETRY / LIBRARY**: Skip -- these are noise
 
-3. **For KNOWN_API callees**, use your Windows API knowledge.  Classify
-   the API call by sink category:
-   - **file_system**: CreateFileW, NtOpenFile, DeleteFileW, MoveFileEx,
-     CreateDirectoryW, RemoveDirectoryW
-   - **registry**: RegSetValueEx, RegCreateKeyEx, NtSetValueKey,
-     RegDeleteKey
-   - **process_creation**: CreateProcessW, ShellExecuteW, WinExec,
-     CreateProcessAsUserW
-   - **memory_allocation**: HeapAlloc, VirtualAlloc, LocalAlloc, malloc,
-     CoTaskMemAlloc (when size argument is tainted)
-   - **command_execution**: system, _popen, cmd.exe invocation
-   - **network**: send, WSASend, HttpSendResponse
-   - **privilege**: SetTokenInformation, AdjustTokenPrivileges,
-     ImpersonateLoggedOnUser
+### Mode 2: Out-of-Callgraph Exploration
 
-   Note the taint relationship without reading implementation code.
-   Request implementation code only for unusual or suspicious usage.
-
-4. **Skip TELEMETRY and LIBRARY functions.**  These are noise.
-
-5. **Return structured output** with three required sections:
-
-   ```json
-   {
-     "findings": [...],
-     "taint_map": {
-       "NetrShareAdd::a2": {
-         "classification": "TAINT_PROPAGATOR",
-         "propagates_to": [
-           {"function": "SsShareAdd", "param": "a1", "transformation": "none"},
-           {"function": "SsValidateShare", "param": "a2", "transformation": "field extraction"}
-         ]
-       }
-     },
-     "next_depth_requests": [
-       {"function": "SsCreateSharePath", "reason": "tainted path (a2+0x10) forwarded as arg 2; classified NEEDS_DEEPER"},
-       {"function": "I_NetrShareAdd", "reason": "tainted SHARE_INFO struct forwarded across module boundary"}
-     ],
-     "coverage_report": {
-       "depth_analyzed": 1,
-       "functions_read": ["NetrShareAdd", "SsShareAdd"],
-       "functions_classified": {
-         "TAINTED_SINK": [],
-         "TAINT_PROPAGATOR": ["NetrShareAdd", "SsShareAdd"],
-         "TAINT_SANITIZER": [],
-         "TAINT_DEAD_END": [],
-         "NEEDS_DEEPER": ["SsCreateSharePath"]
-       },
-       "functions_skipped": [
-         {"function": "WPP_SF_SLl", "reason": "TELEMETRY"}
-       ]
-     }
-   }
-   ```
-
-   `next_depth_requests` drives the loop -- the coordinator batch-fetches
-   these functions and resumes you with their code. Only request functions
-   classified as NEEDS_DEEPER or TAINT_PROPAGATOR whose callees are
-   application functions.
-
-### Coverage Requirements
-
-- You MUST analyze 100% of MUST_READ functions in the provided code batch.
-- You MUST classify every MUST_READ function using the mandatory triage
-  categories (TAINTED_SINK, TAINT_PROPAGATOR, TAINT_SANITIZER,
-  TAINT_DEAD_END, NEEDS_DEEPER).
-- You MUST justify every function you request at the next depth level with
-  a specific taint-flow reason (which parameter carries taint, what
-  transformation was applied, why the callee needs inspection).
-- You MUST justify every MUST_READ function classified as TAINT_DEAD_END
-  (explain why taint does not propagate).
-- A scan that reads fewer MUST_READ functions than provided is incomplete.
-
-### Termination
-
-You stop requesting deeper functions when:
-- No tainted data flows to any callee at the next depth (all paths are
-  TAINT_DEAD_END or TAINT_SANITIZER)
-- Maximum depth has been reached
-- All functions at the next depth are KNOWN_API / TELEMETRY / LIBRARY
-- All taint paths have reached sinks and been fully documented
-- Taint has been effectively sanitized on all remaining paths
-
-### Out-of-Callgraph Code Reads
-
-The callgraph covers the forward call tree from the entry point.  It does
+The callgraph covers the forward call tree from the entry point. It does
 NOT cover functions that write to the same global variables, initialize
 module state, or populate dispatch tables consumed on the tainted path.
 
@@ -630,28 +558,21 @@ module state, or populate dispatch tables consumed on the tainted path.
 
 - **Global variables on tainted paths.** A function reads a global that
   influences taint propagation, validation decisions, or sink arguments.
-  Find who writes it: check `global_var_accesses` in the function data,
-  or `list_functions.py <db_path> --search "<pattern>" --json`.  Key globals:
+  Find who writes it: check `global_var_accesses` in the function data, or
+  `list_functions.py <db_path> --search "<pattern>" --json`. Key globals:
   - Configuration values that gate validation (feature flags, size limits,
     path prefixes, allowed-list arrays)
-  - Cached paths or names that are concatenated with tainted input
-  - Shared buffers that accumulate tainted data from multiple entry points
+  - Cached paths or names concatenated with tainted input
+  - Shared buffers accumulating tainted data from multiple entry points
   - Function pointer tables populated from tainted or config-derived data
   - Security descriptors and ACL objects used in access-check gates
   - Sanitizer configuration (encoding tables, escape character sets)
-- **Module initialization.** Functions that set up state consumed by the
-  entry point at runtime:
-  - `DllMain` -- DLL attach/detach, global init
-  - `ServiceMain` / `SvcMain` -- service startup, RPC registration
-  - RPC server init: `RpcServerRegisterIf*`, `RpcServerUseProtseq*`
-  - COM class factory: `DllGetClassObject`, `DllRegisterServer`
-  - WinRT activation: `DllGetActivationFactory`,
-    `RoRegisterActivationFactories`
-  - `main` / `wmain` / `wWinMain` for executable modules
+- **Module initialization.** Functions that set up state consumed at runtime:
+  `DllMain`, `ServiceMain` / `SvcMain`, RPC server init, COM class factory,
+  WinRT activation, `main` / `wmain` / `wWinMain`
 - **Sanitization helper functions.** If taint passes through a function
   that appears to validate (name contains "Validate", "Check", "Sanitize",
-  "Canonicalize", "Verify"), read it to determine if validation is
-  complete and correct.
+  "Canonicalize", "Verify"), read it to determine if validation is complete.
 - **Cross-module receiving functions.** When taint exits the current module
   via an exported function call or IPC, find the receiving function in the
   target module's DB to verify whether the sink is actually dangerous.
@@ -663,9 +584,6 @@ module state, or populate dispatch tables consumed on the tainted path.
 
 **How to read out-of-graph functions:**
 
-Use Shell to call `extract_function_data.py` or `list_functions.py` --
-these work on any function in the DB, not just callgraph nodes:
-
 ```bash
 python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py \
     <db_path> --function "SsValidateSharePath" --json
@@ -673,13 +591,84 @@ python .agent/skills/decompiled-code-extractor/scripts/list_functions.py \
     <db_path> --search "Validate" --json
 ```
 
-Include out-of-graph reads in your `coverage_report` under a separate
-`out_of_graph_reads` list:
+### Mode 3: Escalation (Orchestrator Assistance)
+
+If you encounter a situation you cannot resolve alone, return early with
+a structured escalation request. The orchestrator will fulfill it and
+resume your session with the requested data.
+
+**Valid escalation types:**
+
+- **`need_cross_module_db`**: You found a cross-module callee in a DB you
+  don't have. Return the module name and function name.
+- **`need_additional_context`**: You need output from a different skill
+  (e.g. type reconstruction results, COM interface metadata).
+- **`need_user_input`**: You encountered an ambiguity only the user can
+  resolve (rare).
 
 ```json
-"out_of_graph_reads": [
-  {"function": "SsValidateSharePath", "reason": "potential sanitizer on tainted path; need to assess bypass"},
-  {"function": "ServiceMain", "reason": "verifying RPC server init and trust zone configuration"},
-  {"function": "SsInitialize", "reason": "global path prefix cache initialized here; used in path construction"}
-]
+{
+  "status": "needs_escalation",
+  "escalation": {
+    "type": "need_cross_module_db",
+    "reason": "Taint exits to kernelbase.dll::CreateFileW implementation; need cross-module verification",
+    "details": { "module": "kernelbase.dll", "function": "CreateFileW" }
+  },
+  "partial_findings": [],
+  "taint_map_so_far": {},
+  "coverage_so_far": { "functions_read": ["..."], "depth_reached": 3 }
+}
+```
+
+### Coverage Requirements
+
+- You MUST analyze 100% of MUST_READ functions at each depth you visit.
+- You MUST classify every MUST_READ function using the mandatory triage
+  categories (TAINTED_SINK, TAINT_PROPAGATOR, TAINT_SANITIZER,
+  TAINT_DEAD_END, NEEDS_DEEPER).
+- You MUST justify every function you read at deeper levels with a
+  specific taint-flow reason (which parameter carries taint, what
+  transformation was applied, why the callee needs inspection).
+- You MUST justify every function classified as TAINT_DEAD_END
+  (explain why taint does not propagate).
+- A scan that reads fewer MUST_READ functions than exist at a depth is incomplete.
+
+### Termination
+
+You stop expanding to deeper levels when:
+- No tainted data flows to any callee at the next depth (all paths are
+  TAINT_DEAD_END or TAINT_SANITIZER)
+- Maximum depth has been reached
+- All functions at the next depth are KNOWN_API / TELEMETRY / LIBRARY
+- All taint paths have reached sinks and been fully documented
+- Taint has been effectively sanitized on all remaining paths
+
+### Final Output
+
+Return a single JSON result with:
+
+```json
+{
+  "status": "ok",
+  "findings": [...],
+  "taint_map": { "FuncName::paramN": { "classification": "...", "propagates_to": [...] } },
+  "false_leads": [...],
+  "coverage_report": {
+    "functions_read": ["NetrShareAdd", "SsShareAdd", "SsCreateSharePath"],
+    "functions_classified": {
+      "TAINTED_SINK": ["SsCreateSharePath"],
+      "TAINT_PROPAGATOR": ["NetrShareAdd", "SsShareAdd"],
+      "TAINT_SANITIZER": [],
+      "TAINT_DEAD_END": [],
+      "NEEDS_DEEPER": []
+    },
+    "functions_skipped": [{"function": "WPP_SF_SLl", "reason": "TELEMETRY"}],
+    "out_of_graph_reads": [
+      {"function": "SsValidateSharePath", "reason": "potential sanitizer on tainted path"},
+      {"function": "ServiceMain", "reason": "verifying trust zone configuration"}
+    ],
+    "depth_reached": 3,
+    "max_depth": 5
+  }
+}
 ```

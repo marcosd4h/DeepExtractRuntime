@@ -115,8 +115,9 @@ python .agent/skills/ai-memory-corruption-scanner/scripts/prepare_context.py <db
 Output: JSON with callgraph nodes, edges, `traversal_plan` (by-depth
 classification), entry point metadata with IPC reachability, and optionally
 `preloaded_code` (decompiled code + assembly for depth 0+1 MUST_READ
-functions).  Deeper levels are batch-fetched by the coordinator based on
-the scanner agent's `next_depth_requests`.
+functions).  The scanner subagent reads deeper levels itself via Shell
+using `extract_function_data.py` -- the coordinator does NOT batch-fetch
+code for the scanner.
 
 ## Workflows
 
@@ -127,10 +128,9 @@ the scanner agent's `next_depth_requests`.
 - [ ] Phase 2: **(MANDATORY)** Quick triage -- LLM assesses likely/unlikely per
       entry point based on callgraph structure alone (no code reading).  Write
       result to workspace `triage/` step.  See **Mandatory Quick Triage Protocol**.
-- [ ] Phase 3: Iterative depth analysis -- for each **likely** entry point, LLM
-      receives depth 0+1 code, analyzes, returns `next_depth_requests`;
-      coordinator batch-fetches deeper functions and resumes the agent until
-      max depth or no more requests
+- [ ] Phase 3: Self-driving deep analysis -- launch a SINGLE scanner subagent
+      with depth 0+1 code, callgraph, threat model, and DB path; the scanner
+      reads deeper functions itself via Shell until max depth or taint termination
 - [ ] Phase 4: Skeptic verification -- independent LLM verifies each finding
 - [ ] Phase 5: Report -- merge verified findings, include coverage report
 
@@ -142,7 +142,7 @@ the scanner agent's `next_depth_requests`.
       trivial "likely" assessment with recorded reasoning (user-directed target).
       Write result to workspace `triage/` step.  See **Mandatory Quick Triage
       Protocol**.
-- [ ] Phase 3: Iterative depth analysis on the single function's callgraph
+- [ ] Phase 3: Self-driving deep analysis on the single function's callgraph
 - [ ] Phase 4: Skeptic verification
 - [ ] Phase 5: Report with per-depth coverage breakdown
 

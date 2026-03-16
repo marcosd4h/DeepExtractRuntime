@@ -363,6 +363,18 @@ Merges, deduplicates, and ranks findings across multiple scanner outputs.
 - `findings_summary(findings: list[Finding])` -> dict
   - Produces summary: total count, by_severity, by_source, top_score.
 
+### report_comparison
+Cross-report finding comparison for AI vulnerability scanners.
+
+- `discover_reports(reports_dir: Path, scan_type: str | None = None)` -> list[ReportMeta]
+  - Finds `.findings.json` companion files in a reports directory, sorted by timestamp (newest first).
+- `load_findings_json(path: Path)` -> dict
+  - Loads and validates a `.findings.json` companion file. Raises FileNotFoundError or ValueError.
+- `compare_findings(current: dict, previous: dict)` -> ComparisonResult
+  - Compares findings between two scan reports. Matches by vulnerability_type + primary_function. Returns recurring, new, missed, severity changes, verdict conflicts, remediation changes, coverage delta.
+- `format_comparison_section(result: ComparisonResult, previous_report_path: str | None, previous_timestamp: str | None)` -> str
+  - Generates a markdown `## Previous Findings Comparison` section for appending to scan reports.
+
 ## 12. Assembly Analysis
 
 ### calling_conventions

@@ -1,0 +1,126 @@
+# AI Scanner Orchestration
+
+## Self-Driving Scanner Model
+
+AI scanner subagents (memory-corruption-scanner, logic-scanner, taint-scanner)
+are **self-driving**. The orchestrator launches each scanner ONCE for Phase 3
+(deep analysis). The scanner reads deeper functions itself via Shell using
+`extract_function_data.py`. The orchestrator does NOT drive an iterative
+depth-expansion loop.
+
+## Orchestrator Responsibilities
+
+| Phase | Orchestrator Action |
+|-------|-------------------|
+| Phase 0 | Run `build_threat_model.py` script |
+| Phase 1 | Run `prepare_context.py` script |
+| Phase 2 | Launch `security-auditor` subagent for triage |
+| Phase 3 | Launch scanner subagent **ONCE** with initial context |
+| Phase 3 (escalation) | If scanner returns `needs_escalation`, resolve and resume SAME instance |
+| Phase 4 | Launch `security-auditor` subagent per finding for skeptic verification |
+| Phase 5 | Write report from verified findings |
+
+## Scanner Subagent Receives
+
+1. Threat model content (from Phase 0)
+2. Callgraph structure + traversal_plan (from Phase 1)
+3. Preloaded code for depth 0+1 MUST_READ functions
+4. `db_path` for on-demand code retrieval via Shell
+5. Reference material paths (vulnerability_patterns.md, decompiler_pitfalls.md)
+6. `max_depth` parameter
+
+## Scanner Subagent Drives
+
+- Depth expansion: reads callgraph callees at deeper levels via Shell
+- Out-of-callgraph exploration: reads globals writers, initializers, dispatch
+  populators via Shell
+- Escalation: returns structured `needs_escalation` when it needs orchestrator
+  help (cross-module DB, additional skill output, user input)
+
+## Skeptic Subagent Receives
+
+The coordinator extracts and assembles these into the skeptic's Task prompt:
+
+1. The finding JSON (structured, not paraphrased) including `verification_subgraph`
+   with `call_chain`, `nodes`, `edges`, `must_read`, and `db_path`.
+2. The MUST_READ sub-callgraph extracted from `<run_dir>/context/results.json`:
+   - MUST_READ functions by depth (from `traversal_plan.by_depth`)
+   - Edges between MUST_READ functions (filtered from `callgraph.edges` to
+     only edges where both source and target are MUST_READ nodes)
+   This is the neighborhood map (~50-100 application functions) so the skeptic
+   can navigate beyond the finding's narrow chain without parsing the full
+   callgraph (which may have 1,000+ nodes including library/API stubs).
+3. Callgraph context file path: `<run_dir>/context/results.json` (for full
+   detail if the sub-callgraph is insufficient)
+4. The `extract_function_data.py` command template with `db_path` filled in
+5. Explicit permission to read any function in the DB beyond `must_read`
+6. Reference material paths (vulnerability_patterns.md, decompiler_pitfalls.md)
+7. The skeptic self-doubt prompt and 4 scanner-specific verification criteria
+
+If a finding lacks `verification_subgraph` (e.g. secondary findings outside
+the scanner's primary vulnerability class), the coordinator MUST construct one
+from the finding's location and the callgraph context before launching the
+skeptic subagent.
+
+## Escalation Protocol
+
+When the scanner cannot resolve a code read alone, it returns:
+
+```json
+{
+  "status": "needs_escalation",
+  "escalation": {
+    "type": "need_cross_module_db | need_additional_context | need_user_input",
+    "reason": "...",
+    "details": { ... }
+  },
+  "partial_findings": [...],
+  "coverage_so_far": { ... }
+}
+```
+
+The orchestrator resolves the request and resumes the SAME scanner instance
+via `Task(resume=<agent_id>)`. Provide ONLY the requested data -- no analysis,
+no summaries, no pre-chewed conclusions.
+
+## Status Messaging Protocol
+
+The orchestrator MUST keep the user informed of scan progress. At each
+phase boundary, output a plain-text status message (not a tool call, not
+JSON -- just text to the user).
+
+**Before each phase:** Announce what is starting in one line.
+**After each phase:** Report the key stats from the phase output in 1-2 lines.
+
+| Phase | Before Message | After Message (derived from) |
+|-------|---------------|------------------------------|
+| Phase 0 | `Building threat model for <module>...` | Service type, attacker model, entry point count (from script summary) |
+| Phase 1 | `Preparing callgraph from <function/entry-points> (depth <N>)...` | Node count, edge count, MUST_READ count, module count (from script summary) |
+| Phase 2 | `Running triage assessment...` | Likely/unlikely counts, names of likely entry points (from triage subagent) |
+| Phase 3 | `Launching <scanner-type> scanner (self-driving, max depth <N>)...` | Finding count, false lead count, depth reached, functions analyzed (from scanner output) |
+| Phase 4 | `Verifying <N> findings with independent skeptic...` | TRUE_POSITIVE / FALSE_POSITIVE counts (from skeptic output). Skip if 0 findings. |
+| Phase 5 | `Writing final report...` | Report saved path (from file write) |
+
+**Rules:**
+- Messages are concise -- 1-2 lines each. Not a data dump.
+- After-phase messages extract key numbers from the data the orchestrator
+  already reads (script stdout summary, subagent response JSON).
+- If a phase produces zero results (e.g., 0 findings), say so explicitly
+  rather than silently moving on.
+- Do NOT suppress status messages to "save time." The user needs to know
+  what is happening during multi-minute scans.
+
+## Anti-Patterns (Protocol Violations)
+
+| Anti-Pattern | Why It's Wrong |
+|-------------|----------------|
+| Launching a second scanner instance for deeper depths | Loses all accumulated context (assembly-verified hypotheses, cross-depth correlations, coverage tracking) |
+| Pre-analyzing functions in the orchestrator prompt | Injects orchestrator bias; scanner must form independent adversarial assessments |
+| Batch-fetching code and resuming scanner between depths | Violates self-driving model; scanner reads its own code via Shell |
+| Stripping scanner Shell access (readonly mode) | Scanner cannot drive depth expansion without Shell |
+| Resuming scanner with orchestrator analysis summaries | Bias injection; resume must provide raw data only |
+| Summarizing depth-N findings before passing to depth-N+1 scanner | Information loss; single scanner instance retains full context |
+| Passing findings to skeptic as prose summary instead of structured JSON | Skeptic loses field-level detail (function_id, call_chain, code evidence) |
+| Omitting MUST_READ sub-callgraph from skeptic prompt | Skeptic has no neighborhood map and cannot verify reachability or check adjacent functions |
+| Omitting `extract_function_data.py` command from skeptic prompt | Skeptic cannot independently read code -- forced to rely on scanner's excerpts |
+| Restricting skeptic to only `verification_subgraph.must_read` functions | Skeptic may need to verify guards, callers, or adjacent branches outside the finding's chain |

@@ -101,14 +101,16 @@ The live registry (`commands/registry.json`) defines the current set.
 ### Agents
 
 Agents are specialized subagents loaded from `.agent/agents/`. The live
-registry currently defines **6 agents**:
+registry currently defines **8 agents**:
 
-- `re-analyst`
-- `triage-coordinator`
-- `security-auditor`
-- `type-reconstructor`
-- `verifier`
-- `code-lifter`
+- `re-analyst` -- explain and analyze decompiled functions
+- `triage-coordinator` -- orchestrate multi-skill module analysis
+- `security-auditor` -- vulnerability scanning, exploitability, finding verification
+- `code-lifter` -- lift function groups with shared struct context
+- `type-reconstructor` -- reconstruct C/C++ structs from memory patterns
+- `memory-corruption-scanner` -- AI-driven memory corruption detection (LLM-only)
+- `logic-scanner` -- AI-driven logic vulnerability detection (LLM-only)
+- `taint-scanner` -- AI-driven taint analysis with trust boundary tracking (LLM-only)
 
 ### Skills
 
@@ -304,6 +306,9 @@ The runtime ships the following rules in `.agent/rules/`:
 | `missing-dependency-handling.mdc` | Graceful degradation behavior |
 | `script-invocation-guide.mdc` | Script CLI signatures, DB path resolution, common mistakes |
 | `call-discovery-convention.mdc` | Xref-first call discovery, forbidden regex-only patterns |
+| `ai-scanner-orchestration.mdc` | Self-driving AI scanner phases, escalation, skeptic verification |
+| `agent-tool-guardrails.mdc` | Shell pre-flight checklist, data access decision tree, path quoting |
+| `cache-conventions.mdc` | Cache location, TTL, DB-mtime invalidation, `--no-cache` bypass |
 
 ---
 

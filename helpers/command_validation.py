@@ -206,6 +206,7 @@ _COMMAND_REQUIREMENTS: dict[str, dict] = {
     "memory-scan": {"requires": ["module"]},
     "ai-logical-bug-scan": {"requires": ["module"]},
     "callgraph": {"requires": ["module"]},
+    "compare-scans": {"requires": ["module"]},
     "imports": {"requires": []},
     "strings": {"requires": ["module"]},
     "scan": {"requires": ["module"]},

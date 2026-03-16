@@ -14,9 +14,9 @@ The `/scan` command is a **unified vulnerability scan** that orchestrates multip
 
 | Pipeline | Scripts / Components |
 |----------|----------------------|
-| **Memory corruption** | `build_threat_model.py`, `prepare_context.py` + LLM-driven analysis via `/memory-scan` |
-| **Logic vulnerabilities** | `build_threat_model.py`, `prepare_context.py` + LLM-driven analysis via `/ai-logical-bug-scan` |
-| **Taint analysis** | Entry point discovery → `rank_entrypoints.py` → AI-driven taint via `taint-scanner` subagent on top 5 ranked entry points |
+| **Memory corruption** | `build_threat_model.py`, `prepare_context.py` + self-driving LLM scanner via `/memory-scan` (single subagent launch; scanner reads deeper code itself via Shell) |
+| **Logic vulnerabilities** | `build_threat_model.py`, `prepare_context.py` + self-driving LLM scanner via `/ai-logical-bug-scan` (single subagent launch; scanner reads deeper code itself via Shell) |
+| **Taint analysis** | Entry point discovery → `rank_entrypoints.py` → self-driving taint via `taint-scanner` subagent on top 5 ranked entry points (single subagent launch; scanner reads deeper code itself via Shell) |
 | **Verification** | Skeptic verification (memory, logic, and taint pipelines all include skeptic verification) |
 | **Exploitability** | `assess_finding.py` or `batch_assess.py` for CRITICAL/HIGH findings |
 
@@ -66,6 +66,7 @@ The scan produces a consolidated report with:
 5. **Recommended Next Steps**
    - `/audit <module> <function>` — deep audit on CRITICAL/HIGH findings
    - `/taint <module> <function> --cross-module` — cross-module impact
+   - `/compare-scans <module> [--type logic|memory|taint]` — compare against previous scan reports
    - `/hunt-plan hypothesis <type> <module>` — hypothesis-driven investigation
    - `/explain <module> <function>` — understand what a flagged function does
 
@@ -160,7 +161,10 @@ Researcher: "I want to understand finding #2"
 - `build_threat_model.py <db_path> --json` -- Build taint threat model
 - `prepare_context.py <db_path> --function <name> --with-code --json` -- Prepare function context for LLM-driven analysis
 
-The `taint-scanner` subagent consumes the prepared context and performs LLM-driven taint analysis with trust boundary analysis and skeptic verification.
+The `taint-scanner` subagent is launched ONCE with the prepared context and
+drives its own depth expansion via Shell. It performs LLM-driven taint
+analysis with trust boundary analysis. Skeptic verification runs separately
+as Phase 4.
 
 **Output:** Taint report in chat; optionally saved to `extracted_code/<module>/reports/taint_<function>_<timestamp>.md`.
 
@@ -209,6 +213,7 @@ To support "tell me more about finding #3":
 | Deep audit on a function | `/audit [module] <function>` |
 | Taint trace on a function | `/taint <module> <function>` |
 | Cross-module taint | `/taint <module> <function> --cross-module` |
+| Compare scan reports | `/compare-scans <module> [--type logic\|memory\|taint]` |
 | Quick explanation | `/explain [module] <function>` |
 | Cross-module prioritization | `/prioritize --modules A B \| --all` |
 
