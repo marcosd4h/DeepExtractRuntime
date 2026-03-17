@@ -505,6 +505,36 @@ with slightly different framing across runs.
 **Status messaging:** Report before ("Checking for previous scan reports...")
 and after ("Cross-report: 2 recurring, 1 new, 3 missed").
 
+### Why Stage 5-6 Get Skipped (Root Cause and Mitigation)
+
+Coordinator agents often stop after Stage 4 (skeptic verification) because:
+
+- The analysis is "done" from a reasoning perspective -- all findings are
+  verified or refuted.
+- Presenting findings in chat feels like completion.
+- Writing to disk and comparing to prior runs feel like optional
+  post-processing.
+- The command document is long; Stage 5-6 appear near the end and lack the
+  same structural prominence as the Stage 2-4 compliance checklist.
+
+**Mitigation:** Every AI scanner command MUST include:
+
+1. A **Report and Comparison Checklist (MANDATORY)** section placed
+   immediately before Phase 5, mirroring the existing "Subagent Compliance
+   Checklist (MANDATORY)" that covers Phases 2-4.  This checklist must list
+   Phase 5a (markdown report), Phase 5b (`.findings.json` companion), and
+   Phase 6 (cross-report comparison) as checkable items, with explicit
+   protocol-violation language for skipping any of them.
+
+2. A **Command Completion Criteria** section placed after Phase 6 and before
+   the Output section, stating that the command is NOT complete until the
+   report, companion, and comparison are all done.  This prevents the
+   coordinator from treating Phase 4 as a natural stopping point.
+
+Without both sections, agents will consistently skip report persistence and
+cross-report comparison.  See `memory-scan.md` for the reference
+implementation.
+
 ---
 
 ## 5. Callgraph JSON Schema
@@ -1246,9 +1276,62 @@ Create `.agent/commands/<command-name>.md` per
 
 1. **Header and Overview** with usage examples
 2. **Step 0: Preflight validation** via `validate_command_args()`
-3. **Phase 0-6** implementing the pipeline
-4. **Output** section (report path + format)
-5. **Error handling** table
+3. **Subagent Compliance Checklist (MANDATORY)** -- Phases 2-4
+4. **Phase 0-4** implementing the analysis pipeline
+5. **Report and Comparison Checklist (MANDATORY)** -- Phases 5-6
+6. **Phase 5-6** implementing report persistence and comparison
+7. **Command Completion Criteria** -- explicit "not done until" statement
+8. **Output** section (report path + format)
+9. **Error handling** table
+
+### Report and Comparison Checklist Template
+
+Every AI scanner command MUST include this section immediately before
+Phase 5.  Adapt the report path pattern for your scanner type.
+
+```markdown
+## Report and Comparison Checklist (MANDATORY)
+
+Before considering the command complete, verify the following. Violations
+invalidate the scan.
+
+- [ ] Phase 5a: Markdown report written to
+      `extracted_code/<module>/reports/ai_<type>_scan_<YYYYMMDD_HHMM>.md`
+- [ ] Phase 5b: Companion `.findings.json` written alongside the report
+      (same stem, `.findings.json` extension)
+- [ ] Phase 6: Cross-report comparison executed -- either (a)
+      `## Previous Findings Comparison` appended to report and comparison
+      summary presented to the user, or (b) "First scan of this type for
+      this module" stated explicitly
+
+**Protocol violations:**
+
+- Presenting findings in chat without writing the report and companion to disk
+- Writing only the `.md` report without the `.findings.json` companion
+- Skipping Phase 6 (comparison) without explicitly stating "First scan" when
+  no previous report exists
+- Considering the scan complete after Phase 4 (skeptic verification)
+```
+
+### Command Completion Criteria Template
+
+Every AI scanner command MUST include this section after Phase 6 and
+before the Output section.
+
+```markdown
+## Command Completion Criteria
+
+The command is **NOT complete** until all of the following are true:
+
+1. The markdown report exists at `extracted_code/<module>/reports/ai_<type>_scan_<timestamp>.md`
+2. The `.findings.json` companion exists at the same path with `.findings.json` replacing `.md`
+3. Phase 6 has been executed: either a `## Previous Findings Comparison`
+   section was appended to the report, or the user was told "First scan of
+   this type for this module"
+
+Do NOT consider the scan complete after Phase 4 (skeptic verification).
+Phases 5 and 6 are mandatory -- even when there are zero findings.
+```
 
 ### How Subagents Work in Cursor
 
@@ -1697,6 +1780,10 @@ When adding a new scanner:
       structural_mitigation, remediation, skeptic_verdict, skeptic_criteria)
 - [ ] Phase 6 compares against previous reports using `helpers.report_comparison`
 - [ ] Phase 6 appends `## Previous Findings Comparison` section to report
+- [ ] Command `.md` includes "Report and Comparison Checklist (MANDATORY)"
+      section before Phase 5 (see template in Section 11)
+- [ ] Command `.md` includes "Command Completion Criteria" section after
+      Phase 6 stating the scan is NOT complete until Phases 5 and 6 are executed
 
 ---
 
@@ -1862,15 +1949,30 @@ record reasoning that describes the callgraph characteristics.  Jumping from
 callgraph preparation (Stage 1) directly to deep analysis (Stage 3) is a
 **protocol violation**.
 
+### DO NOT: Consider the command complete after Phase 4
+
+Phase 5 (report + `.findings.json` companion) and Phase 6 (cross-report
+comparison) are mandatory.  Presenting findings in chat without writing
+the report to disk is a protocol violation.  After Phase 4, there are
+still TWO mandatory phases remaining.  The command's "Report and Comparison
+Checklist (MANDATORY)" and "Command Completion Criteria" sections exist
+specifically to prevent this -- read and follow them.
+
 ### DO NOT: Skip the `.findings.json` companion
 
-The companion is mandatory. Without it, cross-report comparison cannot
-function and the scan's structured data is lost when the workspace is cleaned.
+The companion is mandatory.  The coordinator must write BOTH the `.md`
+report AND the `.findings.json` before considering the scan complete.
+Without the companion, `discover_reports()` finds nothing to compare and
+the scan's structured data is lost when the workspace is cleaned.
 
 ### DO NOT: Skip Phase 6 for single-function scans
 
-Phase 6 applies to all scans regardless of scope. Even a single-function
-re-scan should compare against the previous scan of that function.
+Phase 6 applies to all scans regardless of scope.  Even a single-function
+re-scan should compare against the previous scan of that function.  The
+coordinator must run `discover_reports()`, then either run
+`compare_findings()` and append the `## Previous Findings Comparison`
+section, or explicitly state "First scan of this type for this module"
+to the user.
 
 ---
 

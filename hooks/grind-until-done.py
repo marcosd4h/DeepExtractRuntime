@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Hook: stop -- Grind-until-done iterative task loop (session-scoped).
+"""Hook: Stop -- Grind-until-done iterative task loop (session-scoped).
 
 Reads a session-scoped scratchpad from .agent/hooks/scratchpads/{session_id}.md
 for a task checklist.  If unchecked items remain and no DONE marker is present,
-sends a followup_message to re-invoke the agent.  Combined with loop_limit in
-hooks.json, this creates bounded iterative workflows.
+prevents the agent from stopping so it continues working.
 
 Session ID resolution is platform-agnostic -- works with both Cursor
 (conversation_id / AGENT_SESSION_ID env) and Claude Code (session_id).
+
+Cross-platform: detects Cursor vs Claude Code and emits the correct
+output format for each (see ``helpers.session_utils.emit_stop_output``).
 
 Scratchpad format (written by the agent or a skill):
 ```
@@ -26,7 +28,7 @@ When all items are checked or Status is set to DONE, the hook stops
 sending follow-ups and the agent loop ends normally.
 
 Input  (stdin JSON):  event metadata from host stop hook
-Output (stdout JSON): { "followup_message": "..." } or {}
+Output (stdout JSON): platform-dependent (see session_utils.emit_stop_output)
 Exit 0 on success.
 """
 
@@ -48,7 +50,14 @@ _WORKSPACE_ROOT = _AGENT_DIR.parent
 sys.path.insert(0, str(_AGENT_DIR))
 
 from helpers.config import get_config_value  # noqa: E402
-from helpers.session_utils import resolve_session_id, scratchpad_path as get_scratchpad_path, SCRATCHPADS_DIR, read_hook_input  # noqa: E402
+from helpers.session_utils import (  # noqa: E402
+    resolve_session_id,
+    scratchpad_path as get_scratchpad_path,
+    SCRATCHPADS_DIR,
+    read_hook_input,
+    detect_hook_platform,
+    emit_stop_output,
+)
 
 _SCRATCHPADS_DIR = SCRATCHPADS_DIR
 
@@ -269,6 +278,7 @@ def _emit_and_exit(output: dict, cleanup_path: Path | None = None) -> None:
 
 def main() -> None:
     stdin_data = _read_hook_input()
+    platform = detect_hook_platform(stdin_data)
 
     session_id = resolve_session_id(stdin_data)
     scratchpad_path = _find_scratchpad(session_id)
@@ -312,7 +322,6 @@ def main() -> None:
     if len(pending) > 10:
         remaining_list += f"\n  ... and {len(pending) - 10} more"
 
-    # Build a display-friendly path for the followup message
     try:
         rel_path = scratchpad_path.relative_to(_WORKSPACE_ROOT)
         display_path = str(rel_path).replace("\\", "/")
@@ -340,7 +349,7 @@ def main() -> None:
         f"{validation_note}"
     )
 
-    output["followup_message"] = followup
+    output = emit_stop_output(followup, platform)
     print(json.dumps(output))
     sys.exit(0)
 

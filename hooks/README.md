@@ -25,7 +25,7 @@ Fires once when a new conversation starts. Scans the workspace and injects a str
 - Available skills table with type, purpose, dependencies, and cacheability (from `skills/registry.json`)
 - Available agents table with type, purpose, and skills used (from `agents/registry.json`)
 - Available commands table with purpose, parameters, skills/agents used, grind loop, and workspace flags (from `commands/registry.json`)
-- Available rules table with filenames and purposes (from `.agent/rules/*.mdc`)
+- Available rules table with filenames and purposes (from `.agent/rules/*.md`)
 - README-derived documentation overviews: skills dependency graph, commands usage/integration map, agents architecture/decision table (from `skills/README.md`, `commands/README.md`, `agents/README.md`)
 - Workspace layout summary
 - **Session ID and scratchpad path** for grind-loop isolation
@@ -37,7 +37,11 @@ Fires once when a new conversation starts. Scans the workspace and injects a str
 3. `session_id` from stdin JSON (Claude Code -- present in all hook events)
 4. UUID4 fallback (if no platform ID is available)
 
-**Output:**
+**Output (platform-dependent):**
+
+The hook detects the platform from stdin (Claude Code includes `hook_event_name`; Cursor does not) and emits the appropriate format.
+
+*Cursor:*
 
 ```json
 {
@@ -46,7 +50,20 @@ Fires once when a new conversation starts. Scans the workspace and injects a str
 }
 ```
 
-The `env` field (Cursor) sets `AGENT_SESSION_ID` for all subsequent hooks in this session. The `additional_context` includes a `### Session` section with the session ID and scratchpad path.
+The `env` field sets `AGENT_SESSION_ID` for all subsequent hooks in this session. The `additional_context` includes a `### Session` section with the session ID and scratchpad path.
+
+*Claude Code:*
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "SessionStart",
+    "additionalContext": "<workspace context with session info>"
+  }
+}
+```
+
+The session ID is persisted to `$CLAUDE_ENV_FILE` (written as `export AGENT_SESSION_ID=<session_id>`) so it is available to subsequent hooks in the same session. The `additionalContext` field injects the same workspace context as the Cursor path.
 
 **How it works:**
 
@@ -55,11 +72,11 @@ The `env` field (Cursor) sets `AGENT_SESSION_ID` for all subsequent hooks in thi
 3. Reads `extracted_code/*/module_profile.json` for pre-computed module fingerprints (library composition, API surface, complexity)
 4. Lists `extracted_dbs/*.db` for analysis databases
 5. Lists `.agent/skills/*/SKILL.md` for available skills
-6. Scans `.agent/rules/*.mdc` for installed runtime rules
+6. Scans `.agent/rules/*.md` for installed runtime rules
 7. Loads `skills/registry.json`, `agents/registry.json`, `commands/registry.json` for machine-readable metadata (type, purpose, dependencies, parameters, skills used)
 8. At `full` level: loads condensed overviews from `skills/README.md`, `commands/README.md`, `agents/README.md` (overview tables, dependency graphs, decision matrices -- stops before per-item detailed descriptions)
 9. Ensures `.agent/hooks/scratchpads/` directory exists
-10. Assembles everything into a Markdown context and outputs JSON with `env` and `additional_context`
+10. Assembles everything into a Markdown context and outputs platform-appropriate JSON (Cursor: `env` + `additional_context`; Claude Code: `hookSpecificOutput.additionalContext` + `$CLAUDE_ENV_FILE`)
 
 **Timeout:** 15s host timeout (`hooks.json`); the hook uses the same value from `hooks.session_start_timeout_seconds` as its internal deadline.
 
@@ -108,7 +125,9 @@ Each agent session gets its own scratchpad at `.agent/hooks/scratchpads/{session
 1. Resolves session ID from `AGENT_SESSION_ID` env var, or `conversation_id`/`session_id` from stdin JSON
 2. Looks for `.agent/hooks/scratchpads/{session_id}.md`
 3. Parses `- [x]` / `- [ ]` checkboxes and the `## Status` section
-4. If unchecked items remain and Status is not `DONE`, outputs `{ "followup_message": "..." }` with remaining items
+4. If unchecked items remain and Status is not `DONE`, outputs a followup to prevent stopping:
+   - Cursor: `{ "followup_message": "..." }`
+   - Claude Code: `{ "decision": "block", "reason": "..." }`
 5. If all items are checked or Status is `DONE`, outputs `{}` (normal stop) and deletes the scratchpad
 6. Opportunistically cleans up stale scratchpad files older than 24 hours
 
@@ -173,7 +192,7 @@ Fires when a conversation ends. Delegates to `helpers.cleanup_workspace.cleanup_
       scratchpads/                    # Runtime-generated session scratchpads
         {session_id}.md               # Ephemeral task state (one per session)
     rules/
-      grind-loop-protocol.mdc         # Scratchpad protocol rule
+      grind-loop-protocol.md          # Scratchpad protocol rule
 ```
 
 `scratchpads/` is created on demand by the session-start hook and may be absent
@@ -181,10 +200,12 @@ in a fresh source checkout until hooks have run at least once.
 
 ## Platform Compatibility
 
-| Platform    | Session ID source (resolution order)                                       | Env propagation                                   |
-| ----------- | -------------------------------------------------------------------------- | ------------------------------------------------- |
-| Cursor      | `AGENT_SESSION_ID` env -> `conversation_id` -> `session_id` -> UUID4       | `env` output field sets vars for subsequent hooks |
-| Claude Code | `AGENT_SESSION_ID` env -> `conversation_id` -> `session_id` -> UUID4       | stdout goes to context                            |
+| Platform    | Session ID source (resolution order)                                       | Env propagation                                   | SessionStart output format                          | Stop output format                              |
+| ----------- | -------------------------------------------------------------------------- | ------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------- |
+| Cursor      | `AGENT_SESSION_ID` env -> `conversation_id` -> `session_id` -> UUID4       | `env` output field sets vars for subsequent hooks  | `{ "env": {...}, "additional_context": "..." }`     | `{ "followup_message": "..." }` or `{}`         |
+| Claude Code | `AGENT_SESSION_ID` env -> `conversation_id` -> `session_id` -> UUID4       | `$CLAUDE_ENV_FILE` export lines                    | `{ "hookSpecificOutput": { "additionalContext": "..." } }` | `{ "decision": "block", "reason": "..." }` or `{}` |
+
+**Platform detection:** Claude Code includes `hook_event_name` in every hook's stdin JSON. Cursor does not. The hooks use `helpers.session_utils.detect_hook_platform()` to branch output format.
 
 ## Protocol
 

@@ -299,6 +299,28 @@ Use this prompt template (fill in all `[bracketed]` values):
 
 **Status (after):** Tell the user the verification result (e.g., `Skeptic: 2 TRUE_POSITIVE, 1 FALSE_POSITIVE`).
 
+## Report and Comparison Checklist (MANDATORY)
+
+Before considering the command complete, verify the following. Violations
+invalidate the scan.
+
+- [ ] Phase 5a: Markdown report written to
+      `extracted_code/<module>/reports/ai_memory_scan_<YYYYMMDD_HHMM>.md`
+- [ ] Phase 5b: Companion `.findings.json` written alongside the report
+      (same stem, `.findings.json` extension)
+- [ ] Phase 6: Cross-report comparison executed -- either (a)
+      `## Previous Findings Comparison` appended to report and comparison
+      summary presented to the user, or (b) "First scan of this type for
+      this module" stated explicitly
+
+**Protocol violations:**
+
+- Presenting findings in chat without writing the report and companion to disk
+- Writing only the `.md` report without the `.findings.json` companion
+- Skipping Phase 6 (comparison) without explicitly stating "First scan" when
+  no previous report exists
+- Considering the scan complete after Phase 4 (skeptic verification)
+
 ### Phase 5 -- Report
 
 **Status (before):** Tell the user: `Writing final report...`
@@ -363,6 +385,17 @@ The companion JSON must contain the **same or more information** than the
 **Status (after):** Tell the user the comparison result (e.g., `Cross-report:
 2 recurring, 1 new, 3 missed from previous scan`). If this was the first
 scan, say so.
+
+## Command Completion Criteria
+
+The command is **NOT complete** until all of the following are true:
+
+1. The markdown report exists at `extracted_code/<module>/reports/ai_memory_scan_<YYYYMMDD_HHMM>.md`
+2. The `.findings.json` companion exists at the same path with `.findings.json` replacing `.md`
+3. Phase 6 has been executed: either a `## Previous Findings Comparison` section was appended to the report, or the user was told "First scan of this type for this module"
+
+Do NOT consider the scan complete after Phase 4 (skeptic verification).
+Phases 5 and 6 are mandatory -- even when there are zero findings.
 
 ## Output
 

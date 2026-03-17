@@ -1,0 +1,8 @@
+# Ephemeral directories excluded from Cursor AI features.
+# Paths are relative to .agent/. For watcher/explorer exclusions
+# see .vscode/settings.json at the workspace root.
+
+workspace/
+cache/
+hooks/scratchpads/
+agents/*/state/

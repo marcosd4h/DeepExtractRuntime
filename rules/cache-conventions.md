@@ -1,3 +1,8 @@
+---
+description: Cache infrastructure conventions -- when to cache, freshness, atomicity, and API patterns
+alwaysApply: true
+---
+
 # Cache Conventions
 
 ## Cache Infrastructure

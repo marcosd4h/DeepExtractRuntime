@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Hook: sessionStart -- Auto-inject DeepExtractIDA workspace context.
+"""Hook: SessionStart -- Auto-inject DeepExtractIDA workspace context.
 
 Scans extracted_code/*/file_info.json and extracted_dbs/*.db to build
 a structured context summary.  Injected as additional_context so the
@@ -10,8 +10,11 @@ Also resolves a session ID from the host platform (Cursor or Claude Code)
 and propagates it via the ``env`` output field and the injected context.
 This enables session-scoped scratchpads for the grind-loop stop hook.
 
+Cross-platform: detects Cursor vs Claude Code and emits the correct
+output format for each (see ``helpers.session_utils``).
+
 Input  (stdin JSON):  event metadata (session_id, conversation_id, ...)
-Output (stdout JSON): { "env": {...}, "additional_context": "..." }
+Output (stdout JSON): platform-dependent (see session_utils.emit_session_start_output)
 Exit 0 on success; non-zero/non-2 fail-open.
 """
 
@@ -34,7 +37,14 @@ sys.path.insert(0, str(_AGENT_DIR))
 
 from helpers.analyzed_files_db import open_analyzed_files_db  # noqa: E402
 from helpers.config import get_config_value  # noqa: E402
-from helpers.session_utils import resolve_session_id, scratchpad_path, SCRATCHPADS_DIR, read_hook_input  # noqa: E402
+from helpers.session_utils import (  # noqa: E402
+    resolve_session_id,
+    scratchpad_path,
+    SCRATCHPADS_DIR,
+    read_hook_input,
+    detect_hook_platform,
+    emit_session_start_output,
+)
 from hooks._scanners import (  # noqa: E402
     scan_modules,
     scan_modules_from_tracking_db,
@@ -120,7 +130,7 @@ def _load_command_registry(commands_dir: Path) -> dict:
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
-def _emit_minimal_fallback(session_id: str, module_count: int) -> None:
+def _emit_minimal_fallback(session_id: str, module_count: int, platform: str) -> None:
     """Emit a minimal context when the deadline is exceeded."""
     lines = [
         "## DeepExtractIDA Workspace Context (auto-injected)",
@@ -138,10 +148,8 @@ def _emit_minimal_fallback(session_id: str, module_count: int) -> None:
             f"Session ID: `{session_id}`",
             f"Scratchpad: `.agent/hooks/scratchpads/{session_id}.md`",
         ])
-    output = {
-        "env": {"AGENT_SESSION_ID": session_id},
-        "additional_context": "\n".join(lines),
-    }
+    context = "\n".join(lines)
+    output = emit_session_start_output(context, session_id, platform)
     print(json.dumps(output))
     sys.exit(0)
 
@@ -151,6 +159,8 @@ def main() -> None:
     _hook_start_time = time.monotonic()
 
     stdin_data = _read_hook_input()
+    platform = detect_hook_platform(stdin_data)
+
     context_level = _normalize_context_level(
         stdin_data.get("context_level") if isinstance(stdin_data, dict) else None
     )
@@ -184,7 +194,7 @@ def main() -> None:
     compact_mode = module_count > threshold
 
     if _deadline_exceeded():
-        _emit_minimal_fallback(session_id, module_count)
+        _emit_minimal_fallback(session_id, module_count, platform)
 
     if compact_mode:
         modules = _load_module_list_sidecar(tracking_db_path)
@@ -207,7 +217,7 @@ def main() -> None:
         dbs, has_tracking = scan_dbs(extracted_dbs_dir)
 
     if _deadline_exceeded():
-        _emit_minimal_fallback(session_id, len(modules))
+        _emit_minimal_fallback(session_id, len(modules), platform)
 
     skills = scan_skills(skills_dir)
     workspace_rules = scan_workspace_rules(_WORKSPACE_ROOT)
@@ -260,10 +270,7 @@ def main() -> None:
         workspace_rules=workspace_rules,
     )
 
-    output: dict = {
-        "env": {"AGENT_SESSION_ID": session_id},
-        "additional_context": context,
-    }
+    output = emit_session_start_output(context, session_id, platform)
     print(json.dumps(output))
     sys.exit(0)
 

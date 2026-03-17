@@ -1,0 +1,38 @@
+{
+    "$schema": "https://json.schemastore.org/claude-code-settings.json",
+    "hooks": {
+        "SessionStart": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "python .agent/hooks/inject-module-context.py",
+                        "timeout": 15
+                    }
+                ]
+            }
+        ],
+        "Stop": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "python .agent/hooks/grind-until-done.py",
+                        "timeout": 5
+                    }
+                ]
+            }
+        ],
+        "SessionEnd": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "python .agent/hooks/cleanup-workspace.py",
+                        "timeout": 10
+                    }
+                ]
+            }
+        ]
+    }
+}

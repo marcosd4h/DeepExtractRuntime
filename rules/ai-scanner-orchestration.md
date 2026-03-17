@@ -1,3 +1,8 @@
+---
+description: Self-driving scanner model, orchestrator responsibilities, and context-budget rules for AI vulnerability scanners
+alwaysApply: true
+---
+
 # AI Scanner Orchestration
 
 ## Self-Driving Scanner Model
@@ -18,7 +23,8 @@ depth-expansion loop.
 | Phase 3 | Launch scanner subagent **ONCE** with initial context |
 | Phase 3 (escalation) | If scanner returns `needs_escalation`, resolve and resume SAME instance |
 | Phase 4 | Launch `security-auditor` subagent per finding for skeptic verification |
-| Phase 5 | Write report from verified findings |
+| Phase 5 | Write report + `.findings.json` companion from verified findings |
+| Phase 6 | Run cross-report comparison (`discover_reports`, `compare_findings`, append section to report) |
 
 ## Scanner Subagent Receives
 
@@ -99,7 +105,8 @@ JSON -- just text to the user).
 | Phase 2 | `Running triage assessment...` | Likely/unlikely counts, names of likely entry points (from triage subagent) |
 | Phase 3 | `Launching <scanner-type> scanner (self-driving, max depth <N>)...` | Finding count, false lead count, depth reached, functions analyzed (from scanner output) |
 | Phase 4 | `Verifying <N> findings with independent skeptic...` | TRUE_POSITIVE / FALSE_POSITIVE counts (from skeptic output). Skip if 0 findings. |
-| Phase 5 | `Writing final report...` | Report saved path (from file write) |
+| Phase 5 | `Writing final report...` | Report saved path + companion `.findings.json` path (from file write) |
+| Phase 6 | `Checking for previous scan reports...` | Cross-report summary (recurring, new, missed) or "First scan of this type for this module" |
 
 **Rules:**
 - Messages are concise -- 1-2 lines each. Not a data dump.
@@ -124,3 +131,7 @@ JSON -- just text to the user).
 | Omitting MUST_READ sub-callgraph from skeptic prompt | Skeptic has no neighborhood map and cannot verify reachability or check adjacent functions |
 | Omitting `extract_function_data.py` command from skeptic prompt | Skeptic cannot independently read code -- forced to rely on scanner's excerpts |
 | Restricting skeptic to only `verification_subgraph.must_read` functions | Skeptic may need to verify guards, callers, or adjacent branches outside the finding's chain |
+| Considering the command complete after Phase 4 | Phases 5 and 6 are mandatory; scan output is lost without a persisted report and companion |
+| Skipping Phase 5 (report + `.findings.json`) | No persistent record; cross-report comparison impossible; workspace cleanup deletes all evidence |
+| Skipping Phase 6 (cross-report comparison) | Prior findings context lost; recurring vs new vs missed findings unknown; regression detection disabled |
+| Writing `.md` report without `.findings.json` companion | Companion is the authoritative structured record; without it `discover_reports()` finds nothing to compare |

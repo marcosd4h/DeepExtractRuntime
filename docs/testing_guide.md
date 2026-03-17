@@ -52,7 +52,7 @@ validation, lifecycle hooks, and infrastructure conventions end-to-end
 against real analysis databases. Each test case specifies a concrete command,
 expected behavior, and the conventions it validates.
 
-Of the 335 test cases in this document, 158 are directly runnable by the QA
+Of the 340 test cases in this document, 163 are directly runnable by the QA
 test runner (skill scripts, agent scripts, pipelines, hooks, infrastructure).
 The remaining 177 are slash commands and multi-step workflows that require
 agent-level orchestration.
@@ -4031,6 +4031,71 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Flags-Tested**: N/A
 - **Protocol**: none
 
+### TEST-HOOK-007: Grind hook Cursor output format
+
+- **Category**: hook
+- **Component**: hook
+- **Component-Name**: grind-until-done.py
+- **Target-Module**: N/A
+- **Target-Function**: N/A
+- **Command**: Create scratchpad with unchecked items, pipe `{}` on stdin (no `hook_event_name`), run `python .agent/hooks/grind-until-done.py`
+- **Expected**: stdout JSON contains `followup_message` key (Cursor format), does NOT contain `decision` key
+- **Validates**: Cross-platform output -- Cursor path
+- **Flags-Tested**: N/A
+- **Protocol**: grind-loop
+
+### TEST-HOOK-008: Grind hook Claude Code output format
+
+- **Category**: hook
+- **Component**: hook
+- **Component-Name**: grind-until-done.py
+- **Target-Module**: N/A
+- **Target-Function**: N/A
+- **Command**: Create scratchpad with unchecked items, pipe `{"hook_event_name": "Stop"}` on stdin, run `python .agent/hooks/grind-until-done.py`
+- **Expected**: stdout JSON contains `decision: "block"` and `reason` key (Claude Code format), does NOT contain `followup_message` key
+- **Validates**: Cross-platform output -- Claude Code path
+- **Flags-Tested**: N/A
+- **Protocol**: grind-loop
+
+### TEST-HOOK-009: Inject context Cursor output format
+
+- **Category**: hook
+- **Component**: hook
+- **Component-Name**: inject-module-context.py
+- **Target-Module**: N/A
+- **Target-Function**: N/A
+- **Command**: Pipe `{"conversation_id": "test-conv"}` on stdin, run `python .agent/hooks/inject-module-context.py`
+- **Expected**: stdout JSON has `env.AGENT_SESSION_ID` and `additional_context` keys (Cursor format), does NOT have `hookSpecificOutput`
+- **Validates**: Cross-platform output -- Cursor sessionStart
+- **Flags-Tested**: N/A
+- **Protocol**: none
+
+### TEST-HOOK-010: Inject context Claude Code output format
+
+- **Category**: hook
+- **Component**: hook
+- **Component-Name**: inject-module-context.py
+- **Target-Module**: N/A
+- **Target-Function**: N/A
+- **Command**: Pipe `{"hook_event_name": "SessionStart", "session_id": "cc-test"}` on stdin, run `python .agent/hooks/inject-module-context.py`
+- **Expected**: stdout JSON has `hookSpecificOutput.hookEventName` == `"SessionStart"` and `hookSpecificOutput.additionalContext` (Claude Code format), does NOT have `env`
+- **Validates**: Cross-platform output -- Claude Code sessionStart
+- **Flags-Tested**: N/A
+- **Protocol**: none
+
+### TEST-HOOK-011: Claude Code CLAUDE_ENV_FILE persistence
+
+- **Category**: hook
+- **Component**: hook
+- **Component-Name**: inject-module-context.py
+- **Target-Module**: N/A
+- **Target-Function**: N/A
+- **Command**: Set `CLAUDE_ENV_FILE` to a temp file, pipe `{"hook_event_name": "SessionStart", "session_id": "env-test"}` on stdin, run `python .agent/hooks/inject-module-context.py`
+- **Expected**: Temp file contains `export AGENT_SESSION_ID=` with the session ID value
+- **Validates**: Claude Code env file persistence for cross-hook session ID propagation
+- **Flags-Tested**: N/A
+- **Protocol**: none
+
 ---
 
 ## Section 15: Infrastructure and Convention Tests
@@ -4336,7 +4401,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 | Agent goals/modes | ~16 | ~16 | 100% |
 | VR workflows | 7 | 7 | 100% |
 | Pipeline YAMLs | 4 | 4 | 100% |
-| Lifecycle hooks | 3 | 2 | 67% |
+| Lifecycle hooks | 8 | 7 | 88% |
 | Error codes | 6 | 6 | 100% |
 | Grind-loop commands | 6 | 6 | 100% |
 | Workspace-protocol commands | 14 | 14 | 100% |
@@ -4359,6 +4424,6 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 | TEST-AGENT | Agent Scripts | 35 |
 | TEST-FLOW | VR Workflows | 7 |
 | TEST-PIPE | Pipeline | 6 |
-| TEST-HOOK | Hooks | 3 |
+| TEST-HOOK | Hooks | 8 |
 | TEST-INFRA | Infrastructure | 22 |
-| **TOTAL** | | **342** |
+| **TOTAL** | | **347** |
