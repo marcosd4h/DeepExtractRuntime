@@ -87,3 +87,4 @@ workspace/
 /work*
 hooks/scratchpads/*.md
 agents/*/state/
+/blogs
