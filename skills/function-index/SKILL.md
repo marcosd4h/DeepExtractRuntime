@@ -55,7 +55,7 @@ For full format details, see [function_index_format_reference.md](../../docs/fun
 
 ## Utility Scripts
 
-All scripts are in `scripts/`. Auto-resolve workspace root and `.agent/helpers/` imports. Run from the workspace root.
+All scripts are in `scripts/`. Auto-resolve workspace root and `.claude/helpers/` imports. Run from the workspace root.
 
 ### lookup_function.py -- Find Functions by Name (Start Here)
 
@@ -63,22 +63,22 @@ Locate a function across one or all modules. Supports exact match, substring sea
 
 ```bash
 # Exact lookup across all modules
-python .agent/skills/function-index/scripts/lookup_function.py AiCheckSecureApplicationDirectory
+python .claude/skills/function-index/scripts/lookup_function.py AiCheckSecureApplicationDirectory
 
 # Exact lookup in a specific module
-python .agent/skills/function-index/scripts/lookup_function.py AiCheckSecureApplicationDirectory --module appinfo_dll
+python .claude/skills/function-index/scripts/lookup_function.py AiCheckSecureApplicationDirectory --module appinfo_dll
 
 # Substring search (case-insensitive)
-python .agent/skills/function-index/scripts/lookup_function.py --search "CheckSecure"
+python .claude/skills/function-index/scripts/lookup_function.py --search "CheckSecure"
 
 # Regex search
-python .agent/skills/function-index/scripts/lookup_function.py --search "Ai.*Launch" --regex
+python .claude/skills/function-index/scripts/lookup_function.py --search "Ai.*Launch" --regex
 
 # Application code only (skip WIL/STL/WRL/CRT/ETW boilerplate)
-python .agent/skills/function-index/scripts/lookup_function.py --search "Check" --app-only
+python .claude/skills/function-index/scripts/lookup_function.py --search "Check" --app-only
 
 # JSON output
-python .agent/skills/function-index/scripts/lookup_function.py --search "BatLoop" --json
+python .claude/skills/function-index/scripts/lookup_function.py --search "BatLoop" --json
 ```
 
 Output: module name, `.cpp` file, library tag, and full path for each match.
@@ -89,28 +89,28 @@ List all functions in a module, filter by library tag, group by file, or show st
 
 ```bash
 # List all functions in a module
-python .agent/skills/function-index/scripts/index_functions.py appinfo_dll
+python .claude/skills/function-index/scripts/index_functions.py appinfo_dll
 
 # Only application code
-python .agent/skills/function-index/scripts/index_functions.py appinfo_dll --app-only
+python .claude/skills/function-index/scripts/index_functions.py appinfo_dll --app-only
 
 # Only WIL boilerplate
-python .agent/skills/function-index/scripts/index_functions.py appinfo.dll --library WIL
+python .claude/skills/function-index/scripts/index_functions.py appinfo.dll --library WIL
 
 # Group by .cpp file
-python .agent/skills/function-index/scripts/index_functions.py appinfo_dll --by-file
+python .claude/skills/function-index/scripts/index_functions.py appinfo_dll --by-file
 
 # Functions in a specific .cpp file
-python .agent/skills/function-index/scripts/index_functions.py appinfo_dll --file appinfo_dll_standalone_group_5.cpp
+python .claude/skills/function-index/scripts/index_functions.py appinfo_dll --file appinfo_dll_standalone_group_5.cpp
 
 # Statistics only
-python .agent/skills/function-index/scripts/index_functions.py appinfo_dll --stats
+python .claude/skills/function-index/scripts/index_functions.py appinfo_dll --stats
 
 # Stats for all modules
-python .agent/skills/function-index/scripts/index_functions.py --all --stats
+python .claude/skills/function-index/scripts/index_functions.py --all --stats
 
 # JSON output
-python .agent/skills/function-index/scripts/index_functions.py appinfo_dll --app-only --json
+python .claude/skills/function-index/scripts/index_functions.py appinfo_dll --app-only --json
 ```
 
 ### resolve_function_file.py -- Resolve to Absolute Paths
@@ -119,19 +119,19 @@ Resolve function names to absolute `.cpp` file paths. Designed for programmatic 
 
 ```bash
 # Single function -> absolute path
-python .agent/skills/function-index/scripts/resolve_function_file.py AiCheckSecureApplicationDirectory
+python .claude/skills/function-index/scripts/resolve_function_file.py AiCheckSecureApplicationDirectory
 
 # Within a specific module
-python .agent/skills/function-index/scripts/resolve_function_file.py AiCheckSecureApplicationDirectory --module appinfo_dll
+python .claude/skills/function-index/scripts/resolve_function_file.py AiCheckSecureApplicationDirectory --module appinfo_dll
 
 # Batch resolve (comma-separated)
-python .agent/skills/function-index/scripts/resolve_function_file.py --names "AiCheckLUA,AiLaunchProcess,BatLoop"
+python .claude/skills/function-index/scripts/resolve_function_file.py --names "AiCheckLUA,AiLaunchProcess,BatLoop"
 
 # All functions in a .cpp file
-python .agent/skills/function-index/scripts/resolve_function_file.py --file appinfo_dll_standalone_group_5.cpp --module appinfo_dll
+python .claude/skills/function-index/scripts/resolve_function_file.py --file appinfo_dll_standalone_group_5.cpp --module appinfo_dll
 
 # JSON output
-python .agent/skills/function-index/scripts/resolve_function_file.py AiCheckSecureApplicationDirectory --json
+python .claude/skills/function-index/scripts/resolve_function_file.py AiCheckSecureApplicationDirectory --json
 ```
 
 Default output format (pipe-delimited for parsing): `module|file_path|library_tag`
@@ -142,16 +142,16 @@ When you don't know if the target is a function name, string literal, API call, 
 
 ```bash
 # Search everything for "CreateProcess" in a module DB
-python .agent/helpers/unified_search.py <db_path> --query "CreateProcess"
+python .claude/helpers/unified_search.py <db_path> --query "CreateProcess"
 
 # JSON output for programmatic use
-python .agent/helpers/unified_search.py <db_path> --query "registry" --json
+python .claude/helpers/unified_search.py <db_path> --query "registry" --json
 
 # Search only names and API calls
-python .agent/helpers/unified_search.py <db_path> --query "Token" --dimensions name,api
+python .claude/helpers/unified_search.py <db_path> --query "Token" --dimensions name,api
 
 # Search across ALL module DBs
-python .agent/helpers/unified_search.py --all --query "CreateProcess"
+python .claude/helpers/unified_search.py --all --query "CreateProcess"
 ```
 
 Searches: function names, signatures, string literals, API calls, dangerous APIs, class names (from mangled names/vtable contexts), and exports. Returns results grouped by match dimension. Use `--json` for machine-readable output.
@@ -164,10 +164,10 @@ Searches: function names, signatures, string literals, API calls, dangerous APIs
 
 ```bash
 # Step 1: Look up by exact name
-python .agent/skills/function-index/scripts/lookup_function.py CreateElevatedProcess
+python .claude/skills/function-index/scripts/lookup_function.py CreateElevatedProcess
 
 # Step 2: If not found, try substring search
-python .agent/skills/function-index/scripts/lookup_function.py --search "Elevated"
+python .claude/skills/function-index/scripts/lookup_function.py --search "Elevated"
 
 # Step 3: Read the resolved .cpp file
 # (use the file_path from the output)
@@ -177,20 +177,20 @@ python .agent/skills/function-index/scripts/lookup_function.py --search "Elevate
 
 ```bash
 # Step 1: Get stats to understand the module
-python .agent/skills/function-index/scripts/index_functions.py appinfo_dll --stats
+python .claude/skills/function-index/scripts/index_functions.py appinfo_dll --stats
 
 # Step 2: List only application code (skip boilerplate)
-python .agent/skills/function-index/scripts/index_functions.py appinfo_dll --app-only
+python .claude/skills/function-index/scripts/index_functions.py appinfo_dll --app-only
 
 # Step 3: Group by file to see how they're organized
-python .agent/skills/function-index/scripts/index_functions.py appinfo_dll --app-only --by-file
+python .claude/skills/function-index/scripts/index_functions.py appinfo_dll --app-only --by-file
 ```
 
 ### Workflow 3: "Read the code for functions A, B, and C"
 
 ```bash
 # Step 1: Resolve all functions to their file paths
-python .agent/skills/function-index/scripts/resolve_function_file.py --names "FuncA,FuncB,FuncC" --module appinfo_dll --json
+python .claude/skills/function-index/scripts/resolve_function_file.py --names "FuncA,FuncB,FuncC" --module appinfo_dll --json
 
 # Step 2: Read each resolved file path
 # (the JSON output provides absolute paths to each .cpp file)
@@ -199,12 +199,12 @@ python .agent/skills/function-index/scripts/resolve_function_file.py --names "Fu
 ### Workflow 4: "Overview of all extracted modules"
 
 ```bash
-python .agent/skills/function-index/scripts/index_functions.py --all --stats
+python .claude/skills/function-index/scripts/index_functions.py --all --stats
 ```
 
 ## Integration with Other Skills
 
-This skill provides the function-to-file mapping that other skills need. The core logic lives in **`helpers/function_index/`**, making it importable by any script that has `.agent` on `sys.path` -- the same pattern used by `helpers/analyzed_files_db/` and `helpers/individual_analysis_db/`.
+This skill provides the function-to-file mapping that other skills need. The core logic lives in **`helpers/function_index/`**, making it importable by any script that has `.claude` on `sys.path` -- the same pattern used by `helpers/analyzed_files_db/` and `helpers/individual_analysis_db/`.
 
 Use it as a **first step** before:
 
@@ -216,7 +216,7 @@ Use it as a **first step** before:
 
 ### Importing from Other Skills' Scripts
 
-Any script that already has the standard `.agent` path setup can use the helpers directly:
+Any script that already has the standard `.claude` path setup can use the helpers directly:
 
 ```python
 from helpers import (

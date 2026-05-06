@@ -96,7 +96,7 @@ When the same offset is accessed in multiple functions:
 
 The built-in scanner is regex-based on decompiled code only. For assembly-backed accuracy (ground truth sizes), use the reconstruct-types skill:
 ```bash
-python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> --class ClassName
+python .claude/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> --class ClassName
 ```
 
 ---
@@ -112,10 +112,10 @@ python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> -
 │   └── {module}_{hash}.db
 ├── extracted_code/
 │   └── {module_name}/
-├── .agent/helpers/
+├── .claude/helpers/
 │   ├── analyzed_files_db/
 │   └── individual_analysis_db/
-└── .agent/skills/
+└── .claude/skills/
     ├── batch-lift/            ← THIS SKILL
     │   ├── SKILL.md
     │   ├── reference.md
@@ -148,10 +148,10 @@ The recommended usage is a two-step pipeline:
 
 ```bash
 # Step 1: Collect function set -> JSON manifest
-python .agent/skills/batch-lift/scripts/collect_functions.py <db_path> --class ClassName --json > funcs.json
+python .claude/skills/batch-lift/scripts/collect_functions.py <db_path> --class ClassName --json > funcs.json
 
 # Step 2: Generate lift plan from manifest
-python .agent/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json
+python .claude/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json
 ```
 
 The JSON manifest from Step 1 includes `dependency_order` (pre-computed topological sort), so Step 2 can skip recomputation.

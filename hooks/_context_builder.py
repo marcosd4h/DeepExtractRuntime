@@ -26,8 +26,8 @@ def _ensure_helpers_path() -> None:
     if _IPC_PATH_ENSURED:
         return
     _root = Path(__file__).resolve().parents[1]
-    _agent = _root / ".agent"
-    path_entry = str(_agent) if _agent.is_dir() else str(_root)
+    _claude = _root / ".claude"
+    path_entry = str(_claude) if _claude.is_dir() else str(_root)
     if path_entry not in sys.path:
         sys.path.insert(0, path_entry)
     _IPC_PATH_ENSURED = True
@@ -90,7 +90,7 @@ def build_context(
     lines.append("")
 
     lines.append(
-        "**Read `.agent/AGENTS.md`** for runtime architecture, "
+        "**Read `.claude/CLAUDE.md`** for runtime architecture, "
         "conventions, and getting-started guide."
     )
     if workspace_rules:
@@ -454,7 +454,7 @@ def _build_agents_table(
         )
     lines.append("")
     lines.append(
-        "*Read an agent's `.md` file (e.g. `.agent/agents/code-lifter.md`) "
+        "*Read an agent's `.md` file (e.g. `.claude/agents/code-lifter.md`) "
         "for entry scripts, parameters, and composed skills.*"
     )
     lines.append("")
@@ -602,7 +602,7 @@ def _build_session_section(lines: list[str], session_id: str) -> None:
     lines.append("")
     lines.append(f"Session ID: `{session_id}`")
     lines.append(
-        f"Scratchpad: `.agent/hooks/scratchpads/{session_id}.md`"
+        f"Scratchpad: `.claude/hooks/scratchpads/{session_id}.md`"
     )
     lines.append(
         "*When the grind-loop protocol requires a scratchpad, "

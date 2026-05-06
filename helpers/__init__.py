@@ -22,22 +22,22 @@ Modules:
 
 Standalone scripts:
     unified_search.py   -- Multi-dimension search across a module DB.
-                           Run directly:  python .agent/helpers/unified_search.py <db> --query <term>
+                           Run directly:  python .claude/helpers/unified_search.py <db> --query <term>
                            Searches: function names, signatures, strings, APIs, classes, exports.
     cleanup_workspace.py -- Cleanup old workspace run directories and stale state files.
-                           Run directly:  python .agent/helpers/cleanup_workspace.py [--older-than DAYS] [--dry-run]
+                           Run directly:  python .claude/helpers/cleanup_workspace.py [--older-than DAYS] [--dry-run]
     pipeline_cli.py     -- Headless batch pipeline CLI (run, validate, list-steps).
-                           Run directly:  python .agent/helpers/pipeline_cli.py run <yaml> [--json]
+                           Run directly:  python .claude/helpers/pipeline_cli.py run <yaml> [--json]
     qa_runner.py        -- QA test runner for automated quality checks.
-                           Run directly:  python .agent/helpers/qa_runner.py [options]
+                           Run directly:  python .claude/helpers/qa_runner.py [options]
     health_check.py     -- Workspace health check (extraction data, DBs, registries, config).
-                           Run directly:  python .agent/helpers/health_check.py [--quick|--full] [--json]
+                           Run directly:  python .claude/helpers/health_check.py [--quick|--full] [--json]
     select_audit_callees.py -- Select callees for deep extraction during /audit (Steps 3h + 3i).
-                           Run directly:  python .agent/helpers/select_audit_callees.py <db_path> --dossier <path> [--json]
+                           Run directly:  python .claude/helpers/select_audit_callees.py <db_path> --dossier <path> [--json]
     select_backward_traces.py -- Select backward trace targets for /audit Step 3c.
-                           Run directly:  python .agent/helpers/select_backward_traces.py --dossier <path> [--json]
+                           Run directly:  python .claude/helpers/select_backward_traces.py --dossier <path> [--json]
     ipc_index_inspect.py    -- IPC index diagnostics (COM/RPC/WinRT server counts, module attribution, edge counts).
-                           Run directly:  python .agent/helpers/ipc_index_inspect.py --summary [--json]
+                           Run directly:  python .claude/helpers/ipc_index_inspect.py --summary [--json]
 
 All public symbols are lazily imported on first access to avoid loading
 all 30+ submodules when only a few are needed.
@@ -217,10 +217,10 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     "validate_workspace_data": (".validation", None),
     "quick_validate": (".validation", None),
     # agent_common
-    "AgentBase": (".agent_common", None),
-    "AgentOrchestrator": (".agent_common", None),
-    "AgentStep": (".agent_common", None),
-    "AgentStepResult": (".agent_common", None),
+    "AgentBase": (".claude_common", None),
+    "AgentOrchestrator": (".claude_common", None),
+    "AgentStep": (".claude_common", None),
+    "AgentStepResult": (".claude_common", None),
     # api_taxonomy (import-prefix utilities)
     "strip_import_prefix": (".api_taxonomy", None),
     "IMP_PREFIX_RE": (".api_taxonomy", None),
@@ -344,7 +344,7 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     "TRUST_LEVEL_RANK": (".taint_helpers", None),
 }
 # Standalone CLI scripts (not importable library modules):
-#   json_extract -- run via: python .agent/helpers/json_extract.py <file> <key>
+#   json_extract -- run via: python .claude/helpers/json_extract.py <file> <key>
 
 __all__ = list(_LAZY_IMPORTS.keys())
 

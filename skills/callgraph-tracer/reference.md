@@ -116,7 +116,7 @@ Used by `build_call_graph.py --path`. Standard BFS on the outbound adjacency lis
 
 All scripts follow the same pattern:
 1. Resolve workspace root (4 levels up from `scripts/`)
-2. Add workspace root `.agent/` to `sys.path`
+2. Add workspace root `.claude/` to `sys.path`
 3. Import from `helpers` package
 4. Resolve DB paths relative to workspace root
 5. Use `open_individual_analysis_db()` and `open_analyzed_files_db()` for DB access
@@ -131,11 +131,11 @@ All scripts follow the same pattern:
 │   └── cmd_exe_6d109a3a00.db
 ├── extracted_code/
 │   └── {module_name}/             # .cpp files + file_info.json
-├── .agent/helpers/
+├── .claude/helpers/
 │   ├── __init__.py                # Re-exports: open_analyzed_files_db, open_individual_analysis_db
 │   ├── analyzed_files_db/         # AnalyzedFilesDB, AnalyzedFileRecord
 │   └── individual_analysis_db/    # IndividualAnalysisDB, FunctionRecord, FileInfoRecord
-└── .agent/skills/
+└── .claude/skills/
     └── callgraph-tracer/
         ├── SKILL.md
         ├── reference.md

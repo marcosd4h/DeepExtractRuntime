@@ -54,10 +54,10 @@ signatures. Use `--workspace` to discover which workspace modules implement
 RPC interfaces.
 
 ```bash
-python .agent/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py appinfo.dll
-python .agent/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py appinfo.dll --json
-python .agent/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py spoolsv.exe --with-stubs --json
-python .agent/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py --workspace --json
+python .claude/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py appinfo.dll
+python .claude/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py appinfo.dll --json
+python .claude/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py spoolsv.exe --with-stubs --json
+python .claude/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py --workspace --json
 ```
 
 ### `map_rpc_surface.py`
@@ -68,9 +68,9 @@ script does **not** support `--workspace` -- to discover which workspace modules
 implement RPC interfaces, use `resolve_rpc_interface.py --workspace` above.
 
 ```bash
-python .agent/skills/rpc-interface-analysis/scripts/map_rpc_surface.py appinfo.dll --json
-python .agent/skills/rpc-interface-analysis/scripts/map_rpc_surface.py --system-wide --top 20
-python .agent/skills/rpc-interface-analysis/scripts/map_rpc_surface.py --system-wide --with-blast-radius --json
+python .claude/skills/rpc-interface-analysis/scripts/map_rpc_surface.py appinfo.dll --json
+python .claude/skills/rpc-interface-analysis/scripts/map_rpc_surface.py --system-wide --top 20
+python .claude/skills/rpc-interface-analysis/scripts/map_rpc_surface.py --system-wide --with-blast-radius --json
 ```
 
 ### `audit_rpc_security.py`
@@ -78,7 +78,7 @@ python .agent/skills/rpc-interface-analysis/scripts/map_rpc_surface.py --system-
 RPC-specific security audit combining index data with decompiled code.
 
 ```bash
-python .agent/skills/rpc-interface-analysis/scripts/audit_rpc_security.py <db_path> --json
+python .claude/skills/rpc-interface-analysis/scripts/audit_rpc_security.py <db_path> --json
 ```
 
 ### `trace_rpc_chain.py`
@@ -86,7 +86,7 @@ python .agent/skills/rpc-interface-analysis/scripts/audit_rpc_security.py <db_pa
 Trace an RPC handler's data flow from NDR dispatch to dangerous sinks.
 
 ```bash
-python .agent/skills/rpc-interface-analysis/scripts/trace_rpc_chain.py <db_path> --function <func_name> --json
+python .claude/skills/rpc-interface-analysis/scripts/trace_rpc_chain.py <db_path> --function <func_name> --json
 ```
 
 ### `find_rpc_clients.py`
@@ -95,7 +95,7 @@ Find all modules that implement or consume a given RPC interface UUID.
 Falls back to C# stub data when no runtime clients are present.
 
 ```bash
-python .agent/skills/rpc-interface-analysis/scripts/find_rpc_clients.py <interface_uuid> --json
+python .claude/skills/rpc-interface-analysis/scripts/find_rpc_clients.py <interface_uuid> --json
 ```
 
 ### `rpc_topology.py`
@@ -104,9 +104,9 @@ Build a system-wide or per-module RPC client-server topology graph combining
 pipe name extraction, ALPC endpoints, stub metadata, and service grouping.
 
 ```bash
-python .agent/skills/rpc-interface-analysis/scripts/rpc_topology.py --json
-python .agent/skills/rpc-interface-analysis/scripts/rpc_topology.py spoolsv.exe --json
-python .agent/skills/rpc-interface-analysis/scripts/rpc_topology.py --top 20 --json
+python .claude/skills/rpc-interface-analysis/scripts/rpc_topology.py --json
+python .claude/skills/rpc-interface-analysis/scripts/rpc_topology.py spoolsv.exe --json
+python .claude/skills/rpc-interface-analysis/scripts/rpc_topology.py --top 20 --json
 ```
 
 ## Direct Helper Module Access
@@ -171,6 +171,6 @@ python .agent/skills/rpc-interface-analysis/scripts/rpc_topology.py --top 20 --j
 
 ## Diagnostics
 
-Use `python .agent/helpers/ipc_index_inspect.py --rpc [--module <name>]` to
+Use `python .claude/helpers/ipc_index_inspect.py --rpc [--module <name>]` to
 inspect RPC index state and module attribution. Use `--edges` to verify
 cross-module RPC edge injection counts.

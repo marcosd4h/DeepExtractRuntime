@@ -2,10 +2,10 @@
 """Categorize and aggregate all string literals across a module.
 
 Usage:
-    python .agent/skills/generate-re-report/scripts/analyze_strings.py <db_path>
-    python .agent/skills/generate-re-report/scripts/analyze_strings.py <db_path> --json
-    python .agent/skills/generate-re-report/scripts/analyze_strings.py <db_path> --top 20
-    python .agent/skills/generate-re-report/scripts/analyze_strings.py <db_path> --category file_path
+    python .claude/skills/generate-re-report/scripts/analyze_strings.py <db_path>
+    python .claude/skills/generate-re-report/scripts/analyze_strings.py <db_path> --json
+    python .claude/skills/generate-re-report/scripts/analyze_strings.py <db_path> --top 20
+    python .claude/skills/generate-re-report/scripts/analyze_strings.py <db_path> --category file_path
 """
 
 from __future__ import annotations

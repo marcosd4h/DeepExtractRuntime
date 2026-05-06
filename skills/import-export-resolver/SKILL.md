@@ -55,8 +55,8 @@ for full JSON schemas.
 ### Finding a Module DB
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --list
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 ```
 
 ## Utility Scripts
@@ -66,11 +66,11 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo
 Find which modules export a function and which modules import it.
 
 ```bash
-python .agent/skills/import-export-resolver/scripts/query_function.py --function CreateProcessW
+python .claude/skills/import-export-resolver/scripts/query_function.py --function CreateProcessW
 
-python .agent/skills/import-export-resolver/scripts/query_function.py --function CreateProcessW --direction export --json
+python .claude/skills/import-export-resolver/scripts/query_function.py --function CreateProcessW --direction export --json
 
-python .agent/skills/import-export-resolver/scripts/query_function.py --function HeapAlloc --direction both --json
+python .claude/skills/import-export-resolver/scripts/query_function.py --function HeapAlloc --direction both --json
 ```
 
 Output includes: list of exporting modules (with ordinal and forwarder
@@ -83,11 +83,11 @@ Build and cache the cross-module PE import/export index. Other scripts
 invoke this automatically; run it directly to see index statistics.
 
 ```bash
-python .agent/skills/import-export-resolver/scripts/build_index.py
+python .claude/skills/import-export-resolver/scripts/build_index.py
 
-python .agent/skills/import-export-resolver/scripts/build_index.py --json
+python .claude/skills/import-export-resolver/scripts/build_index.py --json
 
-python .agent/skills/import-export-resolver/scripts/build_index.py --no-cache
+python .claude/skills/import-export-resolver/scripts/build_index.py --no-cache
 ```
 
 Output includes: module count, total exports, total imports, forwarded
@@ -99,13 +99,13 @@ Build a module dependency graph from PE import tables. Optionally focus
 on a single module or show reverse dependencies (consumers).
 
 ```bash
-python .agent/skills/import-export-resolver/scripts/module_deps.py
+python .claude/skills/import-export-resolver/scripts/module_deps.py
 
-python .agent/skills/import-export-resolver/scripts/module_deps.py --module ntdll.dll --consumers --json
+python .claude/skills/import-export-resolver/scripts/module_deps.py --module ntdll.dll --consumers --json
 
-python .agent/skills/import-export-resolver/scripts/module_deps.py --module appinfo.dll --json
+python .claude/skills/import-export-resolver/scripts/module_deps.py --module appinfo.dll --json
 
-python .agent/skills/import-export-resolver/scripts/module_deps.py --diagram
+python .claude/skills/import-export-resolver/scripts/module_deps.py --diagram
 ```
 
 ### resolve_forwarders.py -- Follow Forwarded Export Chains
@@ -114,9 +114,9 @@ Follow forwarded export chains across DLLs (e.g.
 `kernel32!HeapAlloc` -> `ntdll!RtlAllocateHeap`).
 
 ```bash
-python .agent/skills/import-export-resolver/scripts/resolve_forwarders.py --module kernel32.dll --function HeapAlloc
+python .claude/skills/import-export-resolver/scripts/resolve_forwarders.py --module kernel32.dll --function HeapAlloc
 
-python .agent/skills/import-export-resolver/scripts/resolve_forwarders.py --module kernel32.dll --all --json
+python .claude/skills/import-export-resolver/scripts/resolve_forwarders.py --module kernel32.dll --all --json
 ```
 
 ## Workflows
@@ -130,13 +130,13 @@ Import/Export Resolution Progress:
 **Step 1**: Build the index (auto-cached).
 
 ```bash
-python .agent/skills/import-export-resolver/scripts/build_index.py
+python .claude/skills/import-export-resolver/scripts/build_index.py
 ```
 
 **Step 2**: Query for the function.
 
 ```bash
-python .agent/skills/import-export-resolver/scripts/query_function.py --function CreateProcessW --direction export --json
+python .claude/skills/import-export-resolver/scripts/query_function.py --function CreateProcessW --direction export --json
 ```
 
 ### Workflow 2: "What does appinfo.dll import and from where?"
@@ -148,13 +148,13 @@ Import/Export Resolution Progress:
 **Step 1**: Build the index.
 
 ```bash
-python .agent/skills/import-export-resolver/scripts/build_index.py
+python .claude/skills/import-export-resolver/scripts/build_index.py
 ```
 
 **Step 2**: Get the module's import dependencies.
 
 ```bash
-python .agent/skills/import-export-resolver/scripts/module_deps.py --module appinfo.dll --json
+python .claude/skills/import-export-resolver/scripts/module_deps.py --module appinfo.dll --json
 ```
 
 ### Workflow 3: "Show all modules that depend on ntdll.dll"
@@ -166,13 +166,13 @@ Import/Export Resolution Progress:
 **Step 1**: Build the index.
 
 ```bash
-python .agent/skills/import-export-resolver/scripts/build_index.py
+python .claude/skills/import-export-resolver/scripts/build_index.py
 ```
 
 **Step 2**: Find consumers of ntdll.dll.
 
 ```bash
-python .agent/skills/import-export-resolver/scripts/module_deps.py --module ntdll.dll --consumers --json
+python .claude/skills/import-export-resolver/scripts/module_deps.py --module ntdll.dll --consumers --json
 ```
 
 ## Step Dependencies

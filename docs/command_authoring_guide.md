@@ -2,7 +2,7 @@
 
 This guide describes how to define new slash commands for the DeepExtractIDA
 Agent Analysis Runtime. In an installed workspace, commands live under
-`.agent/commands/` inside a `DeepExtractIDA_output_root`, while extraction data
+`.claude/commands/` inside a `DeepExtractIDA_output_root`, while extraction data
 remains at workspace root in `extracted_code/` and `extracted_dbs/`.
 
 It covers the structural requirements for command files (sections 1-3) and the
@@ -10,13 +10,13 @@ engineering practices for building reliable, consistent command behavior (sectio
 
 ## Directory Structure
 
-Commands are defined as Markdown files in `.agent/commands/`:
+Commands are defined as Markdown files in `.claude/commands/`:
 
 ```
 <DeepExtractIDA_output_root>/
 ├── extracted_code/
 ├── extracted_dbs/
-├── .agent/
+├── .claude/
 │   ├── commands/
 │   │   ├── registry.json   # Machine-readable command contracts
 │   │   ├── README.md       # Command catalog
@@ -63,7 +63,7 @@ Describe what the final response to the user should look like.
 
 ## 2. Registry Registration
 
-Add an entry to `.agent/commands/registry.json` with:
+Add an entry to `.claude/commands/registry.json` with:
 
 - `purpose`: Brief description of the command
 - `file`: The `.md` filename (e.g., `my-command.md`)
@@ -82,20 +82,20 @@ registered and every registered file exists on disk. `skills_used` and
 ### Workspace Pattern
 If the command involves multiple steps or large data payloads, it **must**
 follow the Workspace Pattern:
-- Create a run directory under `.agent/workspace/`.
+- Create a run directory under `.claude/workspace/`.
 - Pass `--workspace-dir` and `--workspace-step` to all skill scripts.
 - Use the run manifest to track progress.
 
-Command definitions live under `.agent/commands/`, but their inputs and outputs
-usually live outside `.agent/`:
+Command definitions live under `.claude/commands/`, but their inputs and outputs
+usually live outside `.claude/`:
 
 - Inputs: `extracted_dbs/`, `extracted_code/`, `extraction_report.json`
-- Runtime artifacts: `.agent/workspace/`, `.agent/cache/`, `.agent/hooks/`
+- Runtime artifacts: `.claude/workspace/`, `.claude/cache/`, `.claude/hooks/`
 - Saved reports: typically `extracted_code/<module>/reports/`
 
 ### Grind Loop Protocol
 For commands that process multiple discrete items (e.g., a list of functions), use the **Grind Loop Protocol**:
-- Create a session-scoped scratchpad at `.agent/hooks/scratchpads/{session_id}.md`.
+- Create a session-scoped scratchpad at `.claude/hooks/scratchpads/{session_id}.md`.
 - List items to be processed.
 - The framework will automatically re-invoke the agent until all items are checked.
 
@@ -164,19 +164,19 @@ Every new or modified command must be validated by the automated test suite.
 **Mandatory checks after any command change:**
 
 1. **Run the full infrastructure suite**:
-   `cd <DeepExtractIDA_output_root>/.agent && python -m pytest tests/test_infrastructure_consistency.py -v`.
+   `cd <DeepExtractIDA_output_root>/.claude && python -m pytest tests/test_infrastructure_consistency.py -v`.
    This validates that `registry.json` entries match `.md` files on disk, that
    `skills_used` and `agents_used` reference registered entities, and that the
    command README listings are consistent.
 
 2. **Add integration tests** when a command wires in new skills or agents.
-   Create or update a test file in `.agent/tests/` that verifies:
+   Create or update a test file in `.claude/tests/` that verifies:
    - The command's `skills_used` in `registry.json` lists the expected skills
    - The command's `.md` file references the skill scripts by name
    - Negative checks: unrelated commands do not gain the new dependency
 
 3. **Run the full test suite** before considering the change complete:
-   `cd <DeepExtractIDA_output_root>/.agent && python -m pytest tests/ -v`.
+   `cd <DeepExtractIDA_output_root>/.claude && python -m pytest tests/ -v`.
    A green suite across all test files is the minimum bar.
 
 **Test file convention**: Integration tests that validate how a skill is wired across multiple commands/agents belong in `test_<skill>_integration.py`. Command-specific functional tests belong in `test_<command_name>.py`.
@@ -191,16 +191,16 @@ multi-step command in the runtime.
 
 ## 4. Python Execution Context
 
-### 4.1 Always run `helpers.*` imports from `.agent/`
+### 4.1 Always run `helpers.*` imports from `.claude/`
 
-The `helpers` package lives at `.agent/helpers/` and is **not** installed as a system package.
-Any Python code that does `from helpers.X import Y` must be run with `.agent/` as the working
+The `helpers` package lives at `.claude/helpers/` and is **not** installed as a system package.
+Any Python code that does `from helpers.X import Y` must be run with `.claude/` as the working
 directory (or on `sys.path`).
 
 **Correct pattern for inline Python snippets:**
 
 ```bash
-cd <DeepExtractIDA_output_root>/.agent && python -c "
+cd <DeepExtractIDA_output_root>/.claude && python -c "
 from helpers.validation import validate_workspace_data
 status = validate_workspace_data('..')
 ...
@@ -210,7 +210,7 @@ status = validate_workspace_data('..')
 **Correct pattern for skill scripts** (they manage their own path setup, so run from workspace root):
 
 ```bash
-python .agent/skills/<skill>/scripts/<script>.py --db extracted_dbs/foo.db
+python .claude/skills/<skill>/scripts/<script>.py --db extracted_dbs/foo.db
 ```
 
 Running inline `helpers.*` imports from the workspace root will always produce
@@ -218,13 +218,13 @@ Running inline `helpers.*` imports from the workspace root will always produce
 
 ### 4.2 Pass `..` as workspace root in inline snippets
 
-When running from `.agent/`, the DeepExtractIDA output root is one level up:
+When running from `.claude/`, the DeepExtractIDA output root is one level up:
 `..`.
 Pass `..` to any helper that accepts a workspace root parameter (e.g., `validate_workspace_data('..')`).
 
 ### 4.3 Use helpers, don't reimplement
 
-When commands need inline logic, always use the `.agent/helpers/` library. Never
+When commands need inline logic, always use the `.claude/helpers/` library. Never
 write raw SQLite queries, hand-parse function names, roll custom path resolution,
 or build ad-hoc API classification. Common violations:
 
@@ -239,12 +239,12 @@ divergent implementations, and lets every command benefit when a helper improves
 
 ### 5.1 Use filesystem handoff, not inline payloads
 
-Create a run directory under `.agent/workspace/` for any command that invokes two
+Create a run directory under `.claude/workspace/` for any command that invokes two
 or more skill scripts. Write full payloads to disk; pass only compact summaries
 through coordinator context.
 
 ```
-.agent/workspace/<module>_<goal>_<timestamp>/
+.claude/workspace/<module>_<goal>_<timestamp>/
 ├── manifest.json
 ├── step_a/
 │   ├── results.json    # full payload

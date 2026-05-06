@@ -2,7 +2,7 @@
 
 This guide walks through how the installed runtime behaves inside a
 `DeepExtractIDA_output_root`, where extractor outputs live at workspace root and
-the runtime itself is installed under `.agent/`.
+the runtime itself is installed under `.claude/`.
 
 ---
 
@@ -16,7 +16,7 @@ The examples below assume a workspace shaped like this:
   logs/
   extracted_code/
   extracted_dbs/
-  .agent/
+  .claude/
     commands/
     agents/
     skills/
@@ -35,7 +35,7 @@ layer also supports a root-level `analyzed_files.db` fallback.
 ### 1. Command Dispatch
 
 The user types `/triage appinfo.dll`. The agent resolves that to
-`.agent/commands/triage.md`, which defines the workflow, the
+`.claude/commands/triage.md`, which defines the workflow, the
 workspace-handoff expectations, and the optional `--with-security` branch.
 
 ### 2. Preflight Validation
@@ -54,7 +54,7 @@ That preflight step resolves:
 The runtime then uses the **decompiled-code-extractor** skill:
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll --json
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll --json
 ```
 
 Internally, the helper layer:
@@ -68,10 +68,10 @@ Internally, the helper layer:
 ### 4. Workspace Setup
 
 Before the multi-step workflow starts, the runtime creates a run directory
-under `.agent/workspace/`:
+under `.claude/workspace/`:
 
 ```text
-.agent/workspace/appinfo.dll_triage_20260306_120000/
+.claude/workspace/appinfo.dll_triage_20260306_120000/
   manifest.json
 ```
 
@@ -110,7 +110,7 @@ After the step summaries are written, the agent synthesizes the final chat
 report from:
 
 ```text
-.agent/workspace/appinfo.dll_triage_20260306_120000/<step>/summary.json
+.claude/workspace/appinfo.dll_triage_20260306_120000/<step>/summary.json
 ```
 
 Full payloads remain available in the corresponding `results.json` files for
@@ -135,7 +135,7 @@ interactive access to the same functionality.
 The user runs:
 
 ```bash
-python .agent/helpers/pipeline_cli.py run config/pipelines/security-sweep.yaml
+python .claude/helpers/pipeline_cli.py run config/pipelines/security-sweep.yaml
 ```
 
 The runner:
@@ -155,32 +155,32 @@ The current top-level step vocabulary includes:
 ### 2. Batch Output Setup
 
 The pipeline output template is rendered into a directory under
-`.agent/workspace/`:
+`.claude/workspace/`:
 
 ```text
-.agent/workspace/batch_security-sweep_20260306_010203/
+.claude/workspace/batch_security-sweep_20260306_010203/
   batch_manifest.json
   batch_summary.json
 ```
 
 If a pipeline YAML uses the shorthand `workspace/...`, the schema layer maps it
-to `.agent/workspace/...`.
+to `.claude/workspace/...`.
 
 ### 3. Step Dispatch
 
 The executor dispatches steps in two ways:
 
 - **Goal-backed steps** reuse existing agent scripts such as
-  `.agent/agents/triage-coordinator/scripts/analyze_module.py`
+  `.claude/agents/triage-coordinator/scripts/analyze_module.py`
 - **Security scan orchestration** uses
-  `.agent/agents/security-auditor/scripts/run_security_scan.py`
+  `.claude/agents/security-auditor/scripts/run_security_scan.py`
 - **Direct skill-group steps** call skill scripts with `run_skill_script()`
 
 For example, a `security` step for `appinfo.dll` produces a module-local
 workspace tree like:
 
 ```text
-.agent/workspace/batch_security-sweep_20260306_010203/
+.claude/workspace/batch_security-sweep_20260306_010203/
   appinfo.dll/
     security/
       manifest.json
@@ -208,15 +208,15 @@ The CLI then prints either human-readable text or JSON, depending on `--json`.
 ```mermaid
 flowchart TD
     UserRequest["User Request"]
-    CommandDef[".agent/commands/*.md"]
-    AgentScripts[".agent/agents/**/*.py"]
-    SkillScripts[".agent/skills/**/*.py"]
-    Helpers[".agent/helpers/"]
-    Workspace[".agent/workspace/"]
+    CommandDef[".claude/commands/*.md"]
+    AgentScripts[".claude/agents/**/*.py"]
+    SkillScripts[".claude/skills/**/*.py"]
+    Helpers[".claude/helpers/"]
+    Workspace[".claude/workspace/"]
     AnalysisDB["extracted_dbs/<module>_<hash>.db"]
     TrackingDB["extracted_dbs/analyzed_files.db"]
     ExtractedCode["extracted_code/<module>/"]
-    Cache[".agent/cache/"]
+    Cache[".claude/cache/"]
 
     UserRequest --> CommandDef
     CommandDef --> AgentScripts

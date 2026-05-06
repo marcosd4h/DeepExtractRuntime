@@ -19,8 +19,8 @@ Use the helpers library whenever you are developing:
 
 - **Skill scripts** (`skills/<name>/scripts/*.py`) -- import via `_common.py`
 - **Agent scripts** (`agents/<name>/scripts/*.py`) -- import via `_common.py`
-- **Hook scripts** (`hooks/*.py`) -- import after adding `.agent` to `sys.path`
-- **Inline Python** in command workflows -- run from `.agent/` working directory
+- **Hook scripts** (`hooks/*.py`) -- import after adding `.claude` to `sys.path`
+- **Inline Python** in command workflows -- run from `.claude/` working directory
 - **Tests** (`tests/*.py`) -- import directly since `conftest.py` handles paths
 
 If your code touches an analysis database, resolves a function, classifies an
@@ -65,10 +65,10 @@ from helpers.errors import db_error_handler      # submodule imports
 
 ### From hook scripts
 
-Hooks add `.agent` to `sys.path` manually:
+Hooks add `.claude` to `sys.path` manually:
 
 ```python
-AGENT_DIR = Path(__file__).resolve().parent.parent  # .agent/
+AGENT_DIR = Path(__file__).resolve().parent.parent  # .claude/
 sys.path.insert(0, str(AGENT_DIR))
 
 from helpers.analyzed_files_db import open_analyzed_files_db
@@ -77,10 +77,10 @@ from helpers.session_utils import resolve_session_id
 
 ### From inline Python in commands
 
-Run from the `.agent/` directory so `helpers` is importable:
+Run from the `.claude/` directory so `helpers` is importable:
 
 ```bash
-cd <workspace>/.agent && python -c "
+cd <workspace>/.claude && python -c "
 from helpers.validation import validate_workspace_data
 status = validate_workspace_data('..')
 print(status)
@@ -422,15 +422,15 @@ Run directly from the command line (not imported as modules):
 
 | Script | Purpose | Usage |
 |--------|---------|-------|
-| `unified_search.py` | Search across functions, strings, APIs, classes, exports | `python .agent/helpers/unified_search.py <db> --query <term> [--json]` |
-| `cleanup_workspace.py` | Clean old workspace run directories | `python .agent/helpers/cleanup_workspace.py [--older-than DAYS] [--dry-run]` |
-| `pipeline_cli.py` | Headless batch pipeline CLI (run, validate, list-steps) | `python .agent/helpers/pipeline_cli.py run <yaml> [--json]` |
-| `qa_runner.py` | Parse QA test plan, execute testable commands, report results | `python .agent/helpers/qa_runner.py [--prefix PREFIX] [--test ID] [--list] [--json]` |
-| `health_check.py` | Validate workspace data, DBs, registries, and config | `python .agent/helpers/health_check.py [--quick|--full] [--json]` |
-| `select_audit_callees.py` | Select callees for deep extraction during /audit (Steps 3h+3i) | `python .agent/helpers/select_audit_callees.py <db> --dossier <path> [--attack-surface <path>] [--json]` |
-| `select_backward_traces.py` | Select backward trace targets for /audit Step 3c | `python .agent/helpers/select_backward_traces.py --dossier <path> [--extract-callee <path>] [--json]` |
-| `json_extract.py` | Extract specific keys or search within large JSON files (auto-unwraps workspace envelopes) | `python .agent/helpers/json_extract.py <file> <key> [--grep <pattern>] [--keys] [--raw]` |
-| `ipc_index_inspect.py` | Diagnose IPC index state: COM/RPC/WinRT server counts, module attribution, edge counts, generic-host check | `python .agent/helpers/ipc_index_inspect.py --summary \| --com \| --rpc \| --winrt [--module <name>] \| --edges \| --check-hosts [--json]` |
+| `unified_search.py` | Search across functions, strings, APIs, classes, exports | `python .claude/helpers/unified_search.py <db> --query <term> [--json]` |
+| `cleanup_workspace.py` | Clean old workspace run directories | `python .claude/helpers/cleanup_workspace.py [--older-than DAYS] [--dry-run]` |
+| `pipeline_cli.py` | Headless batch pipeline CLI (run, validate, list-steps) | `python .claude/helpers/pipeline_cli.py run <yaml> [--json]` |
+| `qa_runner.py` | Parse QA test plan, execute testable commands, report results | `python .claude/helpers/qa_runner.py [--prefix PREFIX] [--test ID] [--list] [--json]` |
+| `health_check.py` | Validate workspace data, DBs, registries, and config | `python .claude/helpers/health_check.py [--quick|--full] [--json]` |
+| `select_audit_callees.py` | Select callees for deep extraction during /audit (Steps 3h+3i) | `python .claude/helpers/select_audit_callees.py <db> --dossier <path> [--attack-surface <path>] [--json]` |
+| `select_backward_traces.py` | Select backward trace targets for /audit Step 3c | `python .claude/helpers/select_backward_traces.py --dossier <path> [--extract-callee <path>] [--json]` |
+| `json_extract.py` | Extract specific keys or search within large JSON files (auto-unwraps workspace envelopes) | `python .claude/helpers/json_extract.py <file> <key> [--grep <pattern>] [--keys] [--raw]` |
+| `ipc_index_inspect.py` | Diagnose IPC index state: COM/RPC/WinRT server counts, module attribution, edge counts, generic-host check | `python .claude/helpers/ipc_index_inspect.py --summary \| --com \| --rpc \| --winrt [--module <name>] \| --edges \| --check-hosts [--json]` |
 
 > **Programmatic search**: Skill scripts that need to combine search with other
 > logic should import `run_search` directly instead of spawning a subprocess:
@@ -476,7 +476,7 @@ a new helper. Follow these steps:
 2. Keep the module focused on one functional area.
 3. Add public symbols to `helpers/__init__.py` re-exports and `__all__`.
 4. Update this README with the new module in the appropriate category table.
-5. Add tests in `.agent/tests/` covering the public API.
+5. Add tests in `.claude/tests/` covering the public API.
 6. Use `ScriptError` for recoverable errors; let callers decide how to handle.
 7. Never write to databases -- all helpers are read-only.
 

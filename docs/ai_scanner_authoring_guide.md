@@ -413,7 +413,7 @@ agent:
 3. Reads reference materials (vulnerability patterns, decompiler pitfalls)
 4. Navigates the callgraph by reading function code on demand:
    ```bash
-   python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py \
+   python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py \
        <db_path> --function "FunctionName" --json
    ```
 5. Performs 3 adversarial rounds (see [Section 9](#9-adversarial-prompting-strategy))
@@ -690,7 +690,7 @@ with CrossModuleGraph.from_tracking_db() as graph:
 Returns rich entry point metadata including IPC context:
 
 ```bash
-python .agent/skills/map-attack-surface/scripts/discover_entrypoints.py <db_path> --json
+python .claude/skills/map-attack-surface/scripts/discover_entrypoints.py <db_path> --json
 ```
 
 Each entry has: `function_name`, `entry_type` (RPC_HANDLER, COM_METHOD,
@@ -706,7 +706,7 @@ The LLM's primary tool for reading function code. This is the equivalent of
 Theori's `read_source`/`read_assembly`/`callers`/`callees` tools:
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py \
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py \
     <db_path> --function "FunctionName" --json
 ```
 
@@ -725,7 +725,7 @@ Returns a JSON object with:
 The LLM can also search for functions by name:
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/list_functions.py \
+python .claude/skills/decompiled-code-extractor/scripts/list_functions.py \
     <db_path> --search "ShareEnum" --json
 ```
 
@@ -896,7 +896,7 @@ artifacts, missing volatile reads, error path elision.
 
 ## 8. Agent Definition
 
-Create `.agent/agents/<vuln-class>-scanner.md` following the
+Create `.claude/agents/<vuln-class>-scanner.md` following the
 [agent authoring guide](agent_authoring_guide.md).
 
 ### Required Sections
@@ -1226,14 +1226,14 @@ Task prompt. Scanner-specific command `.md` files derive from this template.
 >
 > ## How to Read Function Code
 > ```
-> python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py "[db_path]" --function "FunctionName" --json
+> python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py "[db_path]" --function "FunctionName" --json
 > ```
 > You MUST read all functions in `verification_subgraph.must_read`.
 > You MAY read ANY other function in the database if needed.
 >
 > ## Reference Materials
-> - `.agent/skills/ai-[scanner-type]-scanner/reference/vulnerability_patterns.md`
-> - `.agent/skills/ai-[scanner-type]-scanner/reference/decompiler_pitfalls.md`
+> - `.claude/skills/ai-[scanner-type]-scanner/reference/vulnerability_patterns.md`
+> - `.claude/skills/ai-[scanner-type]-scanner/reference/decompiler_pitfalls.md`
 >
 > ## Verification Protocol
 > CONSIDER YOU MAY BE WRONG. FULLY TEST ALL OTHER POSSIBILITIES.
@@ -1271,7 +1271,7 @@ existing memory corruption scanner's skeptic verification. Include:
 
 ### Command Structure
 
-Create `.agent/commands/<command-name>.md` per
+Create `.claude/commands/<command-name>.md` per
 [command authoring guide](command_authoring_guide.md) with:
 
 1. **Header and Overview** with usage examples
@@ -1357,8 +1357,8 @@ Launch a SINGLE `<vuln-class>-scanner` subagent with:
   3. Preloaded code for depth 0+1 MUST_READ functions (from preloaded_code in context results)
   4. db_path for on-demand code retrieval via Shell
   5. Reference material paths:
-     - .agent/skills/ai-<vuln-class>-scanner/reference/vulnerability_patterns.md
-     - .agent/skills/ai-<vuln-class>-scanner/reference/decompiler_pitfalls.md
+     - .claude/skills/ai-<vuln-class>-scanner/reference/vulnerability_patterns.md
+     - .claude/skills/ai-<vuln-class>-scanner/reference/decompiler_pitfalls.md
   6. max_depth parameter
 
 The scanner drives its own depth expansion internally using Shell
@@ -1416,7 +1416,7 @@ annotations inline at each phase. See the reference implementations in
 Each scan creates a workspace directory:
 
 ```
-.agent/workspace/<module>_<scan-type>_<function-or-all>_<timestamp>/
+.claude/workspace/<module>_<scan-type>_<function-or-all>_<timestamp>/
   manifest.json                    # Step status tracking
   threat_model/
     results.json                   # Full threat model JSON
@@ -1443,7 +1443,7 @@ in `_common.py` handles writing results.json/summary.json automatically.
 
 ## 13. Registry and Integration
 
-### Skills Registry (`.agent/skills/registry.json`)
+### Skills Registry (`.claude/skills/registry.json`)
 
 ```json
 {
@@ -1461,7 +1461,7 @@ in `_common.py` handles writing results.json/summary.json automatically.
 }
 ```
 
-### Agents Registry (`.agent/agents/registry.json`)
+### Agents Registry (`.claude/agents/registry.json`)
 
 ```json
 {
@@ -1475,7 +1475,7 @@ in `_common.py` handles writing results.json/summary.json automatically.
 }
 ```
 
-### Commands Registry (`.agent/commands/registry.json`)
+### Commands Registry (`.claude/commands/registry.json`)
 
 ```json
 {
@@ -1491,7 +1491,7 @@ in `_common.py` handles writing results.json/summary.json automatically.
 }
 ```
 
-### Script Invocation Guide (`.agent/rules/script-invocation-guide.mdc`)
+### Script Invocation Guide (`.claude/rules/script-invocation-guide.mdc`)
 
 Add your scanner's script signatures under a new section header.
 
@@ -1708,7 +1708,7 @@ AI scanners are additive. Each targets a different vulnerability class:
 
 ### Test File
 
-`.agent/tests/test_ai_<vuln_class>_scanner.py`
+`.claude/tests/test_ai_<vuln_class>_scanner.py`
 
 Use fixtures from `conftest.py`: `sample_db`, `sample_db_with_extras`,
 `_make_function_record`. Create additional fixtures with richer xref data
@@ -1727,7 +1727,7 @@ When adding a new scanner:
 
 ### Phase A -- Build the New Skill (no breaking changes)
 
-- [ ] Create skill directory: `.agent/skills/ai-<vuln-class>-scanner/`
+- [ ] Create skill directory: `.claude/skills/ai-<vuln-class>-scanner/`
 - [ ] Create `reference/vulnerability_patterns.md` (5-10 domain-specific patterns)
 - [ ] Copy `reference/decompiler_pitfalls.md` from ai-memory-corruption-scanner
 - [ ] Create `scripts/_common.py` (lean bootstrap, NO domain constants)
@@ -1736,17 +1736,17 @@ When adding a new scanner:
 - [ ] Smoke test: `--help` works, real DB produces valid JSON
 - [ ] Create `SKILL.md` per skill authoring guide (all required sections)
 - [ ] Create `README.md` (user-facing quick start)
-- [ ] Create unit tests: `.agent/tests/test_ai_<vuln_class>_scanner.py`
-- [ ] Create agent definition: `.agent/agents/<vuln-class>-scanner.md`
+- [ ] Create unit tests: `.claude/tests/test_ai_<vuln_class>_scanner.py`
+- [ ] Create agent definition: `.claude/agents/<vuln-class>-scanner.md`
 - [ ] Add skeptic verification section to the scanner's agent definition
-- [ ] Create command: `.agent/commands/<command-name>.md`
+- [ ] Create command: `.claude/commands/<command-name>.md`
 
 ### Phase B -- Registry, Integration, and Pipeline
 
-- [ ] Add skill to `.agent/skills/registry.json`
-- [ ] Add agent to `.agent/agents/registry.json`
-- [ ] Add command to `.agent/commands/registry.json`
-- [ ] Add script signatures to `.agent/rules/script-invocation-guide.mdc`
+- [ ] Add skill to `.claude/skills/registry.json`
+- [ ] Add agent to `.claude/agents/registry.json`
+- [ ] Add command to `.claude/commands/registry.json`
+- [ ] Add script signatures to `.claude/rules/script-invocation-guide.mdc`
 - [ ] Add `_COMMAND_REQUIREMENTS` entry in `helpers/command_validation.py`
 - [ ] Add dispatch function in `helpers/pipeline_executor.py` (see Section 14.1)
 - [ ] Add step to `config/pipelines/full-analysis.yaml`
@@ -1759,16 +1759,16 @@ When adding a new scanner:
 
 ### Phase C -- Documentation
 
-- [ ] Add to `.agent/skills/README.md` skill table and section
-- [ ] Add to `.agent/agents/README.md` agent table
-- [ ] Add to `.agent/commands/README.md` command table
+- [ ] Add to `.claude/skills/README.md` skill table and section
+- [ ] Add to `.claude/agents/README.md` agent table
+- [ ] Add to `.claude/commands/README.md` command table
 - [ ] Update "When NOT to Use" cross-references in related skills' SKILL.md
-- [ ] Update `.agent/README.md` skill/agent/command counts
-- [ ] Update `.agent/commands/scan.md` if scanner integrates with `/scan`
+- [ ] Update `.claude/README.md` skill/agent/command counts
+- [ ] Update `.claude/commands/scan.md` if scanner integrates with `/scan`
 
 ### Phase D -- Validation
 
-- [ ] `cd .agent && python -m pytest tests/ -v` -- all tests pass
+- [ ] `cd .claude && python -m pytest tests/ -v` -- all tests pass
 - [ ] Integration test with real module DB (run scripts on actual extraction)
 - [ ] Manual test: run the full command pipeline on a real target
 
@@ -1980,13 +1980,13 @@ to the user.
 
 | Component | Path |
 |-----------|------|
-| Skill | `.agent/skills/ai-memory-corruption-scanner/` |
-| Agent | `.agent/agents/memory-corruption-scanner.md` |
-| Command | `.agent/commands/memory-scan.md` |
-| Tests | `.agent/tests/test_ai_memory_corruption_scanner.py` |
-| Vulnerability patterns | `.agent/skills/ai-memory-corruption-scanner/reference/vulnerability_patterns.md` |
-| Decompiler pitfalls | `.agent/skills/ai-memory-corruption-scanner/reference/decompiler_pitfalls.md` |
-| This guide | `.agent/docs/ai_scanner_authoring_guide.md` |
-| Skill authoring guide | `.agent/docs/skill_authoring_guide.md` |
-| Agent authoring guide | `.agent/docs/agent_authoring_guide.md` |
-| Command authoring guide | `.agent/docs/command_authoring_guide.md` |
+| Skill | `.claude/skills/ai-memory-corruption-scanner/` |
+| Agent | `.claude/agents/memory-corruption-scanner.md` |
+| Command | `.claude/commands/memory-scan.md` |
+| Tests | `.claude/tests/test_ai_memory_corruption_scanner.py` |
+| Vulnerability patterns | `.claude/skills/ai-memory-corruption-scanner/reference/vulnerability_patterns.md` |
+| Decompiler pitfalls | `.claude/skills/ai-memory-corruption-scanner/reference/decompiler_pitfalls.md` |
+| This guide | `.claude/docs/ai_scanner_authoring_guide.md` |
+| Skill authoring guide | `.claude/docs/skill_authoring_guide.md` |
+| Agent authoring guide | `.claude/docs/agent_authoring_guide.md` |
+| Command authoring guide | `.claude/docs/command_authoring_guide.md` |

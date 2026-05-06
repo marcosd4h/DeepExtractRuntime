@@ -3,7 +3,7 @@
 
 The code-lifter subagent calls this script to record and retrieve state as
 it lifts each method. State persists in a JSON file under
-.agent/agents/code-lifter/state/<ClassName>_state.json.
+.claude/agents/code-lifter/state/<ClassName>_state.json.
 
 Operations:
 

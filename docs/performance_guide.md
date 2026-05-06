@@ -23,7 +23,7 @@ The `--app-only` flag excludes these from classification and ranking:
 /triage large_module.dll
 
 # With --app-only: classifies only ~500 application functions
-python .agent/skills/classify-functions/scripts/triage_summary.py <db_path> --app-only --top 15
+python .claude/skills/classify-functions/scripts/triage_summary.py <db_path> --app-only --top 15
 ```
 
 The `module_profile.json` in `extracted_code/<module>/` contains pre-computed
@@ -116,13 +116,13 @@ Large analyses generate workspace run directories. Clean them periodically:
 
 ```
 # Show what would be deleted
-python .agent/helpers/cleanup_workspace.py --dry-run
+python .claude/helpers/cleanup_workspace.py --dry-run
 
 # Delete runs older than 7 days (default)
-python .agent/helpers/cleanup_workspace.py
+python .claude/helpers/cleanup_workspace.py
 
 # Delete runs older than 1 day
-python .agent/helpers/cleanup_workspace.py --older-than 1
+python .claude/helpers/cleanup_workspace.py --older-than 1
 ```
 
 Or use `/cache-manage purge-runs` to clean stale workspace runs.
@@ -151,7 +151,7 @@ count exceeds `scale.compact_mode_threshold` (default: 25). Above
 `scale.context_truncation_threshold` (default: 1000), module name lists are
 omitted entirely and only a count + status summary is injected.
 
-A sidecar cache (`.agent/cache/_module_list.json`) stores the module list
+A sidecar cache (`.claude/cache/_module_list.json`) stores the module list
 between sessions, invalidated by tracking DB mtime. This avoids re-scanning
 the tracking database on every session start.
 
@@ -183,7 +183,7 @@ several optimizations:
 | `cache_stats()` | `scale.cache_stats_sample_limit` | 200 | (stats scan all; use `--module` for single) |
 | LRU connection pool | `scale.max_cached_connections` | 50 | Max cached SQLite connections |
 
-All limits are configurable in `.agent/config/defaults.json` under the `scale` section
+All limits are configurable in `.claude/config/defaults.json` under the `scale` section
 and overridable via environment variables (e.g., `DEEPEXTRACT_SCALE__MAX_MODULES_CROSS_SCAN=500`).
 A value of `0` means unlimited for `max_modules_cross_scan`, `max_modules_search_all`,
 and `cross_module_index_warn_threshold`.
@@ -219,5 +219,5 @@ export DEEPEXTRACT_SCALE__MAX_MODULES_SEARCH_ALL=100
 export DEEPEXTRACT_SCALE__MAX_CACHED_CONNECTIONS=10
 ```
 
-To permanently change defaults, edit `.agent/config/defaults.json`.
+To permanently change defaults, edit `.claude/config/defaults.json`.
 Set a value to `0` to mean unlimited (the default for most module-count keys).

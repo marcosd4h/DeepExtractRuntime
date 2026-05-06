@@ -86,16 +86,16 @@ Stage 6: Cross-Report      Compare against previous DoS scan
 
 | Component | Path | Description |
 |-----------|------|-------------|
-| Skill | `.agent/skills/ai-dos-scanner/` | Skill directory |
-| SKILL.md | `.agent/skills/ai-dos-scanner/SKILL.md` | Skill definition with YAML frontmatter |
-| Reference | `.agent/skills/ai-dos-scanner/reference/vulnerability_patterns.md` | 5-10 DoS-specific vulnerability examples with decompiled code |
-| Reference | `.agent/skills/ai-dos-scanner/reference/decompiler_pitfalls.md` | Copy from ai-memory-corruption-scanner |
-| Scripts | `.agent/skills/ai-dos-scanner/scripts/_common.py` | Lean bootstrap (NO domain constants, NO scoring) |
-| Scripts | `.agent/skills/ai-dos-scanner/scripts/build_threat_model.py` | Stage 0: reuse from ai-memory-corruption-scanner |
-| Scripts | `.agent/skills/ai-dos-scanner/scripts/prepare_context.py` | Stage 1: reuse from ai-memory-corruption-scanner |
-| Agent | `.agent/agents/dos-scanner.md` | Agent definition with red-team persona |
-| Command | `.agent/commands/dos-scan.md` | `/dos-scan` command definition |
-| Tests | `.agent/tests/test_ai_dos_scanner.py` | Registry consistency + script smoke tests |
+| Skill | `.claude/skills/ai-dos-scanner/` | Skill directory |
+| SKILL.md | `.claude/skills/ai-dos-scanner/SKILL.md` | Skill definition with YAML frontmatter |
+| Reference | `.claude/skills/ai-dos-scanner/reference/vulnerability_patterns.md` | 5-10 DoS-specific vulnerability examples with decompiled code |
+| Reference | `.claude/skills/ai-dos-scanner/reference/decompiler_pitfalls.md` | Copy from ai-memory-corruption-scanner |
+| Scripts | `.claude/skills/ai-dos-scanner/scripts/_common.py` | Lean bootstrap (NO domain constants, NO scoring) |
+| Scripts | `.claude/skills/ai-dos-scanner/scripts/build_threat_model.py` | Stage 0: reuse from ai-memory-corruption-scanner |
+| Scripts | `.claude/skills/ai-dos-scanner/scripts/prepare_context.py` | Stage 1: reuse from ai-memory-corruption-scanner |
+| Agent | `.claude/agents/dos-scanner.md` | Agent definition with red-team persona |
+| Command | `.claude/commands/dos-scan.md` | `/dos-scan` command definition |
+| Tests | `.claude/tests/test_ai_dos_scanner.py` | Registry consistency + script smoke tests |
 
 ### What the Scripts Do (Programmatic Only)
 

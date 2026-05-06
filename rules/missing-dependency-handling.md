@@ -1,9 +1,9 @@
 ---
 description: Handling missing databases, skills, or extraction data gracefully
 globs:
-  - ".agent/skills/*/scripts/*.py"
-  - ".agent/agents/*/scripts/*.py"
-  - ".agent/hooks/*.py"
+  - ".claude/skills/*/scripts/*.py"
+  - ".claude/agents/*/scripts/*.py"
+  - ".claude/hooks/*.py"
 alwaysApply: true
 ---
 

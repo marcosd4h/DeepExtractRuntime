@@ -49,8 +49,8 @@ This skill orchestrates **batch lifting** by:
 Reuse the decompiled-code-extractor skill's script:
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --list
 ```
 
 ### Quick Cross-Dimensional Search
@@ -58,13 +58,13 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list
 To search across function names, signatures, strings, APIs, classes, and exports in one call:
 
 ```bash
-python .agent/helpers/unified_search.py <db_path> --query "SearchTerm"
-python .agent/helpers/unified_search.py <db_path> --query "SearchTerm" --json
+python .claude/helpers/unified_search.py <db_path> --query "SearchTerm"
+python .claude/helpers/unified_search.py <db_path> --query "SearchTerm" --json
 ```
 
 ## Utility Scripts
 
-All scripts are in `scripts/`. Run from the workspace root. Auto-resolve workspace root and `.agent/helpers/` imports.
+All scripts are in `scripts/`. Run from the workspace root. Auto-resolve workspace root and `.claude/helpers/` imports.
 
 ### collect_functions.py -- Identify the Function Set (Start Here)
 
@@ -72,22 +72,22 @@ Multi-mode function collection with dependency ordering.
 
 ```bash
 # All methods of a C++ class
-python .agent/skills/batch-lift/scripts/collect_functions.py <db_path> --class CSecurityDescriptor
+python .claude/skills/batch-lift/scripts/collect_functions.py <db_path> --class CSecurityDescriptor
 
 # Call chain from a function, 3 levels deep
-python .agent/skills/batch-lift/scripts/collect_functions.py <db_path> --chain BatLoop --depth 3
+python .claude/skills/batch-lift/scripts/collect_functions.py <db_path> --chain BatLoop --depth 3
 
 # Call chain by function ID
-python .agent/skills/batch-lift/scripts/collect_functions.py <db_path> --chain _ --id <function_id> --depth 3
+python .claude/skills/batch-lift/scripts/collect_functions.py <db_path> --chain _ --id <function_id> --depth 3
 
 # From a named export down 2 levels
-python .agent/skills/batch-lift/scripts/collect_functions.py <db_path> --export AiLaunchProcess --depth 2
+python .claude/skills/batch-lift/scripts/collect_functions.py <db_path> --export AiLaunchProcess --depth 2
 
 # From an export by function ID
-python .agent/skills/batch-lift/scripts/collect_functions.py <db_path> --export _ --id <function_id> --depth 2
+python .claude/skills/batch-lift/scripts/collect_functions.py <db_path> --export _ --id <function_id> --depth 2
 
 # JSON output for piping
-python .agent/skills/batch-lift/scripts/collect_functions.py <db_path> --class CSecurityDescriptor --json
+python .claude/skills/batch-lift/scripts/collect_functions.py <db_path> --class CSecurityDescriptor --json
 ```
 
 Output: function list with IDs, signatures, dependency order (callees first), role classification (constructor/destructor/method), and external call summary.
@@ -98,17 +98,17 @@ Extracts all data for the function set, scans shared struct patterns, and produc
 
 ```bash
 # From collect_functions.py JSON output (recommended pipeline)
-python .agent/skills/batch-lift/scripts/collect_functions.py <db_path> --class CSecurityDescriptor --json > funcs.json
-python .agent/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json
+python .claude/skills/batch-lift/scripts/collect_functions.py <db_path> --class CSecurityDescriptor --json > funcs.json
+python .claude/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json
 
 # Direct function IDs
-python .agent/skills/batch-lift/scripts/prepare_batch_lift.py <db_path> --ids 42,43,44,45
+python .claude/skills/batch-lift/scripts/prepare_batch_lift.py <db_path> --ids 42,43,44,45
 
 # Summary only (no code -- good for initial overview)
-python .agent/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json --summary
+python .claude/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json --summary
 
 # Structs only (for progressive accumulation)
-python .agent/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json --structs-only
+python .claude/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json --structs-only
 ```
 
 Output includes:
@@ -135,7 +135,7 @@ Output includes:
 
 The primary use case. Lifts all methods of a class with a shared struct definition.
 
-> **Grind loop**: After Step 2, create `.agent/hooks/scratchpads/{session_id}.md`
+> **Grind loop**: After Step 2, create `.claude/hooks/scratchpads/{session_id}.md`
 > (use the Session ID from your injected context) with one checkbox per method
 > to lift plus setup/assembly steps. The stop hook will re-invoke you
 > automatically if you run out of context before finishing.
@@ -154,13 +154,13 @@ Batch Lift Progress:
 **Step 1**: Find the module DB
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 ```
 
 **Step 2**: Collect all class methods
 
 ```bash
-python .agent/skills/batch-lift/scripts/collect_functions.py <db_path> --class CSecurityDescriptor --json > funcs.json
+python .claude/skills/batch-lift/scripts/collect_functions.py <db_path> --class CSecurityDescriptor --json > funcs.json
 ```
 
 Review the output to confirm the function set. The script finds methods by:
@@ -171,13 +171,13 @@ Review the output to confirm the function set. The script finds methods by:
 **Step 3**: Generate the lift plan
 
 ```bash
-python .agent/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json
+python .claude/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json
 ```
 
 For deeper struct analysis (assembly-backed, more accurate), also run:
 
 ```bash
-python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> --class CSecurityDescriptor
+python .claude/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> --class CSecurityDescriptor
 ```
 
 **Step 4**: Review before lifting:
@@ -200,7 +200,7 @@ python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> -
 
 Lift a function and everything it calls within the module, with shared context.
 
-> **Grind loop**: After Step 3, create `.agent/hooks/scratchpads/{session_id}.md`
+> **Grind loop**: After Step 3, create `.claude/hooks/scratchpads/{session_id}.md`
 > (use the Session ID from your injected context) with one checkbox per function
 > to lift. The stop hook re-invokes automatically.
 
@@ -217,31 +217,31 @@ Batch Lift Progress:
 **Step 1**: Find the module DB
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py cmd.exe
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py cmd.exe
 ```
 
 **Step 2**: Collect the call chain (start with summary to see scope)
 
 ```bash
-python .agent/skills/batch-lift/scripts/collect_functions.py <db_path> --chain BatLoop --depth 3
+python .claude/skills/batch-lift/scripts/collect_functions.py <db_path> --chain BatLoop --depth 3
 ```
 
 **Step 3**: Review the function count. If too many, reduce depth or use the callgraph-tracer to identify the most interesting subtree:
 
 ```bash
-python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> BatLoop --depth 3 --summary
+python .claude/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> BatLoop --depth 3 --summary
 ```
 
 Then create the JSON manifest:
 
 ```bash
-python .agent/skills/batch-lift/scripts/collect_functions.py <db_path> --chain BatLoop --depth 2 --json > funcs.json
+python .claude/skills/batch-lift/scripts/collect_functions.py <db_path> --chain BatLoop --depth 2 --json > funcs.json
 ```
 
 **Step 4**: Generate the lift plan
 
 ```bash
-python .agent/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json
+python .claude/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json
 ```
 
 **Step 5**: Lift in dependency order. The plan puts callees first, so each function's callees are already lifted when you reach it. Apply the same batch principles as Workflow 1 Step 5.
@@ -254,10 +254,10 @@ Starts from a module's exported function and lifts its implementation subtree.
 
 ```bash
 # Collect from export
-python .agent/skills/batch-lift/scripts/collect_functions.py <db_path> --export AiLaunchProcess --depth 3 --json > funcs.json
+python .claude/skills/batch-lift/scripts/collect_functions.py <db_path> --export AiLaunchProcess --depth 3 --json > funcs.json
 
 # Generate lift plan
-python .agent/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json
+python .claude/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json
 ```
 
 Follows the same Steps 4-6 as Workflow 2. The script confirms whether the starting function is actually in the module's export table.
@@ -277,13 +277,13 @@ During batch lifting, struct definitions improve as each function reveals new fi
 To get the accumulated struct at any point:
 
 ```bash
-python .agent/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json --structs-only
+python .claude/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json --structs-only
 ```
 
 For the most accurate results, use the reconstruct-types skill's assembly-backed scanner:
 
 ```bash
-python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> --class ClassName
+python .claude/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> --class ClassName
 ```
 
 ## Output Format

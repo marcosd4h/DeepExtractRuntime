@@ -208,7 +208,7 @@ def _default_workspace_root() -> Path:
 
 
 def _workspace_base_dir() -> Path:
-    return _default_workspace_root() / ".agent" / "workspace"
+    return _default_workspace_root() / ".claude" / "workspace"
 
 
 def normalize_run_dir(run_dir: str | Path) -> Path:
@@ -282,7 +282,7 @@ def create_run_dir(module_name: str, goal: str) -> str:
     """Create and return a new workspace run directory path.
 
     Directory format:
-        .agent/workspace/<timestamp>_<module>_<goal>/
+        .claude/workspace/<timestamp>_<module>_<goal>/
     """
     base = _workspace_base_dir()
     base.mkdir(parents=True, exist_ok=True)

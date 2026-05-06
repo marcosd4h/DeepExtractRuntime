@@ -2,9 +2,9 @@
 """Rank functions by multiple complexity metrics.
 
 Usage:
-    python .agent/skills/generate-re-report/scripts/analyze_complexity.py <db_path>
-    python .agent/skills/generate-re-report/scripts/analyze_complexity.py <db_path> --json
-    python .agent/skills/generate-re-report/scripts/analyze_complexity.py <db_path> --top 20
+    python .claude/skills/generate-re-report/scripts/analyze_complexity.py <db_path>
+    python .claude/skills/generate-re-report/scripts/analyze_complexity.py <db_path> --json
+    python .claude/skills/generate-re-report/scripts/analyze_complexity.py <db_path> --top 20
 """
 
 from __future__ import annotations

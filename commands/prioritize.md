@@ -19,16 +19,16 @@ Usage:
 
 This command aggregates results from prior scan/audit runs:
 
-1. Create `.agent/workspace/prioritize_<timestamp>/`.
+1. Create `.claude/workspace/prioritize_<timestamp>/`.
 2. Store per-module loaded findings in `<run_dir>/<module>/results.json`.
 3. Store merged and ranked output in `<run_dir>/ranked/results.json`.
 4. Use `<run_dir>/manifest.json` to track completed/failed phases.
 
 ## Execution Context
 
-> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.agent`
-> (so the `.agent/` directory is on `sys.path`), **not** from the workspace root.
-> Script invocations like `python .agent/skills/.../script.py` can be run from the workspace root
+> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.claude`
+> (so the `.claude/` directory is on `sys.path`), **not** from the workspace root.
+> Script invocations like `python .claude/skills/.../script.py` can be run from the workspace root
 > because those scripts manage their own path setup.
 
 ## Steps
@@ -43,13 +43,13 @@ If validation fails, report the errors and stop.
 **If `--all`:** List all modules via the decompiled-code-extractor:
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list --json
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --list --json
 ```
 
 **If `--modules A B C`:** Resolve each named module to its DB path:
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name> --json
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name> --json
 ```
 
 Fail gracefully if a module cannot be resolved -- log a warning and continue with the remaining modules.
@@ -69,7 +69,7 @@ If the store returns findings for this module, use them directly and skip the ca
 
 **Fallback — cache files** (when findings store returns 0 results for a module):
 
-Load existing scan/audit results from the cache directory `.agent/cache/<module>/`. Look for:
+Load existing scan/audit results from the cache directory `.claude/cache/<module>/`. Look for:
 
 - `scan_*.json` -- output from `/scan` (memory + logic + taint findings)
 - `audit_*.json` -- output from `/audit` (function-level security assessments)
@@ -144,7 +144,7 @@ For each module, show:
 
 ## Output
 
-Present the prioritized report in chat. Save to `.agent/workspace/prioritize_<timestamp>/ranked/results.json` and a human-readable report to `.agent/workspace/prioritize_<timestamp>/report.md`.
+Present the prioritized report in chat. Save to `.claude/workspace/prioritize_<timestamp>/ranked/results.json` and a human-readable report to `.claude/workspace/prioritize_<timestamp>/report.md`.
 
 All saved files must include a provenance header: generation date, modules analyzed, finding counts, and workspace run directory path.
 

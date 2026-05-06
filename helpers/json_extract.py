@@ -11,16 +11,16 @@ alongside the stdout JSON payload.
 Usage::
 
     # Direct key lookup (top-level)
-    python .agent/helpers/json_extract.py <file> <key>
+    python .claude/helpers/json_extract.py <file> <key>
 
     # Dotted path lookup
-    python .agent/helpers/json_extract.py <file> "module.security_posture.cfg"
+    python .claude/helpers/json_extract.py <file> "module.security_posture.cfg"
 
     # Substring search across all top-level keys
-    python .agent/helpers/json_extract.py <file> --grep "18006336C"
+    python .claude/helpers/json_extract.py <file> --grep "18006336C"
 
     # List top-level keys only (structure preview)
-    python .agent/helpers/json_extract.py <file> --keys
+    python .claude/helpers/json_extract.py <file> --keys
 """
 
 from __future__ import annotations

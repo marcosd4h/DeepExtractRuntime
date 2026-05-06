@@ -38,7 +38,7 @@ Your job is to **explain, analyze, and answer questions** about decompiled funct
 
 When re-analyst scripts are part of a larger pipeline, use filesystem handoff instead of inline payloads:
 
-- Create a run directory under `.agent/workspace/` (e.g. `.agent/workspace/{module}_explain_{timestamp}/`)
+- Create a run directory under `.claude/workspace/` (e.g. `.claude/workspace/{module}_explain_{timestamp}/`)
 - Invoke every script with:
   - `--workspace-dir <run_dir>`
   - `--workspace-step <step_name>`
@@ -246,7 +246,7 @@ Check that every allocation has a matching free on all paths (including error pa
 
 > **IDA conventions reference:** For grouped file naming, `function_summary` JSON schema, import
 > entry structure, struct offset formulas, and worked analysis examples, see
-> [.agent/docs/ida_conventions_reference.md](../docs/ida_conventions_reference.md).
+> [.claude/docs/ida_conventions_reference.md](../docs/ida_conventions_reference.md).
 
 ### Workspace Layout
 
@@ -263,15 +263,15 @@ extracted_dbs/
   analyzed_files.db            # Tracking DB: module index, status, hashes
   {module}_{hash}.db           # Per-module analysis DB (full data)
 
-.agent/helpers/                # Python modules for DB access
-.agent/docs/                   # Data format references
+.claude/helpers/                # Python modules for DB access
+.claude/docs/                   # Data format references
 ```
 
 ### Finding a Module's DB
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name>
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name>
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --list
 ```
 
 ### Module Metadata
@@ -310,7 +310,7 @@ Each function record in the DB contains:
 
 ## Available Scripts Catalog
 
-### RE Analyst Scripts (`.agent/agents/re-analyst/scripts/`)
+### RE Analyst Scripts (`.claude/agents/re-analyst/scripts/`)
 
 These scripts are purpose-built for the re-analyst workflow. **Use these first** -- they combine multiple data sources in one call.
 
@@ -318,25 +318,25 @@ These scripts are purpose-built for the re-analyst workflow. **Use these first**
 
 ```bash
 # Module overview: identity, stats, classes, imports
-python .agent/agents/re-analyst/scripts/re_query.py <db_path> --overview
+python .claude/agents/re-analyst/scripts/re_query.py <db_path> --overview
 
 # Function with full context: classification + strings + callees
-python .agent/agents/re-analyst/scripts/re_query.py <db_path> --function <name> --context
+python .claude/agents/re-analyst/scripts/re_query.py <db_path> --function <name> --context
 
 # Function by ID
-python .agent/agents/re-analyst/scripts/re_query.py <db_path> --function x --id <id> --context
+python .claude/agents/re-analyst/scripts/re_query.py <db_path> --function x --id <id> --context
 
 # List all methods of a C++ class
-python .agent/agents/re-analyst/scripts/re_query.py <db_path> --class <ClassName>
+python .claude/agents/re-analyst/scripts/re_query.py <db_path> --class <ClassName>
 
 # List exports with classification data
-python .agent/agents/re-analyst/scripts/re_query.py <db_path> --exports --with-classification
+python .claude/agents/re-analyst/scripts/re_query.py <db_path> --exports --with-classification
 
 # Search functions by name pattern
-python .agent/agents/re-analyst/scripts/re_query.py <db_path> --search <pattern>
+python .claude/agents/re-analyst/scripts/re_query.py <db_path> --search <pattern>
 
 # JSON output (any mode)
-python .agent/agents/re-analyst/scripts/re_query.py <db_path> --overview --json
+python .claude/agents/re-analyst/scripts/re_query.py <db_path> --overview --json
 ```
 
 > **Note:** All skill scripts support `--json` for machine-readable output. Add `--json` to any invocation for structured JSON on stdout.
@@ -345,19 +345,19 @@ python .agent/agents/re-analyst/scripts/re_query.py <db_path> --overview --json
 
 ```bash
 # Full explanation context: module + identity + classification + code + callees + strings
-python .agent/agents/re-analyst/scripts/explain_function.py <db_path> <function_name>
+python .claude/agents/re-analyst/scripts/explain_function.py <db_path> <function_name>
 
 # By function ID
-python .agent/agents/re-analyst/scripts/explain_function.py <db_path> --id <function_id>
+python .claude/agents/re-analyst/scripts/explain_function.py <db_path> --id <function_id>
 
 # Include callee code (depth 2 = direct + their callees)
-python .agent/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> --depth 2
+python .claude/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> --depth 2
 
 # Without assembly (shorter output)
-python .agent/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> --no-assembly
+python .claude/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> --no-assembly
 
 # JSON output
-python .agent/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> --json
+python .claude/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> --json
 ```
 
 ### Cross-Skill Scripts (from other skills)
@@ -367,66 +367,66 @@ Use these for specialized analysis beyond what re_query/explain_function provide
 **Module Discovery** (decompiled-code-extractor):
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name>
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --list
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name>
 ```
 
 **Function Listing** (decompiled-code-extractor):
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/list_functions.py <db_path> --search <name> --with-signatures
-python .agent/skills/decompiled-code-extractor/scripts/list_functions.py <db_path> --has-decompiled
+python .claude/skills/decompiled-code-extractor/scripts/list_functions.py <db_path> --search <name> --with-signatures
+python .claude/skills/decompiled-code-extractor/scripts/list_functions.py <db_path> --has-decompiled
 ```
 
 **Full Function Data** (decompiled-code-extractor):
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> <function_name>
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> --id <id>
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> <function_name>
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> --id <id>
 ```
 
 **Module Triage** (classify-functions):
 
 ```bash
-python .agent/skills/classify-functions/scripts/triage_summary.py <db_path> --top 20
-python .agent/skills/classify-functions/scripts/classify_module.py <db_path> --category security --no-telemetry
-python .agent/skills/classify-functions/scripts/classify_function.py <db_path> <function_name>
+python .claude/skills/classify-functions/scripts/triage_summary.py <db_path> --top 20
+python .claude/skills/classify-functions/scripts/classify_module.py <db_path> --category security --no-telemetry
+python .claude/skills/classify-functions/scripts/classify_function.py <db_path> <function_name>
 ```
 
 **Call Graph Tracing** (callgraph-tracer):
 
 ```bash
-python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> <function> --depth 3
-python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> <function> --summary
-python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --path <source> <target>
-python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --reachable <function>
-python .agent/skills/callgraph-tracer/scripts/module_dependencies.py --module <name>
+python .claude/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> <function> --depth 3
+python .claude/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> <function> --summary
+python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --path <source> <target>
+python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --reachable <function>
+python .claude/skills/callgraph-tracer/scripts/module_dependencies.py --module <name>
 ```
 
 **RE Report** (generate-re-report):
 
 ```bash
-python .agent/skills/generate-re-report/scripts/generate_report.py <db_path> --summary
-python .agent/skills/generate-re-report/scripts/analyze_imports.py <db_path> --exports
-python .agent/skills/generate-re-report/scripts/analyze_strings.py <db_path> --category file_path
+python .claude/skills/generate-re-report/scripts/generate_report.py <db_path> --summary
+python .claude/skills/generate-re-report/scripts/analyze_imports.py <db_path> --exports
+python .claude/skills/generate-re-report/scripts/analyze_strings.py <db_path> --category file_path
 ```
 
 **Function Index** (function-index skill):
 
 ```bash
-python .agent/skills/function-index/scripts/lookup_function.py <name>           # Find function across all modules
-python .agent/skills/function-index/scripts/lookup_function.py --search "pattern" --app-only  # Search, skip boilerplate
-python .agent/skills/function-index/scripts/index_functions.py <module> --stats   # Module app/library breakdown
-python .agent/skills/function-index/scripts/resolve_function_file.py <name>      # Get absolute .cpp path
+python .claude/skills/function-index/scripts/lookup_function.py <name>           # Find function across all modules
+python .claude/skills/function-index/scripts/lookup_function.py --search "pattern" --app-only  # Search, skip boilerplate
+python .claude/skills/function-index/scripts/index_functions.py <module> --stats   # Module app/library breakdown
+python .claude/skills/function-index/scripts/resolve_function_file.py <name>      # Get absolute .cpp path
 ```
 
 **Unified Search** (cross-dimensional -- names, signatures, strings, APIs, classes, exports):
 
 ```bash
-python .agent/helpers/unified_search.py <db_path> --query <term>                # Search all dimensions at once
-python .agent/helpers/unified_search.py <db_path> --query <term> --json         # JSON output
-python .agent/helpers/unified_search.py --all --query <term>                    # Search across all module DBs
-python .agent/helpers/unified_search.py <db_path> --query <term> --dimensions name,api,string  # Restrict dimensions
+python .claude/helpers/unified_search.py <db_path> --query <term>                # Search all dimensions at once
+python .claude/helpers/unified_search.py <db_path> --query <term> --json         # JSON output
+python .claude/helpers/unified_search.py --all --query <term>                    # Search across all module DBs
+python .claude/helpers/unified_search.py <db_path> --query <term> --dimensions name,api,string  # Restrict dimensions
 ```
 
 ---

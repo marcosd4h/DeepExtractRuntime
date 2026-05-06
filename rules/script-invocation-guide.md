@@ -1,9 +1,9 @@
 ---
 description: Canonical patterns for invoking skill scripts -- DB path resolution, function lookup, and common pitfalls
 globs:
-  - ".agent/skills/*/scripts/*.py"
-  - ".agent/agents/*/scripts/*.py"
-  - ".agent/commands/*.md"
+  - ".claude/skills/*/scripts/*.py"
+  - ".claude/agents/*/scripts/*.py"
+  - ".claude/commands/*.md"
 alwaysApply: true
 ---
 
@@ -21,7 +21,7 @@ pattern, or a partial path.
 **Option A -- From `--list` output (when you already listed modules):**
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list --json
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --list --json
 ```
 
 The `--list --json` output schema is:
@@ -68,7 +68,7 @@ Key field for the module list is **`workspace_modules`** -- there is
 **Option B -- From a module name directly:**
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name> --json
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name> --json
 # Example: find_module_db.py shell32.dll --json
 # Returns: { "status": "ok", "db_path": "extracted_dbs/shell32_dll_abc123.db", ... }
 ```
@@ -90,14 +90,14 @@ recognizable substring.
 | `chain_analysis.py <db_path> --function "Foo"` before this patch | `--function` didn't exist; argparse matched `--f` to `--function-id` (int) | All scripts now accept `--function <name>` or bare positional: `chain_analysis.py <db_path> --function "Foo"` or `chain_analysis.py <db_path> Foo` |
 | `find_module_db.py --list --json \| python -c "...m['module_name']..."` | (1) Piping through `python -c` violates JSON output convention; (2) field is `file_name`, not `module_name` | Read `--json` output directly; use documented field names from the schema above |
 | `extract_function_data.py <db_path> --function X --json` to get module metadata (file_size, exports, hashes) | Returns function-level data only; has no module-level fields | Read `file_info.json` or `module_profile.json` via Read tool, or use coordinator `module_identity` output |
-| Shell pipeline (`cat file.json \| python -c "..."`) to extract fields from static JSON files | Shell is for running scripts that compute something; static files should be read directly | Use the Read tool on the JSON file path; for large files needing a specific key, use `python .agent/helpers/json_extract.py <file> <key>` |
-| `discover_workspace_ipc.py` under a guessed skill folder (e.g. `ipc-discovery`) | The script lives in `decompiled-code-extractor/scripts/`, not its own skill | `.agent/skills/decompiled-code-extractor/scripts/discover_workspace_ipc.py` |
+| Shell pipeline (`cat file.json \| python -c "..."`) to extract fields from static JSON files | Shell is for running scripts that compute something; static files should be read directly | Use the Read tool on the JSON file path; for large files needing a specific key, use `python .claude/helpers/json_extract.py <file> <key>` |
+| `discover_workspace_ipc.py` under a guessed skill folder (e.g. `ipc-discovery`) | The script lives in `decompiled-code-extractor/scripts/`, not its own skill | `.claude/skills/decompiled-code-extractor/scripts/discover_workspace_ipc.py` |
 | Unquoted backslash path in bash: `json_extract.py C:\path\file` | Bash strips backslashes from unquoted args; `C:\Users` becomes `C:Users` | Quote the path: `json_extract.py "C:\path\file"` or use forward slashes |
 | `map_com_surface.py --workspace --json` (or `map_rpc_surface.py --workspace`) | `--workspace` only exists on `resolve_*` scripts, not `map_*` scripts | Use `resolve_com_server.py --workspace --json` to discover workspace COM modules; use `map_com_surface.py --system-wide --json` for risk-ranked surface across the full COM index |
 | IPC script under wrong skill folder (e.g. `decompiled-code-extractor/scripts/resolve_com_server.py`) | IPC scripts live in their own skill folders, not in `decompiled-code-extractor` | COM: `com-interface-analysis/scripts/`, RPC: `rpc-interface-analysis/scripts/`, WinRT: `winrt-interface-analysis/scripts/` |
 | `json_extract.py <file> modules` on `--workspace` output | Field is `workspace_modules`, not `modules`; see IPC workspace schema above | `json_extract.py <file> workspace_modules` -- or use `summary`, `com`, `rpc`, `winrt` |
 | `json_extract.py results.json stdout.stats` | Redundant `stdout.` prefix; `json_extract.py` auto-unwraps workspace envelopes | `json_extract.py results.json stats` (envelope unwrapped automatically; use `--raw` to query envelope keys) |
-| `python -c "..."` to inspect IPC index state (COM/RPC/WinRT server counts, module attribution) | Fragile inline Python; use the dedicated diagnostic helper | `python .agent/helpers/ipc_index_inspect.py --summary` or `--com --module <name>` or `--edges` or `--check-hosts` |
+| `python -c "..."` to inspect IPC index state (COM/RPC/WinRT server counts, module attribution) | Fragile inline Python; use the dedicated diagnostic helper | `python .claude/helpers/ipc_index_inspect.py --summary` or `--com --module <name>` or `--edges` or `--check-hosts` |
 | `extract_function_data.py ... --json 2>/dev/null \| python -c "...d.get('assembly'...)"` | Triples the failure modes: `2>/dev/null` hides errors, `\| python -c` violates JSON convention, and `assembly` is the **wrong field name** (returns `None` silently) | Run `extract_function_data.py <db_path> --function <name> --json` standalone and read Shell output directly; the correct fields are **`assembly_code`** and **`decompiled_code`** |
 | `extract_function_data.py ... --json \| python -c "...d['decompiled']..."` | `decompiled` does not exist; the field is **`decompiled_code`** | Use the correct field name from the schema below |
 | `list_functions.py <db_path> --search "X" --json 2>/dev/null \| python -c "...json.load(stdin)..."` | When `--search` finds no matches, `emit_error(NO_DATA)` writes to **stderr** and exits 1 with **empty stdout**. `2>/dev/null` hides the only diagnostic; `json.load()` gets empty bytes and throws `JSONDecodeError: Expecting value: line 1 column 1 (char 0)`. Same applies to `extract_function_data.py --search` and any `--search ... --json` script with no matches. | Run the script standalone (`--json`, no pipe, no redirect); a `NO_DATA` exit (code 1) means zero matches -- treat as empty result and continue |
@@ -140,7 +140,7 @@ db_path                  string   Resolved absolute path to the analysis DB
 
 ```bash
 # Run standalone — read output directly from Shell result:
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py \
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py \
     "extracted_dbs/<module>.db" --function "<FunctionName>" --json
 ```
 
@@ -154,7 +154,7 @@ When the user names a function but not a module, do **not** guess the
 module. Search across all modules first:
 
 ```bash
-python .agent/skills/function-index/scripts/lookup_function.py "<function_name_or_fragment>"
+python .claude/skills/function-index/scripts/lookup_function.py "<function_name_or_fragment>"
 ```
 
 This returns the module and .cpp file path for every match. Use the module
@@ -164,7 +164,7 @@ proceed with the target script.
 For broader searches (strings, APIs, classes -- not just function names):
 
 ```bash
-python .agent/helpers/unified_search.py --all --query "<term>" --json
+python .claude/helpers/unified_search.py --all --query "<term>" --json
 ```
 
 ## Canonical Script Signatures (Quick Reference)
@@ -177,7 +177,7 @@ lookup. Both forms are equivalent.
 
 All scripts in this section live under their respective skill's `scripts/`
 directory. Invoke with the full relative path, e.g.
-`.agent/skills/decompiled-code-extractor/scripts/find_module_db.py`.
+`.claude/skills/decompiled-code-extractor/scripts/find_module_db.py`.
 
 ```
 find_module_db.py           <module_name> | --list | --ext <ext>  [--json]
@@ -263,7 +263,7 @@ a `<db_path>`. Exceptions are noted below.
 
 #### COM interface analysis
 
-Scripts live in `.agent/skills/com-interface-analysis/scripts/`.
+Scripts live in `.claude/skills/com-interface-analysis/scripts/`.
 
 **`--workspace`** (on `resolve_*` only) discovers which workspace modules
 implement IPC servers. **`--system-wide`** (on `map_*` only) ranks the full
@@ -281,7 +281,7 @@ find_com_privesc.py         [--context <ctx>] [--top N] [--include-uac] [--json]
 
 #### RPC interface analysis
 
-Scripts live in `.agent/skills/rpc-interface-analysis/scripts/`.
+Scripts live in `.claude/skills/rpc-interface-analysis/scripts/`.
 
 Same `--workspace` vs `--system-wide` split as COM above.
 
@@ -302,7 +302,7 @@ runs `run_security_scan.py` with all 6 phases including auto-verification and
 deduplication):
 
 ```bash
-python .agent/agents/security-auditor/scripts/run_security_scan.py <db_path> --goal scan --json
+python .claude/agents/security-auditor/scripts/run_security_scan.py <db_path> --goal scan --json
 ```
 
 Do **NOT** run individual hint-generator scripts directly for module-wide
@@ -315,7 +315,7 @@ model, not standalone findings. Individual scripts are appropriate only for:
 
 #### WinRT interface analysis
 
-Scripts live in `.agent/skills/winrt-interface-analysis/scripts/`.
+Scripts live in `.claude/skills/winrt-interface-analysis/scripts/`.
 
 Same `--workspace` vs `--system-wide` split as COM above.
 
@@ -331,10 +331,10 @@ find_winrt_privesc.py         [--context <ctx>] [--top N] [--json]
 ### IPC Index Diagnostics (helper, not a skill script)
 
 ```
-python .agent/helpers/ipc_index_inspect.py --summary [--json]
-python .agent/helpers/ipc_index_inspect.py --com | --rpc | --winrt [--module <name>] [--json]
-python .agent/helpers/ipc_index_inspect.py --edges [--json]
-python .agent/helpers/ipc_index_inspect.py --check-hosts [--json]
+python .claude/helpers/ipc_index_inspect.py --summary [--json]
+python .claude/helpers/ipc_index_inspect.py --com | --rpc | --winrt [--module <name>] [--json]
+python .claude/helpers/ipc_index_inspect.py --edges [--json]
+python .claude/helpers/ipc_index_inspect.py --check-hosts [--json]
 ```
 
 Use for verifying IPC index state, checking module attribution (e.g.

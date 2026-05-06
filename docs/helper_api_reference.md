@@ -1,6 +1,6 @@
 # Helper API Reference -- DeepExtractIDA Agent Analysis Runtime
 
-This reference documents the public API for the 30+ modules in `.agent/helpers/`. These modules provide the foundational data access, analysis taxonomies, and infrastructure used by skills, agents, and commands.
+This reference documents the public API for the 30+ modules in `.claude/helpers/`. These modules provide the foundational data access, analysis taxonomies, and infrastructure used by skills, agents, and commands.
 
 ## 1. Database Access
 
@@ -74,7 +74,7 @@ Multi-dimensional search across module databases.
 - **unified_search.py** (Standalone Script)
   - Dimensions: `name`, `signature`, `string`, `api`, `dangerous`, `class`, `export`
   - Match Modes: `substring`, `regex`, `fuzzy`
-  - Usage: `python .agent/helpers/unified_search.py <db> --query <term>`
+  - Usage: `python .claude/helpers/unified_search.py <db> --query <term>`
 
 ## 3. Analysis Taxonomies
 
@@ -459,7 +459,7 @@ Execution engine for headless batch pipelines.
 Run-directory I/O primitives for multi-step workflow handoff.
 
 - `create_run_dir(module_name: str, goal: str)` -> str
-  - Creates and returns a new workspace run directory path under `.agent/workspace/`.
+  - Creates and returns a new workspace run directory path under `.claude/workspace/`.
 - `list_runs(module: str | None = None, goal: str | None = None, limit: int | None = 10)` -> list[dict]
   - Lists workspace runs, optionally filtered by module or goal. Returns manifest metadata per run.
 - `write_results(run_dir: str | Path, step_name: str, full_data: Any, summary_data: Any)` -> dict[str, str]

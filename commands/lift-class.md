@@ -18,21 +18,21 @@ The text after `/lift-class` specifies the **class name** and optionally the **m
 
 ## Execution Context
 
-> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.agent`
-> (so the `.agent/` directory is on `sys.path`), **not** from the workspace root.
-> Script invocations like `python .agent/skills/.../script.py` can be run from the workspace root
+> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.claude`
+> (so the `.claude/` directory is on `sys.path`), **not** from the workspace root.
+> Script invocations like `python .claude/skills/.../script.py` can be run from the workspace root
 > because those scripts manage their own path setup.
 
 ## Workspace Protocol
 
 Apply filesystem handoff for all intermediate artifacts:
 
-1. Create `.agent/workspace/<module>_lift_class_<timestamp>/`.
+1. Create `.claude/workspace/<module>_lift_class_<timestamp>/`.
 2. For any supporting skill/script invocations, pass:
    - `--workspace-dir <run_dir>`
    - `--workspace-step <step_name>`
 3. Keep only summaries in context; read full intermediate data from `<run_dir>/<step_name>/results.json` when needed.
-4. For fallback grind-loop runs, use the session-scoped scratchpad `.agent/hooks/scratchpads/{session_id}.md` for loop state, but store intermediate script outputs in the workspace run directory.
+4. For fallback grind-loop runs, use the session-scoped scratchpad `.claude/hooks/scratchpads/{session_id}.md` for loop state, but store intermediate script outputs in the workspace run directory.
 
 ## Steps
 
@@ -47,10 +47,10 @@ If validation fails, report the errors and stop. On success, use `result.resolve
    **To list available classes** (when user passes `--list`), use `batch_extract.py --list-classes`:
 
    ```bash
-   python .agent/agents/code-lifter/scripts/batch_extract.py <db_path> --list-classes [--skip-library] [--json]
+   python .claude/agents/code-lifter/scripts/batch_extract.py <db_path> --list-classes [--skip-library] [--json]
    ```
 
-   Alternative: `python .agent/skills/batch-lift/scripts/collect_functions.py <db_path> --list-classes [--skip-library] [--json]`
+   Alternative: `python .claude/skills/batch-lift/scripts/collect_functions.py <db_path> --list-classes [--skip-library] [--json]`
 
    Output includes an `already_lifted` flag per class, indicating whether a `lifted_<ClassName>.cpp` file already exists in `extracted_code/<module>/`. When listing, present results and stop -- do not proceed to lifting.
 
@@ -60,13 +60,13 @@ If validation fails, report the errors and stop. On success, use `result.resolve
    Use the **code-lifter** subagent's `batch_extract.py` to preview what will be lifted:
 
    ```bash
-   python .agent/agents/code-lifter/scripts/batch_extract.py <db_path> --class <ClassName> --summary
+   python .claude/agents/code-lifter/scripts/batch_extract.py <db_path> --class <ClassName> --summary
    ```
 
    Review: method count, which have decompiled code, dependency order, initial struct scan.
    If the class has many methods (>15), ask the user if they want to lift all or a subset.
 
-   Use `--skip-library` on `batch_extract.py` or `--skip-library` on `python .agent/skills/batch-lift/scripts/collect_functions.py` to exclude WIL/WRL boilerplate methods that sometimes appear in class groups. `resolve_module_dir()` from helpers provides the extracted_code path for output.
+   Use `--skip-library` on `batch_extract.py` or `--skip-library` on `python .claude/skills/batch-lift/scripts/collect_functions.py` to exclude WIL/WRL boilerplate methods that sometimes appear in class groups. `resolve_module_dir()` from helpers provides the extracted_code path for output.
 
 3. **Delegate to the code-lifter subagent**
    Launch the `code-lifter` subagent with a descriptive name (e.g., `"Lift CSecurityDescriptor methods (appinfo.dll)"`) and a prompt that includes:
@@ -111,7 +111,7 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 
 If the code-lifter subagent is unavailable or hits context limits (rare with <20 methods), fall back to the grind-loop approach:
 
-1. Create `.agent/hooks/scratchpads/{session_id}.md` with one checkbox per method
+1. Create `.claude/hooks/scratchpads/{session_id}.md` with one checkbox per method
 2. Lift methods one at a time using the **batch-lift** skill
 3. Track shared state manually via `track_shared_state.py`
 4. Set Status to `DONE` when finished

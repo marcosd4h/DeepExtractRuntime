@@ -92,7 +92,7 @@ def validate_module(
         else:
             result.add_error(
                 f"Module '{module_name}' not found. Check available modules "
-                f"with: python .agent/skills/decompiled-code-extractor/"
+                f"with: python .claude/skills/decompiled-code-extractor/"
                 f"scripts/find_module_db.py --list",
                 ErrorCode.NOT_FOUND,
             )

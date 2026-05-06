@@ -2,7 +2,7 @@
 
 ## Overview
 
-View statistics, clear, or refresh cached analysis results stored in `.agent/cache/`. Caching significantly speeds up commands like `/triage`, `/full-report`, and `/audit` by avoiding redundant expensive computations.
+View statistics, clear, or refresh cached analysis results stored in `.claude/cache/`. Caching significantly speeds up commands like `/triage`, `/full-report`, and `/audit` by avoiding redundant expensive computations.
 
 Usage:
 
@@ -37,11 +37,11 @@ Usage:
    - This ensures the cache is fresh and ready for subsequent commands.
 
 4. **Purge Workspace Runs** (`/cache-manage purge-runs`)
-   - Run `python .agent/helpers/cleanup_workspace.py` to delete stale workspace run directories.
+   - Run `python .claude/helpers/cleanup_workspace.py` to delete stale workspace run directories.
    - Default: deletes runs older than 7 days.
    - Use `--older-than N` to specify a custom age threshold (in days).
    - Use `--dry-run` to preview what would be deleted without actually removing anything.
-   - Also cleans up stale code-lifter state files from `.agent/agents/code-lifter/state/`.
+   - Also cleans up stale code-lifter state files from `.claude/agents/code-lifter/state/`.
 
 ## Output
 

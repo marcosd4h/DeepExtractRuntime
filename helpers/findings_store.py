@@ -66,12 +66,12 @@ CREATE INDEX IF NOT EXISTS findings_run ON findings(run_id);
 
 def _get_db_path() -> Path:
     """Resolve findings store path from config."""
-    raw = get_config_value("findings_store.db_path", default=".agent/cache/findings.db")
+    raw = get_config_value("findings_store.db_path", default=".claude/cache/findings.db")
     # Resolve relative to the workspace root (caller's CWD or WORKSPACE_ROOT)
     p = Path(raw)
     if not p.is_absolute():
-        # Try to resolve from .agent's parent directory
-        agent_dir = Path(__file__).resolve().parent.parent  # helpers/ -> .agent/
+        # Try to resolve from .claude's parent directory
+        agent_dir = Path(__file__).resolve().parent.parent  # helpers/ -> .claude/
         p = agent_dir.parent / raw
     return p
 

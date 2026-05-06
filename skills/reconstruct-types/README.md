@@ -10,19 +10,19 @@ Assembly is the **ground truth** -- instruction operands give exact field sizes,
 
 ```bash
 # 1. Find the module DB
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 
 # 2. List all C++ classes in the module
-python .agent/skills/reconstruct-types/scripts/list_types.py extracted_dbs/appinfo_dll_e98d25a9e8.db --with-vtables
+python .claude/skills/reconstruct-types/scripts/list_types.py extracted_dbs/appinfo_dll_e98d25a9e8.db --with-vtables
 
 # 3. Get the full class hierarchy for a target class
-python .agent/skills/reconstruct-types/scripts/extract_class_hierarchy.py extracted_dbs/appinfo_dll_e98d25a9e8.db --class BinaryAndStrategy
+python .claude/skills/reconstruct-types/scripts/extract_class_hierarchy.py extracted_dbs/appinfo_dll_e98d25a9e8.db --class BinaryAndStrategy
 
 # 4. Scan struct fields (decompiled + assembly, merged across all methods)
-python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py extracted_dbs/appinfo_dll_e98d25a9e8.db --class BinaryAndStrategy
+python .claude/skills/reconstruct-types/scripts/scan_struct_fields.py extracted_dbs/appinfo_dll_e98d25a9e8.db --class BinaryAndStrategy
 
 # 5. Generate a compilable .h header
-python .agent/skills/reconstruct-types/scripts/generate_header.py extracted_dbs/appinfo_dll_e98d25a9e8.db --all --output types.h
+python .claude/skills/reconstruct-types/scripts/generate_header.py extracted_dbs/appinfo_dll_e98d25a9e8.db --all --output types.h
 ```
 
 ## Scripts
@@ -145,7 +145,7 @@ reconstruct-types/
 ## Dependencies
 
 - Python 3.10+
-- `.agent/helpers/` module (workspace root) -- provides `open_individual_analysis_db`, `open_analyzed_files_db`
+- `.claude/helpers/` module (workspace root) -- provides `open_individual_analysis_db`, `open_analyzed_files_db`
 - SQLite analysis databases from DeepExtractIDA
 
 ## Related Skills

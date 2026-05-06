@@ -26,14 +26,14 @@ def fake_workspace(tmp_path: Path):
     """Create a minimal workspace tree for cleanup testing."""
     ws = tmp_path / "workspace"
     ws.mkdir()
-    workspace_dir = ws / ".agent" / "workspace"
+    workspace_dir = ws / ".claude" / "workspace"
     workspace_dir.mkdir(parents=True)
     return ws
 
 
 class TestCleanupRuns:
     def test_deletes_old_run_dirs(self, fake_workspace: Path):
-        ws_dir = fake_workspace / ".agent" / "workspace"
+        ws_dir = fake_workspace / ".claude" / "workspace"
         old_run = ws_dir / "old_run_20240101"
         old_run.mkdir()
         (old_run / "manifest.json").write_text("{}")
@@ -44,7 +44,7 @@ class TestCleanupRuns:
         assert not old_run.exists()
 
     def test_preserves_recent_run_dirs(self, fake_workspace: Path):
-        ws_dir = fake_workspace / ".agent" / "workspace"
+        ws_dir = fake_workspace / ".claude" / "workspace"
         recent_run = ws_dir / "recent_run_today"
         recent_run.mkdir()
         (recent_run / "manifest.json").write_text("{}")
@@ -54,7 +54,7 @@ class TestCleanupRuns:
         assert recent_run.exists()
 
     def test_dry_run_does_not_delete(self, fake_workspace: Path):
-        ws_dir = fake_workspace / ".agent" / "workspace"
+        ws_dir = fake_workspace / ".claude" / "workspace"
         old_run = ws_dir / "old_run_20240101"
         old_run.mkdir()
         _make_old(old_run, age_days=30)
@@ -64,7 +64,7 @@ class TestCleanupRuns:
         assert old_run.exists()
 
     def test_mixed_old_and_recent(self, fake_workspace: Path):
-        ws_dir = fake_workspace / ".agent" / "workspace"
+        ws_dir = fake_workspace / ".claude" / "workspace"
         old_run = ws_dir / "old_run"
         old_run.mkdir()
         _make_old(old_run, age_days=30)
@@ -78,7 +78,7 @@ class TestCleanupRuns:
         assert recent_run.exists()
 
     def test_skips_plain_files(self, fake_workspace: Path):
-        ws_dir = fake_workspace / ".agent" / "workspace"
+        ws_dir = fake_workspace / ".claude" / "workspace"
         plain_file = ws_dir / "stray_file.txt"
         plain_file.write_text("stray")
         _make_old(plain_file, age_days=30)
@@ -90,7 +90,7 @@ class TestCleanupRuns:
 
 class TestCleanupState:
     def test_deletes_old_state_files(self, fake_workspace: Path):
-        state_dir = fake_workspace / ".agent" / "agents" / "code-lifter" / "state"
+        state_dir = fake_workspace / ".claude" / "agents" / "code-lifter" / "state"
         state_dir.mkdir(parents=True)
         old_state = state_dir / "class_a_state.json"
         old_state.write_text("{}")
@@ -101,7 +101,7 @@ class TestCleanupState:
         assert not old_state.exists()
 
     def test_preserves_recent_state_files(self, fake_workspace: Path):
-        state_dir = fake_workspace / ".agent" / "agents" / "code-lifter" / "state"
+        state_dir = fake_workspace / ".claude" / "agents" / "code-lifter" / "state"
         state_dir.mkdir(parents=True)
         recent_state = state_dir / "class_b_state.json"
         recent_state.write_text("{}")
@@ -111,7 +111,7 @@ class TestCleanupState:
         assert recent_state.exists()
 
     def test_ignores_non_state_files(self, fake_workspace: Path):
-        state_dir = fake_workspace / ".agent" / "agents" / "code-lifter" / "state"
+        state_dir = fake_workspace / ".claude" / "agents" / "code-lifter" / "state"
         state_dir.mkdir(parents=True)
         other = state_dir / "readme.txt"
         other.write_text("not a state file")
@@ -133,7 +133,7 @@ class TestEdgeCases:
         assert result["runs_deleted"] == 0
 
     def test_zero_days_deletes_everything_old(self, fake_workspace: Path):
-        ws_dir = fake_workspace / ".agent" / "workspace"
+        ws_dir = fake_workspace / ".claude" / "workspace"
         run = ws_dir / "any_run"
         run.mkdir()
         _make_old(run, age_days=1)

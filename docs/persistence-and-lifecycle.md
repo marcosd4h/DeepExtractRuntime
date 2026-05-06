@@ -23,11 +23,11 @@ Scratchpads are **created by the agent** (or skill) when:
 ### Location
 
 ```
-.agent/hooks/scratchpads/{session_id}.md
+.claude/hooks/scratchpads/{session_id}.md
 ```
 
 - `{session_id}` comes from: `AGENT_SESSION_ID` env → `conversation_id` → `session_id` (stdin) → UUID4 fallback
-- If session ID is unavailable in context, fall back to `.agent/hooks/scratchpads/default.md`.
+- If session ID is unavailable in context, fall back to `.claude/hooks/scratchpads/default.md`.
 
 ### Format
 
@@ -82,7 +82,7 @@ Browse prior workspace runs created by multi-step workflows (`/triage`, `/full-r
 
 ### What It Inspects
 
-- **Source**: `.agent/workspace/` — run directories
+- **Source**: `.claude/workspace/` — run directories
 - **Helpers**:
   - `helpers.workspace.list_runs()` — run discovery and sorting
   - `helpers.workspace.read_summary()` — per-step summaries
@@ -93,7 +93,7 @@ Browse prior workspace runs created by multi-step workflows (`/triage`, `/full-r
 Each run directory:
 
 ```
-.agent/workspace/<module>_<goal>_<timestamp>/
+.claude/workspace/<module>_<goal>_<timestamp>/
 ├── manifest.json
 ├── <step_name>/
 │   ├── results.json   # full payload
@@ -131,8 +131,8 @@ Each run directory:
 
 | Path | Contents |
 |------|----------|
-| `.agent/workspace/<module>_<goal>_<timestamp>/` | Run outputs: `manifest.json`, step subdirs with `results.json` and `summary.json` |
-| `.agent/workspace/<module>_hunt_plan_<timestamp>.json` | Hunt plans (hypotheses, commands, threat model) |
+| `.claude/workspace/<module>_<goal>_<timestamp>/` | Run outputs: `manifest.json`, step subdirs with `results.json` and `summary.json` |
+| `.claude/workspace/<module>_hunt_plan_<timestamp>.json` | Hunt plans (hypotheses, commands, threat model) |
 
 **Hunt plans** (`/hunt-plan`):
 
@@ -143,8 +143,8 @@ Each run directory:
 
 | Path | Contents | TTL |
 |------|----------|-----|
-| `.agent/cache/{module}/{operation}.json` | Skill script results (triage, classification, call graph, etc.) | 24h (validated by DB mtime) |
-| `.agent/cache/_module_list.json` | Module list sidecar for large workspaces | — |
+| `.claude/cache/{module}/{operation}.json` | Skill script results (triage, classification, call graph, etc.) | 24h (validated by DB mtime) |
+| `.claude/cache/_module_list.json` | Module list sidecar for large workspaces | — |
 
 - Cache eviction: `evict_stale()` removes entries older than `cache.max_age_hours` (default 24)
 - Size limit: `cache.max_cache_size_mb` (default 500) — evicts oldest when exceeded
@@ -153,15 +153,15 @@ Each run directory:
 
 | Path | Contents |
 |------|----------|
-| `.agent/agents/<agent>/state/*.json` | Per-agent state (e.g. code-lifter iteration state) |
+| `.claude/agents/<agent>/state/*.json` | Per-agent state (e.g. code-lifter iteration state) |
 
 - Cleaned by sessionEnd hook when older than `workspace_cleanup_age_hours` (default 48)
 
 ### Findings Store (Persistent, Cross-Session)
 
-A SQLite-backed findings store at `.agent/cache/findings.db` accumulates confirmed findings across scan runs, enabling cross-session prioritization without re-running scans.
+A SQLite-backed findings store at `.claude/cache/findings.db` accumulates confirmed findings across scan runs, enabling cross-session prioritization without re-running scans.
 
-**Path:** `.agent/cache/findings.db`
+**Path:** `.claude/cache/findings.db`
 
 **Retention policy:** 30 days default (configurable via `findings_store.retention_days` in `config/defaults.json`). Older entries are purged automatically during workspace cleanup.
 
@@ -190,7 +190,7 @@ This ensures findings never regress to a lower-confidence state from a noisier s
 
 Also available via `FindingsStore` class for bound `db_path` usage.
 
-**Brainstorm** and **replan** continue to read from `.agent/cache/` and `.agent/workspace/` manifests.
+**Brainstorm** and **replan** continue to read from `.claude/cache/` and `.claude/workspace/` manifests.
 
 ---
 
@@ -200,18 +200,18 @@ Also available via `FindingsStore` class for bound `db_path` usage.
 
 | Artifact | Location | Lifetime |
 |----------|----------|----------|
-| Scratchpad | `.agent/hooks/scratchpads/{session_id}.md` | Until DONE or all items checked; orphaned files removed after 24h |
+| Scratchpad | `.claude/hooks/scratchpads/{session_id}.md` | Until DONE or all items checked; orphaned files removed after 24h |
 | Session ID | `AGENT_SESSION_ID` env (from sessionStart hook) | Per conversation |
 
 ### Cross-Session (Persists Across Sessions)
 
 | Artifact | Location | Lifetime |
 |----------|----------|----------|
-| Workspace runs | `.agent/workspace/<run_id>/` | Until `workspace_cleanup_age_hours` (default 48h) or manual purge |
-| Hunt plans | `.agent/workspace/*_hunt_plan_*.json` | Same as workspace runs |
-| Cache | `.agent/cache/{module}/{operation}.json` | 24h TTL, or size eviction |
-| Agent state | `.agent/agents/<agent>/state/*.json` | Until 48h stale |
-| Findings store | `.agent/cache/findings.db` | 30d TTL (`findings_store.retention_days`); purged on workspace cleanup |
+| Workspace runs | `.claude/workspace/<run_id>/` | Until `workspace_cleanup_age_hours` (default 48h) or manual purge |
+| Hunt plans | `.claude/workspace/*_hunt_plan_*.json` | Same as workspace runs |
+| Cache | `.claude/cache/{module}/{operation}.json` | 24h TTL, or size eviction |
+| Agent state | `.claude/agents/<agent>/state/*.json` | Until 48h stale |
+| Findings store | `.claude/cache/findings.db` | 30d TTL (`findings_store.retention_days`); purged on workspace cleanup |
 
 ### Session Lifecycle Hooks
 
@@ -228,7 +228,7 @@ Also available via `FindingsStore` class for bound `db_path` usage.
   - `hooks.workspace_cleanup_age_hours`: 48
   - `cache.max_age_hours`: 24
   - `cache.max_cache_size_mb`: 500
-  - `findings_store.db_path`: `.agent/cache/findings.db`
+  - `findings_store.db_path`: `.claude/cache/findings.db`
   - `findings_store.retention_days`: 30
 
 ---

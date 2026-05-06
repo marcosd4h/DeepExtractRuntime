@@ -8,13 +8,13 @@ The foundational data-access skill that nearly every other skill depends on. Its
 
 ```bash
 # 1. Find the DB for a module
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 
 # 2. Search for a function by name
-python .agent/skills/decompiled-code-extractor/scripts/list_functions.py extracted_dbs/appinfo_dll_e98d25a9e8.db --search "Check" --with-signatures
+python .claude/skills/decompiled-code-extractor/scripts/list_functions.py extracted_dbs/appinfo_dll_e98d25a9e8.db --search "Check" --with-signatures
 
 # 3. Extract ALL data for a function (decompiled + assembly + context)
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py extracted_dbs/appinfo_dll_e98d25a9e8.db AiCheckSecureApplicationDirectory
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py extracted_dbs/appinfo_dll_e98d25a9e8.db AiCheckSecureApplicationDirectory
 ```
 
 ## Scripts
@@ -25,7 +25,7 @@ python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py 
 | `list_functions.py`        | List, search, and filter functions in a module DB (by name pattern, decompiled status, signatures)    |
 | `extract_function_data.py` | Extract all function data (decompiled code, assembly, signatures, xrefs, strings, vtables, globals, stack frame, loops) in one shot |
 
-All scripts auto-resolve workspace root and `.agent/helpers/` imports. Run from the workspace root directory.
+All scripts auto-resolve workspace root and `.claude/helpers/` imports. Run from the workspace root directory.
 
 ## Script Details
 
@@ -35,16 +35,16 @@ Maps module names to their analysis database paths using the `analyzed_files.db`
 
 ```bash
 # Exact or partial name lookup
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 
 # List ALL analyzed modules
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --list
 
 # Filter by extension
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --ext .dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --ext .dll
 
 # JSON output
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list --json
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --list --json
 ```
 
 ### list_functions.py -- Function Discovery
@@ -53,16 +53,16 @@ Lists and filters functions within a module database.
 
 ```bash
 # List all functions (shows [asm|dec] availability indicators)
-python .agent/skills/decompiled-code-extractor/scripts/list_functions.py extracted_dbs/appinfo_dll_e98d25a9e8.db
+python .claude/skills/decompiled-code-extractor/scripts/list_functions.py extracted_dbs/appinfo_dll_e98d25a9e8.db
 
 # Search by name pattern (case-insensitive)
-python .agent/skills/decompiled-code-extractor/scripts/list_functions.py extracted_dbs/appinfo_dll_e98d25a9e8.db --search "Launch"
+python .claude/skills/decompiled-code-extractor/scripts/list_functions.py extracted_dbs/appinfo_dll_e98d25a9e8.db --search "Launch"
 
 # Only functions that have decompiled code
-python .agent/skills/decompiled-code-extractor/scripts/list_functions.py extracted_dbs/cmd_exe_6d109a3a00.db --has-decompiled --limit 50
+python .claude/skills/decompiled-code-extractor/scripts/list_functions.py extracted_dbs/cmd_exe_6d109a3a00.db --has-decompiled --limit 50
 
 # JSON output
-python .agent/skills/decompiled-code-extractor/scripts/list_functions.py extracted_dbs/appinfo_dll_e98d25a9e8.db --json
+python .claude/skills/decompiled-code-extractor/scripts/list_functions.py extracted_dbs/appinfo_dll_e98d25a9e8.db --json
 ```
 
 ### extract_function_data.py -- Complete Data Extraction
@@ -71,16 +71,16 @@ Extracts every piece of data the DB holds for a function in labeled sections.
 
 ```bash
 # By function name
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py extracted_dbs/appinfo_dll_e98d25a9e8.db AiCheckSecureApplicationDirectory
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py extracted_dbs/appinfo_dll_e98d25a9e8.db AiCheckSecureApplicationDirectory
 
 # By function ID (from list_functions.py output)
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py extracted_dbs/cmd_exe_6d109a3a00.db --id 42
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py extracted_dbs/cmd_exe_6d109a3a00.db --id 42
 
 # Search for functions matching a pattern
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py extracted_dbs/cmd_exe_6d109a3a00.db --search "BatLoop"
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py extracted_dbs/cmd_exe_6d109a3a00.db --search "BatLoop"
 
 # JSON output
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py extracted_dbs/appinfo_dll_e98d25a9e8.db AiCheckSecureApplicationDirectory --json
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py extracted_dbs/appinfo_dll_e98d25a9e8.db AiCheckSecureApplicationDirectory --json
 ```
 
 Output includes: function signatures, decompiled C++, assembly code, outbound/inbound xrefs, string literals, vtable contexts, global variable accesses, stack frame layout, and loop analysis.
@@ -123,7 +123,7 @@ decompiled-code-extractor/
 ## Dependencies
 
 - Python 3.10+
-- `.agent/helpers/` module (workspace root) -- provides `open_individual_analysis_db`, `open_analyzed_files_db`
+- `.claude/helpers/` module (workspace root) -- provides `open_individual_analysis_db`, `open_analyzed_files_db`
 - SQLite analysis databases from DeepExtractIDA (`extracted_dbs/`)
 - Optional: `extracted_code/{module}/` directories for .cpp fallback and `file_info.json`
 

@@ -18,8 +18,8 @@ The runtime has two complementary testing tiers.
 
 | | |
 |---|---|
-| **Location** | `.agent/tests/` (pytest files + `conftest.py`) |
-| **Runner** | `python -m pytest .agent/tests/ -v` |
+| **Location** | `.claude/tests/` (pytest files + `conftest.py`) |
+| **Runner** | `python -m pytest .claude/tests/ -v` |
 | **Also triggered by** | `/health --full` (step 8 of the health command) |
 | **Typical runtime** | ~10-30 seconds |
 
@@ -32,7 +32,7 @@ on real IDA extractions and do not require live analysis databases.
 Run them directly:
 
 ```bash
-python -m pytest .agent/tests/ -v
+python -m pytest .claude/tests/ -v
 ```
 
 Or through the `/health --full` command, which includes the full pytest
@@ -44,7 +44,7 @@ skips the test suite for speed.
 | | |
 |---|---|
 | **Location** | This document (test cases below) |
-| **Runner** | `.agent/helpers/qa_runner.py` |
+| **Runner** | `.claude/helpers/qa_runner.py` |
 | **Typical runtime** | ~3-6 minutes (158 runnable tests) |
 
 Integration tests exercise full skill scripts, agent entry points, pipeline
@@ -60,7 +60,7 @@ agent-level orchestration.
 Run them:
 
 ```bash
-python .agent/helpers/qa_runner.py
+python .claude/helpers/qa_runner.py
 ```
 
 ### Comparison
@@ -69,7 +69,7 @@ python .agent/helpers/qa_runner.py
 |--------|-----------|-------------------|
 | Scope | Individual helpers, parsers, modules | Full scripts against real DBs |
 | Isolation | Synthetic fixtures, no live DBs | Real extraction databases |
-| Runner | pytest | `.agent/helpers/qa_runner.py` |
+| Runner | pytest | `.claude/helpers/qa_runner.py` |
 | Trigger | `pytest` or `/health --full` | `qa_runner.py` or manual |
 | Test count | ~91 files (hundreds of cases) | 335 cases (158 auto-runnable) |
 | Runtime | ~10-30s | ~3-6 min |
@@ -95,13 +95,13 @@ All skill script commands assume the working directory is the workspace root
 and use the canonical invocation prefix:
 
 ```
-python .agent/skills/<skill-name>/scripts/<script>.py
+python .claude/skills/<skill-name>/scripts/<script>.py
 ```
 
 Agent scripts use:
 
 ```
-python .agent/agents/<agent-name>/scripts/<script>.py
+python .claude/agents/<agent-name>/scripts/<script>.py
 ```
 
 ---
@@ -110,7 +110,7 @@ python .agent/agents/<agent-name>/scripts/<script>.py
 
 All test cases in this plan that have a `python ...` command in their
 **Command** field can be executed automatically using the QA test runner
-helper at `.agent/helpers/qa_runner.py`. The runner parses this markdown
+helper at `.claude/helpers/qa_runner.py`. The runner parses this markdown
 file, resolves `<db:...>` path variables, executes each command, and
 validates results against the test metadata (JSON output convention,
 expected errors, etc.).
@@ -119,38 +119,38 @@ expected errors, etc.).
 
 ```bash
 # Run ALL testable cases (skill scripts, agent scripts, pipelines, hooks, infrastructure)
-python .agent/helpers/qa_runner.py
+python .claude/helpers/qa_runner.py
 
 # Run a specific test section by ID prefix
-python .agent/helpers/qa_runner.py --prefix TEST-SKILL
-python .agent/helpers/qa_runner.py --prefix TEST-AGENT
-python .agent/helpers/qa_runner.py --prefix TEST-INFRA
-python .agent/helpers/qa_runner.py --prefix TEST-PIPE
-python .agent/helpers/qa_runner.py --prefix TEST-HOOK
+python .claude/helpers/qa_runner.py --prefix TEST-SKILL
+python .claude/helpers/qa_runner.py --prefix TEST-AGENT
+python .claude/helpers/qa_runner.py --prefix TEST-INFRA
+python .claude/helpers/qa_runner.py --prefix TEST-PIPE
+python .claude/helpers/qa_runner.py --prefix TEST-HOOK
 
 # Run a single test
-python .agent/helpers/qa_runner.py --test TEST-SKILL-039
+python .claude/helpers/qa_runner.py --test TEST-SKILL-039
 
 # Filter by category keyword
-python .agent/helpers/qa_runner.py --section infrastructure
+python .claude/helpers/qa_runner.py --section infrastructure
 
 # List all tests and their runnability status
-python .agent/helpers/qa_runner.py --list
+python .claude/helpers/qa_runner.py --list
 
 # List only runnable tests with their resolved commands
-python .agent/helpers/qa_runner.py --list-runnable
+python .claude/helpers/qa_runner.py --list-runnable
 
 # Custom output directory and timeout
-python .agent/helpers/qa_runner.py --output-dir work/qa_results --timeout 180
+python .claude/helpers/qa_runner.py --output-dir work/qa_results --timeout 180
 
 # Parallel execution with 4 workers
-python .agent/helpers/qa_runner.py --workers 4
+python .claude/helpers/qa_runner.py --workers 4
 
 # Use a custom QA plan file
-python .agent/helpers/qa_runner.py --plan path/to/custom_plan.md
+python .claude/helpers/qa_runner.py --plan path/to/custom_plan.md
 
 # JSON summary to stdout (for programmatic consumption)
-python .agent/helpers/qa_runner.py --prefix TEST-SKILL --json
+python .claude/helpers/qa_runner.py --prefix TEST-SKILL --json
 ```
 
 ### What the Runner Does
@@ -225,10 +225,10 @@ To run a complete validation of the runtime, execute both tiers in sequence:
 
 ```bash
 # Tier 1: Unit tests (~2 min)
-python -m pytest .agent/tests/ -v --tb=short 2>&1 | tee work/testcase_output/pytest_output.log
+python -m pytest .claude/tests/ -v --tb=short 2>&1 | tee work/testcase_output/pytest_output.log
 
 # Tier 2: Integration tests (~3-6 min)
-python .agent/helpers/qa_runner.py --output-dir work/testcase_output
+python .claude/helpers/qa_runner.py --output-dir work/testcase_output
 ```
 
 Both commands write to the same output directory. The pytest log is saved
@@ -243,13 +243,13 @@ two-phase workflow. Copy the prompt for the phase you need.
 **Phase 1 -- Run and capture** (read-only, no fixes):
 
 > Run all the test cases from the testing guide at
-> `@.agent/docs/testing_guide.md`. Read the entire plan before proceeding.
+> `@.claude/docs/testing_guide.md`. Read the entire plan before proceeding.
 >
 > Run **both** test tiers into `@work/testcase_output`:
 >
-> 1. **Unit tests**: `python -m pytest .agent/tests/ -v --tb=short` --
+> 1. **Unit tests**: `python -m pytest .claude/tests/ -v --tb=short` --
 >    save output to `pytest_output.log` in the output directory.
-> 2. **Integration tests**: `python .agent/helpers/qa_runner.py` --
+> 2. **Integration tests**: `python .claude/helpers/qa_runner.py` --
 >    use `--output-dir` pointed at the same output directory.
 >
 > Your goal is to run the test cases and capture every failing tool
@@ -2172,7 +2172,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: /pipeline
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `/pipeline validate .agent/config/pipelines/security-sweep.yaml`
+- **Command**: `/pipeline validate .claude/config/pipelines/security-sweep.yaml`
 - **Expected**: YAML validated without execution
 - **Validates**: validate subcommand
 - **Flags-Tested**: validate
@@ -2185,7 +2185,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: /pipeline
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `/pipeline run .agent/config/pipelines/quick-triage.yaml --dry-run`
+- **Command**: `/pipeline run .claude/config/pipelines/quick-triage.yaml --dry-run`
 - **Expected**: Preview without execution
 - **Validates**: --dry-run flag
 - **Flags-Tested**: run, --dry-run
@@ -2198,7 +2198,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: /pipeline
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `/pipeline run .agent/config/pipelines/security-sweep.yaml --modules srvsvc.dll`
+- **Command**: `/pipeline run .claude/config/pipelines/security-sweep.yaml --modules srvsvc.dll`
 - **Expected**: Pipeline runs only on srvsvc.dll
 - **Validates**: --modules override
 - **Flags-Tested**: run, --modules
@@ -2215,7 +2215,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: decompiled-code-extractor/find_module_db.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list --json`
+- **Command**: `python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --list --json`
 - **Expected**: JSON with modules array, each having analysis_db_path
 - **Validates**: Module listing with --list --json
 - **Flags-Tested**: --list, --json
@@ -2228,7 +2228,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: decompiled-code-extractor/find_module_db.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py srvsvc.dll --json`
+- **Command**: `python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py srvsvc.dll --json`
 - **Expected**: JSON with db_path field
 - **Validates**: Single module lookup
 - **Flags-Tested**: module, --json
@@ -2241,7 +2241,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: decompiled-code-extractor/find_module_db.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --ext .dll --json`
+- **Command**: `python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --ext .dll --json`
 - **Expected**: All DLL modules listed
 - **Validates**: --ext filter
 - **Flags-Tested**: --ext, --json
@@ -2254,7 +2254,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: decompiled-code-extractor/list_functions.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/list_functions.py <db:srvsvc> --search "Share" --json`
+- **Command**: `python .claude/skills/decompiled-code-extractor/scripts/list_functions.py <db:srvsvc> --search "Share" --json`
 - **Expected**: JSON with matching functions
 - **Validates**: --search pattern matching
 - **Flags-Tested**: --search, --json
@@ -2267,7 +2267,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: decompiled-code-extractor/list_functions.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/list_functions.py <db:srvsvc> --has-decompiled --with-signatures --limit 10 --json`
+- **Command**: `python .claude/skills/decompiled-code-extractor/scripts/list_functions.py <db:srvsvc> --has-decompiled --with-signatures --limit 10 --json`
 - **Expected**: 10 functions with signatures, all having decompiled code
 - **Validates**: --has-decompiled, --with-signatures, --limit
 - **Flags-Tested**: --has-decompiled, --with-signatures, --limit, --json
@@ -2280,7 +2280,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: decompiled-code-extractor/extract_function_data.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db:srvsvc> SsServerFsControl --json`
+- **Command**: `python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py <db:srvsvc> SsServerFsControl --json`
 - **Expected**: Full function data: decompiled code, assembly, xrefs, strings
 - **Validates**: Function extraction by name
 - **Flags-Tested**: function, --json
@@ -2293,7 +2293,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: decompiled-code-extractor/extract_function_data.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db:srvsvc> --search "NetrShare" --json`
+- **Command**: `python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py <db:srvsvc> --search "NetrShare" --json`
 - **Expected**: Search results as JSON
 - **Validates**: --search with --json
 - **Flags-Tested**: --search, --json
@@ -2306,7 +2306,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: function-index/lookup_function.py
 - **Target-Module**: N/A
 - **Target-Function**: ServiceMain
-- **Command**: `python .agent/skills/function-index/scripts/lookup_function.py ServiceMain`
+- **Command**: `python .claude/skills/function-index/scripts/lookup_function.py ServiceMain`
 - **Expected**: Module and .cpp file path for ServiceMain
 - **Validates**: Cross-module function lookup
 - **Flags-Tested**: function name
@@ -2319,7 +2319,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: function-index/lookup_function.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/function-index/scripts/lookup_function.py --search "Netr.*Enum" --regex --json`
+- **Command**: `python .claude/skills/function-index/scripts/lookup_function.py --search "Netr.*Enum" --regex --json`
 - **Expected**: All matching functions across modules
 - **Validates**: --search --regex mode
 - **Flags-Tested**: --search, --regex, --json
@@ -2332,7 +2332,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: function-index/lookup_function.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/function-index/scripts/index_functions.py srvsvc.dll --app-only --json`
+- **Command**: `python .claude/skills/function-index/scripts/index_functions.py srvsvc.dll --app-only --json`
 - **Expected**: Only application functions in srvsvc.dll (uses index_functions for listing)
 - **Validates**: Module function listing with --app-only filter
 - **Flags-Tested**: --module, --app-only, --json
@@ -2345,7 +2345,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: function-index/index_functions.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/function-index/scripts/index_functions.py srvsvc.dll --stats --json`
+- **Command**: `python .claude/skills/function-index/scripts/index_functions.py srvsvc.dll --stats --json`
 - **Expected**: Function count statistics
 - **Validates**: --stats mode
 - **Flags-Tested**: --stats, --json
@@ -2358,7 +2358,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: function-index/index_functions.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/function-index/scripts/index_functions.py --all --app-only --json`
+- **Command**: `python .claude/skills/function-index/scripts/index_functions.py --all --app-only --json`
 - **Expected**: All application functions across all modules
 - **Validates**: --all --app-only
 - **Flags-Tested**: --all, --app-only, --json
@@ -2371,7 +2371,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: function-index/index_functions.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/function-index/scripts/index_functions.py srvsvc.dll --by-file --json`
+- **Command**: `python .claude/skills/function-index/scripts/index_functions.py srvsvc.dll --by-file --json`
 - **Expected**: Functions grouped by .cpp file
 - **Validates**: --by-file grouping
 - **Flags-Tested**: --by-file, --json
@@ -2384,7 +2384,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: function-index/resolve_function_file.py
 - **Target-Module**: N/A
 - **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/function-index/scripts/resolve_function_file.py SsServerFsControl --json`
+- **Command**: `python .claude/skills/function-index/scripts/resolve_function_file.py SsServerFsControl --json`
 - **Expected**: Absolute file path for SsServerFsControl
 - **Validates**: Single function file resolution
 - **Flags-Tested**: function, --json
@@ -2397,7 +2397,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: function-index/resolve_function_file.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/function-index/scripts/resolve_function_file.py --names "SsServerFsControl,SsImpersonateClient" --json`
+- **Command**: `python .claude/skills/function-index/scripts/resolve_function_file.py --names "SsServerFsControl,SsImpersonateClient" --json`
 - **Expected**: File paths for both functions
 - **Validates**: --names batch resolution
 - **Flags-Tested**: --names, --json
@@ -2410,7 +2410,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: classify-functions/triage_summary.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --top 5 --json`
+- **Command**: `python .claude/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --top 5 --json`
 - **Expected**: Top 5 classification categories with counts
 - **Validates**: Classification triage with --top
 - **Flags-Tested**: --top, --json
@@ -2423,7 +2423,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: classify-functions/triage_summary.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --app-only --json`
+- **Command**: `python .claude/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --app-only --json`
 - **Expected**: Only application function classifications
 - **Validates**: --app-only filter
 - **Flags-Tested**: --app-only, --json
@@ -2436,7 +2436,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: classify-functions/triage_summary.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --json --no-cache`
+- **Command**: `python .claude/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --json --no-cache`
 - **Expected**: Fresh computation, no cache hit
 - **Validates**: --no-cache bypass
 - **Flags-Tested**: --json, --no-cache
@@ -2449,7 +2449,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: classify-functions/classify_module.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/classify_module.py <db:srvsvc> --json`
+- **Command**: `python .claude/skills/classify-functions/scripts/classify_module.py <db:srvsvc> --json`
 - **Expected**: Complete categorized function index
 - **Validates**: Full module classification
 - **Flags-Tested**: --json
@@ -2462,7 +2462,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: classify-functions/classify_module.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/classify_module.py <db:srvsvc> --category security --min-interest 5 --no-telemetry --no-compiler --json`
+- **Command**: `python .claude/skills/classify-functions/scripts/classify_module.py <db:srvsvc> --category security --min-interest 5 --no-telemetry --no-compiler --json`
 - **Expected**: Only security category, interest >= 5, no telemetry/compiler
 - **Validates**: --category, --min-interest, --no-telemetry, --no-compiler
 - **Flags-Tested**: --category, --min-interest, --no-telemetry, --no-compiler, --json
@@ -2475,7 +2475,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: classify-functions/classify_function.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/classify-functions/scripts/classify_function.py <db:srvsvc> SsServerFsControl --json`
+- **Command**: `python .claude/skills/classify-functions/scripts/classify_function.py <db:srvsvc> SsServerFsControl --json`
 - **Expected**: Detailed classification for single function
 - **Validates**: Single function classification
 - **Flags-Tested**: function, --json
@@ -2488,7 +2488,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: classify-functions/classify_function.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/classify_function.py <db:srvsvc> --search "Share" --json`
+- **Command**: `python .claude/skills/classify-functions/scripts/classify_function.py <db:srvsvc> --search "Share" --json`
 - **Expected**: Classification for matching functions
 - **Validates**: --search with classify
 - **Flags-Tested**: --search, --json
@@ -2501,7 +2501,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: callgraph-tracer/build_call_graph.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db:srvsvc> --stats --json`
+- **Command**: `python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db:srvsvc> --stats --json`
 - **Expected**: Node/edge counts, hub functions, density
 - **Validates**: --stats mode
 - **Flags-Tested**: --stats, --json
@@ -2514,7 +2514,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: callgraph-tracer/build_call_graph.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db:srvsvc> --scc --json`
+- **Command**: `python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db:srvsvc> --scc --json`
 - **Expected**: Strongly connected components
 - **Validates**: --scc flag
 - **Flags-Tested**: --scc, --json
@@ -2527,7 +2527,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: callgraph-tracer/build_call_graph.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db:srvsvc> --path SsServerFsControl SsCheckAccess --json`
+- **Command**: `python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db:srvsvc> --path SsServerFsControl SsCheckAccess --json`
 - **Expected**: Shortest path between functions
 - **Validates**: --path flag
 - **Flags-Tested**: --path, --json
@@ -2540,7 +2540,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: callgraph-tracer/build_call_graph.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db:srvsvc> --reachable SsServerFsControl --json`
+- **Command**: `python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db:srvsvc> --reachable SsServerFsControl --json`
 - **Expected**: Transitive closure of reachable functions
 - **Validates**: --reachable flag
 - **Flags-Tested**: --reachable, --json
@@ -2553,7 +2553,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: callgraph-tracer/build_call_graph.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db:srvsvc> --neighbors SsServerFsControl --json`
+- **Command**: `python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db:srvsvc> --neighbors SsServerFsControl --json`
 - **Expected**: Immediate callers and callees
 - **Validates**: --neighbors flag
 - **Flags-Tested**: --neighbors, --json
@@ -2566,7 +2566,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: callgraph-tracer/build_call_graph.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db:srvsvc> --stats --json --no-cache`
+- **Command**: `python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db:srvsvc> --stats --json --no-cache`
 - **Expected**: Fresh computation bypassing cache
 - **Validates**: --no-cache for cacheable script
 - **Flags-Tested**: --stats, --json, --no-cache
@@ -2579,7 +2579,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: callgraph-tracer/chain_analysis.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db:srvsvc> SsServerFsControl --depth 3 --json`
+- **Command**: `python .claude/skills/callgraph-tracer/scripts/chain_analysis.py <db:srvsvc> SsServerFsControl --depth 3 --json`
 - **Expected**: Cross-module chain analysis to depth 3
 - **Validates**: Chain analysis with depth
 - **Flags-Tested**: function, --depth, --json
@@ -2592,7 +2592,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: callgraph-tracer/chain_analysis.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db:srvsvc> SsServerFsControl --summary --no-code --json`
+- **Command**: `python .claude/skills/callgraph-tracer/scripts/chain_analysis.py <db:srvsvc> SsServerFsControl --summary --no-code --json`
 - **Expected**: Compact summary without code
 - **Validates**: --summary and --no-code flags
 - **Flags-Tested**: --summary, --no-code, --json
@@ -2605,7 +2605,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: callgraph-tracer/cross_module_resolve.py
 - **Target-Module**: N/A
 - **Target-Function**: ServiceMain
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/cross_module_resolve.py ServiceMain --json`
+- **Command**: `python .claude/skills/callgraph-tracer/scripts/cross_module_resolve.py ServiceMain --json`
 - **Expected**: Resolution to target module (stderr warnings about tracking DB are expected behavior)
 - **Validates**: Simple function resolution
 - **Flags-Tested**: function, --json
@@ -2618,7 +2618,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: callgraph-tracer/cross_module_resolve.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/cross_module_resolve.py --resolve-all <db:srvsvc> SsServerFsControl --json`
+- **Command**: `python .claude/skills/callgraph-tracer/scripts/cross_module_resolve.py --resolve-all <db:srvsvc> SsServerFsControl --json`
 - **Expected**: All external calls resolved
 - **Validates**: --resolve-all mode
 - **Flags-Tested**: --resolve-all, --json
@@ -2631,7 +2631,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: callgraph-tracer/module_dependencies.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/module_dependencies.py --overview --json`
+- **Command**: `python .claude/skills/callgraph-tracer/scripts/module_dependencies.py --overview --json`
 - **Expected**: Cross-module dependency overview
 - **Validates**: --overview mode
 - **Flags-Tested**: --overview, --json
@@ -2644,7 +2644,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: callgraph-tracer/module_dependencies.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/module_dependencies.py --module srvsvc.dll --json`
+- **Command**: `python .claude/skills/callgraph-tracer/scripts/module_dependencies.py --module srvsvc.dll --json`
 - **Expected**: Dependencies for srvsvc.dll
 - **Validates**: --module mode
 - **Flags-Tested**: --module, --json
@@ -2657,7 +2657,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: callgraph-tracer/analyze_detailed_xrefs.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/analyze_detailed_xrefs.py <db:srvsvc> --function SsServerFsControl --json`
+- **Command**: `python .claude/skills/callgraph-tracer/scripts/analyze_detailed_xrefs.py <db:srvsvc> --function SsServerFsControl --json`
 - **Expected**: Detailed xref structures
 - **Validates**: Function-scoped xref analysis
 - **Flags-Tested**: --function, --json
@@ -2670,7 +2670,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: callgraph-tracer/generate_diagram.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/callgraph-tracer/scripts/generate_diagram.py <db:srvsvc> --function SsServerFsControl --format mermaid --json`
+- **Command**: `python .claude/skills/callgraph-tracer/scripts/generate_diagram.py <db:srvsvc> --function SsServerFsControl --format mermaid --json`
 - **Expected**: Mermaid diagram syntax
 - **Validates**: Diagram generation
 - **Flags-Tested**: --function, --format mermaid, --json
@@ -2683,7 +2683,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: map-attack-surface/discover_entrypoints.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/map-attack-surface/scripts/discover_entrypoints.py <db:srvsvc> --json`
+- **Command**: `python .claude/skills/map-attack-surface/scripts/discover_entrypoints.py <db:srvsvc> --json`
 - **Expected**: Entry points categorized by type
 - **Validates**: Entry point discovery
 - **Flags-Tested**: --json
@@ -2696,7 +2696,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: map-attack-surface/discover_entrypoints.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/map-attack-surface/scripts/discover_entrypoints.py <db:srvsvc> --json --no-cache`
+- **Command**: `python .claude/skills/map-attack-surface/scripts/discover_entrypoints.py <db:srvsvc> --json --no-cache`
 - **Expected**: Fresh computation
 - **Validates**: --no-cache bypass
 - **Flags-Tested**: --json, --no-cache
@@ -2709,7 +2709,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: map-attack-surface/rank_entrypoints.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/map-attack-surface/scripts/rank_entrypoints.py <db:srvsvc> --top 10 --json`
+- **Command**: `python .claude/skills/map-attack-surface/scripts/rank_entrypoints.py <db:srvsvc> --top 10 --json`
 - **Expected**: Top 10 ranked by attack value
 - **Validates**: Entry point ranking
 - **Flags-Tested**: --top, --json
@@ -2722,7 +2722,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: map-attack-surface/generate_entrypoints_json.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/map-attack-surface/scripts/generate_entrypoints_json.py <db:srvsvc> -o entrypoints.json --top 10`
+- **Command**: `python .claude/skills/map-attack-surface/scripts/generate_entrypoints_json.py <db:srvsvc> -o entrypoints.json --top 10`
 - **Expected**: CRS-compatible entrypoints.json written to output file (stdout is empty when using -o flag)
 - **Validates**: JSON export
 - **Flags-Tested**: -o, --top
@@ -2735,7 +2735,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: security-dossier/build_dossier.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/security-dossier/scripts/build_dossier.py <db:srvsvc> SsServerFsControl --json`
+- **Command**: `python .claude/skills/security-dossier/scripts/build_dossier.py <db:srvsvc> SsServerFsControl --json`
 - **Expected**: 8-section security context dossier
 - **Validates**: Dossier construction
 - **Flags-Tested**: function, --json
@@ -2748,7 +2748,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: security-dossier/build_dossier.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/security-dossier/scripts/build_dossier.py <db:srvsvc> SsServerFsControl --callee-depth 2 --json`
+- **Command**: `python .claude/skills/security-dossier/scripts/build_dossier.py <db:srvsvc> SsServerFsControl --callee-depth 2 --json`
 - **Expected**: Dossier with deeper callee context
 - **Validates**: --callee-depth
 - **Flags-Tested**: --callee-depth, --json
@@ -2761,7 +2761,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: ai-memory-corruption-scanner (registry)
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python -m pytest .agent/tests/test_ai_memory_corruption_scanner.py -k RegistryConsistency`
+- **Command**: `python -m pytest .claude/tests/test_ai_memory_corruption_scanner.py -k RegistryConsistency`
 - **Expected**: Skill registry entry matches SKILL.md and _common.py
 - **Validates**: Registry consistency between skill metadata sources
 - **Flags-Tested**: N/A
@@ -2774,7 +2774,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: ai-memory-corruption-scanner (SKILL.md)
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python -m pytest .agent/tests/test_ai_memory_corruption_scanner.py -k SkillFrontmatter`
+- **Command**: `python -m pytest .claude/tests/test_ai_memory_corruption_scanner.py -k SkillFrontmatter`
 - **Expected**: SKILL.md contains required frontmatter fields
 - **Validates**: SKILL.md structure and required fields
 - **Flags-Tested**: N/A
@@ -2787,7 +2787,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: ai-memory-corruption-scanner/_common.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python -m pytest .agent/tests/test_ai_memory_corruption_scanner.py -k CommonImports`
+- **Command**: `python -m pytest .claude/tests/test_ai_memory_corruption_scanner.py -k CommonImports`
 - **Expected**: _common.py exports expected symbols (SKILL_NAME, SCANNERS, etc.)
 - **Validates**: Shared module interface consistency
 - **Flags-Tested**: N/A
@@ -2800,7 +2800,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: ai-memory-corruption-scanner/build_threat_model.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/ai-memory-corruption-scanner/scripts/build_threat_model.py <db:srvsvc> --json`
+- **Command**: `python .claude/skills/ai-memory-corruption-scanner/scripts/build_threat_model.py <db:srvsvc> --json`
 - **Expected**: JSON with status ok, threat model entries with entry points and risk ranking
 - **Validates**: Threat model generation from analysis DB
 - **Flags-Tested**: --json
@@ -2813,7 +2813,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: ai-memory-corruption-scanner/prepare_context.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/ai-memory-corruption-scanner/scripts/prepare_context.py <db:srvsvc> --function NetrShareGetInfo --with-code --json`
+- **Command**: `python .claude/skills/ai-memory-corruption-scanner/scripts/prepare_context.py <db:srvsvc> --function NetrShareGetInfo --with-code --json`
 - **Expected**: JSON with status ok, callgraph, traversal_plan, preloaded_code for depth 0+1 MUST_READ functions
 - **Validates**: Context preparation for LLM-driven analysis
 - **Flags-Tested**: --function, --with-code, --json
@@ -2826,7 +2826,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: ai-memory-corruption-scanner/prepare_context.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/ai-memory-corruption-scanner/scripts/prepare_context.py <db:srvsvc> --function SsValidateRpcHandleAndDereference --with-code --json`
+- **Command**: `python .claude/skills/ai-memory-corruption-scanner/scripts/prepare_context.py <db:srvsvc> --function SsValidateRpcHandleAndDereference --with-code --json`
 - **Expected**: JSON with callgraph fragment, traversal_plan with by_depth classification, preloaded_code
 - **Validates**: Callgraph JSON structure for single-function context
 - **Flags-Tested**: --function, --with-code, --json
@@ -2839,7 +2839,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: ai-logic-scanner/build_threat_model.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/ai-logic-scanner/scripts/build_threat_model.py <db:srvsvc> --json`
+- **Command**: `python .claude/skills/ai-logic-scanner/scripts/build_threat_model.py <db:srvsvc> --json`
 - **Expected**: JSON with status ok, module, service_type, attacker_model, top_entry_points
 - **Validates**: Threat model generation
 - **Flags-Tested**: --json
@@ -2852,7 +2852,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: ai-logic-scanner/prepare_context.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/ai-logic-scanner/scripts/prepare_context.py <db:srvsvc> --function NetrShareGetInfo --depth 3 --with-code --json`
+- **Command**: `python .claude/skills/ai-logic-scanner/scripts/prepare_context.py <db:srvsvc> --function NetrShareGetInfo --depth 3 --with-code --json`
 - **Expected**: JSON with status ok, callgraph.nodes, callgraph.edges, traversal_plan, preloaded_code, stats, _summary
 - **Validates**: Cross-module callgraph context preparation
 - **Flags-Tested**: --function, --depth, --with-code, --json
@@ -2865,7 +2865,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: ai-logic-scanner/prepare_context.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: NetrShareGetInfo
-- **Command**: `python .agent/skills/ai-logic-scanner/scripts/prepare_context.py <db:srvsvc> --function "NetrShareGetInfo" --depth 3 --with-code --json`
+- **Command**: `python .claude/skills/ai-logic-scanner/scripts/prepare_context.py <db:srvsvc> --function "NetrShareGetInfo" --depth 3 --with-code --json`
 - **Expected**: JSON with status ok, root_functions containing NetrShareGetInfo, callgraph, traversal_plan, preloaded_code
 - **Validates**: Single-function callgraph preparation
 - **Flags-Tested**: --function, --depth, --with-code, --json
@@ -2878,7 +2878,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: generate-re-report/generate_report.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/generate-re-report/scripts/generate_report.py <db:srvsvc> --json`
+- **Command**: `python .claude/skills/generate-re-report/scripts/generate_report.py <db:srvsvc> --json`
 - **Expected**: 10-section RE report
 - **Validates**: Full report generation
 - **Flags-Tested**: --json
@@ -2891,7 +2891,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: generate-re-report/generate_report.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/generate-re-report/scripts/generate_report.py <db:srvsvc> --summary --top 10 --json --no-cache`
+- **Command**: `python .claude/skills/generate-re-report/scripts/generate_report.py <db:srvsvc> --summary --top 10 --json --no-cache`
 - **Expected**: Summary report, fresh computation
 - **Validates**: --summary, --top, --no-cache
 - **Flags-Tested**: --summary, --top, --json, --no-cache
@@ -2904,7 +2904,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: generate-re-report/analyze_imports.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/generate-re-report/scripts/analyze_imports.py <db:srvsvc> --exports --include-delay-load --json`
+- **Command**: `python .claude/skills/generate-re-report/scripts/analyze_imports.py <db:srvsvc> --exports --include-delay-load --json`
 - **Expected**: Import/export analysis with delay-load
 - **Validates**: --exports, --include-delay-load
 - **Flags-Tested**: --exports, --include-delay-load, --json
@@ -2917,7 +2917,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: generate-re-report/analyze_complexity.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/generate-re-report/scripts/analyze_complexity.py <db:srvsvc> --top 10 --app-only --json`
+- **Command**: `python .claude/skills/generate-re-report/scripts/analyze_complexity.py <db:srvsvc> --top 10 --app-only --json`
 - **Expected**: Top 10 complex functions, app only
 - **Validates**: Complexity ranking
 - **Flags-Tested**: --top, --app-only, --json
@@ -2930,7 +2930,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: generate-re-report/analyze_topology.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/generate-re-report/scripts/analyze_topology.py <db:srvsvc> --json`
+- **Command**: `python .claude/skills/generate-re-report/scripts/analyze_topology.py <db:srvsvc> --json`
 - **Expected**: Call graph topology metrics
 - **Validates**: Topology analysis
 - **Flags-Tested**: --json
@@ -2943,7 +2943,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: generate-re-report/analyze_strings.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/generate-re-report/scripts/analyze_strings.py <db:srvsvc> --top 20 --category security --json`
+- **Command**: `python .claude/skills/generate-re-report/scripts/analyze_strings.py <db:srvsvc> --top 20 --category security --json`
 - **Expected**: Security-relevant strings
 - **Validates**: String analysis for report
 - **Flags-Tested**: --top, --category, --json
@@ -2956,7 +2956,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: generate-re-report/analyze_decompilation_quality.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/generate-re-report/scripts/analyze_decompilation_quality.py <db:srvsvc> --json`
+- **Command**: `python .claude/skills/generate-re-report/scripts/analyze_decompilation_quality.py <db:srvsvc> --json`
 - **Expected**: Decompiler accuracy metrics
 - **Validates**: Quality analysis
 - **Flags-Tested**: --json
@@ -2969,7 +2969,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: import-export-resolver/query_function.py
 - **Target-Module**: N/A
 - **Target-Function**: NtFsControlFile
-- **Command**: `python .agent/skills/import-export-resolver/scripts/query_function.py --function NtFsControlFile --direction both --json`
+- **Command**: `python .claude/skills/import-export-resolver/scripts/query_function.py --function NtFsControlFile --direction both --json`
 - **Expected**: Export and import data for NtFsControlFile
 - **Validates**: Function query
 - **Flags-Tested**: --function, --direction, --json
@@ -2982,7 +2982,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: import-export-resolver/build_index.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/import-export-resolver/scripts/build_index.py --json`
+- **Command**: `python .claude/skills/import-export-resolver/scripts/build_index.py --json`
 - **Expected**: Cross-module index built
 - **Validates**: Index initialization
 - **Flags-Tested**: --json
@@ -2995,7 +2995,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: import-export-resolver/module_deps.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/import-export-resolver/scripts/module_deps.py --module srvsvc.dll --consumers --diagram --json`
+- **Command**: `python .claude/skills/import-export-resolver/scripts/module_deps.py --module srvsvc.dll --consumers --diagram --json`
 - **Expected**: Dependency graph with consumers and diagram
 - **Validates**: --module, --consumers, --diagram
 - **Flags-Tested**: --module, --consumers, --diagram, --json
@@ -3008,7 +3008,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: import-export-resolver/resolve_forwarders.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/import-export-resolver/scripts/resolve_forwarders.py --module srvsvc.dll --all --json`
+- **Command**: `python .claude/skills/import-export-resolver/scripts/resolve_forwarders.py --module srvsvc.dll --all --json`
 - **Expected**: All forwarder chains resolved
 - **Validates**: Forwarder resolution
 - **Flags-Tested**: --module, --all, --json
@@ -3021,7 +3021,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: com-interface-analysis/resolve_com_server.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/com-interface-analysis/scripts/resolve_com_server.py srvsvc.dll --json`
+- **Command**: `python .claude/skills/com-interface-analysis/scripts/resolve_com_server.py srvsvc.dll --json`
 - **Expected**: COM servers and CLSIDs
 - **Validates**: COM server resolution
 - **Flags-Tested**: module, --json
@@ -3034,7 +3034,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: com-interface-analysis/map_com_surface.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/com-interface-analysis/scripts/map_com_surface.py --system-wide --top 10 --json`
+- **Command**: `python .claude/skills/com-interface-analysis/scripts/map_com_surface.py --system-wide --top 10 --json`
 - **Expected**: System-wide COM attack surface
 - **Validates**: COM surface mapping
 - **Flags-Tested**: --system-wide, --top, --json
@@ -3047,7 +3047,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: com-interface-analysis/enumerate_com_methods.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/com-interface-analysis/scripts/enumerate_com_methods.py srvsvc.dll --show-pseudo-idl --json`
+- **Command**: `python .claude/skills/com-interface-analysis/scripts/enumerate_com_methods.py srvsvc.dll --show-pseudo-idl --json`
 - **Expected**: COM methods with pseudo-IDL
 - **Validates**: Method enumeration with IDL
 - **Flags-Tested**: module, --show-pseudo-idl, --json
@@ -3060,7 +3060,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: com-interface-analysis/find_com_privesc.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/com-interface-analysis/scripts/find_com_privesc.py --top 10 --include-uac --json`
+- **Command**: `python .claude/skills/com-interface-analysis/scripts/find_com_privesc.py --top 10 --include-uac --json`
 - **Expected**: COM privesc targets with structural scoring (runs_as_system, out_of_process, permissive_launch, method_count)
 - **Validates**: Privesc discovery
 - **Flags-Tested**: --top, --include-uac, --json
@@ -3073,7 +3073,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: com-interface-reconstruction/scan_com_interfaces.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/com-interface-reconstruction/scripts/scan_com_interfaces.py <db:srvsvc> --json`
+- **Command**: `python .claude/skills/com-interface-reconstruction/scripts/scan_com_interfaces.py <db:srvsvc> --json`
 - **Expected**: COM interface implementations found
 - **Validates**: COM interface scanning
 - **Flags-Tested**: --json
@@ -3086,7 +3086,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: com-interface-reconstruction/decode_wrl_templates.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/com-interface-reconstruction/scripts/decode_wrl_templates.py <db:srvsvc> --json`
+- **Command**: `python .claude/skills/com-interface-reconstruction/scripts/decode_wrl_templates.py <db:srvsvc> --json`
 - **Expected**: WRL template structures
 - **Validates**: WRL decoding
 - **Flags-Tested**: --json
@@ -3099,7 +3099,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: com-interface-reconstruction/generate_idl.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/com-interface-reconstruction/scripts/generate_idl.py <db:srvsvc> --json`
+- **Command**: `python .claude/skills/com-interface-reconstruction/scripts/generate_idl.py <db:srvsvc> --json`
 - **Expected**: IDL output for reconstructed interfaces
 - **Validates**: IDL generation
 - **Flags-Tested**: --json
@@ -3112,7 +3112,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: rpc-interface-analysis/resolve_rpc_interface.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py srvsvc.dll --with-stubs --json`
+- **Command**: `python .claude/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py srvsvc.dll --with-stubs --json`
 - **Expected**: RPC interfaces with stub data
 - **Validates**: RPC resolution
 - **Flags-Tested**: module, --with-stubs, --json
@@ -3125,7 +3125,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: rpc-interface-analysis/map_rpc_surface.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/rpc-interface-analysis/scripts/map_rpc_surface.py srvsvc.dll --with-blast-radius --json`
+- **Command**: `python .claude/skills/rpc-interface-analysis/scripts/map_rpc_surface.py srvsvc.dll --with-blast-radius --json`
 - **Expected**: RPC surface with blast-radius
 - **Validates**: Surface mapping with blast-radius
 - **Flags-Tested**: module, --with-blast-radius, --json
@@ -3138,7 +3138,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: rpc-interface-analysis/rpc_topology.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/rpc-interface-analysis/scripts/rpc_topology.py --json`
+- **Command**: `python .claude/skills/rpc-interface-analysis/scripts/rpc_topology.py --json`
 - **Expected**: RPC client-server topology
 - **Validates**: Topology generation
 - **Flags-Tested**: --json
@@ -3151,7 +3151,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: winrt-interface-analysis/resolve_winrt_server.py
 - **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/winrt-interface-analysis/scripts/resolve_winrt_server.py clusapi.dll --json`
+- **Command**: `python .claude/skills/winrt-interface-analysis/scripts/resolve_winrt_server.py clusapi.dll --json`
 - **Expected**: WinRT servers for clusapi.dll
 - **Validates**: WinRT server resolution
 - **Flags-Tested**: module, --json
@@ -3164,7 +3164,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: winrt-interface-analysis/find_winrt_privesc.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/winrt-interface-analysis/scripts/find_winrt_privesc.py --top 10 --json`
+- **Command**: `python .claude/skills/winrt-interface-analysis/scripts/find_winrt_privesc.py --top 10 --json`
 - **Expected**: WinRT privesc targets with structural scoring (runs_as_system, out_of_process, permissive_sddl, method_count)
 - **Validates**: WinRT privesc discovery
 - **Flags-Tested**: --top, --json
@@ -3177,7 +3177,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: batch-lift/collect_functions.py
 - **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/batch-lift/scripts/collect_functions.py <db:clusapi> --class ClusNode --json`
+- **Command**: `python .claude/skills/batch-lift/scripts/collect_functions.py <db:clusapi> --class ClusNode --json`
 - **Expected**: All methods of the class collected
 - **Validates**: Class collection
 - **Flags-Tested**: --class, --json
@@ -3190,7 +3190,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: batch-lift/collect_functions.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/skills/batch-lift/scripts/collect_functions.py <db:srvsvc> --chain SsServerFsControl --depth 3 --json`
+- **Command**: `python .claude/skills/batch-lift/scripts/collect_functions.py <db:srvsvc> --chain SsServerFsControl --depth 3 --json`
 - **Expected**: Call chain functions collected
 - **Validates**: --chain mode
 - **Flags-Tested**: --chain, --depth, --json
@@ -3203,7 +3203,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: batch-lift/collect_functions.py
 - **Target-Module**: svchost.exe
 - **Target-Function**: ServiceMain
-- **Command**: `python .agent/skills/batch-lift/scripts/collect_functions.py <db:svchost> --export ServiceMain --json`
+- **Command**: `python .claude/skills/batch-lift/scripts/collect_functions.py <db:svchost> --export ServiceMain --json`
 - **Expected**: Export subtree collected
 - **Validates**: --export mode
 - **Flags-Tested**: --export, --json
@@ -3216,7 +3216,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: batch-lift/prepare_batch_lift.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/batch-lift/scripts/prepare_batch_lift.py --from-json <path> --summary --json`
+- **Command**: `python .claude/skills/batch-lift/scripts/prepare_batch_lift.py --from-json <path> --summary --json`
 - **Expected**: NOT_FOUND or PARSE_ERROR because placeholder path has no valid data
 - **Validates**: Graceful handling of missing or empty input file
 - **Flags-Tested**: --from-json, --summary, --json
@@ -3229,7 +3229,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: reconstruct-types/list_types.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/reconstruct-types/scripts/list_types.py <db:srvsvc> --with-vtables --json`
+- **Command**: `python .claude/skills/reconstruct-types/scripts/list_types.py <db:srvsvc> --with-vtables --json`
 - **Expected**: Detected types with vtable info
 - **Validates**: Type listing
 - **Flags-Tested**: --with-vtables, --json
@@ -3242,7 +3242,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: reconstruct-types/extract_class_hierarchy.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/reconstruct-types/scripts/extract_class_hierarchy.py <db:srvsvc> --json`
+- **Command**: `python .claude/skills/reconstruct-types/scripts/extract_class_hierarchy.py <db:srvsvc> --json`
 - **Expected**: Class inheritance and method mappings
 - **Validates**: Hierarchy extraction
 - **Flags-Tested**: --json
@@ -3255,7 +3255,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: reconstruct-types/scan_struct_fields.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py <db:srvsvc> --all-classes --app-only --json`
+- **Command**: `python .claude/skills/reconstruct-types/scripts/scan_struct_fields.py <db:srvsvc> --all-classes --app-only --json`
 - **Expected**: Field boundaries for all app classes
 - **Validates**: Struct field scanning
 - **Flags-Tested**: --all-classes, --app-only, --json
@@ -3268,7 +3268,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: reconstruct-types/generate_header.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/reconstruct-types/scripts/generate_header.py <db:srvsvc> --all --output all_types.h`
+- **Command**: `python .claude/skills/reconstruct-types/scripts/generate_header.py <db:srvsvc> --all --output all_types.h`
 - **Expected**: Compilable C++ header written to output file (stdout is empty when using --output flag)
 - **Validates**: Header generation
 - **Flags-Tested**: --all, --output
@@ -3281,7 +3281,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: com-interface-analysis/audit_com_security.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/com-interface-analysis/scripts/audit_com_security.py srvsvc.dll --json`
+- **Command**: `python .claude/skills/com-interface-analysis/scripts/audit_com_security.py srvsvc.dll --json`
 - **Expected**: COM security audit findings for srvsvc.dll
 - **Validates**: COM security permission auditing
 - **Flags-Tested**: module, --json
@@ -3294,7 +3294,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: com-interface-analysis/classify_com_entrypoints.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/com-interface-analysis/scripts/classify_com_entrypoints.py srvsvc.dll --json`
+- **Command**: `python .claude/skills/com-interface-analysis/scripts/classify_com_entrypoints.py srvsvc.dll --json`
 - **Expected**: COM entry points classified by attack value
 - **Validates**: COM entry point classification
 - **Flags-Tested**: module, --json
@@ -3307,7 +3307,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: com-interface-reconstruction/map_class_interfaces.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/com-interface-reconstruction/scripts/map_class_interfaces.py <db:srvsvc> --json`
+- **Command**: `python .claude/skills/com-interface-reconstruction/scripts/map_class_interfaces.py <db:srvsvc> --json`
 - **Expected**: COM class-to-interface mappings
 - **Validates**: Class interface mapping
 - **Flags-Tested**: --json
@@ -3320,7 +3320,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: rpc-interface-analysis/audit_rpc_security.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/rpc-interface-analysis/scripts/audit_rpc_security.py <db:srvsvc> --json`
+- **Command**: `python .claude/skills/rpc-interface-analysis/scripts/audit_rpc_security.py <db:srvsvc> --json`
 - **Expected**: RPC security descriptor audit findings
 - **Validates**: RPC interface security auditing
 - **Flags-Tested**: --json
@@ -3333,7 +3333,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: rpc-interface-analysis/find_rpc_clients.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/rpc-interface-analysis/scripts/find_rpc_clients.py 4b324fc8-1670-01d3-1278-5a47bf6ee188 --json`
+- **Command**: `python .claude/skills/rpc-interface-analysis/scripts/find_rpc_clients.py 4b324fc8-1670-01d3-1278-5a47bf6ee188 --json`
 - **Expected**: Modules that are RPC clients for the given UUID
 - **Validates**: RPC client discovery
 - **Flags-Tested**: uuid, --json
@@ -3346,7 +3346,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: rpc-interface-analysis/trace_rpc_chain.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: NetrShareAdd
-- **Command**: `python .agent/skills/rpc-interface-analysis/scripts/trace_rpc_chain.py <db:srvsvc> --function NetrShareAdd --json`
+- **Command**: `python .claude/skills/rpc-interface-analysis/scripts/trace_rpc_chain.py <db:srvsvc> --function NetrShareAdd --json`
 - **Expected**: RPC handler call chain trace
 - **Validates**: RPC handler chain tracing
 - **Flags-Tested**: --function, --json
@@ -3359,7 +3359,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: winrt-interface-analysis/audit_winrt_security.py
 - **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/winrt-interface-analysis/scripts/audit_winrt_security.py <db:clusapi> --json`
+- **Command**: `python .claude/skills/winrt-interface-analysis/scripts/audit_winrt_security.py <db:clusapi> --json`
 - **Expected**: WinRT server security audit findings
 - **Validates**: WinRT security property auditing
 - **Flags-Tested**: --json
@@ -3372,7 +3372,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: winrt-interface-analysis/classify_winrt_entrypoints.py
 - **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/winrt-interface-analysis/scripts/classify_winrt_entrypoints.py clusapi.dll --json`
+- **Command**: `python .claude/skills/winrt-interface-analysis/scripts/classify_winrt_entrypoints.py clusapi.dll --json`
 - **Expected**: WinRT entry points classified by attack value
 - **Validates**: WinRT entry point classification
 - **Flags-Tested**: module, --json
@@ -3385,7 +3385,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: winrt-interface-analysis/enumerate_winrt_methods.py
 - **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/winrt-interface-analysis/scripts/enumerate_winrt_methods.py clusapi.dll --json`
+- **Command**: `python .claude/skills/winrt-interface-analysis/scripts/enumerate_winrt_methods.py clusapi.dll --json`
 - **Expected**: WinRT server methods enumerated
 - **Validates**: WinRT method enumeration
 - **Flags-Tested**: module, --json
@@ -3398,7 +3398,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: winrt-interface-analysis/map_winrt_surface.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/winrt-interface-analysis/scripts/map_winrt_surface.py --system-wide --top 10 --json`
+- **Command**: `python .claude/skills/winrt-interface-analysis/scripts/map_winrt_surface.py --system-wide --top 10 --json`
 - **Expected**: System-wide WinRT attack surface ranking
 - **Validates**: WinRT surface mapping
 - **Flags-Tested**: --system-wide, --top, --json
@@ -3415,7 +3415,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: re-analyst/re_query.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/re-analyst/scripts/re_query.py <db:srvsvc> --overview --json`
+- **Command**: `python .claude/agents/re-analyst/scripts/re_query.py <db:srvsvc> --overview --json`
 - **Expected**: Module overview with key metrics
 - **Validates**: re-analyst overview mode
 - **Flags-Tested**: --overview, --json
@@ -3428,7 +3428,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: re-analyst/re_query.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/agents/re-analyst/scripts/re_query.py <db:srvsvc> --function SsServerFsControl --context --json`
+- **Command**: `python .claude/agents/re-analyst/scripts/re_query.py <db:srvsvc> --function SsServerFsControl --context --json`
 - **Expected**: Full function context
 - **Validates**: --function --context mode
 - **Flags-Tested**: --function, --context, --json
@@ -3441,7 +3441,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: re-analyst/re_query.py
 - **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/re-analyst/scripts/re_query.py <db:clusapi> --class ClusNode --json`
+- **Command**: `python .claude/agents/re-analyst/scripts/re_query.py <db:clusapi> --class ClusNode --json`
 - **Expected**: Class methods and metadata
 - **Validates**: --class mode
 - **Flags-Tested**: --class, --json
@@ -3454,7 +3454,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: re-analyst/re_query.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/re-analyst/scripts/re_query.py <db:srvsvc> --exports --with-classification --json`
+- **Command**: `python .claude/agents/re-analyst/scripts/re_query.py <db:srvsvc> --exports --with-classification --json`
 - **Expected**: Exports with classification data
 - **Validates**: --exports --with-classification mode
 - **Flags-Tested**: --exports, --with-classification, --json
@@ -3467,7 +3467,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: re-analyst/re_query.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/re-analyst/scripts/re_query.py <db:srvsvc> --search "Share" --json`
+- **Command**: `python .claude/agents/re-analyst/scripts/re_query.py <db:srvsvc> --search "Share" --json`
 - **Expected**: Search results
 - **Validates**: --search mode
 - **Flags-Tested**: --search, --json
@@ -3480,7 +3480,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: re-analyst/explain_function.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/agents/re-analyst/scripts/explain_function.py <db:srvsvc> SsServerFsControl --json`
+- **Command**: `python .claude/agents/re-analyst/scripts/explain_function.py <db:srvsvc> SsServerFsControl --json`
 - **Expected**: Structured function explanation
 - **Validates**: Function explanation
 - **Flags-Tested**: function, --json
@@ -3493,7 +3493,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: re-analyst/explain_function.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/agents/re-analyst/scripts/explain_function.py <db:srvsvc> SsServerFsControl --depth 2 --json`
+- **Command**: `python .claude/agents/re-analyst/scripts/explain_function.py <db:srvsvc> SsServerFsControl --depth 2 --json`
 - **Expected**: Explanation with 2 levels of callees
 - **Validates**: --depth
 - **Flags-Tested**: --depth, --json
@@ -3506,7 +3506,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: re-analyst/explain_function.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/agents/re-analyst/scripts/explain_function.py <db:srvsvc> SsServerFsControl --no-assembly --json`
+- **Command**: `python .claude/agents/re-analyst/scripts/explain_function.py <db:srvsvc> SsServerFsControl --no-assembly --json`
 - **Expected**: Explanation without assembly
 - **Validates**: --no-assembly
 - **Flags-Tested**: --no-assembly, --json
@@ -3519,7 +3519,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: triage-coordinator/analyze_module.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/triage-coordinator/scripts/analyze_module.py <db:srvsvc> --goal triage --json`
+- **Command**: `python .claude/agents/triage-coordinator/scripts/analyze_module.py <db:srvsvc> --goal triage --json`
 - **Expected**: Triage pipeline results
 - **Validates**: triage goal
 - **Flags-Tested**: --goal triage, --json
@@ -3532,7 +3532,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: triage-coordinator/analyze_module.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/triage-coordinator/scripts/analyze_module.py <db:srvsvc> --goal security --json`
+- **Command**: `python .claude/agents/triage-coordinator/scripts/analyze_module.py <db:srvsvc> --goal security --json`
 - **Expected**: Security pipeline results
 - **Validates**: security goal
 - **Flags-Tested**: --goal security, --json
@@ -3545,7 +3545,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: triage-coordinator/analyze_module.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/triage-coordinator/scripts/analyze_module.py <db:srvsvc> --goal full --json`
+- **Command**: `python .claude/agents/triage-coordinator/scripts/analyze_module.py <db:srvsvc> --goal full --json`
 - **Expected**: Full analysis pipeline
 - **Validates**: full goal
 - **Flags-Tested**: --goal full, --json
@@ -3558,7 +3558,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: triage-coordinator/analyze_module.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/agents/triage-coordinator/scripts/analyze_module.py <db:srvsvc> --goal understand-function --function SsServerFsControl --json`
+- **Command**: `python .claude/agents/triage-coordinator/scripts/analyze_module.py <db:srvsvc> --goal understand-function --function SsServerFsControl --json`
 - **Expected**: Function understanding pipeline
 - **Validates**: understand-function goal with --function
 - **Flags-Tested**: --goal understand-function, --function, --json
@@ -3571,7 +3571,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: triage-coordinator/analyze_module.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/triage-coordinator/scripts/analyze_module.py <db:srvsvc> --goal types --json`
+- **Command**: `python .claude/agents/triage-coordinator/scripts/analyze_module.py <db:srvsvc> --goal types --json`
 - **Expected**: Type reconstruction pipeline
 - **Validates**: types goal
 - **Flags-Tested**: --goal types, --json
@@ -3584,7 +3584,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: triage-coordinator/analyze_module.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/triage-coordinator/scripts/analyze_module.py <db:srvsvc> --goal triage --quick --no-cache --json`
+- **Command**: `python .claude/agents/triage-coordinator/scripts/analyze_module.py <db:srvsvc> --goal triage --quick --no-cache --json`
 - **Expected**: Quick triage without cache
 - **Validates**: --quick and --no-cache flags
 - **Flags-Tested**: --goal triage, --quick, --no-cache, --json
@@ -3597,7 +3597,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: triage-coordinator/generate_analysis_plan.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/triage-coordinator/scripts/generate_analysis_plan.py <db:srvsvc> --goal triage --json`
+- **Command**: `python .claude/agents/triage-coordinator/scripts/generate_analysis_plan.py <db:srvsvc> --goal triage --json`
 - **Expected**: Phased plan JSON without execution
 - **Validates**: Plan generation for triage
 - **Flags-Tested**: --goal triage, --json
@@ -3610,7 +3610,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: triage-coordinator/generate_analysis_plan.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/triage-coordinator/scripts/generate_analysis_plan.py <db:srvsvc> --goal security --json`
+- **Command**: `python .claude/agents/triage-coordinator/scripts/generate_analysis_plan.py <db:srvsvc> --goal security --json`
 - **Expected**: Security plan
 - **Validates**: Plan generation for security
 - **Flags-Tested**: --goal security, --json
@@ -3623,7 +3623,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: triage-coordinator/generate_analysis_plan.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/triage-coordinator/scripts/generate_analysis_plan.py <db:srvsvc> --goal full --json`
+- **Command**: `python .claude/agents/triage-coordinator/scripts/generate_analysis_plan.py <db:srvsvc> --goal full --json`
 - **Expected**: Full plan
 - **Validates**: Plan generation for full
 - **Flags-Tested**: --goal full, --json
@@ -3636,7 +3636,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: security-auditor/run_security_scan.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/security-auditor/scripts/run_security_scan.py <db:srvsvc> --top 1 --timeout 30 --json`
+- **Command**: `python .claude/agents/security-auditor/scripts/run_security_scan.py <db:srvsvc> --top 1 --timeout 30 --json`
 - **Expected**: Full security scan pipeline
 - **Validates**: Default scan goal
 - **Flags-Tested**: --top, --timeout, --json
@@ -3649,7 +3649,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: security-auditor/run_security_scan.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/agents/security-auditor/scripts/run_security_scan.py <db:srvsvc> --goal audit --function SsServerFsControl --timeout 30 --json`
+- **Command**: `python .claude/agents/security-auditor/scripts/run_security_scan.py <db:srvsvc> --goal audit --function SsServerFsControl --timeout 30 --json`
 - **Expected**: Function-scoped audit
 - **Validates**: audit goal with --function
 - **Flags-Tested**: --goal audit, --function, --timeout, --json
@@ -3662,7 +3662,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: security-auditor/run_security_scan.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/security-auditor/scripts/run_security_scan.py <db:srvsvc> --goal hunt --top 1 --timeout 30 --json`
+- **Command**: `python .claude/agents/security-auditor/scripts/run_security_scan.py <db:srvsvc> --goal hunt --top 1 --timeout 30 --json`
 - **Expected**: Hunt-mode security scan
 - **Validates**: hunt goal
 - **Flags-Tested**: --goal hunt, --top, --timeout, --json
@@ -3675,7 +3675,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: security-auditor/run_security_scan.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/security-auditor/scripts/run_security_scan.py <db:srvsvc> --top 1 --timeout 30 --no-cache --json`
+- **Command**: `python .claude/agents/security-auditor/scripts/run_security_scan.py <db:srvsvc> --top 1 --timeout 30 --no-cache --json`
 - **Expected**: Top 1, fresh computation
 - **Validates**: --top and --no-cache
 - **Flags-Tested**: --top, --timeout, --no-cache, --json
@@ -3688,7 +3688,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: code-lifter/batch_extract.py
 - **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/code-lifter/scripts/batch_extract.py <db:clusapi> --class ClusNode --init-state --json`
+- **Command**: `python .claude/agents/code-lifter/scripts/batch_extract.py <db:clusapi> --class ClusNode --init-state --json`
 - **Expected**: Class methods extracted, state initialized
 - **Validates**: Class extraction with state init
 - **Flags-Tested**: --class, --init-state, --json
@@ -3701,7 +3701,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: code-lifter/batch_extract.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/agents/code-lifter/scripts/batch_extract.py <db:srvsvc> --functions SsServerFsControl --json`
+- **Command**: `python .claude/agents/code-lifter/scripts/batch_extract.py <db:srvsvc> --functions SsServerFsControl --json`
 - **Expected**: Specific function extracted
 - **Validates**: --functions mode
 - **Flags-Tested**: --functions, --json
@@ -3714,7 +3714,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: code-lifter/track_shared_state.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/code-lifter/scripts/track_shared_state.py --init ClusNode --json`
+- **Command**: `python .claude/agents/code-lifter/scripts/track_shared_state.py --init ClusNode --json`
 - **Expected**: Empty state file created (may fail with INVALID_ARGS if state already exists from a prior test; use --reset to reinitialize)
 - **Validates**: --init
 - **Flags-Tested**: --init, --json
@@ -3727,7 +3727,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: code-lifter/track_shared_state.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/code-lifter/scripts/track_shared_state.py --dump --json`
+- **Command**: `python .claude/agents/code-lifter/scripts/track_shared_state.py --dump --json`
 - **Expected**: Current state as JSON
 - **Validates**: --dump
 - **Flags-Tested**: --dump, --json
@@ -3740,7 +3740,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: code-lifter/track_shared_state.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/code-lifter/scripts/track_shared_state.py --list --json`
+- **Command**: `python .claude/agents/code-lifter/scripts/track_shared_state.py --list --json`
 - **Expected**: All active state files
 - **Validates**: --list
 - **Flags-Tested**: --list, --json
@@ -3753,7 +3753,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: code-lifter/track_shared_state.py
 - **Target-Module**: N/A
 - **Target-Function**: SsServerFsControl
-- **Command**: `python .agent/agents/code-lifter/scripts/track_shared_state.py --mark-lifted "ClusNode::ConfigureNode" --class ClusNode --json`
+- **Command**: `python .claude/agents/code-lifter/scripts/track_shared_state.py --mark-lifted "ClusNode::ConfigureNode" --class ClusNode --json`
 - **Expected**: Function marked as lifted in state
 - **Validates**: --mark-lifted
 - **Flags-Tested**: --mark-lifted, --class, --json
@@ -3766,7 +3766,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: type-reconstructor/reconstruct_all.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db:srvsvc> --json`
+- **Command**: `python .claude/agents/type-reconstructor/scripts/reconstruct_all.py <db:srvsvc> --json`
 - **Expected**: Full type reconstruction pipeline
 - **Validates**: Default pipeline
 - **Flags-Tested**: --json
@@ -3779,7 +3779,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: type-reconstructor/reconstruct_all.py
 - **Target-Module**: clusapi.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db:clusapi> --class ClusNode --include-com --json`
+- **Command**: `python .claude/agents/type-reconstructor/scripts/reconstruct_all.py <db:clusapi> --class ClusNode --include-com --json`
 - **Expected**: Class reconstruction with COM
 - **Validates**: --class and --include-com
 - **Flags-Tested**: --class, --include-com, --json
@@ -3792,7 +3792,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: type-reconstructor/merge_evidence.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/type-reconstructor/scripts/merge_evidence.py --scan-output <path> --json`
+- **Command**: `python .claude/agents/type-reconstructor/scripts/merge_evidence.py --scan-output <path> --json`
 - **Expected**: NOT_FOUND or PARSE_ERROR because placeholder path has no valid data
 - **Validates**: Graceful handling of missing or empty scan output
 - **Flags-Tested**: --scan-output, --json
@@ -3805,7 +3805,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: type-reconstructor/validate_layout.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/agents/type-reconstructor/scripts/validate_layout.py <db:srvsvc> --header types.h --json`
+- **Command**: `python .claude/agents/type-reconstructor/scripts/validate_layout.py <db:srvsvc> --header types.h --json`
 - **Expected**: NOT_FOUND structured error because types.h does not exist
 - **Validates**: Graceful handling of missing header file
 - **Flags-Tested**: --header, --json
@@ -3917,7 +3917,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: pipeline_cli.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/helpers/pipeline_cli.py list-steps`
+- **Command**: `python .claude/helpers/pipeline_cli.py list-steps`
 - **Expected**: All available pipeline step names listed
 - **Validates**: list-steps subcommand
 - **Flags-Tested**: list-steps
@@ -3930,7 +3930,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: pipeline_cli.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/helpers/pipeline_cli.py validate .agent/config/pipelines/security-sweep.yaml`
+- **Command**: `python .claude/helpers/pipeline_cli.py validate .claude/config/pipelines/security-sweep.yaml`
 - **Expected**: Validation passes
 - **Validates**: YAML schema validation
 - **Flags-Tested**: validate
@@ -3943,7 +3943,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: pipeline_cli.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/helpers/pipeline_cli.py validate .agent/config/pipelines/quick-triage.yaml`
+- **Command**: `python .claude/helpers/pipeline_cli.py validate .claude/config/pipelines/quick-triage.yaml`
 - **Expected**: Validation passes
 - **Validates**: Quick-triage YAML
 - **Flags-Tested**: validate
@@ -3956,7 +3956,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: pipeline_cli.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/helpers/pipeline_cli.py validate .agent/config/pipelines/full-analysis.yaml`
+- **Command**: `python .claude/helpers/pipeline_cli.py validate .claude/config/pipelines/full-analysis.yaml`
 - **Expected**: Validation passes
 - **Validates**: Full-analysis YAML
 - **Flags-Tested**: validate
@@ -3969,7 +3969,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: pipeline_cli.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/helpers/pipeline_cli.py validate .agent/config/pipelines/function-deep-dive.yaml`
+- **Command**: `python .claude/helpers/pipeline_cli.py validate .claude/config/pipelines/function-deep-dive.yaml`
 - **Expected**: Validation passes
 - **Validates**: Function-deep-dive YAML
 - **Flags-Tested**: validate
@@ -3982,7 +3982,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: pipeline_cli.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/helpers/pipeline_cli.py run .agent/config/pipelines/quick-triage.yaml --dry-run --json`
+- **Command**: `python .claude/helpers/pipeline_cli.py run .claude/config/pipelines/quick-triage.yaml --dry-run --json`
 - **Expected**: Pipeline plan shown without execution
 - **Validates**: --dry-run mode
 - **Flags-Tested**: run, --dry-run, --json
@@ -3999,7 +3999,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: grind-until-done.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: Create scratchpad with unchecked items at `.agent/hooks/scratchpads/test_session.md`, then run `python .agent/hooks/grind-until-done.py`
+- **Command**: Create scratchpad with unchecked items at `.claude/hooks/scratchpads/test_session.md`, then run `python .claude/hooks/grind-until-done.py`
 - **Expected**: Hook detects unchecked items, outputs followup message
 - **Validates**: Grind loop unchecked item detection
 - **Flags-Tested**: N/A
@@ -4038,7 +4038,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: grind-until-done.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: Create scratchpad with unchecked items, pipe `{}` on stdin (no `hook_event_name`), run `python .agent/hooks/grind-until-done.py`
+- **Command**: Create scratchpad with unchecked items, pipe `{}` on stdin (no `hook_event_name`), run `python .claude/hooks/grind-until-done.py`
 - **Expected**: stdout JSON contains `followup_message` key (Cursor format), does NOT contain `decision` key
 - **Validates**: Cross-platform output -- Cursor path
 - **Flags-Tested**: N/A
@@ -4051,7 +4051,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: grind-until-done.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: Create scratchpad with unchecked items, pipe `{"hook_event_name": "Stop"}` on stdin, run `python .agent/hooks/grind-until-done.py`
+- **Command**: Create scratchpad with unchecked items, pipe `{"hook_event_name": "Stop"}` on stdin, run `python .claude/hooks/grind-until-done.py`
 - **Expected**: stdout JSON contains `decision: "block"` and `reason` key (Claude Code format), does NOT contain `followup_message` key
 - **Validates**: Cross-platform output -- Claude Code path
 - **Flags-Tested**: N/A
@@ -4064,7 +4064,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: inject-module-context.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: Pipe `{"conversation_id": "test-conv"}` on stdin, run `python .agent/hooks/inject-module-context.py`
+- **Command**: Pipe `{"conversation_id": "test-conv"}` on stdin, run `python .claude/hooks/inject-module-context.py`
 - **Expected**: stdout JSON has `env.AGENT_SESSION_ID` and `additional_context` keys (Cursor format), does NOT have `hookSpecificOutput`
 - **Validates**: Cross-platform output -- Cursor sessionStart
 - **Flags-Tested**: N/A
@@ -4077,7 +4077,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: inject-module-context.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: Pipe `{"hook_event_name": "SessionStart", "session_id": "cc-test"}` on stdin, run `python .agent/hooks/inject-module-context.py`
+- **Command**: Pipe `{"hook_event_name": "SessionStart", "session_id": "cc-test"}` on stdin, run `python .claude/hooks/inject-module-context.py`
 - **Expected**: stdout JSON has `hookSpecificOutput.hookEventName` == `"SessionStart"` and `hookSpecificOutput.additionalContext` (Claude Code format), does NOT have `env`
 - **Validates**: Cross-platform output -- Claude Code sessionStart
 - **Flags-Tested**: N/A
@@ -4090,7 +4090,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: inject-module-context.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: Set `CLAUDE_ENV_FILE` to a temp file, pipe `{"hook_event_name": "SessionStart", "session_id": "env-test"}` on stdin, run `python .agent/hooks/inject-module-context.py`
+- **Command**: Set `CLAUDE_ENV_FILE` to a temp file, pipe `{"hook_event_name": "SessionStart", "session_id": "env-test"}` on stdin, run `python .claude/hooks/inject-module-context.py`
 - **Expected**: Temp file contains `export AGENT_SESSION_ID=` with the session ID value
 - **Validates**: Claude Code env file persistence for cross-hook session ID propagation
 - **Flags-Tested**: N/A
@@ -4107,7 +4107,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: error-handling
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py nonexistent_db.db SsServerFsControl --json`
+- **Command**: `python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py nonexistent_db.db SsServerFsControl --json`
 - **Expected**: Structured JSON error on stderr: `{"error": "...", "code": "NOT_FOUND"}`, exit code 1
 - **Validates**: NOT_FOUND error code
 - **Flags-Tested**: --json
@@ -4120,7 +4120,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: error-handling
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/list_functions.py`
+- **Command**: `python .claude/skills/decompiled-code-extractor/scripts/list_functions.py`
 - **Expected**: Structured error for missing required db_path argument
 - **Validates**: INVALID_ARGS error code
 - **Flags-Tested**: none
@@ -4133,7 +4133,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: error-handling
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db:srvsvc> --search "Check" --json`
+- **Command**: `python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py <db:srvsvc> --search "Check" --json`
 - **Expected**: JSON with status ok containing match_count and matches array for the search results
 - **Validates**: Search listing returns structured matches
 - **Flags-Tested**: --search, --json
@@ -4146,7 +4146,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: error-handling
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/decompiled-code-extractor/scripts/list_functions.py <db:srvsvc> --search "ZZZZNONEXISTENT" --json`
+- **Command**: `python .claude/skills/decompiled-code-extractor/scripts/list_functions.py <db:srvsvc> --search "ZZZZNONEXISTENT" --json`
 - **Expected**: NO_DATA result for zero matches
 - **Validates**: NO_DATA handling
 - **Flags-Tested**: --search, --json
@@ -4159,7 +4159,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: error-handling
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py /dev/null --json`
+- **Command**: `python .claude/skills/classify-functions/scripts/triage_summary.py /dev/null --json`
 - **Expected**: DB_ERROR for corrupt/invalid DB
 - **Validates**: DB_ERROR error code
 - **Flags-Tested**: --json
@@ -4185,7 +4185,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: json-output-contract
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --json`
+- **Command**: `python .claude/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --json`
 - **Expected**: Exactly one JSON dict on stdout with "status" key
 - **Validates**: JSON output convention -- single dict with status
 - **Flags-Tested**: --json
@@ -4198,7 +4198,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: json-output-contract
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --json 2>stderr.txt`
+- **Command**: `python .claude/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --json 2>stderr.txt`
 - **Expected**: stdout is pure JSON, stderr has progress messages only
 - **Validates**: stdout/stderr separation
 - **Flags-Tested**: --json
@@ -4211,7 +4211,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: json-output-contract
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --top 5`
+- **Command**: `python .claude/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --top 5`
 - **Expected**: Formatted table output, line widths under 120 chars
 - **Validates**: Human-readable output convention
 - **Flags-Tested**: --top (no --json)
@@ -4224,8 +4224,8 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: cache-behavior
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --json` (run twice)
-- **Expected**: First run creates cache file in .agent/cache/, second run hits cache
+- **Command**: `python .claude/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --json` (run twice)
+- **Expected**: First run creates cache file in .claude/cache/, second run hits cache
 - **Validates**: Cache file creation and hit
 - **Flags-Tested**: --json
 - **Protocol**: none
@@ -4237,7 +4237,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: cache-behavior
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --json --no-cache`
+- **Command**: `python .claude/skills/classify-functions/scripts/triage_summary.py <db:srvsvc> --json --no-cache`
 - **Expected**: Fresh computation regardless of existing cache
 - **Validates**: --no-cache bypass
 - **Flags-Tested**: --json, --no-cache
@@ -4251,7 +4251,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
 - **Command**: `/triage srvsvc.dll` (or any workspace-protocol command)
-- **Expected**: Run dir created under .agent/workspace/ with manifest.json
+- **Expected**: Run dir created under .claude/workspace/ with manifest.json
 - **Validates**: Workspace directory creation
 - **Flags-Tested**: N/A
 - **Protocol**: workspace
@@ -4277,7 +4277,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Target-Module**: N/A
 - **Target-Function**: N/A
 - **Command**: `/full-report srvsvc.dll` (grind-loop command)
-- **Expected**: Scratchpad created at .agent/hooks/scratchpads/{session_id}.md
+- **Expected**: Scratchpad created at .claude/hooks/scratchpads/{session_id}.md
 - **Validates**: Scratchpad creation for multi-item tasks
 - **Flags-Tested**: N/A
 - **Protocol**: grind-loop
@@ -4341,7 +4341,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: configuration
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: Verify .agent/config/defaults.json loads without errors
+- **Command**: Verify .claude/config/defaults.json loads without errors
 - **Expected**: All sections parsed: classification, scoring, callgraph, triage, security_auditor, pipeline, verifier, cache, hooks, rpc, winrt, com, scale
 - **Validates**: Configuration loading
 - **Flags-Tested**: N/A
@@ -4367,7 +4367,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: unified_search.py
 - **Target-Module**: srvsvc.dll
 - **Target-Function**: N/A
-- **Command**: `python .agent/helpers/unified_search.py <db:srvsvc> --query "LanmanServer" --json`
+- **Command**: `python .claude/helpers/unified_search.py <db:srvsvc> --query "LanmanServer" --json`
 - **Expected**: JSON with status ok containing search results across dimensions
 - **Validates**: Standalone unified_search.py CLI with --json output
 - **Flags-Tested**: --query, --json
@@ -4380,7 +4380,7 @@ output directory. Repeat until the suite reports 0 failures and 0 warnings.
 - **Component-Name**: health_check.py
 - **Target-Module**: N/A
 - **Target-Function**: N/A
-- **Command**: `python .agent/helpers/health_check.py --quick --json`
+- **Command**: `python .claude/helpers/health_check.py --quick --json`
 - **Expected**: JSON with status ok containing workspace health summary
 - **Validates**: Standalone health_check.py CLI with --json output
 - **Flags-Tested**: --quick, --json

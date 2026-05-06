@@ -19,9 +19,9 @@ Usage:
 
 ## Execution Context
 
-> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.agent`
-> (so the `.agent/` directory is on `sys.path`), **not** from the workspace root.
-> Script invocations like `python .agent/skills/.../script.py` can be run from the workspace root
+> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.claude`
+> (so the `.claude/` directory is on `sys.path`), **not** from the workspace root.
+> Script invocations like `python .claude/skills/.../script.py` can be run from the workspace root
 > because those scripts manage their own path setup.
 
 ## Steps
@@ -33,7 +33,7 @@ The **import-export-resolver** skill requires an index of all modules' imports a
 > **Tip:** All skill scripts support `--json` for machine-readable output. Use `--json` when parsing script output programmatically.
 
 ```bash
-python .agent/skills/import-export-resolver/scripts/build_index.py --json
+python .claude/skills/import-export-resolver/scripts/build_index.py --json
 ```
 
 This scans all modules in the workspace and builds a cross-reference index. Results are cached.
@@ -43,33 +43,33 @@ This scans all modules in the workspace and builds a cross-reference index. Resu
 **Function lookup** (`--function`): Find who exports and who imports a specific function:
 
 ```bash
-python .agent/skills/import-export-resolver/scripts/query_function.py --function <function_name> --json
+python .claude/skills/import-export-resolver/scripts/query_function.py --function <function_name> --json
 ```
 
 **Module dependencies** (module name given): Show which modules this module imports from and exports to:
 
 ```bash
-python .agent/skills/import-export-resolver/scripts/module_deps.py --module <module_name> --json
+python .claude/skills/import-export-resolver/scripts/module_deps.py --module <module_name> --json
 ```
 
 **Consumer analysis** (`--consumers`): Which modules depend on this module's exports:
 
 ```bash
-python .agent/skills/import-export-resolver/scripts/module_deps.py --module <module_name> --consumers --json
+python .claude/skills/import-export-resolver/scripts/module_deps.py --module <module_name> --consumers --json
 ```
 
 **Dependency diagram** (`--diagram`): Generate a Mermaid diagram of module dependencies:
 
 ```bash
-python .agent/skills/import-export-resolver/scripts/module_deps.py --module <module_name> --diagram --json
+python .claude/skills/import-export-resolver/scripts/module_deps.py --module <module_name> --diagram --json
 ```
 
 **Forwarder resolution** (`--forwarders`): Trace DLL forwarder chains:
 
 ```bash
-python .agent/skills/import-export-resolver/scripts/resolve_forwarders.py --module <module_name> --json
-python .agent/skills/import-export-resolver/scripts/resolve_forwarders.py --function <function_name> --json
-python .agent/skills/import-export-resolver/scripts/resolve_forwarders.py --all --json
+python .claude/skills/import-export-resolver/scripts/resolve_forwarders.py --module <module_name> --json
+python .claude/skills/import-export-resolver/scripts/resolve_forwarders.py --function <function_name> --json
+python .claude/skills/import-export-resolver/scripts/resolve_forwarders.py --all --json
 ```
 
 ### 3. Present results

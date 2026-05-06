@@ -6,10 +6,10 @@ One-command deep context gathering for security auditing of decompiled Windows P
 
 ```bash
 # 1. Find the module DB
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 
 # 2. Build a dossier
-python .agent/skills/security-dossier/scripts/build_dossier.py extracted_dbs/appinfo_dll_e98d25a9e8.db AiCheckSecureApplicationDirectory
+python .claude/skills/security-dossier/scripts/build_dossier.py extracted_dbs/appinfo_dll_e98d25a9e8.db AiCheckSecureApplicationDirectory
 ```
 
 ## What It Does
@@ -30,19 +30,19 @@ Before manually auditing a decompiled function, you need to understand its secur
 
 ```bash
 # By function name
-python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> <function_name>
+python .claude/skills/security-dossier/scripts/build_dossier.py <db_path> <function_name>
 
 # By function ID
-python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> --id <function_id>
+python .claude/skills/security-dossier/scripts/build_dossier.py <db_path> --id <function_id>
 
 # Search for functions
-python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> --search <pattern>
+python .claude/skills/security-dossier/scripts/build_dossier.py <db_path> --search <pattern>
 
 # JSON output
-python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> <function_name> --json
+python .claude/skills/security-dossier/scripts/build_dossier.py <db_path> <function_name> --json
 
 # Deeper callee analysis (check callees' callees)
-python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> <function_name> --callee-depth 2
+python .claude/skills/security-dossier/scripts/build_dossier.py <db_path> <function_name> --callee-depth 2
 ```
 
 ## Example Output
@@ -108,7 +108,7 @@ security-dossier/
 ## Dependencies
 
 - Python 3.10+
-- `.agent/helpers/` module (workspace root) -- provides `open_individual_analysis_db`, `open_analyzed_files_db`
+- `.claude/helpers/` module (workspace root) -- provides `open_individual_analysis_db`, `open_analyzed_files_db`
 - SQLite analysis databases from DeepExtractIDA
 
 ## Security API Categories

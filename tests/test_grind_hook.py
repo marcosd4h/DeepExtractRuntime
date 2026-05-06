@@ -1,6 +1,6 @@
 """Tests for grind-until-done hook scratchpad parsing.
 
-Target: .agent/hooks/grind-until-done.py
+Target: .claude/hooks/grind-until-done.py
 """
 
 from __future__ import annotations

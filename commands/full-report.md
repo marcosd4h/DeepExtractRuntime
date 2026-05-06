@@ -12,16 +12,16 @@ The text after `/full-report` is the **module name** (e.g., `/full-report appinf
 
 ## Execution Context
 
-> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.agent`
-> (so the `.agent/` directory is on `sys.path`), **not** from the workspace root.
-> Script invocations like `python .agent/skills/.../script.py` can be run from the workspace root
+> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.claude`
+> (so the `.claude/` directory is on `sys.path`), **not** from the workspace root.
+> Script invocations like `python .claude/skills/.../script.py` can be run from the workspace root
 > because those scripts manage their own path setup.
 
 ## Workspace Protocol
 
 This command orchestrates many skills; always use filesystem handoff:
 
-1. At setup time, create `.agent/workspace/<module>_full_report_<timestamp>/`.
+1. At setup time, create `.claude/workspace/<module>_full_report_<timestamp>/`.
 2. For every skill execution in all phases, pass:
    - `--workspace-dir <run_dir>`
    - `--workspace-step <phase_or_step_name>`
@@ -47,13 +47,13 @@ If validation fails, report the errors and stop. On success, use `result.resolve
    Use the **triage-coordinator** agent (`generate_analysis_plan.py`) to fingerprint the module and produce a phased analysis plan. The coordinator detects module characteristics (COM-heavy, RPC-heavy, security-relevant, dispatch-heavy, class-heavy) and tailors Phase 5 steps accordingly.
 
    ```bash
-   python .agent/agents/triage-coordinator/scripts/generate_analysis_plan.py <db_path> --goal full --json
+   python .claude/agents/triage-coordinator/scripts/generate_analysis_plan.py <db_path> --goal full --json
    ```
 
    The plan output includes `traits` (detected module characteristics) and `phases` (ordered skill tasks). Use the `traits` to decide which Phase 5 specialized analyses to run -- this replaces manual signal detection with the coordinator's adaptive routing logic.
 
 2. **Create the task scratchpad** (grind loop)
-   This command runs 6 phases. Write `.agent/hooks/scratchpads/{session_id}.md` (use the Session ID from your injected context) so the stop hook keeps you going until the full report is complete:
+   This command runs 6 phases. Write `.claude/hooks/scratchpads/{session_id}.md` (use the Session ID from your injected context) so the stop hook keeps you going until the full report is complete:
 
    ```
    # Task: Full report for <module_name>
@@ -82,7 +82,7 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 ### Phase 2: Function Classification
 
 4. **Triage summary**
-   The library noise ratio and breakdown are already available from `module_profile.json` in session context ("Module Profiles" section). Only run `python .agent/skills/function-index/scripts/index_functions.py <module> --stats` if the profile is missing. Use `--app-only` on `triage_summary.py` and `classify_module.py` to focus on application code.
+   The library noise ratio and breakdown are already available from `module_profile.json` in session context ("Module Profiles" section). Only run `python .claude/skills/function-index/scripts/index_functions.py <module> --stats` if the profile is missing. Use `--app-only` on `triage_summary.py` and `classify_module.py` to focus on application code.
    The enriched index includes `function_id`, `has_decompiled`, `has_assembly`, and may include `file: null`; use these fields directly instead of DB round-trips for metadata checks.
    Use the **classify-functions** skill (`triage_summary.py --top 20`) for category distribution and top interesting functions.
 
@@ -104,14 +104,14 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 9. **Security dossiers for top entry points**
    Use the **security-dossier** skill (`build_dossier.py`) on the top 3-5 ranked entry points from Step 7 to gather per-function security context (attack reachability, data flow exposure, dangerous operations, resource patterns):
    ```bash
-   python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> <entry_point_name> --json
+   python .claude/skills/security-dossier/scripts/build_dossier.py <db_path> <entry_point_name> --json
    ```
    Feed results into the Attack Surface section of the final report.
 
 9b. **Behavioral explanations for top entry points**
    Use the **re-analyst** agent's `explain_function.py` on the top 3 ranked entry points from Step 7 to generate brief behavioral explanations:
    ```bash
-   python .agent/agents/re-analyst/scripts/explain_function.py <db_path> <entry_point_name> --depth 1 --no-assembly --output-file <run_dir>/explain_<entry_point_name>.json
+   python .claude/agents/re-analyst/scripts/explain_function.py <db_path> <entry_point_name> --depth 1 --no-assembly --output-file <run_dir>/explain_<entry_point_name>.json
    ```
    Include brief behavioral explanations in the Attack Surface section: what the entry point does at a business level, its key API calls, and its risk profile.
 

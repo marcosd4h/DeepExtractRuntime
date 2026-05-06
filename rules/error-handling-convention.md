@@ -1,9 +1,9 @@
 ---
 description: Error handling conventions for skill and agent scripts
 globs:
-  - ".agent/skills/*/scripts/*.py"
-  - ".agent/agents/*/scripts/*.py"
-  - ".agent/helpers/*.py"
+  - ".claude/skills/*/scripts/*.py"
+  - ".claude/agents/*/scripts/*.py"
+  - ".claude/helpers/*.py"
 alwaysApply: true
 ---
 

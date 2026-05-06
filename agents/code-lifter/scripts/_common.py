@@ -34,8 +34,8 @@ from skills._shared import (
 WORKSPACE_ROOT = bootstrap(__file__)
 SCRIPT_DIR = Path(__file__).resolve().parent
 
-SKILLS_DIR = WORKSPACE_ROOT / ".agent" / "skills"
-AGENTS_DIR = WORKSPACE_ROOT / ".agent" / "agents"
+SKILLS_DIR = WORKSPACE_ROOT / ".claude" / "skills"
+AGENTS_DIR = WORKSPACE_ROOT / ".claude" / "agents"
 EXTRACTED_DBS_DIR = WORKSPACE_ROOT / "extracted_dbs"
 STATE_DIR = SCRIPT_DIR.parent / "state"
 

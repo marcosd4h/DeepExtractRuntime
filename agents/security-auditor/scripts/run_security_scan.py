@@ -700,7 +700,7 @@ Goals:
     )
     parser.add_argument(
         "--workspace-run-dir",
-        help="Optional existing run directory under .agent/workspace/ to reuse",
+        help="Optional existing run directory under .claude/workspace/ to reuse",
     )
     parser.add_argument(
         "--max-workers", type=int, default=None,

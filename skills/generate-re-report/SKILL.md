@@ -29,8 +29,8 @@ Reports are generated from **individual analysis databases** (`extracted_dbs/{mo
 Reuse the decompiled-code-extractor skill's `find_module_db.py`:
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --list
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 ```
 
 ### Quick Cross-Dimensional Search
@@ -38,8 +38,8 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo
 To search across function names, signatures, strings, APIs, classes, and exports in one call:
 
 ```bash
-python .agent/helpers/unified_search.py <db_path> --query "SearchTerm"
-python .agent/helpers/unified_search.py <db_path> --query "SearchTerm" --json
+python .claude/helpers/unified_search.py <db_path> --query "SearchTerm"
+python .claude/helpers/unified_search.py <db_path> --query "SearchTerm" --json
 ```
 
 ## Utility Scripts
@@ -52,22 +52,22 @@ The main orchestrator. Runs all sub-analyses and assembles a 10-section markdown
 
 ```bash
 # Full report to stdout
-python .agent/skills/generate-re-report/scripts/generate_report.py <db_path>
+python .claude/skills/generate-re-report/scripts/generate_report.py <db_path>
 
 # Write to file
-python .agent/skills/generate-re-report/scripts/generate_report.py <db_path> --output re_report.md
+python .claude/skills/generate-re-report/scripts/generate_report.py <db_path> --output re_report.md
 
 # Write to module's extracted_code directory
-python .agent/skills/generate-re-report/scripts/generate_report.py <db_path> --output extracted_code/appinfo_dll/re_report.md
+python .claude/skills/generate-re-report/scripts/generate_report.py <db_path> --output extracted_code/appinfo_dll/re_report.md
 
 # Brief mode (sections 1, 3, 4, 10 only -- fast overview)
-python .agent/skills/generate-re-report/scripts/generate_report.py <db_path> --summary
+python .claude/skills/generate-re-report/scripts/generate_report.py <db_path> --summary
 
 # Control table sizes (default: top 10)
-python .agent/skills/generate-re-report/scripts/generate_report.py <db_path> --top 20
+python .claude/skills/generate-re-report/scripts/generate_report.py <db_path> --top 20
 
 # JSON output (all raw analysis data)
-python .agent/skills/generate-re-report/scripts/generate_report.py <db_path> --json
+python .claude/skills/generate-re-report/scripts/generate_report.py <db_path> --json
 ```
 
 ### analyze_imports.py -- Import Capability Categorization
@@ -75,9 +75,9 @@ python .agent/skills/generate-re-report/scripts/generate_report.py <db_path> --j
 Categorize imports by API capability:
 
 ```bash
-python .agent/skills/generate-re-report/scripts/analyze_imports.py <db_path>
-python .agent/skills/generate-re-report/scripts/analyze_imports.py <db_path> --json
-python .agent/skills/generate-re-report/scripts/analyze_imports.py <db_path> --exports --include-delay-load
+python .claude/skills/generate-re-report/scripts/analyze_imports.py <db_path>
+python .claude/skills/generate-re-report/scripts/analyze_imports.py <db_path> --json
+python .claude/skills/generate-re-report/scripts/analyze_imports.py <db_path> --exports --include-delay-load
 ```
 
 ### analyze_complexity.py -- Function Complexity Ranking
@@ -85,8 +85,8 @@ python .agent/skills/generate-re-report/scripts/analyze_imports.py <db_path> --e
 Rank functions by multiple metrics:
 
 ```bash
-python .agent/skills/generate-re-report/scripts/analyze_complexity.py <db_path>
-python .agent/skills/generate-re-report/scripts/analyze_complexity.py <db_path> --json --top 20
+python .claude/skills/generate-re-report/scripts/analyze_complexity.py <db_path>
+python .claude/skills/generate-re-report/scripts/analyze_complexity.py <db_path> --json --top 20
 ```
 
 ### analyze_topology.py -- Call Graph Metrics
@@ -94,8 +94,8 @@ python .agent/skills/generate-re-report/scripts/analyze_complexity.py <db_path> 
 Compute call graph metrics:
 
 ```bash
-python .agent/skills/generate-re-report/scripts/analyze_topology.py <db_path>
-python .agent/skills/generate-re-report/scripts/analyze_topology.py <db_path> --json
+python .claude/skills/generate-re-report/scripts/analyze_topology.py <db_path>
+python .claude/skills/generate-re-report/scripts/analyze_topology.py <db_path> --json
 ```
 
 ### analyze_strings.py -- String Literal Categorization
@@ -103,9 +103,9 @@ python .agent/skills/generate-re-report/scripts/analyze_topology.py <db_path> --
 Categorize all string literals:
 
 ```bash
-python .agent/skills/generate-re-report/scripts/analyze_strings.py <db_path>
-python .agent/skills/generate-re-report/scripts/analyze_strings.py <db_path> --json --top 20
-python .agent/skills/generate-re-report/scripts/analyze_strings.py <db_path> --category file_path
+python .claude/skills/generate-re-report/scripts/analyze_strings.py <db_path>
+python .claude/skills/generate-re-report/scripts/analyze_strings.py <db_path> --json --top 20
+python .claude/skills/generate-re-report/scripts/analyze_strings.py <db_path> --category file_path
 ```
 
 ### analyze_decompilation_quality.py -- Decompilation Quality Metrics
@@ -113,9 +113,9 @@ python .agent/skills/generate-re-report/scripts/analyze_strings.py <db_path> --c
 Decompilation quality analysis. Scans `analysis_errors` across all functions: success rates, error category breakdown, problematic functions by severity, and confidence tiers (high/medium/low quality decompilation).
 
 ```bash
-python .agent/skills/generate-re-report/scripts/analyze_decompilation_quality.py <db_path>
-python .agent/skills/generate-re-report/scripts/analyze_decompilation_quality.py <db_path> --json
-python .agent/skills/generate-re-report/scripts/analyze_decompilation_quality.py <db_path> --no-cache
+python .claude/skills/generate-re-report/scripts/analyze_decompilation_quality.py <db_path>
+python .claude/skills/generate-re-report/scripts/analyze_decompilation_quality.py <db_path> --json
+python .claude/skills/generate-re-report/scripts/analyze_decompilation_quality.py <db_path> --no-cache
 ```
 
 ## Report Sections
@@ -174,19 +174,19 @@ Report Generation:
 **Step 1**: Find the DB
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 ```
 
 **Step 2**: Generate
 
 ```bash
-python .agent/skills/generate-re-report/scripts/generate_report.py extracted_dbs/appinfo_dll_e98d25a9e8.db
+python .claude/skills/generate-re-report/scripts/generate_report.py extracted_dbs/appinfo_dll_e98d25a9e8.db
 ```
 
 **Step 3**: Save alongside existing module files
 
 ```bash
-python .agent/skills/generate-re-report/scripts/generate_report.py extracted_dbs/appinfo_dll_e98d25a9e8.db \
+python .claude/skills/generate-re-report/scripts/generate_report.py extracted_dbs/appinfo_dll_e98d25a9e8.db \
   --output extracted_code/appinfo_dll/re_report.md
 ```
 
@@ -194,39 +194,39 @@ python .agent/skills/generate-re-report/scripts/generate_report.py extracted_dbs
 
 ```bash
 # Brief summary -- just the essential sections
-python .agent/skills/generate-re-report/scripts/generate_report.py <db_path> --summary
+python .claude/skills/generate-re-report/scripts/generate_report.py <db_path> --summary
 ```
 
 ### Workflow 3: "What APIs does this binary use?"
 
 ```bash
-python .agent/skills/generate-re-report/scripts/analyze_imports.py <db_path> --exports --include-delay-load
+python .claude/skills/generate-re-report/scripts/analyze_imports.py <db_path> --exports --include-delay-load
 ```
 
 ### Workflow 4: "Find the most complex/interesting functions"
 
 ```bash
-python .agent/skills/generate-re-report/scripts/analyze_complexity.py <db_path> --top 20
+python .claude/skills/generate-re-report/scripts/analyze_complexity.py <db_path> --top 20
 ```
 
 ### Workflow 5: "What strings does this binary reference?"
 
 ```bash
 # All strings categorized
-python .agent/skills/generate-re-report/scripts/analyze_strings.py <db_path>
+python .claude/skills/generate-re-report/scripts/analyze_strings.py <db_path>
 
 # Just file paths
-python .agent/skills/generate-re-report/scripts/analyze_strings.py <db_path> --category file_path
+python .claude/skills/generate-re-report/scripts/analyze_strings.py <db_path> --category file_path
 
 # Just registry keys
-python .agent/skills/generate-re-report/scripts/analyze_strings.py <db_path> --category registry_key
+python .claude/skills/generate-re-report/scripts/analyze_strings.py <db_path> --category registry_key
 ```
 
 ### Workflow 6: "JSON for downstream processing"
 
 ```bash
 # Full JSON with all analysis data
-python .agent/skills/generate-re-report/scripts/generate_report.py <db_path> --json > analysis.json
+python .claude/skills/generate-re-report/scripts/generate_report.py <db_path> --json > analysis.json
 ```
 
 ## Integration with Other Skills

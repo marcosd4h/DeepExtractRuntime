@@ -497,35 +497,35 @@ with CrossModuleGraph.from_tracking_db() as graph:
 
 ```bash
 # Single-module callgraph stats
-python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --stats --json
+python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --stats --json
 
 # Forward reachability
-python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --reachable "FuncName" --depth 5 --json
+python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --reachable "FuncName" --depth 5 --json
 
 # Backward (callers)
-python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --callers "FuncName" --depth 5 --json
+python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --callers "FuncName" --depth 5 --json
 
 # Shortest path
-python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --path "Source" "Target" --json
+python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --path "Source" "Target" --json
 
 # Call chain with code (cross-module)
-python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> --function "FuncName" --depth 3 --json
+python .claude/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> --function "FuncName" --depth 3 --json
 
 # Mermaid diagram
-python .agent/skills/callgraph-tracer/scripts/generate_diagram.py <db_path> --function "FuncName" --depth 3 --format mermaid
+python .claude/skills/callgraph-tracer/scripts/generate_diagram.py <db_path> --function "FuncName" --depth 3 --format mermaid
 
 # Cross-module resolution
-python .agent/skills/callgraph-tracer/scripts/cross_module_resolve.py "HeapAlloc" --json
+python .claude/skills/callgraph-tracer/scripts/cross_module_resolve.py "HeapAlloc" --json
 
 # Module dependencies
-python .agent/skills/callgraph-tracer/scripts/module_dependencies.py --overview --json
+python .claude/skills/callgraph-tracer/scripts/module_dependencies.py --overview --json
 ```
 
 ### From the AI memory corruption scanner
 
 ```bash
 # Cross-module callgraph with IPC edges (JSON, no code)
-python .agent/skills/ai-memory-corruption-scanner/scripts/prepare_context.py <db_path> \
+python .claude/skills/ai-memory-corruption-scanner/scripts/prepare_context.py <db_path> \
     --function "NetrShareGetInfo" --depth 5 --json
 ```
 
@@ -695,7 +695,7 @@ if path:
 ### Pattern 4: "Build callgraph JSON for AI scanner"
 
 ```bash
-python .agent/skills/ai-memory-corruption-scanner/scripts/prepare_context.py \
+python .claude/skills/ai-memory-corruption-scanner/scripts/prepare_context.py \
     extracted_dbs/srvsvc_dll_abc123.db --function "NetrShareEnum" --depth 5 --json
 ```
 
@@ -736,6 +736,6 @@ with CrossModuleGraph.from_tracking_db() as graph:
 ### Pattern 6: "Visualize a function's call subtree"
 
 ```bash
-python .agent/skills/callgraph-tracer/scripts/generate_diagram.py \
+python .claude/skills/callgraph-tracer/scripts/generate_diagram.py \
     extracted_dbs/srvsvc_dll_abc123.db --function "NetrShareEnum" --depth 3 --format mermaid
 ```

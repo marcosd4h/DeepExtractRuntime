@@ -1,6 +1,6 @@
 """Tests for inject-module-context hook helpers.
 
-Target: .agent/hooks/inject-module-context.py
+Target: .claude/hooks/inject-module-context.py
 """
 
 from __future__ import annotations
@@ -539,7 +539,7 @@ class TestBuildContextCompactMode:
     def test_compact_mode_includes_guidance(self):
         modules = self._make_compact_modules(30)
         ctx = _build_context(modules, [], True, [], "standard", compact_mode=True)
-        assert ".agent/AGENTS.md" in ctx
+        assert ".claude/CLAUDE.md" in ctx
 
     def test_normal_mode_still_works(self):
         modules = [{
@@ -552,7 +552,7 @@ class TestBuildContextCompactMode:
         ctx = _build_context(modules, dbs, False, [], "standard", compact_mode=False)
         assert "**1 extracted module(s)**" in ctx
         assert "**1 analysis DB(s)**" in ctx
-        assert ".agent/AGENTS.md" in ctx
+        assert ".claude/CLAUDE.md" in ctx
 
     def test_compact_mode_exactly_500_shows_name_list(self):
         modules = self._make_compact_modules(500)

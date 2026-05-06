@@ -23,5 +23,5 @@ settings:
   parallel_modules: false
   no_cache: false
 
-# "workspace/" is a supported shorthand for ".agent/workspace/".
+# "workspace/" is a supported shorthand for ".claude/workspace/".
 output: workspace/batch_{name}_{timestamp}/

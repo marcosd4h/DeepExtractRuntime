@@ -260,8 +260,8 @@ Open `file_info.json` for the target module. Check:
 **Fastest — function-index lookup:**
 
 ```bash
-python .agent/skills/function-index/scripts/lookup_function.py <function_name>
-python .agent/skills/function-index/scripts/lookup_function.py --search "CheckSecure" --app-only
+python .claude/skills/function-index/scripts/lookup_function.py <function_name>
+python .claude/skills/function-index/scripts/lookup_function.py --search "CheckSecure" --app-only
 ```
 
 Or programmatically:
@@ -274,7 +274,7 @@ path = resolve_function_file("AiCheckLUA")
 **Broadest — unified search** (matches strings, APIs, classes, not just names):
 
 ```bash
-python .agent/helpers/unified_search.py <db_path> --query "CheckSecure"
+python .claude/helpers/unified_search.py <db_path> --query "CheckSecure"
 ```
 
 **By file** — functions map to predictable grouped files:

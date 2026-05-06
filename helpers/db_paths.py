@@ -60,7 +60,7 @@ def safe_long_path(path: str | Path) -> Path:
     already too long for Win32 API calls without the extended-length prefix.
 
     Use this when creating directories or opening files on potentially
-    deep workspace paths (e.g. ``.agent/workspace/...`` run dirs, hook
+    deep workspace paths (e.g. ``.claude/workspace/...`` run dirs, hook
     scratchpads, or nested extraction outputs).
     """
     if sys.platform == "win32":
@@ -300,20 +300,20 @@ def resolve_module_db(
 # Auto-resolving convenience wrappers
 # ---------------------------------------------------------------------------
 # These use the workspace root derived from the helpers/ directory layout
-# (``<workspace>/.agent/helpers/``).  They exist so that agent and skill
+# (``<workspace>/.claude/helpers/``).  They exist so that agent and skill
 # ``_common.py`` files no longer need to import from ``skills._shared``
 # and rebind the workspace root themselves.
 
 def _auto_workspace_root() -> Path:
     """Return the workspace root inferred from helpers/ location.
 
-    In the ``.agent/`` deployment layout the path is
-    ``<workspace>/.agent/helpers/db_paths.py`` (3 levels up).
+    In the ``.claude/`` deployment layout the path is
+    ``<workspace>/.claude/helpers/db_paths.py`` (3 levels up).
     In standalone layout it is ``<root>/helpers/db_paths.py`` (2 levels up).
     """
     _helpers_dir = Path(__file__).resolve().parent
     _runtime_root = _helpers_dir.parent
-    if _runtime_root.name == ".agent":
+    if _runtime_root.name == ".claude":
         return _runtime_root.parent
     return _runtime_root
 

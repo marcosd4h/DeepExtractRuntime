@@ -31,7 +31,7 @@ Do NOT suppress status messages to "save time."
 
 ## Execution Context
 
-> **IMPORTANT**: Script invocations like `python .agent/skills/.../script.py`
+> **IMPORTANT**: Script invocations like `python .claude/skills/.../script.py`
 > run from the workspace root. The scripts manage their own path setup.
 
 ## Step 0: Preflight Validation
@@ -49,7 +49,7 @@ db_path = result.resolved["db_path"]
 
 ## Workspace Protocol
 
-Create `.agent/workspace/<module>_logicscan_<function_or_all>_<timestamp>/` and
+Create `.claude/workspace/<module>_logicscan_<function_or_all>_<timestamp>/` and
 pass `--workspace-dir` and `--workspace-step` to all skill scripts.
 
 ## Subagent Compliance Checklist (MANDATORY)
@@ -84,7 +84,7 @@ invalidate the scan.
 **Status (before):** Tell the user: `Building threat model for <module>...`
 
 ```bash
-python .agent/skills/ai-logic-scanner/scripts/build_threat_model.py <db_path> --json \
+python .claude/skills/ai-logic-scanner/scripts/build_threat_model.py <db_path> --json \
     --workspace-dir <run_dir> --workspace-step threat_model
 ```
 
@@ -100,7 +100,7 @@ attacker model, top entry points with RPC/COM context.
 For module-wide scan:
 
 ```bash
-python .agent/skills/ai-logic-scanner/scripts/prepare_context.py <db_path> \
+python .claude/skills/ai-logic-scanner/scripts/prepare_context.py <db_path> \
     --entry-points --depth 5 --with-code --json \
     --workspace-dir <run_dir> --workspace-step context
 ```
@@ -108,7 +108,7 @@ python .agent/skills/ai-logic-scanner/scripts/prepare_context.py <db_path> \
 For single-function scan:
 
 ```bash
-python .agent/skills/ai-logic-scanner/scripts/prepare_context.py <db_path> \
+python .claude/skills/ai-logic-scanner/scripts/prepare_context.py <db_path> \
     --function "<function_name>" --depth 5 --with-code --json \
     --workspace-dir <run_dir> --workspace-step context
 ```
@@ -173,8 +173,8 @@ instance for deeper depths. Do NOT pre-analyze any functions in the prompt.
 3. Preloaded code for depth 0+1 MUST_READ functions (from `preloaded_code` in context results)
 4. `db_path` for on-demand code retrieval via Shell
 5. Reference material paths:
-   - `.agent/skills/ai-logic-scanner/reference/vulnerability_patterns.md`
-   - `.agent/skills/ai-logic-scanner/reference/decompiler_pitfalls.md`
+   - `.claude/skills/ai-logic-scanner/reference/vulnerability_patterns.md`
+   - `.claude/skills/ai-logic-scanner/reference/decompiler_pitfalls.md`
 6. `max_depth` parameter
 
 The scanner returns complete findings with `verification_subgraph`, false
@@ -255,7 +255,7 @@ Use this prompt template (fill in all `[bracketed]` values):
 > To read any function's decompiled code and assembly, run:
 >
 > ```
-> python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py "[db_path]" --function "FunctionName" --json
+> python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py "[db_path]" --function "FunctionName" --json
 > ```
 >
 > Read the `decompiled_code` and `assembly_code` fields from the Shell output.
@@ -267,8 +267,8 @@ Use this prompt template (fill in all `[bracketed]` values):
 >
 > ## Reference Materials
 >
-> - `.agent/skills/ai-logic-scanner/reference/vulnerability_patterns.md`
-> - `.agent/skills/ai-logic-scanner/reference/decompiler_pitfalls.md`
+> - `.claude/skills/ai-logic-scanner/reference/vulnerability_patterns.md`
+> - `.claude/skills/ai-logic-scanner/reference/decompiler_pitfalls.md`
 >
 > ## Verification Protocol
 >

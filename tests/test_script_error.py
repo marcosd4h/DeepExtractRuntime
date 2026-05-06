@@ -1,6 +1,6 @@
 """Tests for helpers.errors -- ScriptError exception class and error utilities.
 
-Target: .agent/helpers/errors.py
+Target: .claude/helpers/errors.py
 """
 
 from __future__ import annotations

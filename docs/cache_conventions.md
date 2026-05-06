@@ -1,12 +1,12 @@
 # Cache Conventions
 
-How skill scripts use the filesystem cache in `.agent/cache/`.
+How skill scripts use the filesystem cache in `.claude/cache/`.
 
 ## Infrastructure
 
-The cache is implemented in `.agent/helpers/cache.py` (216 lines) and provides:
+The cache is implemented in `.claude/helpers/cache.py` (216 lines) and provides:
 
-- **Storage**: `.agent/cache/{module}/{operation}.json`
+- **Storage**: `.claude/cache/{module}/{operation}.json`
 - **Freshness**: DB file mtime matching (catches re-extractions) + configurable TTL (default 24h)
 - **Atomicity**: Write-to-temp then `os.replace()` -- no partial-read races
 - **API**: `get_cached()`, `cache_result()`, `clear_cache()`
@@ -17,22 +17,22 @@ Cache keys use `snake_case` matching the script's main function or purpose:
 
 | Script | Cache Key | Params | Path Pattern | Payload Size |
 |--------|-----------|--------|--------------|--------------|
-| `triage_summary.py` | `triage_summary` | `app_only` | `.agent/cache/{mod}/triage_summary.json` | ~50KB |
-| `classify_module.py` | `classify_module` | -- | `.agent/cache/{mod}/classify_module.json` | ~500KB |
-| `build_call_graph.py` | `call_graph` | -- | `.agent/cache/{mod}/call_graph.json` | ~2MB |
-| `analyze_topology.py` | `analyze_topology` | `app_only` | `.agent/cache/{mod}/analyze_topology.json` | ~10KB |
-| `analyze_imports.py` | `analyze_imports` | -- | `.agent/cache/{mod}/analyze_imports.json` | ~20KB |
-| `analyze_strings.py` | `analyze_strings` | -- | `.agent/cache/{mod}/analyze_strings.json` | ~100KB |
-| `analyze_complexity.py` | `analyze_complexity` | `app_only` | `.agent/cache/{mod}/analyze_complexity.json` | ~30KB |
-| `discover_entrypoints.py` | `discover_entrypoints` | -- | `.agent/cache/{mod}/discover_entrypoints.json` | ~150KB |
-| `scan_com_interfaces.py` | `scan_com_interfaces` | `vtable_only` | `.agent/cache/{mod}/scan_com_interfaces.json` | ~80KB |
-| `scan_struct_fields.py` | `scan_struct_fields` | `all_classes`, `no_asm`, `app_only` | `.agent/cache/{mod}/scan_struct_fields.json` | ~1MB |
-| `build_dossier.py` | `security_dossier` | `function`, `callee_depth` | `.agent/cache/{mod}/security_dossier__*.json` | ~200KB |
+| `triage_summary.py` | `triage_summary` | `app_only` | `.claude/cache/{mod}/triage_summary.json` | ~50KB |
+| `classify_module.py` | `classify_module` | -- | `.claude/cache/{mod}/classify_module.json` | ~500KB |
+| `build_call_graph.py` | `call_graph` | -- | `.claude/cache/{mod}/call_graph.json` | ~2MB |
+| `analyze_topology.py` | `analyze_topology` | `app_only` | `.claude/cache/{mod}/analyze_topology.json` | ~10KB |
+| `analyze_imports.py` | `analyze_imports` | -- | `.claude/cache/{mod}/analyze_imports.json` | ~20KB |
+| `analyze_strings.py` | `analyze_strings` | -- | `.claude/cache/{mod}/analyze_strings.json` | ~100KB |
+| `analyze_complexity.py` | `analyze_complexity` | `app_only` | `.claude/cache/{mod}/analyze_complexity.json` | ~30KB |
+| `discover_entrypoints.py` | `discover_entrypoints` | -- | `.claude/cache/{mod}/discover_entrypoints.json` | ~150KB |
+| `scan_com_interfaces.py` | `scan_com_interfaces` | `vtable_only` | `.claude/cache/{mod}/scan_com_interfaces.json` | ~80KB |
+| `scan_struct_fields.py` | `scan_struct_fields` | `all_classes`, `no_asm`, `app_only` | `.claude/cache/{mod}/scan_struct_fields.json` | ~1MB |
+| `build_dossier.py` | `security_dossier` | `function`, `callee_depth` | `.claude/cache/{mod}/security_dossier__*.json` | ~200KB |
 
 ### Filesystem Examples
 
 ```
-.agent/cache/appinfo_dll/
+.claude/cache/appinfo_dll/
 ├── call_graph.json
 ├── classify_module.json
 ├── triage_summary.json
@@ -130,7 +130,7 @@ Cache writes are atomic. Data is first written to a temporary file and then move
 
 ## Cache Inspection & Debugging
 
-- **Listing Cache Contents**: Use `ls .agent/cache/<module_name>/` to view cached operations for a specific module.
+- **Listing Cache Contents**: Use `ls .claude/cache/<module_name>/` to view cached operations for a specific module.
 - **Reading Cache Metadata**: Each cache file is a JSON object with an envelope:
   ```json
   {

@@ -28,7 +28,7 @@ from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Workspace root resolution
-# .agent/hooks/script.py  ->  .agent/  ->  workspace root
+# .claude/hooks/script.py  ->  .claude/  ->  workspace root
 # ---------------------------------------------------------------------------
 _SCRIPT_DIR = Path(__file__).resolve().parent
 _AGENT_DIR = _SCRIPT_DIR.parent
@@ -72,7 +72,7 @@ _DEFAULT_CONTEXT_LEVEL = "standard"
 _DEFAULT_MODULE_THRESHOLD = 25
 _HOOK_DEADLINE_SECONDS = float(get_config_value("hooks.session_start_timeout_seconds", 15))
 
-_MODULE_LIST_SIDECAR = _WORKSPACE_ROOT / ".agent" / "cache" / "_module_list.json"
+_MODULE_LIST_SIDECAR = _WORKSPACE_ROOT / ".claude" / "cache" / "_module_list.json"
 
 _hook_start_time: float = 0.0
 
@@ -137,7 +137,7 @@ def _emit_minimal_fallback(session_id: str, module_count: int, platform: str) ->
         "",
         f"**{module_count:,} extracted module(s)** (context truncated due to scale)",
         "",
-        "**Read `.agent/AGENTS.md`** for runtime architecture, conventions, and getting-started guide.",
+        "**Read `.claude/CLAUDE.md`** for runtime architecture, conventions, and getting-started guide.",
         "",
         "Use `/search <term>` to find modules, `/triage <module>` for overview.",
         "Cross-module operations (`--all` flags) may be slow with this many modules.",
@@ -146,7 +146,7 @@ def _emit_minimal_fallback(session_id: str, module_count: int, platform: str) ->
         lines.extend([
             "", "### Session", "",
             f"Session ID: `{session_id}`",
-            f"Scratchpad: `.agent/hooks/scratchpads/{session_id}.md`",
+            f"Scratchpad: `.claude/hooks/scratchpads/{session_id}.md`",
         ])
     context = "\n".join(lines)
     output = emit_session_start_output(context, session_id, platform)
@@ -171,14 +171,14 @@ def main() -> None:
 
     session_id = resolve_session_id(stdin_data)
 
-    scratchpads_dir = _WORKSPACE_ROOT / ".agent" / "hooks" / "scratchpads"
+    scratchpads_dir = _WORKSPACE_ROOT / ".claude" / "hooks" / "scratchpads"
     os.makedirs(str(scratchpads_dir), exist_ok=True)
 
     # --- Workspace scanning ---
     extracted_code_dir = _WORKSPACE_ROOT / "extracted_code"
     extracted_dbs_dir = _WORKSPACE_ROOT / "extracted_dbs"
     tracking_db_path = extracted_dbs_dir / "analyzed_files.db"
-    agent_dir = _WORKSPACE_ROOT / ".agent"
+    agent_dir = _WORKSPACE_ROOT / ".claude"
     skills_dir = agent_dir / "skills"
     agents_dir = agent_dir / "agents"
     commands_dir = agent_dir / "commands"
@@ -232,7 +232,7 @@ def main() -> None:
     agents_readme_overview: str | None = None
 
     if not compact_mode and _is_level_enabled(context_level, "standard"):
-        cache_dir = _WORKSPACE_ROOT / ".agent" / "cache"
+        cache_dir = _WORKSPACE_ROOT / ".claude" / "cache"
         for m in modules:
             if _deadline_exceeded():
                 break
@@ -241,7 +241,7 @@ def main() -> None:
 
     if _is_level_enabled(context_level, "full"):
         if not compact_mode:
-            cache_dir = _WORKSPACE_ROOT / ".agent" / "cache"
+            cache_dir = _WORKSPACE_ROOT / ".claude" / "cache"
             for m in modules:
                 if _deadline_exceeded():
                     break

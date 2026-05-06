@@ -14,12 +14,12 @@
 ## Batch Pipeline CLI
 
 ```bash
-python .agent/helpers/pipeline_cli.py list-steps
-python .agent/helpers/pipeline_cli.py validate config/pipelines/security-sweep.yaml
-python .agent/helpers/pipeline_cli.py run config/pipelines/security-sweep.yaml --dry-run
-python .agent/helpers/pipeline_cli.py run config/pipelines/quick-triage.yaml --json
-python .agent/helpers/pipeline_cli.py run config/pipelines/security-sweep.yaml --modules appinfo.dll,consent.exe
-python .agent/helpers/pipeline_cli.py run config/pipelines/full-analysis.yaml --output workspace/custom_{timestamp}/
+python .claude/helpers/pipeline_cli.py list-steps
+python .claude/helpers/pipeline_cli.py validate config/pipelines/security-sweep.yaml
+python .claude/helpers/pipeline_cli.py run config/pipelines/security-sweep.yaml --dry-run
+python .claude/helpers/pipeline_cli.py run config/pipelines/quick-triage.yaml --json
+python .claude/helpers/pipeline_cli.py run config/pipelines/security-sweep.yaml --modules appinfo.dll,consent.exe
+python .claude/helpers/pipeline_cli.py run config/pipelines/full-analysis.yaml --output workspace/custom_{timestamp}/
 ```
 
 For interactive use, the `/pipeline` slash command wraps the same CLI.
@@ -186,7 +186,7 @@ Pipeline examples for headless batch processing:
 /pipeline list-steps                                       # show available step types
 ```
 
-Pipeline results are written to `.agent/workspace/` with per-module summaries and
+Pipeline results are written to `.claude/workspace/` with per-module summaries and
 a manifest for later inspection via `/runs`.
 
 ---

@@ -10,18 +10,18 @@ ground truth.
 
 ```bash
 # Build threat model (includes programmatic hints from regex scanners)
-python .agent/skills/ai-logic-scanner/scripts/build_threat_model.py <db_path> --json
+python .claude/skills/ai-logic-scanner/scripts/build_threat_model.py <db_path> --json
 
 # Prepare callgraph context for a specific function
-python .agent/skills/ai-logic-scanner/scripts/prepare_context.py <db_path> \
+python .claude/skills/ai-logic-scanner/scripts/prepare_context.py <db_path> \
     --function "NetrShareGetInfo" --depth 5 --json
 
 # Prepare callgraph context from auto-discovered entry points
-python .agent/skills/ai-logic-scanner/scripts/prepare_context.py <db_path> \
+python .claude/skills/ai-logic-scanner/scripts/prepare_context.py <db_path> \
     --entry-points --depth 5 --json
 
 # Gather programmatic hints only
-python .agent/skills/ai-logic-scanner/scripts/gather_logic_hints.py <db_path> --json
+python .claude/skills/ai-logic-scanner/scripts/gather_logic_hints.py <db_path> --json
 ```
 
 ## Scripts
@@ -45,7 +45,7 @@ python .agent/skills/ai-logic-scanner/scripts/gather_logic_hints.py <db_path> --
 
 The skill provides context preparation and programmatic hints. The actual
 vulnerability detection is performed by the `logic-scanner` agent (defined in
-`.agent/agents/logic-scanner.md`) which reads the callgraph JSON, considers
+`.claude/agents/logic-scanner.md`) which reads the callgraph JSON, considers
 the programmatic hints, and retrieves function code on demand via
 `extract_function_data.py`.
 

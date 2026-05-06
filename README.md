@@ -8,7 +8,7 @@ AI coding agents (Cursor, Claude Code, Codex) parse source code repositories eff
 
 DeepExtractIDA addresses the extraction side by running a deterministic pipeline through IDA Pro 9.x and the Hex-Rays decompiler, producing structured SQLite databases with full function records, cross-reference tables, PE metadata, and JSON indexes. The Agent Analysis Runtime addresses the consumption side: it provides deterministic Python scripts that query those databases directly, replacing semantic search with structured tool invocation. The agent invokes a skill script through its shell tool, the script queries the database, and the agent reasons on the structured result. Large payloads (function bodies, callgraph data, scan results) remain on disk in workspace directories; the agent operates on compact summaries and loads full data on demand.
 
-The runtime deploys as an `.agent/` directory alongside the extraction data and operates across Claude Code, Cursor, Codex, and any AI coding environment that supports `AGENTS.md` or equivalent agent configuration.
+The runtime deploys as an `.claude/` directory alongside the extraction data and operates across Claude Code, Cursor, Codex, and any AI coding environment that supports `CLAUDE.md` or equivalent agent configuration.
 
 > **New here?** Start with the [Onboarding Guide](docs/ONBOARDING.md).
 
@@ -43,7 +43,7 @@ Execution proceeds through three stages:
 
 **Stage 2: Command Dispatch.** The user issues a slash command (for example, `/triage appinfo.dll`). The agent reads the corresponding command definition (a Markdown file with step-by-step instructions), then executes the prescribed sequence of skill scripts and subagent delegations. Each skill script queries the analysis databases through the helper library and returns structured JSON or writes results to a workspace directory. Subagents run in isolated context windows, absorbing the cost of large code payloads and returning only their conclusions to the parent agent.
 
-**Stage 3: Result Synthesis.** The agent synthesizes outputs from multiple skills and subagents into a consolidated report. For multi-step workflows, intermediate results are written to run directories under `.agent/workspace/` with a `manifest.json` tracking each step. This workspace handoff pattern keeps large payloads out of the agent's context window and prevents reasoning degradation across complex analysis pipelines.
+**Stage 3: Result Synthesis.** The agent synthesizes outputs from multiple skills and subagents into a consolidated report. For multi-step workflows, intermediate results are written to run directories under `.claude/workspace/` with a `manifest.json` tracking each step. This workspace handoff pattern keeps large payloads out of the agent's context window and prevents reasoning degradation across complex analysis pipelines.
 
 ---
 
@@ -59,7 +59,7 @@ Execution proceeds through three stages:
 
 - **Hook:** A lifecycle script triggered by the host IDE at specific events. Hooks are configured in `hooks.json` and execute Python scripts under `hooks/`. The runtime uses hooks for session context injection, iterative task continuation, and workspace cleanup.
 
-- **Workspace Handoff:** The pattern used by multi-step workflows to keep large payloads out of the agent context. Run directories under `.agent/workspace/` store per-step `results.json` and `summary.json` files alongside a `manifest.json` that tracks step completion. The agent coordinates using summaries and file paths, not by holding full data in its context window.
+- **Workspace Handoff:** The pattern used by multi-step workflows to keep large payloads out of the agent context. Run directories under `.claude/workspace/` store per-step `results.json` and `summary.json` files alongside a `manifest.json` that tracks step completion. The agent coordinates using summaries and file paths, not by holding full data in its context window.
 
 - **Grind Loop:** A batch processing mechanism for iterative workflows. The agent writes a Markdown scratchpad with checkbox items. When the agent's turn ends, the `stop` hook checks for unchecked items and re-invokes the agent to continue, bounded by a configurable iteration limit. Used by commands that process multiple functions or phases (`/batch-audit`, `/scan`, `/full-report`).
 
@@ -69,28 +69,28 @@ Execution proceeds through three stages:
 
 ## Installation
 
-The headless batch extractor in DeepExtractIDA writes two bootstrap files (`AGENTS.md` and `CLAUDE.md`) into the extraction output directory. These files contain the full installation procedure and are recognized automatically by AI coding agents.
+The headless batch extractor in DeepExtractIDA writes two bootstrap files (`CLAUDE.md` and `CLAUDE.md`) into the extraction output directory. These files contain the full installation procedure and are recognized automatically by AI coding agents.
 
 **Install:**
 
 1. Open the extraction output directory (the `StorageDir` passed to `headless_batch_extractor.ps1`) as a project in Cursor, Claude Code, or Codex.
 2. Type `install DeepExtractRuntime` in the agent chat.
 
-The agent reads the bootstrap instructions and executes the setup automatically: cloning the [DeepExtractRuntime](https://github.com/marcosd4h/DeepExtractRuntime) repository into `.agent/`, creating the `.claude` symlink for Claude Code, copying `hooks.json` and rule files into `.cursor/` for Cursor, and verifying the installation.
+The agent reads the bootstrap instructions and executes the setup automatically: cloning the [DeepExtractRuntime](https://github.com/marcosd4h/DeepExtractRuntime) repository into `.claude/`, creating the `.claude` symlink for Claude Code, copying `hooks.json` and rule files into `.cursor/` for Cursor, and verifying the installation.
 
 **Update:**
 
-Type `update DeepExtractRuntime` in the agent chat. The agent pulls the latest changes into `.agent/` and re-copies hooks and rules.
+Type `update DeepExtractRuntime` in the agent chat. The agent pulls the latest changes into `.claude/` and re-copies hooks and rules.
 
 **Bootstrap Templates:**
 
-Example bootstrap files are available in the [`bootstrap/`](bootstrap/) directory. `bootstrap/AGENTS.md` targets Cursor and Codex; `bootstrap/CLAUDE.md` targets Claude Code. These are the templates that the headless batch extractor writes into each extraction output directory.
+Example bootstrap files are available in the [`bootstrap/`](bootstrap/) directory. `bootstrap/CLAUDE.md` targets Cursor and Codex; `bootstrap/CLAUDE.md` targets Claude Code. These are the templates that the headless batch extractor writes into each extraction output directory.
 
 **Installed Workspace Layout:**
 
 ```text
 <extraction_output_root>/
-  AGENTS.md                  Bootstrap instructions (written by extractor)
+  CLAUDE.md                  Bootstrap instructions (written by extractor)
   CLAUDE.md                  Claude Code bootstrap pointer
   extraction_report.json     Batch extraction provenance and status
   logs/                      Extractor and symbol resolution logs
@@ -105,7 +105,7 @@ Example bootstrap files are available in the [`bootstrap/`](bootstrap/) director
   extracted_dbs/
     analyzed_files.db        Tracking database (module index)
     <module>_<hash>.db       Per-module analysis database (read-only)
-  .agent/                    Installed DeepExtractRuntime
+  .claude/                    Installed DeepExtractRuntime
     commands/                Slash command definitions
     agents/                  Subagent definitions and entry scripts
     skills/                  Analysis skills with Python scripts
@@ -121,11 +121,11 @@ Example bootstrap files are available in the [`bootstrap/`](bootstrap/) director
     tests/                   Test suite
     docs/                    Documentation
   .cursor/                   Cursor IDE integration (created by bootstrap)
-    hooks.json               Copy of .agent/hooks.json
-    rules/                   Copies of .agent/rules/ with .mdc extension
+    hooks.json               Copy of .claude/hooks.json
+    rules/                   Copies of .claude/rules/ with .mdc extension
 ```
 
-In this source checkout, the runtime content lives at repository root. When installed, that source tree becomes `.agent/`.
+In this source checkout, the runtime content lives at repository root. When installed, that source tree becomes `.claude/`.
 
 ---
 
@@ -407,13 +407,13 @@ Developer references: [helpers/README.md](helpers/README.md), [docs/helper_api_r
 
 ## Hooks
 
-Installed workspaces configure hook events in the root-level [`hooks.json`](hooks.json). Hook commands execute relative to the output root, not relative to `.agent/`.
+Installed workspaces configure hook events in the root-level [`hooks.json`](hooks.json). Hook commands execute relative to the output root, not relative to `.claude/`.
 
 | Trigger        | Script                                  | Timeout | Purpose                                                                                              |
 | -------------- | --------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------- |
-| `sessionStart` | `.agent/hooks/inject-module-context.py` | 15s     | Scan extraction data and runtime registries; inject workspace context into the agent session         |
-| `stop`         | `.agent/hooks/grind-until-done.py`      | 5s      | Read the session scratchpad; re-invoke the agent if unchecked items remain (bounded by `loop_limit`) |
-| `sessionEnd`   | `.agent/hooks/cleanup-workspace.py`     | 10s     | Remove stale run directories, agent state files, and cache entries                                   |
+| `sessionStart` | `.claude/hooks/inject-module-context.py` | 15s     | Scan extraction data and runtime registries; inject workspace context into the agent session         |
+| `stop`         | `.claude/hooks/grind-until-done.py`      | 5s      | Read the session scratchpad; re-invoke the agent if unchecked items remain (bounded by `loop_limit`) |
+| `sessionEnd`   | `.claude/hooks/cleanup-workspace.py`     | 10s     | Remove stale run directories, agent state files, and cache entries                                   |
 
 The `sessionStart` hook supports three context levels controlled by the `DEEPEXTRACT_CONTEXT_LEVEL` environment variable:
 
@@ -423,7 +423,7 @@ The `sessionStart` hook supports three context levels controlled by the `DEEPEXT
 
 For workspaces with many modules, compact mode activates automatically, reducing context size by caching the module list and trimming per-module detail.
 
-Scratchpads are session-scoped and live at `.agent/hooks/scratchpads/{session_id}.md`. Run directories live under `.agent/workspace/`.
+Scratchpads are session-scoped and live at `.claude/hooks/scratchpads/{session_id}.md`. Run directories live under `.claude/workspace/`.
 
 See [hooks/README.md](hooks/README.md) for lifecycle details.
 
@@ -436,7 +436,7 @@ The runtime ships always-on rules under `rules/`. Each rule is a Markdown file w
 | Rule                          | Purpose                                                                     |
 | ----------------------------- | --------------------------------------------------------------------------- |
 | `workspace-pattern`           | Filesystem handoff contract for multi-step workflows                        |
-| `workspace-layout`            | Path conventions for the output root and the `.agent/` overlay              |
+| `workspace-layout`            | Path conventions for the output root and the `.claude/` overlay              |
 | `script-invocation-guide`     | Canonical script signatures, DB path resolution, common invocation mistakes |
 | `call-discovery-convention`   | Ground-truth call discovery via xrefs; forbidden regex-only patterns        |
 | `grind-loop-protocol`         | Scratchpad structure and iterative task protocol                            |
@@ -494,14 +494,14 @@ Built-in pipelines:
 **CLI access:**
 
 ```bash
-python .agent/helpers/pipeline_cli.py run config/pipelines/security-sweep.yaml
-python .agent/helpers/pipeline_cli.py validate config/pipelines/security-sweep.yaml
-python .agent/helpers/pipeline_cli.py list-steps
+python .claude/helpers/pipeline_cli.py run config/pipelines/security-sweep.yaml
+python .claude/helpers/pipeline_cli.py validate config/pipelines/security-sweep.yaml
+python .claude/helpers/pipeline_cli.py list-steps
 ```
 
 **Interactive access:** The `/pipeline` slash command wraps the same CLI.
 
-Pipeline output is written to `.agent/workspace/batch_{name}_{timestamp}/` with per-module results and a batch summary.
+Pipeline output is written to `.claude/workspace/batch_{name}_{timestamp}/` with per-module results and a batch summary.
 
 See [docs/pipeline_guide.md](docs/pipeline_guide.md) for YAML schema, step mapping, and configuration options.
 
@@ -509,7 +509,7 @@ See [docs/pipeline_guide.md](docs/pipeline_guide.md) for YAML schema, step mappi
 
 ## Data Layout
 
-The installed workspace consists of two layers: extractor-managed root artifacts produced by DeepExtractIDA, and the runtime-managed overlay installed at `.agent/`.
+The installed workspace consists of two layers: extractor-managed root artifacts produced by DeepExtractIDA, and the runtime-managed overlay installed at `.claude/`.
 
 **Extractor-managed data:**
 
@@ -520,11 +520,11 @@ The installed workspace consists of two layers: extractor-managed root artifacts
 
 **Runtime-managed data:**
 
-- `.agent/cache/` for cached skill-script results (TTL-based, DB mtime-validated)
-- `.agent/workspace/` for multi-step workflow manifests and per-step results
-- `.agent/hooks/scratchpads/` for grind-loop session state
-- `.agent/config/assets/` for ground-truth COM, RPC, WinRT, and miscellaneous data files
-- `.agent/config/pipelines/` for YAML pipeline definitions
+- `.claude/cache/` for cached skill-script results (TTL-based, DB mtime-validated)
+- `.claude/workspace/` for multi-step workflow manifests and per-step results
+- `.claude/hooks/scratchpads/` for grind-loop session state
+- `.claude/config/assets/` for ground-truth COM, RPC, WinRT, and miscellaneous data files
+- `.claude/config/pipelines/` for YAML pipeline definitions
 
 All analysis databases are **read-only**. Helper-mediated connections enforce `PRAGMA query_only = ON`. The tracking database normally resides at `extracted_dbs/analyzed_files.db`; for compatibility with single-file or older layouts, `helpers/db_paths.py` also accepts a root-level `analyzed_files.db`.
 
@@ -541,7 +541,7 @@ Format references:
 **Installed-workspace command:**
 
 ```bash
-cd <extraction_output_root>/.agent && python -m pytest tests/ -v
+cd <extraction_output_root>/.claude && python -m pytest tests/ -v
 ```
 
 **Source-checkout command:**
@@ -570,7 +570,7 @@ See [docs/testing_guide.md](docs/testing_guide.md) for the full test documentati
 - **Runtime dependency:** `pyyaml>=6.0`
 - **Optional test dependencies:** `pytest>=7.0`, `pytest-timeout>=2.0`
 - **Optional development dependencies:** `ruff>=0.4`, `mypy>=1.10`
-- **Supported AI environments:** Claude Code, Cursor, Codex, and any environment that supports `AGENTS.md` or equivalent agent configuration
+- **Supported AI environments:** Claude Code, Cursor, Codex, and any environment that supports `CLAUDE.md` or equivalent agent configuration
 - **License:** MIT
 
 ---

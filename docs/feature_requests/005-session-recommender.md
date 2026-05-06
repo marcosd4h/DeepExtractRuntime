@@ -34,11 +34,11 @@ done so far, here is the single most valuable thing to investigate."
 
 Nothing, at the session level:
 
-- **Cache** (`.agent/cache/`): Tells you what data was computed, not
+- **Cache** (`.claude/cache/`): Tells you what data was computed, not
   what the researcher has reviewed.
-- **Workspace runs** (`.agent/workspace/`): Past run directories
+- **Workspace runs** (`.claude/workspace/`): Past run directories
   indicate prior commands but there is no aggregated "analyzed set."
-- **Findings store** (`.agent/cache/findings.db`): Stores scan findings
+- **Findings store** (`.claude/cache/findings.db`): Stores scan findings
   with 30-day retention but does not track investigation status.
 - **Session context** (`sessionStart` hook): Injects module counts
   and cached result summaries.  Does not track session activity.
@@ -115,9 +115,9 @@ to work unchanged.  The `/next` command is the primary entry point.
 | Entry point rankings | Ranked attack surface candidates | `cache/<module>/discover_entrypoints.json` |
 | Function classification | Interest scores for all functions | `cache/<module>/triage_summary.json` |
 | Findings store | Confirmed scan findings with severity | `helpers.findings_store.load_findings()` |
-| Research journal (FR-003) | Investigated functions, active hypotheses | `.agent/research/INDEX.md` |
+| Research journal (FR-003) | Investigated functions, active hypotheses | `.claude/research/INDEX.md` |
 | Module profiles | Module size, noise ratio, technology flags | `extracted_code/<module>/module_profile.json` |
-| Workspace runs | Which commands were run for which modules | `.agent/workspace/*/manifest.json` |
+| Workspace runs | Which commands were run for which modules | `.claude/workspace/*/manifest.json` |
 
 ### Recommendation Ranking
 

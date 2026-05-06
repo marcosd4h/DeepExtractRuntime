@@ -20,9 +20,9 @@ Default callee depth is 1 (direct callees only). Override with `--depth N` (0 = 
 
 ## Execution Context
 
-> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.agent`
-> (so the `.agent/` directory is on `sys.path`), **not** from the workspace root.
-> Script invocations like `python .agent/skills/.../script.py` can be run from the workspace root
+> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.claude`
+> (so the `.claude/` directory is on `sys.path`), **not** from the workspace root.
+> Script invocations like `python .claude/skills/.../script.py` can be run from the workspace root
 > because those scripts manage their own path setup.
 
 ## Steps
@@ -33,8 +33,8 @@ Validate arguments using `helpers.command_validation.validate_command_args("expl
 If validation fails, report the errors and stop. On success, use `result.resolved["db_path"]` for subsequent script calls.
 
 1. **Locate the function**
-   **Quick lookup**: Use `python .agent/skills/function-index/scripts/lookup_function.py <function_name>` to locate the function across all modules instantly.
-   **Cross-dimensional search**: When the search term might match a string, API call, or class name, use `python .agent/helpers/unified_search.py <db_path> --query <term>` to search all dimensions at once.
+   **Quick lookup**: Use `python .claude/skills/function-index/scripts/lookup_function.py <function_name>` to locate the function across all modules instantly.
+   **Cross-dimensional search**: When the search term might match a string, API call, or class name, use `python .claude/helpers/unified_search.py <db_path> --query <term>` to search all dimensions at once.
    Otherwise, use the **decompiled-code-extractor** skill (`find_module_db.py` then `list_functions.py --search`) to resolve the module DB and exact function name.
 
 > **Tip:** All skill scripts support `--json` for machine-readable output. Use `--json` when parsing script output programmatically.
@@ -49,22 +49,22 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 
    ```bash
    # Standard invocation (writes full output to file, avoids stdout truncation)
-   python .agent/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> \
-       --depth <N> --no-assembly --output-file .agent/workspace/explain_out.json
+   python .claude/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> \
+       --depth <N> --no-assembly --output-file .claude/workspace/explain_out.json
 
    # Then read the output file before synthesizing:
-   # Use the Read tool on .agent/workspace/explain_out.json (chunked if large)
+   # Use the Read tool on .claude/workspace/explain_out.json (chunked if large)
    # The callee_details array contains all callee code at every depth level
 
    # By function ID (from lookup)
-   python .agent/agents/re-analyst/scripts/explain_function.py <db_path> --id <function_id> \
-       --output-file .agent/workspace/explain_out.json
+   python .claude/agents/re-analyst/scripts/explain_function.py <db_path> --id <function_id> \
+       --output-file .claude/workspace/explain_out.json
 
    # Quick mode (depth 0, no callees -- stdout is fine)
-   python .agent/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> --depth 0
+   python .claude/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> --depth 0
 
    # JSON to stdout (only for depth 0 or when output is small)
-   python .agent/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> --depth 0 --json
+   python .claude/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> --depth 0 --json
    ```
 
    This returns: module context, function identity, classification, decompiled code, assembly, call chain breakdown, inbound callers, categorized strings, dangerous APIs, complexity metrics, and recursive callee code (BFS traversal to `--depth` levels, boilerplate filtered).
@@ -72,18 +72,18 @@ If validation fails, report the errors and stop. On success, use `result.resolve
    For additional structured queries (class listing, exports, module overview), use `re_query.py`:
 
    ```bash
-   python .agent/agents/re-analyst/scripts/re_query.py <db_path> --function <name> --context
+   python .claude/agents/re-analyst/scripts/re_query.py <db_path> --function <name> --context
    ```
 
    **Fallback** (if re-analyst agent scripts are unavailable): Use skill scripts to gather equivalent context:
    - **decompiled-code-extractor** skill (`extract_function_data.py`) for complete function data (decompiled code, assembly, strings, xrefs, stack frame, loops):
      ```bash
-     python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> <function_name> --json
-     python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> --id <function_id> --json
+     python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> <function_name> --json
+     python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> --id <function_id> --json
      ```
    - **classify-functions** skill (`classify_function.py`) for function category and purpose classification:
      ```bash
-     python .agent/skills/classify-functions/scripts/classify_function.py <db_path> <function_name> --json
+     python .claude/skills/classify-functions/scripts/classify_function.py <db_path> <function_name> --json
      ```
    These two scripts together provide the data needed to synthesize the explanation.
 

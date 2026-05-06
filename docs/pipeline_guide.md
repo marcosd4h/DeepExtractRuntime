@@ -26,19 +26,19 @@ follow-up questions, or agent-driven synthesis in chat.
 2. Validate it:
 
    ```bash
-   python .agent/helpers/pipeline_cli.py validate config/pipelines/security-sweep.yaml
+   python .claude/helpers/pipeline_cli.py validate config/pipelines/security-sweep.yaml
    ```
 
 3. Execute it:
 
    ```bash
-   python .agent/helpers/pipeline_cli.py run config/pipelines/security-sweep.yaml
+   python .claude/helpers/pipeline_cli.py run config/pipelines/security-sweep.yaml
    ```
 
 For a no-side-effects preview, use:
 
 ```bash
-python .agent/helpers/pipeline_cli.py run config/pipelines/security-sweep.yaml --dry-run
+python .claude/helpers/pipeline_cli.py run config/pipelines/security-sweep.yaml --dry-run
 ```
 
 ---
@@ -50,7 +50,7 @@ python .agent/helpers/pipeline_cli.py run config/pipelines/security-sweep.yaml -
 Execute a pipeline definition.
 
 ```bash
-python .agent/helpers/pipeline_cli.py run <pipeline.yaml> [--dry-run] [--modules m1,m2] [--output DIR] [--json]
+python .claude/helpers/pipeline_cli.py run <pipeline.yaml> [--dry-run] [--modules m1,m2] [--output DIR] [--json]
 ```
 
 Options:
@@ -67,7 +67,7 @@ Options:
 Parse and validate a pipeline definition without running any analysis.
 
 ```bash
-python .agent/helpers/pipeline_cli.py validate <pipeline.yaml> [--modules m1,m2] [--output DIR] [--json]
+python .claude/helpers/pipeline_cli.py validate <pipeline.yaml> [--modules m1,m2] [--output DIR] [--json]
 ```
 
 Validation checks:
@@ -83,8 +83,8 @@ Validation checks:
 List every supported top-level pipeline step.
 
 ```bash
-python .agent/helpers/pipeline_cli.py list-steps
-python .agent/helpers/pipeline_cli.py list-steps --json
+python .claude/helpers/pipeline_cli.py list-steps
+python .claude/helpers/pipeline_cli.py list-steps --json
 ```
 
 ---
@@ -205,7 +205,7 @@ Examples:
 
 ```yaml
 output: workspace/batch_{name}_{timestamp}/
-output: .agent/workspace/nightly_{timestamp}/
+output: .claude/workspace/nightly_{timestamp}/
 output: reports/pipeline_runs/{name}_{timestamp}/
 ```
 
@@ -213,7 +213,7 @@ Path semantics:
 
 - Absolute paths are used as-is
 - Relative paths are resolved from the workspace root
-- `workspace/...` is a shorthand for `.agent/workspace/...`
+- `workspace/...` is a shorthand for `.claude/workspace/...`
 
 ---
 
@@ -262,7 +262,7 @@ per-step subdirectories.
 Example:
 
 ```text
-.agent/workspace/batch_security-sweep_20260306_010203/
+.claude/workspace/batch_security-sweep_20260306_010203/
   batch_manifest.json
   batch_summary.json
   appinfo.dll/
@@ -393,12 +393,12 @@ Reference YAML files live in `config/pipelines/`:
 Useful commands:
 
 ```bash
-python .agent/helpers/pipeline_cli.py list-steps
-python .agent/helpers/pipeline_cli.py validate config/pipelines/quick-triage.yaml
-python .agent/helpers/pipeline_cli.py run config/pipelines/quick-triage.yaml --dry-run
-python .agent/helpers/pipeline_cli.py run config/pipelines/security-sweep.yaml --json
-python .agent/helpers/pipeline_cli.py run config/pipelines/security-sweep.yaml --modules appinfo.dll,consent.exe
-python .agent/helpers/pipeline_cli.py run config/pipelines/full-analysis.yaml --output workspace/custom_{timestamp}/
+python .claude/helpers/pipeline_cli.py list-steps
+python .claude/helpers/pipeline_cli.py validate config/pipelines/quick-triage.yaml
+python .claude/helpers/pipeline_cli.py run config/pipelines/quick-triage.yaml --dry-run
+python .claude/helpers/pipeline_cli.py run config/pipelines/security-sweep.yaml --json
+python .claude/helpers/pipeline_cli.py run config/pipelines/security-sweep.yaml --modules appinfo.dll,consent.exe
+python .claude/helpers/pipeline_cli.py run config/pipelines/full-analysis.yaml --output workspace/custom_{timestamp}/
 ```
 
 ---

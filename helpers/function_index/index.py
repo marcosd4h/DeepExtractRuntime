@@ -231,7 +231,7 @@ def load_function_index(
     return sanitized
 
 
-_CONSOLIDATED_CACHE_DIR = WORKSPACE_ROOT / ".agent" / "cache"
+_CONSOLIDATED_CACHE_DIR = WORKSPACE_ROOT / ".claude" / "cache"
 _CONSOLIDATED_CACHE_FILE = _CONSOLIDATED_CACHE_DIR / "_global_function_index.json"
 _consolidated_index_lock = threading.Lock()
 

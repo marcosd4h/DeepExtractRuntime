@@ -28,13 +28,13 @@ Examples
 --------
 ::
 
-    python .agent/agents/type-reconstructor/scripts/reconstruct_all.py \\
+    python .claude/agents/type-reconstructor/scripts/reconstruct_all.py \\
         extracted_dbs/appinfo_dll_e98d25a9e8.db
 
-    python .agent/agents/type-reconstructor/scripts/reconstruct_all.py \\
+    python .claude/agents/type-reconstructor/scripts/reconstruct_all.py \\
         extracted_dbs/appinfo_dll_e98d25a9e8.db --class CSecurityDescriptor --output types.h
 
-    python .agent/agents/type-reconstructor/scripts/reconstruct_all.py \\
+    python .claude/agents/type-reconstructor/scripts/reconstruct_all.py \\
         extracted_dbs/appinfo_dll_e98d25a9e8.db --include-com --json
 
 Output

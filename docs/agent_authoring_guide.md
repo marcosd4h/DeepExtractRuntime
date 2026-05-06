@@ -4,8 +4,8 @@ This guide describes how to create new subagents for the DeepExtractIDA Agent
 Analysis Runtime. Subagents are specialized agents that handle complex,
 multi-step tasks by orchestrating multiple skills in isolated context windows.
 
-**Prerequisite reading:** Skim `.agent/agents/README.md` for the agent catalog
-and `.agent/docs/skill_authoring_guide.md` Section 7 for helper imports.
+**Prerequisite reading:** Skim `.claude/agents/README.md` for the agent catalog
+and `.claude/docs/skill_authoring_guide.md` Section 7 for helper imports.
 
 ---
 
@@ -32,7 +32,7 @@ accumulating shared state, or deliberately isolating context, create an agent.
 ## 2. Directory Structure
 
 ```
-.agent/agents/
+.claude/agents/
 ├── my-agent.md                # Agent definition (system prompt)
 ├── my-agent/
 │   └── scripts/
@@ -188,9 +188,9 @@ from pathlib import Path
 from skills._shared import bootstrap
 
 WORKSPACE_ROOT = bootstrap(__file__)
-sys.path.insert(0, str(WORKSPACE_ROOT / ".agent"))
+sys.path.insert(0, str(WORKSPACE_ROOT / ".claude"))
 
-SKILLS_DIR = WORKSPACE_ROOT / ".agent" / "skills"
+SKILLS_DIR = WORKSPACE_ROOT / ".claude" / "skills"
 EXTRACTED_DBS_DIR = WORKSPACE_ROOT / "extracted_dbs"
 EXTRACTED_CODE_DIR = WORKSPACE_ROOT / "extracted_code"
 
@@ -225,7 +225,7 @@ def get_module_characteristics(db_path: str) -> ModuleCharacteristics:
 **code-lifter** -- State file management:
 
 ```python
-STATE_DIR = WORKSPACE_ROOT / ".agent" / "agents" / "code-lifter" / "state"
+STATE_DIR = WORKSPACE_ROOT / ".claude" / "agents" / "code-lifter" / "state"
 
 def load_shared_state(class_name: str) -> dict:
     state_file = STATE_DIR / f"{class_name}_state.json"
@@ -355,7 +355,7 @@ context. Every subagent prompt needs:
 Analyze the function and tell me if it's interesting.
 
 <!-- Good: structured prompt -->
-Verify that the lifted code at `.agent/workspace/appinfo_lifted.cpp`
+Verify that the lifted code at `.claude/workspace/appinfo_lifted.cpp`
 faithfully represents the original binary behavior for function
 `AiLaunchAdminProcess` in `extracted_dbs/appinfo_dll_e98d25a9e8.db`.
 
@@ -417,7 +417,7 @@ Used by: triage-coordinator, type-reconstructor
 Each step writes results to a run directory. Subsequent steps read from it:
 
 ```
-.agent/workspace/appinfo_dll_triage_20260222T120000/
+.claude/workspace/appinfo_dll_triage_20260222T120000/
 ├── manifest.json              # Step status tracker
 ├── classify_triage/
 │   ├── results.json           # Full payload
@@ -440,7 +440,7 @@ Used by: code-lifter
 State accumulates across method lifts within a class and persists on disk:
 
 ```
-.agent/agents/code-lifter/state/CSecurityDescriptor_state.json
+.claude/agents/code-lifter/state/CSecurityDescriptor_state.json
 ```
 
 Contains: struct field discoveries, naming maps, constants, lifted function
@@ -521,7 +521,7 @@ manifest["steps"]["com_scan"] = {
 
 ## 9. Registry Registration
 
-Add an entry to `.agent/agents/registry.json`:
+Add an entry to `.claude/agents/registry.json`:
 
 ```json
 {
@@ -548,7 +548,7 @@ Add an entry to `.agent/agents/registry.json`:
 **Agent types:** `analyst`, `coordinator`, `reconstructor`, `verifier`,
 `lifter`. Choose the closest match for your agent's purpose.
 
-Also add a section to `.agent/agents/README.md` following the existing pattern:
+Also add a section to `.claude/agents/README.md` following the existing pattern:
 purpose, when-to-use, scripts table, invocation examples, and workflow diagram.
 
 ---
@@ -558,7 +558,7 @@ purpose, when-to-use, scripts table, invocation examples, and workflow diagram.
 ### 10.1 Infrastructure Validation
 
 ```bash
-cd .agent && python -m pytest tests/test_infrastructure_consistency.py -v
+cd .claude && python -m pytest tests/test_infrastructure_consistency.py -v
 ```
 
 This validates:
@@ -576,7 +576,7 @@ Create `tests/test_<agent_name>.py` verifying:
 ### 10.3 Full Suite
 
 ```bash
-cd .agent && python -m pytest tests/ -v
+cd .claude && python -m pytest tests/ -v
 ```
 
 Always run the full suite before considering any agent change complete.
@@ -610,22 +610,22 @@ rewrite code. Your job is to detect, score, and rank pattern matches.
 ### Module Discovery
 | Script | Purpose |
 |--------|---------|
-| `.agent/skills/decompiled-code-extractor/scripts/find_module_db.py` | Resolve module name to DB path |
+| `.claude/skills/decompiled-code-extractor/scripts/find_module_db.py` | Resolve module name to DB path |
 
 ### Classification
 | Script | Purpose |
 |--------|---------|
-| `.agent/skills/classify-functions/scripts/classify_module.py` | Categorize all functions |
+| `.claude/skills/classify-functions/scripts/classify_module.py` | Categorize all functions |
 
 ### Data Extraction
 | Script | Purpose |
 |--------|---------|
-| `.agent/skills/decompiled-code-extractor/scripts/extract_function_data.py` | Extract function code + assembly |
+| `.claude/skills/decompiled-code-extractor/scripts/extract_function_data.py` | Extract function code + assembly |
 
 ### Own Scripts
 | Script | Purpose |
 |--------|---------|
-| `.agent/agents/pattern-scanner/scripts/scan_patterns.py` | Scan functions against pattern catalog |
+| `.claude/agents/pattern-scanner/scripts/scan_patterns.py` | Scan functions against pattern catalog |
 
 ## Workflow
 
@@ -657,9 +657,9 @@ from pathlib import Path
 from skills._shared import bootstrap
 
 WORKSPACE_ROOT = bootstrap(__file__)
-sys.path.insert(0, str(WORKSPACE_ROOT / ".agent"))
+sys.path.insert(0, str(WORKSPACE_ROOT / ".claude"))
 
-SKILLS_DIR = WORKSPACE_ROOT / ".agent" / "skills"
+SKILLS_DIR = WORKSPACE_ROOT / ".claude" / "skills"
 
 from helpers import emit_error, open_individual_analysis_db
 from helpers.errors import ErrorCode
@@ -777,7 +777,7 @@ if __name__ == "__main__":
 
 ### 11.5 README Entry
 
-Add a section to `.agent/agents/README.md`:
+Add a section to `.claude/agents/README.md`:
 
 ```markdown
 ### pattern-scanner

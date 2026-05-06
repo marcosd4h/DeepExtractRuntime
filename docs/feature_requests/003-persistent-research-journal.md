@@ -27,7 +27,7 @@ they have already investigated.
 | Findings store | 30 days | Structured `Finding` records from scans | Scan findings only; no hypotheses, notes, or status tracking |
 | Reports | Permanent | Markdown analysis reports | Per-module, per-command; no cross-module aggregation |
 
-The `findings_store.py` (`.agent/cache/findings.db`) partially
+The `findings_store.py` (`.claude/cache/findings.db`) partially
 addresses finding persistence for scan results.  But it does NOT cover:
 
 - **Research hypotheses** -- "I think there is a TOCTOU in appinfo.dll
@@ -57,7 +57,7 @@ complexity for no benefit.
 ### Directory Layout
 
 ```
-.agent/research/
+.claude/research/
   INDEX.md                              # Master index: summary table, links to entries
   findings/
     F-001_appinfo_AiLaunchProcess.md    # One file per finding
@@ -209,7 +209,7 @@ command workflow.
 | Hook | Change |
 |------|--------|
 | `sessionStart` | If INDEX.md exists, inject summary (finding counts, active hypotheses) into session context |
-| `sessionEnd` | No change -- `.agent/research/` is not in cleanup targets |
+| `sessionEnd` | No change -- `.claude/research/` is not in cleanup targets |
 
 ---
 
@@ -230,7 +230,7 @@ command workflow.
 
 ## Acceptance Criteria
 
-1. `.agent/research/INDEX.md` is created on first finding and kept
+1. `.claude/research/INDEX.md` is created on first finding and kept
    up to date automatically
 2. `/scan`, `/audit`, `/taint`, `/memory-scan`, `/ai-logical-bug-scan`,
    `/hunt-plan`, `/hunt-execute`, `/batch-audit` all write to the
@@ -241,8 +241,8 @@ command workflow.
    rebuilds the index
 6. `sessionStart` injects journal summary into context when INDEX.md
    exists
-7. `.agent/research/` survives sessionEnd cleanup
-8. `research/` is in `.agent/.gitignore`
+7. `.claude/research/` survives sessionEnd cleanup
+8. `research/` is in `.claude/.gitignore`
 9. Coexists cleanly with `findings_store.py` -- no conflicts or
    duplicate writes that corrupt either store
 

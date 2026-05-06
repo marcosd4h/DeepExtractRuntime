@@ -2,9 +2,9 @@
 """Resolve which modules export and/or import a given function.
 
 Usage:
-    python .agent/skills/import-export-resolver/scripts/query_function.py --function CreateProcessW
-    python .agent/skills/import-export-resolver/scripts/query_function.py --function HeapAlloc --direction export --json
-    python .agent/skills/import-export-resolver/scripts/query_function.py path/to/analyzed_files.db --function NtCreateFile --json
+    python .claude/skills/import-export-resolver/scripts/query_function.py --function CreateProcessW
+    python .claude/skills/import-export-resolver/scripts/query_function.py --function HeapAlloc --direction export --json
+    python .claude/skills/import-export-resolver/scripts/query_function.py path/to/analyzed_files.db --function NtCreateFile --json
 """
 
 from __future__ import annotations

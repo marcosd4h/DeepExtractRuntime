@@ -3,7 +3,7 @@
 Copy-paste prompts for agent-driven test execution and remediation.
 Each prompt is self-contained: paste it into a new agent session as-is.
 
-See `.agent/docs/testing_guide.md` for the full QA plan, test architecture,
+See `.claude/docs/testing_guide.md` for the full QA plan, test architecture,
 runner docs, and test case definitions.
 
 ---
@@ -14,17 +14,17 @@ runner docs, and test case definitions.
 failures, warnings, and misbehavior. Do not fix anything.
 
 ```text
-Run all test cases from the testing guide at @.agent/docs/testing_guide.md.
+Run all test cases from the testing guide at @.claude/docs/testing_guide.md.
 Read the entire plan before proceeding.
 
 Run BOTH test tiers and capture output into @work/testcase_output:
 
 1. Unit tests (Tier 1):
-   python -m pytest .agent/tests/ -v --tb=short
+   python -m pytest .claude/tests/ -v --tb=short
    Save the full output to pytest_output.log in the output directory.
 
 2. Integration tests (Tier 2):
-   python .agent/helpers/qa_runner.py --output-dir work/testcase_output
+   python .claude/helpers/qa_runner.py --output-dir work/testcase_output
    This generates SUMMARY.json, SUMMARY.md, and per-test failure dirs.
 
 Your goal is to run the test cases and capture every failing tool execution.
@@ -67,10 +67,10 @@ Run both tiers without an agent:
 
 ```bash
 # Tier 1: Unit tests
-python -m pytest .agent/tests/ -v --tb=short 2>&1 | tee work/testcase_output/pytest_output.log
+python -m pytest .claude/tests/ -v --tb=short 2>&1 | tee work/testcase_output/pytest_output.log
 
 # Tier 2: Integration tests
-python .agent/helpers/qa_runner.py --output-dir work/testcase_output
+python .claude/helpers/qa_runner.py --output-dir work/testcase_output
 ```
 
 ## Old prompts
@@ -78,7 +78,7 @@ python .agent/helpers/qa_runner.py --output-dir work/testcase_output
 ### Execution
 
 ```text
-I want you to run all the testcases from the QA plan here @.agent/docs/testing_guide.md and run the testcases. Read the entire plan before proceeding.
+I want you to run all the testcases from the QA plan here @.claude/docs/testing_guide.md and run the testcases. Read the entire plan before proceeding.
 
 Your  goal is to run the testcases, and capture tool execution that is failing here @work/testcase_output . Don't attempt to fix anything, just capture the failing tool execution output. Capture warnings too when applicable. Capture empty or misbehaving steps too. These findings will be fixed by a different agent
 

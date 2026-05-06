@@ -21,8 +21,8 @@ class TestBootstrap:
         agent_dir = Path(__file__).resolve().parents[1]
         dummy_anchor = agent_dir / "skills" / "some-skill" / "scripts" / "entry.py"
         root = get_workspace_root(str(dummy_anchor))
-        has_skills = (root / "skills").is_dir() or (root / ".agent" / "skills").is_dir()
-        has_helpers = (root / "helpers").is_dir() or (root / ".agent" / "helpers").is_dir()
+        has_skills = (root / "skills").is_dir() or (root / ".claude" / "skills").is_dir()
+        has_helpers = (root / "helpers").is_dir() or (root / ".claude" / "helpers").is_dir()
         assert has_skills
         assert has_helpers
 
@@ -32,7 +32,7 @@ class TestBootstrap:
         agent_dir = Path(__file__).resolve().parents[1]
         dummy_anchor = agent_dir / "skills" / "decompiled-code-extractor" / "scripts" / "_common.py"
         root = bootstrap(str(dummy_anchor))
-        assert str(root / ".agent") in sys.path or str(root) in sys.path
+        assert str(root / ".claude") in sys.path or str(root) in sys.path
 
     def test_get_workspace_root_uses_parent_fallback(self, tmp_path):
         """When no skills/helpers dirs exist, should fall back to parents[4]."""

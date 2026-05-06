@@ -40,8 +40,8 @@ Individual analysis DBs in `extracted_dbs/` provide:
 Reuse the decompiled-code-extractor skill's `find_module_db.py`:
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --list
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 ```
 
 ### Quick Cross-Dimensional Search
@@ -49,13 +49,13 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo
 To search across function names, strings, APIs, classes, and exports in one call:
 
 ```bash
-python .agent/helpers/unified_search.py <db_path> --query "SearchTerm"
-python .agent/helpers/unified_search.py <db_path> --query "SearchTerm" --json
+python .claude/helpers/unified_search.py <db_path> --query "SearchTerm"
+python .claude/helpers/unified_search.py <db_path> --query "SearchTerm" --json
 ```
 
 ## Utility Scripts
 
-All scripts are in `scripts/`. Auto-resolve workspace root and `.agent/helpers/` imports. Run from the workspace root.
+All scripts are in `scripts/`. Auto-resolve workspace root and `.claude/helpers/` imports. Run from the workspace root.
 
 ### discover_entrypoints.py -- Discover All Entry Points (Start Here)
 
@@ -63,13 +63,13 @@ Scan a module for every type of entry point:
 
 ```bash
 # Full discovery scan
-python .agent/skills/map-attack-surface/scripts/discover_entrypoints.py <db_path>
+python .claude/skills/map-attack-surface/scripts/discover_entrypoints.py <db_path>
 
 # JSON output
-python .agent/skills/map-attack-surface/scripts/discover_entrypoints.py <db_path> --json
+python .claude/skills/map-attack-surface/scripts/discover_entrypoints.py <db_path> --json
 
 # Filter to specific types
-python .agent/skills/map-attack-surface/scripts/discover_entrypoints.py <db_path> --type RPC_HANDLER --type COM_METHOD
+python .claude/skills/map-attack-surface/scripts/discover_entrypoints.py <db_path> --type RPC_HANDLER --type COM_METHOD
 ```
 
 **Detected entry point types:**
@@ -104,13 +104,13 @@ Rank all discovered entry points using callgraph reachability analysis:
 
 ```bash
 # Full ranking
-python .agent/skills/map-attack-surface/scripts/rank_entrypoints.py <db_path>
+python .claude/skills/map-attack-surface/scripts/rank_entrypoints.py <db_path>
 
 # Top 20 with deeper analysis
-python .agent/skills/map-attack-surface/scripts/rank_entrypoints.py <db_path> --top 20 --depth 12
+python .claude/skills/map-attack-surface/scripts/rank_entrypoints.py <db_path> --top 20 --depth 12
 
 # JSON output with minimum score filter
-python .agent/skills/map-attack-surface/scripts/rank_entrypoints.py <db_path> --json --min-score 0.3
+python .claude/skills/map-attack-surface/scripts/rank_entrypoints.py <db_path> --json --min-score 0.3
 ```
 
 **Ranking factors (weighted composite score 0-1):**
@@ -129,13 +129,13 @@ Produce a structured entrypoints.json file for downstream tooling:
 
 ```bash
 # To stdout
-python .agent/skills/map-attack-surface/scripts/generate_entrypoints_json.py <db_path>
+python .claude/skills/map-attack-surface/scripts/generate_entrypoints_json.py <db_path>
 
 # To file
-python .agent/skills/map-attack-surface/scripts/generate_entrypoints_json.py <db_path> -o output/entrypoints.json
+python .claude/skills/map-attack-surface/scripts/generate_entrypoints_json.py <db_path> -o output/entrypoints.json
 
 # Top 30, score >= 0.2
-python .agent/skills/map-attack-surface/scripts/generate_entrypoints_json.py <db_path> -o entrypoints.json --top 30 --min-score 0.2
+python .claude/skills/map-attack-surface/scripts/generate_entrypoints_json.py <db_path> -o entrypoints.json --top 30 --min-score 0.2
 ```
 
 **Output schema:**
@@ -186,38 +186,38 @@ Attack Surface Mapping Progress:
 **Step 1**: Find the module DB
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 ```
 
 **Step 2**: Discover all entry points
 
 ```bash
-python .agent/skills/map-attack-surface/scripts/discover_entrypoints.py <db_path>
+python .claude/skills/map-attack-surface/scripts/discover_entrypoints.py <db_path>
 ```
 
 **Step 3**: Rank by attack value
 
 ```bash
-python .agent/skills/map-attack-surface/scripts/rank_entrypoints.py <db_path> --top 20
+python .claude/skills/map-attack-surface/scripts/rank_entrypoints.py <db_path> --top 20
 ```
 
 **Step 4**: Generate entrypoints.json
 
 ```bash
-python .agent/skills/map-attack-surface/scripts/generate_entrypoints_json.py <db_path> -o entrypoints.json
+python .claude/skills/map-attack-surface/scripts/generate_entrypoints_json.py <db_path> -o entrypoints.json
 ```
 
 **Step 5**: For each high-ranked entry point, drill deeper using other skills:
 
 ```bash
 # Trace the call chain from the entry point
-python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> <function> --depth 3
+python .claude/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> <function> --depth 3
 
 # Classify what the function does
-python .agent/skills/classify-functions/scripts/classify_function.py <db_path> <function>
+python .claude/skills/classify-functions/scripts/classify_function.py <db_path> <function>
 
 # Lift the function for manual review
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> <function>
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> <function>
 ```
 
 ### Workflow 2: "Find hidden entry points beyond exports"
@@ -226,7 +226,7 @@ Focus on non-obvious attack surface.
 
 ```bash
 # Discover then filter to non-export types
-python .agent/skills/map-attack-surface/scripts/discover_entrypoints.py <db_path> --type COM_METHOD --type RPC_HANDLER --type CALLBACK_REGISTRATION --type WINDOW_PROC --type TLS_CALLBACK --type NAMED_PIPE_HANDLER --type TCP_UDP_HANDLER --type IPC_DISPATCHER
+python .claude/skills/map-attack-surface/scripts/discover_entrypoints.py <db_path> --type COM_METHOD --type RPC_HANDLER --type CALLBACK_REGISTRATION --type WINDOW_PROC --type TLS_CALLBACK --type NAMED_PIPE_HANDLER --type TCP_UDP_HANDLER --type IPC_DISPATCHER
 ```
 
 ### Workflow 3: "Generate fuzzing targets"
@@ -235,7 +235,7 @@ Produce a prioritized list for fuzzing harness generation.
 
 ```bash
 # Top 15 targets with score >= 0.3, deep callgraph analysis
-python .agent/skills/map-attack-surface/scripts/generate_entrypoints_json.py <db_path> -o fuzz_targets.json --top 15 --min-score 0.3 --depth 15
+python .claude/skills/map-attack-surface/scripts/generate_entrypoints_json.py <db_path> -o fuzz_targets.json --top 15 --min-score 0.3 --depth 15
 ```
 
 The `tainted_arguments` field in each entry point tells the fuzzer which parameters to mutate.
@@ -244,8 +244,8 @@ The `tainted_arguments` field in each entry point tells the fuzzer which paramet
 
 ```bash
 # Generate entrypoints for each module
-python .agent/skills/map-attack-surface/scripts/generate_entrypoints_json.py extracted_dbs/appinfo_dll_*.db -o appinfo_ep.json
-python .agent/skills/map-attack-surface/scripts/generate_entrypoints_json.py extracted_dbs/cmd_exe_*.db -o cmd_ep.json
+python .claude/skills/map-attack-surface/scripts/generate_entrypoints_json.py extracted_dbs/appinfo_dll_*.db -o appinfo_ep.json
+python .claude/skills/map-attack-surface/scripts/generate_entrypoints_json.py extracted_dbs/cmd_exe_*.db -o cmd_ep.json
 ```
 
 Compare the `attack_surface_summary` sections for relative exposure.

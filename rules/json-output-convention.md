@@ -1,8 +1,8 @@
 ---
 description: Conventions for JSON vs human-readable output in skill scripts
 globs:
-  - ".agent/skills/*/scripts/*.py"
-  - ".agent/agents/*/scripts/*.py"
+  - ".claude/skills/*/scripts/*.py"
+  - ".claude/agents/*/scripts/*.py"
 alwaysApply: true
 ---
 
@@ -56,7 +56,7 @@ alwaysApply: true
 5. Multi-match disambiguation under `--json` should use `emit_error()` with
    `ErrorCode.AMBIGUOUS`, not `print()` the match table to stdout.
 6. **Agent scripts follow the same conventions as skill scripts.** Every agent
-   entry-point script (in `.agent/agents/*/scripts/`) must use `emit_json()`
+   entry-point script (in `.claude/agents/*/scripts/`) must use `emit_json()`
    or `emit_json_list()` from `helpers.json_output` -- never raw
    `print(json.dumps(...))`. This ensures the `"status"` key is always
    present and the output contract is consistent for callers.
@@ -99,7 +99,7 @@ alwaysApply: true
    well-structured JSON document with every field the script supports. If you
    need a subset of fields, read the Shell output directly. For large JSON
    files (agent-tools output, workspace results), use
-   `python .agent/helpers/json_extract.py <file> <key>` to extract specific
+   `python .claude/helpers/json_extract.py <file> <key>` to extract specific
    keys without inline Python.
 
 ## Common Invocation Mistakes

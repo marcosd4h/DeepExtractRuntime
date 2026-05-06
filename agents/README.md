@@ -1,7 +1,7 @@
 # Cursor Subagents
 
 Subagents are specialized AI agents that run in isolated context windows. In an
-installed workspace they live under `.agent/agents/` inside a
+installed workspace they live under `.claude/agents/` inside a
 `DeepExtractIDA_output_root`; in this source checkout they live in `agents/`.
 The parent agent delegates complex, context-heavy tasks to them and receives
 compact results back. The live registry currently defines 8 subagents.
@@ -51,38 +51,38 @@ Subagents **cannot launch other subagents**. The parent agent orchestrates all d
 
 ```bash
 # Module overview (identity, stats, classes, import DLLs)
-python .agent/agents/re-analyst/scripts/re_query.py <db_path> --overview
+python .claude/agents/re-analyst/scripts/re_query.py <db_path> --overview
 
 # Function with full context (classification + strings + outbound calls + callers)
-python .agent/agents/re-analyst/scripts/re_query.py <db_path> --function <name> --context
+python .claude/agents/re-analyst/scripts/re_query.py <db_path> --function <name> --context
 
 # List all methods of a C++ class with classification
-python .agent/agents/re-analyst/scripts/re_query.py <db_path> --class <ClassName>
+python .claude/agents/re-analyst/scripts/re_query.py <db_path> --class <ClassName>
 
 # Exports with per-export classification, interest score, dangerous API count
-python .agent/agents/re-analyst/scripts/re_query.py <db_path> --exports --with-classification
+python .claude/agents/re-analyst/scripts/re_query.py <db_path> --exports --with-classification
 
 # Search functions by name pattern
-python .agent/agents/re-analyst/scripts/re_query.py <db_path> --search <pattern>
+python .claude/agents/re-analyst/scripts/re_query.py <db_path> --search <pattern>
 ```
 
 **explain_function.py** -- everything-in-one for function explanation:
 
 ```bash
 # Full explanation context (module + identity + classification + code + callees + strings)
-python .agent/agents/re-analyst/scripts/explain_function.py <db_path> <function_name>
+python .claude/agents/re-analyst/scripts/explain_function.py <db_path> <function_name>
 
 # By function ID
-python .agent/agents/re-analyst/scripts/explain_function.py <db_path> --id <function_id>
+python .claude/agents/re-analyst/scripts/explain_function.py <db_path> --id <function_id>
 
 # Include callee code (depth 2 = direct callees + their callees)
-python .agent/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> --depth 2
+python .claude/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> --depth 2
 
 # Without assembly (shorter output)
-python .agent/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> --no-assembly
+python .claude/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> --no-assembly
 
 # JSON output
-python .agent/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> --json
+python .claude/agents/re-analyst/scripts/explain_function.py <db_path> <function_name> --json
 ```
 
 **Skills leveraged:** classify-functions, generate-re-report, decompiled-code-extractor, callgraph-tracer, ai-taint-scanner (scripts referenced in the system prompt catalog).
@@ -118,15 +118,15 @@ python .agent/agents/re-analyst/scripts/explain_function.py <db_path> <function_
 
 ```bash
 # Direct execution
-python .agent/agents/triage-coordinator/scripts/analyze_module.py <db_path> --goal triage [--json]
-python .agent/agents/triage-coordinator/scripts/analyze_module.py <db_path> --goal security [--json]
-python .agent/agents/triage-coordinator/scripts/analyze_module.py <db_path> --goal full [--json]
-python .agent/agents/triage-coordinator/scripts/analyze_module.py <db_path> --goal understand-function --function <name> [--json]
-python .agent/agents/triage-coordinator/scripts/analyze_module.py <db_path> --goal types [--json]
+python .claude/agents/triage-coordinator/scripts/analyze_module.py <db_path> --goal triage [--json]
+python .claude/agents/triage-coordinator/scripts/analyze_module.py <db_path> --goal security [--json]
+python .claude/agents/triage-coordinator/scripts/analyze_module.py <db_path> --goal full [--json]
+python .claude/agents/triage-coordinator/scripts/analyze_module.py <db_path> --goal understand-function --function <name> [--json]
+python .claude/agents/triage-coordinator/scripts/analyze_module.py <db_path> --goal types [--json]
 
 # Plan generation (parent agent executes the plan)
-python .agent/agents/triage-coordinator/scripts/generate_analysis_plan.py <db_path> --goal security [--json]
-python .agent/agents/triage-coordinator/scripts/generate_analysis_plan.py <db_path> --goal full [--json]
+python .claude/agents/triage-coordinator/scripts/generate_analysis_plan.py <db_path> --goal security [--json]
+python .claude/agents/triage-coordinator/scripts/generate_analysis_plan.py <db_path> --goal full [--json]
 ```
 
 **Analysis goals and pipelines:**
@@ -208,19 +208,19 @@ Output includes: category distribution, ranked entry points with attack scores, 
 
 ```bash
 # Full module reconstruction
-python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db_path>
+python .claude/agents/type-reconstructor/scripts/reconstruct_all.py <db_path>
 
 # Single class
-python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --class <ClassName>
+python .claude/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --class <ClassName>
 
 # With COM integration
-python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --include-com --output types.h
+python .claude/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --include-com --output types.h
 
 # Validate generated header against assembly
-python .agent/agents/type-reconstructor/scripts/validate_layout.py <db_path> --header types.h
+python .claude/agents/type-reconstructor/scripts/validate_layout.py <db_path> --header types.h
 
 # Merge raw scan output with confidence scoring
-python .agent/agents/type-reconstructor/scripts/merge_evidence.py --scan-output scan.json --com-data com.json
+python .claude/agents/type-reconstructor/scripts/merge_evidence.py --scan-output scan.json --com-data com.json
 ```
 
 **Pipeline phases:**
@@ -262,10 +262,10 @@ verification-focused synthesis.
 
 ```bash
 # Full module scan
-python .agent/agents/security-auditor/scripts/run_security_scan.py <db_path> --json
+python .claude/agents/security-auditor/scripts/run_security_scan.py <db_path> --json
 
 # Focus on a specific function
-python .agent/agents/security-auditor/scripts/run_security_scan.py <db_path> --function <name> --json
+python .claude/agents/security-auditor/scripts/run_security_scan.py <db_path> --function <name> --json
 ```
 
 ---
@@ -306,47 +306,47 @@ python .agent/agents/security-auditor/scripts/run_security_scan.py <db_path> --f
 
 ```bash
 # All methods of a class (returns JSON with all data + struct scan)
-python .agent/agents/code-lifter/scripts/batch_extract.py <db_path> --class <ClassName>
+python .claude/agents/code-lifter/scripts/batch_extract.py <db_path> --class <ClassName>
 
 # Specific functions by name or ID
-python .agent/agents/code-lifter/scripts/batch_extract.py <db_path> --functions func1 func2
-python .agent/agents/code-lifter/scripts/batch_extract.py <db_path> --id-list 12,15,18,22
+python .claude/agents/code-lifter/scripts/batch_extract.py <db_path> --functions func1 func2
+python .claude/agents/code-lifter/scripts/batch_extract.py <db_path> --id-list 12,15,18,22
 
 # Initialize shared state file (required before lifting)
-python .agent/agents/code-lifter/scripts/batch_extract.py <db_path> --class <ClassName> --init-state
+python .claude/agents/code-lifter/scripts/batch_extract.py <db_path> --class <ClassName> --init-state
 
 # Human-readable summary
-python .agent/agents/code-lifter/scripts/batch_extract.py <db_path> --class <ClassName> --summary
+python .claude/agents/code-lifter/scripts/batch_extract.py <db_path> --class <ClassName> --summary
 ```
 
 **track_shared_state.py** -- State management during lifting:
 
 ```bash
 # Record a struct field discovered during lifting
-python .agent/agents/code-lifter/scripts/track_shared_state.py \
+python .claude/agents/code-lifter/scripts/track_shared_state.py \
     --record-field CSecurityDescriptor 0x30 pDacl PACL --source SetDacl --asm-verified
 
 # Record a constant
-python .agent/agents/code-lifter/scripts/track_shared_state.py \
+python .claude/agents/code-lifter/scripts/track_shared_state.py \
     --record-constant POLICY_DISABLED 1 --source CheckAccess
 
 # Record a naming mapping
-python .agent/agents/code-lifter/scripts/track_shared_state.py \
+python .claude/agents/code-lifter/scripts/track_shared_state.py \
     --record-naming field_30 pDacl
 
 # Mark a function as lifted
-python .agent/agents/code-lifter/scripts/track_shared_state.py --mark-lifted "CSecurityDescriptor::SetDacl"
+python .claude/agents/code-lifter/scripts/track_shared_state.py --mark-lifted "CSecurityDescriptor::SetDacl"
 
 # Record a clean lifted signature
-python .agent/agents/code-lifter/scripts/track_shared_state.py \
+python .claude/agents/code-lifter/scripts/track_shared_state.py \
     --record-signature "CSecurityDescriptor::SetDacl" "HRESULT CSecurityDescriptor::SetDacl(PACL pDacl)"
 
 # Get current shared state (human-readable or JSON)
-python .agent/agents/code-lifter/scripts/track_shared_state.py --dump
-python .agent/agents/code-lifter/scripts/track_shared_state.py --dump --json
+python .claude/agents/code-lifter/scripts/track_shared_state.py --dump
+python .claude/agents/code-lifter/scripts/track_shared_state.py --dump --json
 
 # List all active state files
-python .agent/agents/code-lifter/scripts/track_shared_state.py --list
+python .claude/agents/code-lifter/scripts/track_shared_state.py --list
 ```
 
 **Typical workflow:**
@@ -446,8 +446,8 @@ with open_individual_analysis_db("extracted_dbs/appinfo_dll_e98d25a9e8.db") as d
 
 ### Skill Scripts
 
-All registered skills are available under `.agent/skills/`. Skills that ship
-scripts expose them at `.agent/skills/<skill-name>/scripts/<script>.py`;
+All registered skills are available under `.claude/skills/`. Skills that ship
+scripts expose them at `.claude/skills/<skill-name>/scripts/<script>.py`;
 methodology-only skills contribute guidance but no script files. Subagent
 scripts call script-backed skills via subprocess with `--json` for structured
 output.
@@ -457,8 +457,8 @@ output.
 Every workflow starts with finding the DB:
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --list
 ```
 
 Each module's `extracted_code/{module}/function_index.json` maps function names to their `.cpp` files and library tags. Use `load_function_index_for_db(db_path)` to load the index directly from a DB path.
@@ -468,7 +468,7 @@ Each module also has `extracted_code/{module}/module_profile.json` with pre-comp
 ## Files
 
 ```
-.agent/agents/
+.claude/agents/
   registry.json                                 # Machine-readable agent contracts
   README.md                                     # This file
   re-analyst.md                                 # RE analyst subagent definition

@@ -11,10 +11,10 @@ Usage:
 
 ## Execution
 
-Run `.agent/helpers/health_check.py` directly from the workspace root. This is the canonical implementation -- do **not** write inline Python to read or iterate the registries.
+Run `.claude/helpers/health_check.py` directly from the workspace root. This is the canonical implementation -- do **not** write inline Python to read or iterate the registries.
 
 ```
-python .agent/helpers/health_check.py [--quick|--full] [--json] [--workspace <path>]
+python .claude/helpers/health_check.py [--quick|--full] [--json] [--workspace <path>]
 ```
 
 The script handles all registry loading and validation internally. Present its stdout output to the user.
@@ -23,14 +23,14 @@ The script handles all registry loading and validation internally. Present its s
 
 | Mode | Command |
 |------|---------|
-| Standard | `python .agent/helpers/health_check.py` |
-| Quick (skip DBs + indexes) | `python .agent/helpers/health_check.py --quick` |
-| Full (all DBs + tests) | `python .agent/helpers/health_check.py --full` |
-| JSON output | `python .agent/helpers/health_check.py [--quick\|--full] --json` |
+| Standard | `python .claude/helpers/health_check.py` |
+| Quick (skip DBs + indexes) | `python .claude/helpers/health_check.py --quick` |
+| Full (all DBs + tests) | `python .claude/helpers/health_check.py --full` |
+| JSON output | `python .claude/helpers/health_check.py [--quick\|--full] --json` |
 
 ### Working directory
 
-The script auto-resolves the workspace root from its own location (`..` relative to `.agent/helpers/`). If running from a non-standard layout, pass `--workspace <path>` explicitly.
+The script auto-resolves the workspace root from its own location (`..` relative to `.claude/helpers/`). If running from a non-standard layout, pass `--workspace <path>` explicitly.
 
 ## What the script checks
 
@@ -89,4 +89,4 @@ Exit code is 0 on clean, 1 on any failure.
 - **Tracking DB missing**: `analyzed_files.db` absent; cross-module features unavailable (warning, not fatal).
 - **Individual DB corrupt**: script reports which DBs failed validation with specific error messages.
 - **Registry missing or empty**: script reports which registry file could not be loaded.
-- **Test failures** (`--full`): failure output is captured; run `cd .agent && python -m pytest tests/ -v` for full details.
+- **Test failures** (`--full`): failure output is captured; run `cd .claude && python -m pytest tests/ -v` for full details.

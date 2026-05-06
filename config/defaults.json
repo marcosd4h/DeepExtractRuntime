@@ -75,7 +75,7 @@
     "max_cache_size_mb": 500
   },
   "findings_store": {
-    "db_path": ".agent/cache/findings.db",
+    "db_path": ".claude/cache/findings.db",
     "retention_days": 30
   },
   "ui": {

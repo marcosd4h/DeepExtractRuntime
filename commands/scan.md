@@ -25,16 +25,16 @@ Usage:
 
 This command orchestrates many analysis steps:
 
-1. Create `.agent/workspace/<module>_scan_<timestamp>/`.
+1. Create `.claude/workspace/<module>_scan_<timestamp>/`.
 2. Store per-phase results in `<run_dir>/<phase>/results.json`.
 3. Use `<run_dir>/manifest.json` to track completed/failed phases.
 4. Keep only summaries in context; read full findings from results.json on demand.
 
 ## Execution Context
 
-> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.agent`
-> (so the `.agent/` directory is on `sys.path`), **not** from the workspace root.
-> Script invocations like `python .agent/skills/.../script.py` can be run from the workspace root
+> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.claude`
+> (so the `.claude/` directory is on `sys.path`), **not** from the workspace root.
+> Script invocations like `python .claude/skills/.../script.py` can be run from the workspace root
 > because those scripts manage their own path setup.
 
 ## Steps
@@ -51,7 +51,7 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 > **Tip:** All skill scripts support `--json` for machine-readable output. Use `--json` when parsing script output programmatically.
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name> --json
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name> --json
 ```
 
 ### Run scan via security-auditor
@@ -61,13 +61,13 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module
 
    ```bash
    # Full module scan
-   python .agent/agents/security-auditor/scripts/run_security_scan.py <db_path> --goal scan --json
+   python .claude/agents/security-auditor/scripts/run_security_scan.py <db_path> --goal scan --json
 
    # Function-specific scan
-   python .agent/agents/security-auditor/scripts/run_security_scan.py <db_path> --goal audit --function <name> --json
+   python .claude/agents/security-auditor/scripts/run_security_scan.py <db_path> --goal audit --function <name> --json
 
    # Limit top findings
-   python .agent/agents/security-auditor/scripts/run_security_scan.py <db_path> --goal scan --top 15 --json
+   python .claude/agents/security-auditor/scripts/run_security_scan.py <db_path> --goal scan --top 15 --json
    ```
 
    The script handles all phases internally with parallel execution and deduplication:

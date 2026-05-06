@@ -4,7 +4,7 @@
 CLI entry point for running, validating, and inspecting batch analysis
 pipelines defined in YAML.  Can be invoked directly::
 
-    python .agent/helpers/pipeline_cli.py run config/pipelines/security-sweep.yaml --json
+    python .claude/helpers/pipeline_cli.py run config/pipelines/security-sweep.yaml --json
 """
 
 from __future__ import annotations

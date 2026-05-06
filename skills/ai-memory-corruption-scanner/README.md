@@ -9,14 +9,14 @@ against assembly ground truth.
 
 ```bash
 # Build threat model
-python .agent/skills/ai-memory-corruption-scanner/scripts/build_threat_model.py <db_path> --json
+python .claude/skills/ai-memory-corruption-scanner/scripts/build_threat_model.py <db_path> --json
 
 # Prepare callgraph context for a specific function
-python .agent/skills/ai-memory-corruption-scanner/scripts/prepare_context.py <db_path> \
+python .claude/skills/ai-memory-corruption-scanner/scripts/prepare_context.py <db_path> \
     --function "NetrShareGetInfo" --depth 5 --json
 
 # Prepare callgraph context from auto-discovered entry points
-python .agent/skills/ai-memory-corruption-scanner/scripts/prepare_context.py <db_path> \
+python .claude/skills/ai-memory-corruption-scanner/scripts/prepare_context.py <db_path> \
     --entry-points --depth 5 --json
 ```
 
@@ -38,7 +38,7 @@ python .agent/skills/ai-memory-corruption-scanner/scripts/prepare_context.py <db
 
 The skill provides context preparation. The actual vulnerability detection
 is performed by the `memory-corruption-scanner` agent (defined in
-`.agent/agents/memory-corruption-scanner.md`) which reads the callgraph JSON
+`.claude/agents/memory-corruption-scanner.md`) which reads the callgraph JSON
 and retrieves function code on demand via `extract_function_data.py`.
 
 See [SKILL.md](SKILL.md) for full documentation.

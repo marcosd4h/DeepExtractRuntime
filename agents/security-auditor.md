@@ -28,9 +28,9 @@ You are NOT an analyst -- that is the re-analyst agent. You are NOT a lifter -- 
 
 ### Vulnerability Detection
 
-Memory corruption scanning is now handled by the `memory-corruption-scanner` agent via `/memory-scan`. See `.agent/agents/memory-corruption-scanner.md`.
+Memory corruption scanning is now handled by the `memory-corruption-scanner` agent via `/memory-scan`. See `.claude/agents/memory-corruption-scanner.md`.
 
-Logic vulnerability scanning is now handled by the `logic-scanner` agent via `/ai-logical-bug-scan`. See `.agent/agents/logic-scanner.md`.
+Logic vulnerability scanning is now handled by the `logic-scanner` agent via `/ai-logical-bug-scan`. See `.claude/agents/logic-scanner.md`.
 
 ### Taint Context Preparation
 

@@ -2,9 +2,9 @@
 """Categorize module imports by API capability type.
 
 Usage:
-    python .agent/skills/generate-re-report/scripts/analyze_imports.py <db_path>
-    python .agent/skills/generate-re-report/scripts/analyze_imports.py <db_path> --json
-    python .agent/skills/generate-re-report/scripts/analyze_imports.py <db_path> --include-delay-load
+    python .claude/skills/generate-re-report/scripts/analyze_imports.py <db_path>
+    python .claude/skills/generate-re-report/scripts/analyze_imports.py <db_path> --json
+    python .claude/skills/generate-re-report/scripts/analyze_imports.py <db_path> --include-delay-load
 """
 
 from __future__ import annotations

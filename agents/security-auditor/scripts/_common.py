@@ -26,7 +26,7 @@ from skills._shared import (
 
 WORKSPACE_ROOT = bootstrap(__file__)
 
-SKILLS_DIR = WORKSPACE_ROOT / ".agent" / "skills"
+SKILLS_DIR = WORKSPACE_ROOT / ".claude" / "skills"
 EXTRACTED_DBS_DIR = WORKSPACE_ROOT / "extracted_dbs"
 EXTRACTED_CODE_DIR = WORKSPACE_ROOT / "extracted_code"
 

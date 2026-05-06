@@ -8,16 +8,16 @@ Generates synthesized reverse engineering reports from DeepExtractIDA analysis d
 
 ```bash
 # 1. Find the module DB
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 
 # 2. Generate a full report
-python .agent/skills/generate-re-report/scripts/generate_report.py extracted_dbs/appinfo_dll_e98d25a9e8.db
+python .claude/skills/generate-re-report/scripts/generate_report.py extracted_dbs/appinfo_dll_e98d25a9e8.db
 
 # 3. Quick triage (brief mode)
-python .agent/skills/generate-re-report/scripts/generate_report.py extracted_dbs/appinfo_dll_e98d25a9e8.db --summary
+python .claude/skills/generate-re-report/scripts/generate_report.py extracted_dbs/appinfo_dll_e98d25a9e8.db --summary
 
 # 4. Save alongside module files
-python .agent/skills/generate-re-report/scripts/generate_report.py extracted_dbs/appinfo_dll_e98d25a9e8.db -o extracted_code/appinfo_dll/re_report.md
+python .claude/skills/generate-re-report/scripts/generate_report.py extracted_dbs/appinfo_dll_e98d25a9e8.db -o extracted_code/appinfo_dll/re_report.md
 ```
 
 ## What It Produces (10-Section Report)
@@ -50,25 +50,25 @@ python .agent/skills/generate-re-report/scripts/generate_report.py extracted_dbs
 
 ```bash
 # Full report to stdout
-python .agent/skills/generate-re-report/scripts/generate_report.py <db_path>
+python .claude/skills/generate-re-report/scripts/generate_report.py <db_path>
 
 # Brief mode (sections 1, 3, 4, 10 only)
-python .agent/skills/generate-re-report/scripts/generate_report.py <db_path> --summary
+python .claude/skills/generate-re-report/scripts/generate_report.py <db_path> --summary
 
 # Control ranked table sizes
-python .agent/skills/generate-re-report/scripts/generate_report.py <db_path> --top 20
+python .claude/skills/generate-re-report/scripts/generate_report.py <db_path> --top 20
 
 # JSON output (all raw analysis data)
-python .agent/skills/generate-re-report/scripts/generate_report.py <db_path> --json
+python .claude/skills/generate-re-report/scripts/generate_report.py <db_path> --json
 
 # Write to file
-python .agent/skills/generate-re-report/scripts/generate_report.py <db_path> -o report.md
+python .claude/skills/generate-re-report/scripts/generate_report.py <db_path> -o report.md
 
 # Individual analyzers
-python .agent/skills/generate-re-report/scripts/analyze_imports.py <db_path> --exports --include-delay-load
-python .agent/skills/generate-re-report/scripts/analyze_complexity.py <db_path> --top 20
-python .agent/skills/generate-re-report/scripts/analyze_topology.py <db_path> --json
-python .agent/skills/generate-re-report/scripts/analyze_strings.py <db_path> --category registry_key
+python .claude/skills/generate-re-report/scripts/analyze_imports.py <db_path> --exports --include-delay-load
+python .claude/skills/generate-re-report/scripts/analyze_complexity.py <db_path> --top 20
+python .claude/skills/generate-re-report/scripts/analyze_topology.py <db_path> --json
+python .claude/skills/generate-re-report/scripts/analyze_strings.py <db_path> --category registry_key
 ```
 
 ## Example Output
@@ -146,7 +146,7 @@ generate-re-report/
 ## Dependencies
 
 - Python 3.10+
-- `.agent/helpers/` module (workspace root) -- provides `open_individual_analysis_db`, `open_analyzed_files_db`
+- `.claude/helpers/` module (workspace root) -- provides `open_individual_analysis_db`, `open_analyzed_files_db`
 - SQLite analysis databases from DeepExtractIDA
 
 ## Related Skills

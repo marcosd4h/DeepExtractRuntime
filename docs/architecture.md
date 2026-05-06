@@ -1,6 +1,6 @@
 # Architecture
 
-The DeepExtractIDA Agent Analysis Runtime is installed as `.agent/` inside a
+The DeepExtractIDA Agent Analysis Runtime is installed as `.claude/` inside a
 `DeepExtractIDA_output_root`. DeepExtractIDA produces the extractor outputs at
 workspace root; this runtime adds commands, agents, hooks, rules, cache, and
 workspace orchestration on top of those artifacts.
@@ -12,11 +12,11 @@ workspace orchestration on top of those artifacts.
 The runtime is designed around a two-layer workspace:
 
 1. **Extractor-managed root artifacts** produced by DeepExtractIDA
-2. **Runtime-managed overlay** installed at `.agent/`
+2. **Runtime-managed overlay** installed at `.claude/`
 
 ```text
 <DeepExtractIDA_output_root>/
-  AGENTS.md
+  CLAUDE.md
   CLAUDE.md
   extraction_report.json
   logs/
@@ -30,7 +30,7 @@ The runtime is designed around a two-layer workspace:
   extracted_dbs/
     analyzed_files.db           Extractor-default tracking DB
     <module>_<hash>.db
-  .agent/
+  .claude/
     commands/
     agents/
     skills/
@@ -95,12 +95,12 @@ flowchart TD
 
 ### Commands
 
-Commands are user-facing Markdown workflows loaded from `.agent/commands/`.
+Commands are user-facing Markdown workflows loaded from `.claude/commands/`.
 The live registry (`commands/registry.json`) defines the current set.
 
 ### Agents
 
-Agents are specialized subagents loaded from `.agent/agents/`. The live
+Agents are specialized subagents loaded from `.claude/agents/`. The live
 registry currently defines **8 agents**:
 
 - `re-analyst` -- explain and analyze decompiled functions
@@ -114,21 +114,21 @@ registry currently defines **8 agents**:
 
 ### Skills
 
-Skills are reusable analysis pipelines under `.agent/skills/`. The live
+Skills are reusable analysis pipelines under `.claude/skills/`. The live
 registry (`skills/registry.json`) defines all skills, ranging from extraction
 helpers and call graph analysis to reconstruction, scanning, exploitability
 assessment, and methodology-only guidance.
 
 ### Helpers
 
-Helpers are the shared Python API under `.agent/helpers/`. They own DB access,
+Helpers are the shared Python API under `.claude/helpers/`. They own DB access,
 function resolution, config, cache, JSON output, progress reporting, workspace
 handoff, and batch pipeline support.
 
 ### Hooks And Rules
 
-Hooks live at `.agent/hooks/` and are activated from root-level `hooks.json`.
-Rules live at `.agent/rules/` and define the behavioral conventions that keep
+Hooks live at `.claude/hooks/` and are activated from root-level `hooks.json`.
+Rules live at `.claude/rules/` and define the behavioral conventions that keep
 commands, agents, and skills consistent.
 
 ---
@@ -185,7 +185,7 @@ sequenceDiagram
     participant DB as AnalysisDB
 
     User->>Agent: /command module function
-    Agent->>Command: Read .agent/commands/<command>.md
+    Agent->>Command: Read .claude/commands/<command>.md
     Command-->>Agent: Step instructions
     Agent->>Subagent: Delegate context-heavy task (optional)
     Agent->>Skill: Run skill script(s)
@@ -203,10 +203,10 @@ skills.
 
 ### Workspace Handoff
 
-Multi-step workflows write intermediate outputs under `.agent/workspace/`:
+Multi-step workflows write intermediate outputs under `.claude/workspace/`:
 
 ```text
-.agent/workspace/<module>_<goal>_<timestamp>/
+.claude/workspace/<module>_<goal>_<timestamp>/
   manifest.json
   <step_name>/
     results.json
@@ -220,7 +220,7 @@ directory creation and manifest/result I/O.
 ### Grind Loop
 
 Long-running iterative workflows use session-scoped scratchpads under
-`.agent/hooks/scratchpads/{session_id}.md`:
+`.claude/hooks/scratchpads/{session_id}.md`:
 
 1. A command or agent creates checklist items.
 2. The agent checks items off as work completes.
@@ -238,10 +238,10 @@ The `/pipeline` slash command provides interactive access to the same CLI:
 - `triage-coordinator/analyze_module.py` backs `triage`, `security`,
   `full-analysis`, and `types`
 - `security-auditor/run_security_scan.py` backs the full `scan` step
-- direct skill-group steps still write to `.agent/workspace/`
+- direct skill-group steps still write to `.claude/workspace/`
 
 The `workspace/...` output shorthand in pipeline YAML is normalized into
-`.agent/workspace/...` by `helpers.pipeline_schema.render_output_path()`.
+`.claude/workspace/...` by `helpers.pipeline_schema.render_output_path()`.
 
 ---
 
@@ -249,13 +249,13 @@ The `workspace/...` output shorthand in pipeline YAML is normalized into
 
 Installed workspaces configure **3** hook events in root-level `hooks.json`.
 
-> Hook commands run relative to the output root, not relative to `.agent/`.
+> Hook commands run relative to the output root, not relative to `.claude/`.
 
 | Event | Script | Timeout | Purpose |
 | ----- | ------ | ------- | ------- |
-| `sessionStart` | `.agent/hooks/inject-module-context.py` | 15s | Inject module, registry, cache, and README overview context |
-| `stop` | `.agent/hooks/grind-until-done.py` | 5s | Continue iterative work while scratchpad items remain |
-| `sessionEnd` | `.agent/hooks/cleanup-workspace.py` | 10s | Remove stale run artifacts, state files, and cache |
+| `sessionStart` | `.claude/hooks/inject-module-context.py` | 15s | Inject module, registry, cache, and README overview context |
+| `stop` | `.claude/hooks/grind-until-done.py` | 5s | Continue iterative work while scratchpad items remain |
+| `sessionEnd` | `.claude/hooks/cleanup-workspace.py` | 10s | Remove stale run artifacts, state files, and cache |
 
 ### sessionStart
 
@@ -264,13 +264,13 @@ The session-start hook scans the output root and runtime overlay:
 - `extracted_code/*/file_info.json`
 - `extracted_code/*/module_profile.json`
 - `extracted_dbs/*.db`
-- `.agent/skills/*/SKILL.md`
-- `.agent/rules/*.mdc`
+- `.claude/skills/*/SKILL.md`
+- `.claude/rules/*.mdc`
 - `skills/registry.json`, `agents/registry.json`, `commands/registry.json`
 - README overviews for skills, commands, and agents at `full` context level
 
 It also resolves a session ID and ensures
-`.agent/hooks/scratchpads/` exists.
+`.claude/hooks/scratchpads/` exists.
 
 ### stop
 
@@ -286,7 +286,7 @@ It also prunes stale scratchpads.
 The session-end hook delegates to `helpers.cleanup_workspace.cleanup_workspace()`
 to clean:
 
-- stale `.agent/workspace/` runs
+- stale `.claude/workspace/` runs
 - stale agent state files
 - stale cache entries
 
@@ -294,12 +294,12 @@ to clean:
 
 ## Rules
 
-The runtime ships the following rules in `.agent/rules/`:
+The runtime ships the following rules in `.claude/rules/`:
 
 | Rule | Purpose |
 | ---- | ------- |
 | `workspace-pattern.mdc` | Multi-step filesystem handoff contract |
-| `workspace-layout.mdc` | Installed output-root and `.agent/` path conventions |
+| `workspace-layout.mdc` | Installed output-root and `.claude/` path conventions |
 | `grind-loop-protocol.mdc` | Scratchpad structure and iteration behavior |
 | `error-handling-convention.mdc` | Entry-point vs library error model |
 | `json-output-convention.mdc` | stdout/stderr and JSON wrapping conventions |
@@ -329,7 +329,7 @@ to build the initial routing context for every conversation.
 Installed-workspace command:
 
 ```bash
-cd <DeepExtractIDA_output_root>/.agent && python -m pytest tests/ -v
+cd <DeepExtractIDA_output_root>/.claude && python -m pytest tests/ -v
 ```
 
 The suite validates registry consistency, helper behavior, hook behavior,

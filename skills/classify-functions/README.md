@@ -8,16 +8,16 @@ Automatically categorizes every function in a DeepExtractIDA module into 18 purp
 
 ```bash
 # 1. Find the module DB
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 
 # 2. Get a high-level triage summary
-python .agent/skills/classify-functions/scripts/triage_summary.py extracted_dbs/appinfo_dll_e98d25a9e8.db
+python .claude/skills/classify-functions/scripts/triage_summary.py extracted_dbs/appinfo_dll_e98d25a9e8.db
 
 # 3. Full categorized index (filter to what matters)
-python .agent/skills/classify-functions/scripts/classify_module.py extracted_dbs/appinfo_dll_e98d25a9e8.db --min-interest 4 --no-telemetry --no-compiler
+python .claude/skills/classify-functions/scripts/classify_module.py extracted_dbs/appinfo_dll_e98d25a9e8.db --min-interest 4 --no-telemetry --no-compiler
 
 # 4. Deep-dive into a specific function
-python .agent/skills/classify-functions/scripts/classify_function.py extracted_dbs/appinfo_dll_e98d25a9e8.db --id 752
+python .claude/skills/classify-functions/scripts/classify_function.py extracted_dbs/appinfo_dll_e98d25a9e8.db --id 752
 ```
 
 ## Scripts
@@ -164,32 +164,32 @@ Primary category = highest total score. See [reference.md](reference.md) for the
 
 **Triage an unknown module:**
 ```bash
-python .agent/skills/classify-functions/scripts/triage_summary.py <db_path> --top 15
+python .claude/skills/classify-functions/scripts/triage_summary.py <db_path> --top 15
 ```
 
 **Find all crypto and security functions:**
 ```bash
-python .agent/skills/classify-functions/scripts/classify_module.py <db_path> --category crypto --category security
+python .claude/skills/classify-functions/scripts/classify_module.py <db_path> --category crypto --category security
 ```
 
 **Filter out noise, show only interesting functions:**
 ```bash
-python .agent/skills/classify-functions/scripts/classify_module.py <db_path> --no-telemetry --no-compiler --min-interest 3
+python .claude/skills/classify-functions/scripts/classify_module.py <db_path> --no-telemetry --no-compiler --min-interest 3
 ```
 
 **Export full classification as JSON:**
 ```bash
-python .agent/skills/classify-functions/scripts/classify_module.py <db_path> --json > classification.json
+python .claude/skills/classify-functions/scripts/classify_module.py <db_path> --json > classification.json
 ```
 
 **Search for functions by name and classify matches:**
 ```bash
-python .agent/skills/classify-functions/scripts/classify_function.py <db_path> --search "Check"
+python .claude/skills/classify-functions/scripts/classify_function.py <db_path> --search "Check"
 ```
 
 **Cross-dimensional search (names, strings, APIs, classes, exports):**
 ```bash
-python .agent/helpers/unified_search.py <db_path> --query "Check"
+python .claude/helpers/unified_search.py <db_path> --query "Check"
 ```
 
 ## Tested Modules
@@ -218,7 +218,7 @@ classify-functions/
 ## Dependencies
 
 - Python 3.10+
-- `.agent/helpers/` module (workspace root) -- provides `open_individual_analysis_db`, `open_analyzed_files_db`
+- `.claude/helpers/` module (workspace root) -- provides `open_individual_analysis_db`, `open_analyzed_files_db`
 - SQLite analysis databases from DeepExtractIDA
 
 ## Related Skills

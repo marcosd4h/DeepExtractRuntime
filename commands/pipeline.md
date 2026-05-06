@@ -21,7 +21,7 @@ For YAML schema details and example pipeline files, see
 ## Execution Context
 
 > **IMPORTANT**: Invoke `pipeline_cli.py` from the workspace root:
-> `python .agent/helpers/pipeline_cli.py <subcommand> <args> --json`
+> `python .claude/helpers/pipeline_cli.py <subcommand> <args> --json`
 
 Always pass `--json` when parsing output programmatically.
 
@@ -39,13 +39,13 @@ Run the appropriate subcommand:
 
 ```bash
 # List available steps
-python .agent/helpers/pipeline_cli.py list-steps --json
+python .claude/helpers/pipeline_cli.py list-steps --json
 
 # Validate a pipeline definition
-python .agent/helpers/pipeline_cli.py validate <pipeline_file> --json
+python .claude/helpers/pipeline_cli.py validate <pipeline_file> --json
 
 # Execute a pipeline (with optional flags)
-python .agent/helpers/pipeline_cli.py run <pipeline_file> [--dry-run] [--modules M] [--output DIR] --json
+python .claude/helpers/pipeline_cli.py run <pipeline_file> [--dry-run] [--modules M] [--output DIR] --json
 ```
 
 Parse JSON stdout for the result payload.

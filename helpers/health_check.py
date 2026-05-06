@@ -5,11 +5,11 @@ Validates that extraction data, analysis databases, skill/agent/command
 registries, and configuration are present and consistent.
 
 Usage:
-    python .agent/helpers/health_check.py
-    python .agent/helpers/health_check.py --quick
-    python .agent/helpers/health_check.py --full
-    python .agent/helpers/health_check.py --json
-    python .agent/helpers/health_check.py --workspace /path/to/workspace
+    python .claude/helpers/health_check.py
+    python .claude/helpers/health_check.py --quick
+    python .claude/helpers/health_check.py --full
+    python .claude/helpers/health_check.py --json
+    python .claude/helpers/health_check.py --workspace /path/to/workspace
 
 Modes:
     (default)  -- standard: sample DBs and function indexes at scale
@@ -32,8 +32,8 @@ from typing import Optional
 # Bootstrap: ensure helpers/ is importable from any cwd
 # ---------------------------------------------------------------------------
 
-_SCRIPT_DIR = Path(__file__).resolve().parent   # .agent/helpers/
-_RUNTIME_ROOT = _SCRIPT_DIR.parent              # .agent/
+_SCRIPT_DIR = Path(__file__).resolve().parent   # .claude/helpers/
+_RUNTIME_ROOT = _SCRIPT_DIR.parent              # .claude/
 _WORKSPACE_ROOT = _RUNTIME_ROOT.parent          # workspace root
 
 if str(_RUNTIME_ROOT) not in sys.path:
@@ -440,7 +440,7 @@ def check_test_suite(workspace_root: Path) -> CheckResult:
     """Step 8 (--full only): run pytest and report pass/fail counts."""
     status_message("Running test suite...")
     result = CheckResult("Test Suite")
-    tests_dir = workspace_root / ".agent" / "tests"
+    tests_dir = workspace_root / ".claude" / "tests"
     if not tests_dir.exists():
         result.warnings.append(f"tests/ directory not found at {tests_dir}")
         result.detail = "skipped (tests/ not found)"
@@ -456,7 +456,7 @@ def check_test_suite(workspace_root: Path) -> CheckResult:
             cmd,
             capture_output=True,
             text=True,
-            cwd=str(workspace_root / ".agent"),
+            cwd=str(workspace_root / ".claude"),
         )
     except OSError as exc:
         result.ok = False
@@ -477,7 +477,7 @@ def check_test_suite(workspace_root: Path) -> CheckResult:
         if len(failure_lines) > 40:
             result.errors.append(
                 f"... {len(failure_lines) - 40} more lines. "
-                "Run: cd .agent && python -m pytest tests/ -v"
+                "Run: cd .claude && python -m pytest tests/ -v"
             )
     return result
 
@@ -509,7 +509,7 @@ def run_health_check(
     # 1. Extraction data
     report.add(check_extraction_data(workspace_root))
 
-    agent_dir = workspace_root / ".agent"
+    agent_dir = workspace_root / ".claude"
 
     # 2. Analysis DBs (skip for --quick)
     if not quick:
@@ -560,7 +560,7 @@ def main() -> int:
         "--workspace",
         metavar="PATH",
         default=None,
-        help="Workspace root path (default: parent of .agent/).",
+        help="Workspace root path (default: parent of .claude/).",
     )
     args = parser.parse_args()
 

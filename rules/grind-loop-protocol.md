@@ -5,23 +5,23 @@ alwaysApply: true
 
 # Grind Loop Protocol
 
-This workspace has a **stop hook** (`.agent/hooks/grind-until-done.py`) that re-invokes the agent when a task scratchpad has unchecked items. Use this for any workflow that processes **multiple discrete items** (functions to lift, phases to complete, modules to scan, etc.).
+This workspace has a **stop hook** (`.claude/hooks/grind-until-done.py`) that re-invokes the agent when a task scratchpad has unchecked items. Use this for any workflow that processes **multiple discrete items** (functions to lift, phases to complete, modules to scan, etc.).
 
 ## Session-Scoped Scratchpads
 
 Each agent session gets its own scratchpad file to prevent concurrent sessions from overwriting each other. The scratchpad path is:
 
 ```
-.agent/hooks/scratchpads/{session_id}.md
+.claude/hooks/scratchpads/{session_id}.md
 ```
 
 The `{session_id}` is injected into your context by the `sessionStart` hook. Look for the **Session** section in your initial context -- it contains your Session ID and the exact scratchpad path to use.
 
-If the session ID is not available in your context, fall back to `.agent/hooks/scratchpads/default.md`.
+If the session ID is not available in your context, fall back to `.claude/hooks/scratchpads/default.md`.
 
 ## When to Create the Scratchpad
 
-Create `.agent/hooks/scratchpads/{session_id}.md` when:
+Create `.claude/hooks/scratchpads/{session_id}.md` when:
 
 - The task involves **3+ discrete items** to process sequentially (e.g., lifting N functions, running N analysis phases, verifying N functions)
 - The user says "all", "every", "each", "batch" -- anything implying iteration
@@ -31,7 +31,7 @@ Do **NOT** create a scratchpad for single-item tasks or simple questions.
 
 ## Scratchpad Format
 
-Write this exact format to `.agent/hooks/scratchpads/{session_id}.md`:
+Write this exact format to `.claude/hooks/scratchpads/{session_id}.md`:
 
 ```markdown
 # Task: <short description>
@@ -56,7 +56,7 @@ IN_PROGRESS
 
 When the agent loop ends (you run out of things to say), the stop hook:
 - Resolves the session ID from environment variables or stdin metadata (platform-agnostic: works with Cursor and Claude Code)
-- Reads the session-scoped scratchpad at `.agent/hooks/scratchpads/{session_id}.md`
+- Reads the session-scoped scratchpad at `.claude/hooks/scratchpads/{session_id}.md`
 - If unchecked items remain and Status is not `DONE` or `COMPLETE`, sends a **followup message** listing remaining items
 - The agent is re-invoked automatically to continue
 - This repeats up to **10 times** (configured `loop_limit` in hooks.json)

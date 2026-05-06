@@ -28,7 +28,7 @@ import pytest
 # Paths
 # ---------------------------------------------------------------------------
 
-AGENT_DIR = Path(__file__).resolve().parent.parent          # .agent/
+AGENT_DIR = Path(__file__).resolve().parent.parent          # .claude/
 SKILLS_DIR = AGENT_DIR / "skills"
 AGENTS_DIR = AGENT_DIR / "agents"
 COMMANDS_DIR = AGENT_DIR / "commands"
@@ -958,45 +958,45 @@ class TestHookDocumentationConsistency:
 
 
 # ======================================================================
-# 14. Deployed .agent layout consistency
+# 14. Deployed .claude layout consistency
 # ======================================================================
 
 class TestDeploymentModelConsistency:
-    """Deployment-facing docs/config should consistently describe the .agent layout."""
+    """Deployment-facing docs/config should consistently describe the .claude layout."""
 
     def test_hooks_json_uses_deployed_agent_paths(self):
-        """Configured hook commands should execute from the workspace root into .agent/."""
+        """Configured hook commands should execute from the workspace root into .claude/."""
         hooks = _load_hooks_config()
         bad = []
         for event_name, entries in hooks.items():
             for entry in entries:
                 command = entry.get("command", "")
-                if not command.startswith("python .agent/"):
+                if not command.startswith("python .claude/"):
                     bad.append(f"{event_name} -> {command}")
 
         assert not bad, (
-            "hooks.json commands should use the deployed .agent layout:\n"
+            "hooks.json commands should use the deployed .claude layout:\n"
             + "\n".join(f"  - {item}" for item in bad)
         )
 
     @pytest.mark.parametrize("doc_path", [ROOT_README_PATH, ARCHITECTURE_DOC_PATH])
     def test_deployment_docs_use_agent_relative_scratchpad_paths(self, doc_path):
-        """Top-level docs should reference scratchpads under .agent/hooks/."""
+        """Top-level docs should reference scratchpads under .claude/hooks/."""
         doc_text = doc_path.read_text(encoding="utf-8")
-        assert ".agent/hooks/scratchpads/{session_id}.md" in doc_text, (
+        assert ".claude/hooks/scratchpads/{session_id}.md" in doc_text, (
             f"{doc_path.relative_to(AGENT_DIR)} should document scratchpads under "
-            ".agent/hooks/scratchpads/{session_id}.md"
+            ".claude/hooks/scratchpads/{session_id}.md"
         )
 
     @pytest.mark.parametrize("doc_path", [ROOT_README_PATH, ARCHITECTURE_DOC_PATH])
     def test_deployment_docs_use_agent_root_test_invocation(self, doc_path):
-        """Deployment-facing test instructions should run from the .agent root."""
+        """Deployment-facing test instructions should run from the .claude root."""
         doc_text = doc_path.read_text(encoding="utf-8")
         match = re.search(
-            r"cd [^\n`]*\.agent && python -m pytest tests/ -v",
+            r"cd [^\n`]*\.claude && python -m pytest tests/ -v",
             doc_text,
         )
         assert match, (
             f"{doc_path.relative_to(AGENT_DIR)} should document a pytest "
-            "command that runs from the deployed .agent root"
+            "command that runs from the deployed .claude root"
         )

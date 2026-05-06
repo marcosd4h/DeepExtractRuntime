@@ -21,9 +21,9 @@ Usage:
 
 ## Execution Context
 
-> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.agent`
-> (so the `.agent/` directory is on `sys.path`), **not** from the workspace root.
-> Script invocations like `python .agent/skills/.../script.py` can be run from the workspace root
+> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.claude`
+> (so the `.claude/` directory is on `sys.path`), **not** from the workspace root.
+> Script invocations like `python .claude/skills/.../script.py` can be run from the workspace root
 > because those scripts manage their own path setup.
 
 ## Steps
@@ -40,7 +40,7 @@ Use the **decompiled-code-extractor** skill (`find_module_db.py`) to resolve the
 > **Tip:** All skill scripts support `--json` for machine-readable output. Use `--json` when parsing script output programmatically.
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name> --json
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name> --json
 ```
 
 ### 2. Build or query the call graph
@@ -48,37 +48,37 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module
 **Module-wide statistics** (default when no function is specified):
 
 ```bash
-python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --stats --json
+python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --stats --json
 ```
 
 **Strongly connected components** (`--scc`):
 
 ```bash
-python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --scc --json
+python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --scc --json
 ```
 
 **Root nodes** (`--roots`) -- functions with no callers:
 
 ```bash
-python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --roots --json
+python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --roots --json
 ```
 
 **Leaf nodes** (`--leaves`) -- functions that call nothing:
 
 ```bash
-python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --leaves --json
+python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --leaves --json
 ```
 
 **Function neighborhood** (specific function):
 
 ```bash
-python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --neighbors <function_name> --json
+python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --neighbors <function_name> --json
 ```
 
 When a specific function is queried, also enrich with classification metadata from the **re-analyst** agent:
 
 ```bash
-python .agent/agents/re-analyst/scripts/re_query.py <db_path> --function <function_name> --context --json
+python .claude/agents/re-analyst/scripts/re_query.py <db_path> --function <function_name> --context --json
 ```
 
 Extract **only classification metadata** (category, interest) to annotate the target function and hub neighbors in the diagram and neighborhood table. Do NOT display decompiled code.
@@ -86,13 +86,13 @@ Extract **only classification metadata** (category, interest) to annotate the ta
 **Path between two functions** (`--path`):
 
 ```bash
-python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --path <funcA> <funcB> --json
+python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --path <funcA> <funcB> --json
 ```
 
 **Reachable functions** (`--reachable`):
 
 ```bash
-python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --reachable <function_name> --json
+python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --reachable <function_name> --json
 ```
 
 ### 3. Generate diagram (if requested or for function neighborhoods)
@@ -100,8 +100,8 @@ python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --re
 Use the **callgraph-tracer** skill (`generate_diagram.py`) to produce a Mermaid diagram:
 
 ```bash
-python .agent/skills/callgraph-tracer/scripts/generate_diagram.py <db_path> --function <function_name>
-python .agent/skills/callgraph-tracer/scripts/generate_diagram.py <db_path> --path <funcA> <funcB> --format mermaid
+python .claude/skills/callgraph-tracer/scripts/generate_diagram.py <db_path> --function <function_name>
+python .claude/skills/callgraph-tracer/scripts/generate_diagram.py <db_path> --path <funcA> <funcB> --format mermaid
 ```
 
 ### 4. Present results

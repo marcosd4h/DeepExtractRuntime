@@ -1,9 +1,9 @@
 ---
 description: Convention for discovering function calls in decompiled code
 globs:
-  - ".agent/skills/*/scripts/*.py"
-  - ".agent/agents/*/scripts/*.py"
-  - ".agent/helpers/*.py"
+  - ".claude/skills/*/scripts/*.py"
+  - ".claude/agents/*/scripts/*.py"
+  - ".claude/helpers/*.py"
 alwaysApply: true
 ---
 

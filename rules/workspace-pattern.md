@@ -17,9 +17,9 @@ Apply this pattern when:
 
 ## Run Directory
 
-Create (or reuse) a run directory under `.agent/workspace/`, for example:
+Create (or reuse) a run directory under `.claude/workspace/`, for example:
 
-- `.agent/workspace/<module>_<goal>_<timestamp>/`
+- `.claude/workspace/<module>_<goal>_<timestamp>/`
 
 The run directory must contain `manifest.json` with per-step status records.
 

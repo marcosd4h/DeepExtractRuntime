@@ -45,8 +45,8 @@ Individual analysis DBs in `extracted_dbs/` provide per-function data:
 Reuse the decompiled-code-extractor skill's `find_module_db.py`:
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --list
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 ```
 
 ### Quick Cross-Dimensional Search
@@ -54,8 +54,8 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo
 To search across function names, strings, APIs, classes, and exports in one call, use the unified search helper:
 
 ```bash
-python .agent/helpers/unified_search.py <db_path> --query "CreateProcess"
-python .agent/helpers/unified_search.py <db_path> --query "registry" --json
+python .claude/helpers/unified_search.py <db_path> --query "CreateProcess"
+python .claude/helpers/unified_search.py <db_path> --query "registry" --json
 ```
 
 ## Utility Scripts
@@ -68,13 +68,13 @@ Get a high-level overview of any module in seconds:
 
 ```bash
 # Full triage summary with top-10 most interesting functions
-python .agent/skills/classify-functions/scripts/triage_summary.py <db_path>
+python .claude/skills/classify-functions/scripts/triage_summary.py <db_path>
 
 # Show top-20 most interesting functions
-python .agent/skills/classify-functions/scripts/triage_summary.py <db_path> --top 20
+python .claude/skills/classify-functions/scripts/triage_summary.py <db_path> --top 20
 
 # JSON output for programmatic use
-python .agent/skills/classify-functions/scripts/triage_summary.py <db_path> --json
+python .claude/skills/classify-functions/scripts/triage_summary.py <db_path> --json
 ```
 
 Output includes: category distribution, size distribution, API usage breakdown, top-N most interesting functions, largest functions, most complex functions, and triage recommendations.
@@ -85,19 +85,19 @@ Classify every function and output the complete categorized index:
 
 ```bash
 # Human-readable categorized index
-python .agent/skills/classify-functions/scripts/classify_module.py <db_path>
+python .claude/skills/classify-functions/scripts/classify_module.py <db_path>
 
 # JSON output
-python .agent/skills/classify-functions/scripts/classify_module.py <db_path> --json
+python .claude/skills/classify-functions/scripts/classify_module.py <db_path> --json
 
 # Filter to specific categories
-python .agent/skills/classify-functions/scripts/classify_module.py <db_path> --category security --category crypto
+python .claude/skills/classify-functions/scripts/classify_module.py <db_path> --category security --category crypto
 
 # Only high-interest functions (score >= 4)
-python .agent/skills/classify-functions/scripts/classify_module.py <db_path> --min-interest 4
+python .claude/skills/classify-functions/scripts/classify_module.py <db_path> --min-interest 4
 
 # Exclude infrastructure noise
-python .agent/skills/classify-functions/scripts/classify_module.py <db_path> --no-telemetry --no-compiler
+python .claude/skills/classify-functions/scripts/classify_module.py <db_path> --no-telemetry --no-compiler
 ```
 
 Options: `--json`, `--category <name>` (repeatable), `--min-interest N`, `--no-telemetry`, `--no-compiler`.
@@ -108,16 +108,16 @@ Show detailed classification reasoning for one function:
 
 ```bash
 # By function name
-python .agent/skills/classify-functions/scripts/classify_function.py <db_path> AiCheckSecureApplicationDirectory
+python .claude/skills/classify-functions/scripts/classify_function.py <db_path> AiCheckSecureApplicationDirectory
 
 # By function ID
-python .agent/skills/classify-functions/scripts/classify_function.py <db_path> --id 124
+python .claude/skills/classify-functions/scripts/classify_function.py <db_path> --id 124
 
 # Search and classify matches
-python .agent/skills/classify-functions/scripts/classify_function.py <db_path> --search "Check"
+python .claude/skills/classify-functions/scripts/classify_function.py <db_path> --search "Check"
 
 # JSON output
-python .agent/skills/classify-functions/scripts/classify_function.py <db_path> --id 124 --json
+python .claude/skills/classify-functions/scripts/classify_function.py <db_path> --id 124 --json
 ```
 
 Output includes: primary/secondary categories, all category scores, signal evidence (which APIs, strings, name patterns matched), assembly metrics, API call list with per-API categorization, dangerous APIs, and string literals.
@@ -180,13 +180,13 @@ Triage Progress:
 **Step 1**: Find the module DB
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 ```
 
 **Step 2**: Get the triage summary
 
 ```bash
-python .agent/skills/classify-functions/scripts/triage_summary.py <db_path> --top 15
+python .claude/skills/classify-functions/scripts/triage_summary.py <db_path> --top 15
 ```
 
 **Step 3**: Review the output -- focus on:
@@ -200,36 +200,36 @@ python .agent/skills/classify-functions/scripts/triage_summary.py <db_path> --to
 
 ```bash
 # Show all security functions
-python .agent/skills/classify-functions/scripts/classify_module.py <db_path> --category security
+python .claude/skills/classify-functions/scripts/classify_module.py <db_path> --category security
 
 # Show all functions with interest >= 5, excluding noise
-python .agent/skills/classify-functions/scripts/classify_module.py <db_path> --min-interest 5 --no-telemetry --no-compiler
+python .claude/skills/classify-functions/scripts/classify_module.py <db_path> --min-interest 5 --no-telemetry --no-compiler
 ```
 
 **Step 5**: Examine specific functions
 
 ```bash
-python .agent/skills/classify-functions/scripts/classify_function.py <db_path> --id <function_id>
+python .claude/skills/classify-functions/scripts/classify_function.py <db_path> --id <function_id>
 ```
 
 ### Workflow 2: "Find all crypto/security functions"
 
 ```bash
-python .agent/skills/classify-functions/scripts/classify_module.py <db_path> --category crypto --category security
+python .claude/skills/classify-functions/scripts/classify_module.py <db_path> --category crypto --category security
 ```
 
 ### Workflow 3: "Filter out noise and find what matters"
 
 ```bash
 # Exclude telemetry and compiler-generated, only show interesting
-python .agent/skills/classify-functions/scripts/classify_module.py <db_path> --no-telemetry --no-compiler --min-interest 3
+python .claude/skills/classify-functions/scripts/classify_module.py <db_path> --no-telemetry --no-compiler --min-interest 3
 ```
 
 ### Workflow 4: "Get JSON for downstream processing"
 
 ```bash
 # Full classification as JSON (pipe to jq, other tools, or read programmatically)
-python .agent/skills/classify-functions/scripts/classify_module.py <db_path> --json > classification.json
+python .claude/skills/classify-functions/scripts/classify_module.py <db_path> --json > classification.json
 ```
 
 ## Direct Helper Module Access

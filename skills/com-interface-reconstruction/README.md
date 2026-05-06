@@ -8,19 +8,19 @@ Answers: **"What COM interfaces does this binary implement, and how are they str
 
 ```bash
 # 1. Find the module DB
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 
 # 2. Scan for all COM interfaces
-python .agent/skills/com-interface-reconstruction/scripts/scan_com_interfaces.py extracted_dbs/appinfo_dll_e98d25a9e8.db
+python .claude/skills/com-interface-reconstruction/scripts/scan_com_interfaces.py extracted_dbs/appinfo_dll_e98d25a9e8.db
 
 # 3. Decode WRL template instantiations
-python .agent/skills/com-interface-reconstruction/scripts/decode_wrl_templates.py extracted_dbs/appinfo_dll_e98d25a9e8.db
+python .claude/skills/com-interface-reconstruction/scripts/decode_wrl_templates.py extracted_dbs/appinfo_dll_e98d25a9e8.db
 
 # 4. Map which interfaces each class implements
-python .agent/skills/com-interface-reconstruction/scripts/map_class_interfaces.py extracted_dbs/appinfo_dll_e98d25a9e8.db
+python .claude/skills/com-interface-reconstruction/scripts/map_class_interfaces.py extracted_dbs/appinfo_dll_e98d25a9e8.db
 
 # 5. Generate IDL-like descriptions
-python .agent/skills/com-interface-reconstruction/scripts/generate_idl.py extracted_dbs/appinfo_dll_e98d25a9e8.db
+python .claude/skills/com-interface-reconstruction/scripts/generate_idl.py extracted_dbs/appinfo_dll_e98d25a9e8.db
 ```
 
 ## What It Detects
@@ -150,7 +150,7 @@ com-interface-reconstruction/
 ## Dependencies
 
 - Python 3.10+
-- `.agent/helpers/` module (workspace root) -- provides `open_individual_analysis_db`, `open_analyzed_files_db`
+- `.claude/helpers/` module (workspace root) -- provides `open_individual_analysis_db`, `open_analyzed_files_db`
 - SQLite analysis databases from DeepExtractIDA
 
 ## Related Skills

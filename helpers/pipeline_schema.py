@@ -560,7 +560,7 @@ def load_pipeline(yaml_path: str | Path) -> PipelineDef:
     steps = [_parse_step(item, idx) for idx, item in enumerate(raw_steps, start=1)]
 
     settings = _parse_settings(raw.get("settings"))
-    output = str(raw.get("output") or ".agent/workspace/batch_{name}_{timestamp}")
+    output = str(raw.get("output") or ".claude/workspace/batch_{name}_{timestamp}")
 
     return PipelineDef(
         name=pipeline_name,
@@ -734,8 +734,8 @@ def render_output_path(
     """Render and resolve a pipeline output directory template.
 
     Relative paths are resolved against the workspace root, except for the
-    historical shorthand `workspace/...`, which is resolved under `.agent/`
-    so it lands in `.agent/workspace/...` alongside existing run directories.
+    historical shorthand `workspace/...`, which is resolved under `.claude/`
+    so it lands in `.claude/workspace/...` alongside existing run directories.
     """
     root = _workspace_root(workspace_root)
     stamp = timestamp or _utc_timestamp()
@@ -747,7 +747,7 @@ def render_output_path(
 
     parts = rendered_path.parts
     if parts and parts[0] == "workspace":
-        return (root / ".agent" / rendered_path).resolve()
+        return (root / ".claude" / rendered_path).resolve()
 
     return (root / rendered_path).resolve()
 

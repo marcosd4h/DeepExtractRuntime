@@ -48,7 +48,7 @@ Your primary advantage over single-function lifting is **persistent context**. W
 
 Code-lifter persists class-level lifting state via `track_shared_state.py`. For cross-agent handoff in multi-skill pipelines, use filesystem handoff instead of inline payloads:
 
-- Create a run directory under `.agent/workspace/` (e.g. `.agent/workspace/{module}_lift_{timestamp}/`)
+- Create a run directory under `.claude/workspace/` (e.g. `.claude/workspace/{module}_lift_{timestamp}/`)
 - Pass `--workspace-dir <run_dir>` and `--workspace-step <step_name>` to every script call (both this agent's scripts and supporting skill scripts)
 - The workspace bootstrap in `_common.py` automatically captures stdout, writes `<run_dir>/<step_name>/results.json` and `summary.json`, and updates `<run_dir>/manifest.json`. No manual workspace code is needed.
 - Keep only compact step summaries in coordinator context
@@ -63,25 +63,25 @@ Code-lifter persists class-level lifting state via `track_shared_state.py`. For 
 
 Pre-built scripts handle all DB extraction and state management. **Always use these scripts** instead of writing inline Python. Run from the workspace root.
 
-### This Subagent's Scripts (`.agent/agents/code-lifter/scripts/`)
+### This Subagent's Scripts (`.claude/agents/code-lifter/scripts/`)
 
 **batch_extract.py** -- Extract data for ALL methods of a class in one shot:
 
 ```bash
 # All methods of a class (returns JSON with all data + struct scan)
-python .agent/agents/code-lifter/scripts/batch_extract.py <db_path> --class <ClassName>
+python .claude/agents/code-lifter/scripts/batch_extract.py <db_path> --class <ClassName>
 
 # Specific functions by name
-python .agent/agents/code-lifter/scripts/batch_extract.py <db_path> --functions func1 func2 func3
+python .claude/agents/code-lifter/scripts/batch_extract.py <db_path> --functions func1 func2 func3
 
 # Specific functions by ID
-python .agent/agents/code-lifter/scripts/batch_extract.py <db_path> --id-list 12,15,18,22
+python .claude/agents/code-lifter/scripts/batch_extract.py <db_path> --id-list 12,15,18,22
 
 # Initialize shared state file (do this first!)
-python .agent/agents/code-lifter/scripts/batch_extract.py <db_path> --class <ClassName> --init-state
+python .claude/agents/code-lifter/scripts/batch_extract.py <db_path> --class <ClassName> --init-state
 
 # Human-readable summary
-python .agent/agents/code-lifter/scripts/batch_extract.py <db_path> --class <ClassName> --summary
+python .claude/agents/code-lifter/scripts/batch_extract.py <db_path> --class <ClassName> --summary
 ```
 
 > **Note:** All skill scripts support `--json` for machine-readable output. Add `--json` to any invocation for structured JSON on stdout.
@@ -90,32 +90,32 @@ python .agent/agents/code-lifter/scripts/batch_extract.py <db_path> --class <Cla
 
 ```bash
 # Record a struct field discovered during lifting
-python .agent/agents/code-lifter/scripts/track_shared_state.py \
+python .claude/agents/code-lifter/scripts/track_shared_state.py \
     --record-field <ClassName> <offset> <name> <c_type> --source <func_name> [--asm-verified]
 
 # Record a constant
-python .agent/agents/code-lifter/scripts/track_shared_state.py \
+python .claude/agents/code-lifter/scripts/track_shared_state.py \
     --record-constant <NAME> <VALUE> --source <func_name>
 
 # Record a naming mapping (IDA name -> clean name)
-python .agent/agents/code-lifter/scripts/track_shared_state.py \
+python .claude/agents/code-lifter/scripts/track_shared_state.py \
     --record-naming <ida_name> <clean_name>
 
 # Mark a function as lifted
-python .agent/agents/code-lifter/scripts/track_shared_state.py --mark-lifted <func_name>
+python .claude/agents/code-lifter/scripts/track_shared_state.py --mark-lifted <func_name>
 
 # Record the clean lifted signature
-python .agent/agents/code-lifter/scripts/track_shared_state.py \
+python .claude/agents/code-lifter/scripts/track_shared_state.py \
     --record-signature <func_name> "HRESULT Class::Method(PACL pDacl)"
 
 # Get current shared state (struct + constants + naming map + progress)
-python .agent/agents/code-lifter/scripts/track_shared_state.py --dump
+python .claude/agents/code-lifter/scripts/track_shared_state.py --dump
 
 # JSON output of shared state
-python .agent/agents/code-lifter/scripts/track_shared_state.py --dump --json
+python .claude/agents/code-lifter/scripts/track_shared_state.py --dump --json
 
 # List all active state files
-python .agent/agents/code-lifter/scripts/track_shared_state.py --list
+python .claude/agents/code-lifter/scripts/track_shared_state.py --list
 ```
 
 ### Skill Scripts (reused from existing skills)
@@ -123,47 +123,47 @@ python .agent/agents/code-lifter/scripts/track_shared_state.py --list
 **Module Discovery** (decompiled-code-extractor):
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name>
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name>
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --list
 ```
 
 **Single Function Data** (decompiled-code-extractor):
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> <function_name>
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> --id <func_id>
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> <function_name>
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> --id <func_id>
 ```
 
 **Class Hierarchy** (reconstruct-types):
 
 ```bash
-python .agent/skills/reconstruct-types/scripts/extract_class_hierarchy.py <db_path> --class <ClassName> --json
+python .claude/skills/reconstruct-types/scripts/extract_class_hierarchy.py <db_path> --class <ClassName> --json
 ```
 
 **Deep Struct Scan** (reconstruct-types):
 
 ```bash
-python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> --class <ClassName>
+python .claude/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> --class <ClassName>
 ```
 
 **Function Collection** (batch-lift):
 
 ```bash
-python .agent/skills/batch-lift/scripts/collect_functions.py <db_path> --class <ClassName> --json
-python .agent/skills/batch-lift/scripts/collect_functions.py <db_path> --class <ClassName> --json --skip-library
+python .claude/skills/batch-lift/scripts/collect_functions.py <db_path> --class <ClassName> --json
+python .claude/skills/batch-lift/scripts/collect_functions.py <db_path> --class <ClassName> --json --skip-library
 ```
 
 **Function Index** (skill scripts -- library tagging & filtering):
 
 ```bash
 # Look up a function by name (returns JSON with library tags)
-python .agent/skills/function-index/scripts/lookup_function.py <module_name> <function_name> --json
+python .claude/skills/function-index/scripts/lookup_function.py <module_name> <function_name> --json
 
 # Index all functions for a module (with library stats)
-python .agent/skills/function-index/scripts/index_functions.py <module_name> --stats --json
+python .claude/skills/function-index/scripts/index_functions.py <module_name> --stats --json
 
 # Resolve which file contains a function
-python .agent/skills/function-index/scripts/resolve_function_file.py <module_name> <function_name> --json
+python .claude/skills/function-index/scripts/resolve_function_file.py <module_name> <function_name> --json
 ```
 
 Use `load_function_index_for_db(db_path)` from helpers to programmatically check library tags. Functions tagged with a `library` value (e.g. WIL, WRL, STL) are compiler/framework boilerplate and can usually be skipped during lifting.
@@ -194,7 +194,7 @@ Code Lifter Workflow:
 Find the module's analysis DB:
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name>
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name>
 ```
 
 ### Step 2: Extract All Data
@@ -202,7 +202,7 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module
 Run batch_extract.py to get everything in one shot:
 
 ```bash
-python .agent/agents/code-lifter/scripts/batch_extract.py <db_path> --class <ClassName>
+python .claude/agents/code-lifter/scripts/batch_extract.py <db_path> --class <ClassName>
 ```
 
 This returns a JSON object with all function data (decompiled, assembly, xrefs, strings, etc.) plus an initial struct scan. Review the output:
@@ -217,10 +217,10 @@ Cross-reference collected methods with function_index to identify library boiler
 ### Step 3: Initialize Shared State
 
 ```bash
-python .agent/agents/code-lifter/scripts/batch_extract.py <db_path> --class <ClassName> --init-state
+python .claude/agents/code-lifter/scripts/batch_extract.py <db_path> --class <ClassName> --init-state
 ```
 
-This creates a state file at `.agent/agents/code-lifter/state/<ClassName>_state.json` that tracks:
+This creates a state file at `.claude/agents/code-lifter/state/<ClassName>_state.json` that tracks:
 
 - Struct fields discovered so far
 - Constants accumulated
@@ -233,19 +233,19 @@ This creates a state file at `.agent/agents/code-lifter/state/<ClassName>_state.
 The auto-detected struct from batch_extract.py is a starting point. For deeper analysis, run the assembly-backed scanner:
 
 ```bash
-python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> --class <ClassName>
+python .claude/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> --class <ClassName>
 ```
 
 Also check the class hierarchy for vtable context:
 
 ```bash
-python .agent/skills/reconstruct-types/scripts/extract_class_hierarchy.py <db_path> --class <ClassName> --json
+python .claude/skills/reconstruct-types/scripts/extract_class_hierarchy.py <db_path> --class <ClassName> --json
 ```
 
 Record any new fields discovered:
 
 ```bash
-python .agent/agents/code-lifter/scripts/track_shared_state.py \
+python .claude/agents/code-lifter/scripts/track_shared_state.py \
     --record-field <ClassName> 0x00 vtable "void*" --asm-verified
 ```
 
@@ -256,7 +256,7 @@ For each function in dependency order (constructors first, then callees before c
 **5a. Check shared state:**
 
 ```bash
-python .agent/agents/code-lifter/scripts/track_shared_state.py --dump
+python .claude/agents/code-lifter/scripts/track_shared_state.py --dump
 ```
 
 This gives you the current struct definition, all known constants, and naming mappings to use.
@@ -285,24 +285,24 @@ This gives you the current struct definition, all known constants, and naming ma
 
 ```bash
 # Record any new struct fields discovered
-python .agent/agents/code-lifter/scripts/track_shared_state.py \
+python .claude/agents/code-lifter/scripts/track_shared_state.py \
     --record-field <ClassName> 0x38 flags uint32_t --source "SetDacl"
 
 # Record any new constants
-python .agent/agents/code-lifter/scripts/track_shared_state.py \
+python .claude/agents/code-lifter/scripts/track_shared_state.py \
     --record-constant DACL_PRESENT 0x04 --source "SetDacl"
 
 # Record naming mappings
-python .agent/agents/code-lifter/scripts/track_shared_state.py \
+python .claude/agents/code-lifter/scripts/track_shared_state.py \
     --record-naming field_28 pDacl
 
 # Record the clean lifted signature
-python .agent/agents/code-lifter/scripts/track_shared_state.py \
+python .claude/agents/code-lifter/scripts/track_shared_state.py \
     --record-signature "CSecurityDescriptor::SetDacl" \
     "HRESULT CSecurityDescriptor::SetDacl(PACL pDacl, BOOL bDefaulted)"
 
 # Mark the function as lifted
-python .agent/agents/code-lifter/scripts/track_shared_state.py \
+python .claude/agents/code-lifter/scripts/track_shared_state.py \
     --mark-lifted "CSecurityDescriptor::SetDacl"
 ```
 
@@ -489,10 +489,10 @@ commandName = cmdNode->commandName;   // +0x70
 extracted_code/{module}/          Decompiled .cpp files + file_info.json + module_profile.json
 extracted_dbs/                    SQLite analysis DBs
 extracted_dbs/analyzed_files.db   Module index (name -> DB path, status)
-.agent/helpers/                   Python modules for DB access
-.agent/docs/                      Data format references
-.agent/skills/                   14 analysis skills with scripts/
-.agent/agents/code-lifter/
+.claude/helpers/                   Python modules for DB access
+.claude/docs/                      Data format references
+.claude/skills/                   14 analysis skills with scripts/
+.claude/agents/code-lifter/
   scripts/
     _common.py                    Shared utilities
     batch_extract.py              Batch data extraction for class/function sets

@@ -131,7 +131,7 @@ def test_render_output_path_supports_workspace_shorthand(tmp_path):
         timestamp="20260306_010203",
     )
 
-    assert rendered == (tmp_path / ".agent" / "workspace" / "batch_security-sweep_20260306_010203").resolve()
+    assert rendered == (tmp_path / ".claude" / "workspace" / "batch_security-sweep_20260306_010203").resolve()
 
 
 def test_resolve_modules_uses_validate_module(monkeypatch, tmp_path):

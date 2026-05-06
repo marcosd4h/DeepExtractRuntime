@@ -25,16 +25,16 @@ Usage:
 
 This command orchestrates N parallel audit workflows:
 
-1. Create `.agent/workspace/<module>_batch_audit_<timestamp>/`.
+1. Create `.claude/workspace/<module>_batch_audit_<timestamp>/`.
 2. Store per-function audit results in `<run_dir>/<function_name>/results.json`.
 3. Keep only severity summaries and top findings in context.
 4. Use `<run_dir>/manifest.json` to track which functions have been audited.
 
 ## Execution Context
 
-> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.agent`
-> (so the `.agent/` directory is on `sys.path`), **not** from the workspace root.
-> Script invocations like `python .agent/skills/.../script.py` can be run from the workspace root
+> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.claude`
+> (so the `.claude/` directory is on `sys.path`), **not** from the workspace root.
+> Script invocations like `python .claude/skills/.../script.py` can be run from the workspace root
 > because those scripts manage their own path setup.
 
 ## Steps
@@ -56,12 +56,12 @@ If the user combines them, report the invalid option mix and stop.
 > **Tip:** All skill scripts support `--json` for machine-readable output. Use `--json` when parsing script output programmatically.
 
 **If specific functions are listed:**
-- Resolve the module DB using `python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module>`.
-- Resolve each function using `python .agent/skills/function-index/scripts/lookup_function.py <name> --json`.
+- Resolve the module DB using `python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py <module>`.
+- Resolve each function using `python .claude/skills/function-index/scripts/lookup_function.py <name> --json`.
 - After resolving, use the returned `function_id` for all subsequent operations.
 
 **If `--class` is specified:**
-- Use `python .agent/skills/batch-lift/scripts/collect_functions.py <db_path> --class <name> --json` to collect all methods.
+- Use `python .claude/skills/batch-lift/scripts/collect_functions.py <db_path> --class <name> --json` to collect all methods.
 
 **If `--privilege-boundary` is specified:**
 - This is a module-scoped discovery mode that composes the interface-analysis skills with the existing batch audit pipeline.
@@ -71,7 +71,7 @@ If the user combines them, report the invalid option mix and stop.
 **a. RPC privilege-boundary candidates**
 
 ```bash
-python .agent/skills/rpc-interface-analysis/scripts/map_rpc_surface.py <module> --servers-only --json
+python .claude/skills/rpc-interface-analysis/scripts/map_rpc_surface.py <module> --servers-only --json
 ```
 
 - Keep server-side interfaces in `critical` or `high` risk tiers.
@@ -81,7 +81,7 @@ python .agent/skills/rpc-interface-analysis/scripts/map_rpc_surface.py <module> 
 **b. COM privilege-boundary candidates**
 
 ```bash
-python .agent/skills/com-interface-analysis/scripts/find_com_privesc.py --json
+python .claude/skills/com-interface-analysis/scripts/find_com_privesc.py --json
 ```
 
 - Filter `targets` to servers whose `hosting_binary` matches the requested module (case-insensitive).
@@ -92,7 +92,7 @@ python .agent/skills/com-interface-analysis/scripts/find_com_privesc.py --json
 **c. WinRT privilege-boundary candidates**
 
 ```bash
-python .agent/skills/winrt-interface-analysis/scripts/find_winrt_privesc.py --json
+python .claude/skills/winrt-interface-analysis/scripts/find_winrt_privesc.py --json
 ```
 
 - Filter `targets` to servers whose `hosting_binary` matches the requested module (case-insensitive).
@@ -114,13 +114,13 @@ python .agent/skills/winrt-interface-analysis/scripts/find_winrt_privesc.py --js
 - If `--top` is omitted in this mode, default to auditing the top 10 resolved privilege-boundary handlers.
 
 **If `--top N` (default mode):**
-- Run `python .agent/skills/map-attack-surface/scripts/rank_entrypoints.py <db_path> --top <N> --json` to get ranked entry points.
+- Run `python .claude/skills/map-attack-surface/scripts/rank_entrypoints.py <db_path> --top <N> --json` to get ranked entry points.
 - Filter by `--min-score` if specified (default: 0.2).
 - Skip library-tagged functions (WIL/CRT/STL/WRL/ETW).
 
 ### 2. Create grind-loop scratchpad
 
-Create a session-scoped scratchpad at `.agent/hooks/scratchpads/{session_id}.md`:
+Create a session-scoped scratchpad at `.claude/hooks/scratchpads/{session_id}.md`:
 
 ```markdown
 # Task: Batch Audit -- <module> (<N> functions)
@@ -141,13 +141,13 @@ For each target function, run a condensed audit pipeline:
 **a. Build security dossier** (parallel across functions where possible):
 
 ```bash
-python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> --id <fid> --json
+python .claude/skills/security-dossier/scripts/build_dossier.py <db_path> --id <fid> --json
 ```
 
 **b. Classify function purpose:**
 
 ```bash
-python .agent/skills/classify-functions/scripts/classify_function.py <db_path> --id <fid> --json
+python .claude/skills/classify-functions/scripts/classify_function.py <db_path> --id <fid> --json
 ```
 
 **c. Synthesize per-function audit summary:**

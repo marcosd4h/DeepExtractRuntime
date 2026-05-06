@@ -35,7 +35,7 @@ ai-taint-scanner/
 
 ## Related
 
-- **taint-scanner agent** (`.agent/agents/taint-scanner.md`) — AI agent that
+- **taint-scanner agent** (`.claude/agents/taint-scanner.md`) — AI agent that
   consumes this skill's outputs; runs iterative depth analysis and skeptic
   verification.
 - **`/taint` command** — Traces taint via `taint-analysis` skill for single-function

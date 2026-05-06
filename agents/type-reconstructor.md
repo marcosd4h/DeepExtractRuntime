@@ -30,7 +30,7 @@ You are a specialised subagent for **C/C++ struct and class reconstruction** fro
 
 When type reconstruction is executed as part of a larger multi-skill workflow, use filesystem handoff instead of inline payloads:
 
-- Create a run directory under `.agent/workspace/` (e.g. `.agent/workspace/{module}_types_{timestamp}/`)
+- Create a run directory under `.claude/workspace/` (e.g. `.claude/workspace/{module}_types_{timestamp}/`)
 - Pass `--workspace-dir <run_dir>` and `--workspace-step <step_name>` to `reconstruct_all.py` or individual scripts
 - `reconstruct_all.py` automatically forwards workspace args to each pipeline phase (discover_types, extract_hierarchy, scan_fields, com_interfaces), writing per-phase results to the run directory
 - The workspace bootstrap in `_common.py` handles all filesystem handoff automatically. No manual workspace code is needed.
@@ -50,19 +50,19 @@ Pre-built scripts handle all DB extraction and heavy computation. **Always use t
 
 ```bash
 # Full module reconstruction
-python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db_path>
+python .claude/agents/type-reconstructor/scripts/reconstruct_all.py <db_path>
 
 # Single class
-python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --class <ClassName>
+python .claude/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --class <ClassName>
 
 # With COM interface integration
-python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --include-com
+python .claude/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --include-com
 
 # Write to file
-python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --output types.h
+python .claude/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --output types.h
 
 # Full JSON (all intermediate data)
-python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --include-com --json
+python .claude/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --include-com --json
 ```
 
 > **Note:** All skill scripts support `--json` for machine-readable output. Add `--json` to any invocation for structured JSON on stdout.
@@ -71,26 +71,26 @@ python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --i
 
 ```bash
 # Merge scan output with conflict resolution and confidence scoring
-python .agent/agents/type-reconstructor/scripts/merge_evidence.py --scan-output scan.json
+python .claude/agents/type-reconstructor/scripts/merge_evidence.py --scan-output scan.json
 
 # With COM data integration
-python .agent/agents/type-reconstructor/scripts/merge_evidence.py --scan-output scan.json --com-data com.json
+python .claude/agents/type-reconstructor/scripts/merge_evidence.py --scan-output scan.json --com-data com.json
 
 # Filter to one class
-python .agent/agents/type-reconstructor/scripts/merge_evidence.py --scan-output scan.json --class CMyClass
+python .claude/agents/type-reconstructor/scripts/merge_evidence.py --scan-output scan.json --class CMyClass
 ```
 
 ### Layout Validator
 
 ```bash
 # Validate reconstructed header against assembly ground truth
-python .agent/agents/type-reconstructor/scripts/validate_layout.py <db_path> --header types.h
+python .claude/agents/type-reconstructor/scripts/validate_layout.py <db_path> --header types.h
 
 # Validate one class
-python .agent/agents/type-reconstructor/scripts/validate_layout.py <db_path> --header types.h --class CMyClass
+python .claude/agents/type-reconstructor/scripts/validate_layout.py <db_path> --header types.h --class CMyClass
 
 # JSON output
-python .agent/agents/type-reconstructor/scripts/validate_layout.py <db_path> --header types.h --json
+python .claude/agents/type-reconstructor/scripts/validate_layout.py <db_path> --header types.h --json
 ```
 
 ### Existing Skill Scripts (called by the orchestrator)
@@ -99,30 +99,30 @@ These are called automatically by `reconstruct_all.py` but can be invoked direct
 
 ```bash
 # Find a module's analysis DB
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name>
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name>
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --list
 
 # List all C++ classes in a module
-python .agent/skills/reconstruct-types/scripts/list_types.py <db_path> --with-vtables
+python .claude/skills/reconstruct-types/scripts/list_types.py <db_path> --with-vtables
 
 # Extract class hierarchy (ctors, dtors, vtables, methods)
-python .agent/skills/reconstruct-types/scripts/extract_class_hierarchy.py <db_path> --class <Name> --json
+python .claude/skills/reconstruct-types/scripts/extract_class_hierarchy.py <db_path> --class <Name> --json
 
 # Scan struct field access patterns (decompiled + assembly)
-python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> --class <Name>
-python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> --all-classes --json
+python .claude/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> --class <Name>
+python .claude/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> --all-classes --json
 
 # Generate header from scan output
-python .agent/skills/reconstruct-types/scripts/generate_header.py <db_path> --all --output types.h
+python .claude/skills/reconstruct-types/scripts/generate_header.py <db_path> --all --output types.h
 
 # Scan COM interfaces
-python .agent/skills/com-interface-reconstruction/scripts/scan_com_interfaces.py <db_path> --json
+python .claude/skills/com-interface-reconstruction/scripts/scan_com_interfaces.py <db_path> --json
 
 # Decode WRL templates
-python .agent/skills/com-interface-reconstruction/scripts/decode_wrl_templates.py <db_path> --json
+python .claude/skills/com-interface-reconstruction/scripts/decode_wrl_templates.py <db_path> --json
 
 # Map class-to-interface
-python .agent/skills/com-interface-reconstruction/scripts/map_class_interfaces.py <db_path> --json
+python .claude/skills/com-interface-reconstruction/scripts/map_class_interfaces.py <db_path> --json
 ```
 
 ---
@@ -149,7 +149,7 @@ Type Reconstruction Pipeline:
 Find the module's analysis DB:
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name>
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name>
 ```
 
 ### Step 2: Discover Classes
@@ -161,7 +161,7 @@ Use `--app-only` flag on `list_types.py` and `extract_class_hierarchy.py` to foc
 For most tasks, the orchestrator handles steps 2 through 7:
 
 ```bash
-python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --include-com --output types.h
+python .claude/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --include-com --output types.h
 ```
 
 ### Step 8: Validate
@@ -169,7 +169,7 @@ python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --i
 After generating the header, validate against assembly:
 
 ```bash
-python .agent/agents/type-reconstructor/scripts/validate_layout.py <db_path> --header types.h
+python .claude/agents/type-reconstructor/scripts/validate_layout.py <db_path> --header types.h
 ```
 
 Review the validation report:
@@ -529,12 +529,12 @@ with open_individual_analysis_db("extracted_dbs/module_hash.db") as db:
 
 ## Additional Resources
 
-- DB schema: `.agent/docs/data_format_reference.md`
-- File info format: `.agent/docs/file_info_format_reference.md`
-- Reconstruct-types skill: `.agent/skills/reconstruct-types/SKILL.md`
-- COM reconstruction skill: `.agent/skills/com-interface-reconstruction/SKILL.md`
-- Code lifting skill: `.agent/skills/decompiled-code-extractor/SKILL.md`
-- Function classification: `.agent/skills/classify-functions/SKILL.md`
+- DB schema: `.claude/docs/data_format_reference.md`
+- File info format: `.claude/docs/file_info_format_reference.md`
+- Reconstruct-types skill: `.claude/skills/reconstruct-types/SKILL.md`
+- COM reconstruction skill: `.claude/skills/com-interface-reconstruction/SKILL.md`
+- Code lifting skill: `.claude/skills/decompiled-code-extractor/SKILL.md`
+- Function classification: `.claude/skills/classify-functions/SKILL.md`
 
 ## Error Handling
 

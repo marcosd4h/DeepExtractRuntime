@@ -1,7 +1,7 @@
 # Slash Commands
 
 Reusable analysis workflows triggered with `/` in the Cursor chat input. In an
-installed workspace they live under `.agent/commands/` inside a
+installed workspace they live under `.claude/commands/` inside a
 `DeepExtractIDA_output_root`; in this source checkout they live in `commands/`.
 The live registry (`registry.json`) is the source of truth for the current command set.
 
@@ -189,7 +189,7 @@ When module is optional and omitted, commands should:
 
 **Output**: `extracted_code/<module>/lifted_<ClassName>.cpp` with struct definitions and all lifted methods.
 
-**Uses grind loop**: Yes -- creates `.agent/hooks/scratchpads/{session_id}.md` with one checkbox per method. The stop hook automatically re-invokes the agent until all methods are lifted (up to 10 iterations).
+**Uses grind loop**: Yes -- creates `.claude/hooks/scratchpads/{session_id}.md` with one checkbox per method. The stop hook automatically re-invokes the agent until all methods are lifted (up to 10 iterations).
 
 **Skills used**: decompiled-code-extractor, batch-lift, reconstruct-types
 
@@ -210,7 +210,7 @@ When module is optional and omitted, commands should:
 
 **Output**: `extracted_code/<module>/full_analysis_report.md` and `entrypoints.json`. Chat summary with executive overview and top 5 analysis targets.
 
-**Uses grind loop**: Yes -- creates `.agent/hooks/scratchpads/{session_id}.md` with one checkbox per phase. The stop hook automatically re-invokes the agent until all phases are complete.
+**Uses grind loop**: Yes -- creates `.claude/hooks/scratchpads/{session_id}.md` with one checkbox per phase. The stop hook automatically re-invokes the agent until all phases are complete.
 
 **Agents used**: triage-coordinator (`generate_analysis_plan.py` for adaptive routing), re-analyst (`explain_function.py` for entry point explanations)
 
@@ -267,7 +267,7 @@ When module is optional and omitted, commands should:
 
 **Output**: Search results grouped by dimension with follow-up command suggestions based on result types.
 
-**Scripts used**: unified_search.py (`python .agent/helpers/unified_search.py`)
+**Scripts used**: unified_search.py (`python .claude/helpers/unified_search.py`)
 
 ---
 
@@ -521,12 +521,12 @@ The current registry marks these commands as grind-loop workflows:
 - `/scan`
 
 These commands create a session-scoped scratchpad at
-`.agent/hooks/scratchpads/{session_id}.md`. Scratchpads are runtime-generated
+`.claude/hooks/scratchpads/{session_id}.md`. Scratchpads are runtime-generated
 artifacts, not committed source files. The stop hook
 (`grind-until-done.py`) resolves the session ID from environment variables or
 stdin metadata, checks for unchecked items, and re-invokes the agent
 automatically, bounded by `loop_limit: 10` in root-level `hooks.json`. See
-`.agent/rules/grind-loop-protocol.mdc` for the full protocol.
+`.claude/rules/grind-loop-protocol.mdc` for the full protocol.
 
 ### Recommended Workflow
 
@@ -584,7 +584,7 @@ commands (abbreviated headers for width; `/types` = `/reconstruct-types`):
 ### Shared Infrastructure
 
 - **function-index**: Function-to-file resolution, library tag filtering, module stats. Used by `/audit` (quick lookup, callee resolution), `/triage` (noise ratio), `/full-report` (classification stats), `/compare-modules` (comparative stats).
-- **unified-search** (`python .agent/helpers/unified_search.py <db> --query <term>`): Cross-dimensional search across function names, signatures, strings, APIs, classes, and exports in one call. Use when you don't know which dimension a term belongs to, or want a quick overview of everything related to a search term. Supports `--json`, `--dimensions`, `--limit`, and `--all` (search all modules). See the [function-index SKILL.md](../skills/function-index/SKILL.md#unified-search-cross-dimensional) for details.
+- **unified-search** (`python .claude/helpers/unified_search.py <db> --query <term>`): Cross-dimensional search across function names, signatures, strings, APIs, classes, and exports in one call. Use when you don't know which dimension a term belongs to, or want a quick overview of everything related to a search term. Supports `--json`, `--dimensions`, `--limit`, and `--all` (search all modules). See the [function-index SKILL.md](../skills/function-index/SKILL.md#unified-search-cross-dimensional) for details.
 
 ## Methodologies
 
@@ -641,7 +641,7 @@ No two commands are redundant -- each occupies a distinct point on the depth/bre
 ## Files
 
 ```
-.agent/commands/
+.claude/commands/
   registry.json             # Machine-readable command contracts
   README.md                 # This file
   triage.md                 # /triage

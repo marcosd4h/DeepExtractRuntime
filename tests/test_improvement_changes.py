@@ -365,7 +365,7 @@ class TestDryRunSkipsCacheEviction:
     def test_dry_run_does_not_call_evict_stale(self, tmp_path):
         ws = tmp_path / "workspace"
         ws.mkdir()
-        (ws / ".agent" / "workspace").mkdir(parents=True)
+        (ws / ".claude" / "workspace").mkdir(parents=True)
 
         with mock.patch("helpers.cache.evict_stale") as m:
             from helpers.cleanup_workspace import cleanup_workspace
@@ -377,7 +377,7 @@ class TestDryRunSkipsCacheEviction:
     def test_non_dry_run_calls_evict_stale(self, tmp_path):
         ws = tmp_path / "workspace"
         ws.mkdir()
-        (ws / ".agent" / "workspace").mkdir(parents=True)
+        (ws / ".claude" / "workspace").mkdir(parents=True)
 
         with mock.patch("helpers.cache.evict_stale", return_value={"evicted": 5, "kept": 10}) as m:
             from helpers.cleanup_workspace import cleanup_workspace

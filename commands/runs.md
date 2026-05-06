@@ -23,7 +23,7 @@ artifacts and present the results directly.
 ## Execution Context
 
 > **IMPORTANT**: Any inline Python that imports `helpers.*` must run with
-> `cd <workspace>/.agent` so the `.agent/` directory is on `sys.path`.
+> `cd <workspace>/.claude` so the `.claude/` directory is on `sys.path`.
 
 This command should use the helpers library rather than manually traversing
 JSON:
@@ -54,7 +54,7 @@ If validation fails, report the errors and stop.
 
 ### Step 1: `/runs` or `/runs list [module]` -- List Recent Runs
 
-Use inline Python from `.agent/`:
+Use inline Python from `.claude/`:
 
 ```python
 from helpers.workspace import list_runs
@@ -143,7 +143,7 @@ prefer `summary.json` to avoid dumping large payloads into chat.
 
 ## Error Handling
 
-- **No workspace runs found**: report that `.agent/workspace/` has no runs yet
+- **No workspace runs found**: report that `.claude/workspace/` has no runs yet
 - **Unknown run ID**: show the 5 most recent run IDs to help the user choose
 - **Ambiguous prefix match**: list the matching run IDs and ask the user to pick one
 - **Invalid run structure**: show available metadata and validation issues rather than failing completely

@@ -30,8 +30,8 @@ For DB schema details, see [data_format_reference.md](../../docs/data_format_ref
 ### Finding a Module DB
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --list
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 ```
 
 ### Quick Cross-Dimensional Search
@@ -39,8 +39,8 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo
 To search across function names, signatures, strings, APIs, classes, and exports in one call:
 
 ```bash
-python .agent/helpers/unified_search.py <db_path> --query "SearchTerm"
-python .agent/helpers/unified_search.py <db_path> --query "SearchTerm" --json
+python .claude/helpers/unified_search.py <db_path> --query "SearchTerm"
+python .claude/helpers/unified_search.py <db_path> --query "SearchTerm" --json
 ```
 
 ## Utility Scripts
@@ -53,27 +53,27 @@ Single command to produce the full dossier:
 
 ```bash
 # By function name
-python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> <function_name>
+python .claude/skills/security-dossier/scripts/build_dossier.py <db_path> <function_name>
 
 # By function ID
-python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> --id <function_id>
+python .claude/skills/security-dossier/scripts/build_dossier.py <db_path> --id <function_id>
 
 # Search for functions matching a pattern
-python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> --search <pattern>
+python .claude/skills/security-dossier/scripts/build_dossier.py <db_path> --search <pattern>
 
 # JSON output (machine-readable)
-python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> <function_name> --json
+python .claude/skills/security-dossier/scripts/build_dossier.py <db_path> <function_name> --json
 
 # Deeper callee analysis (check callees' callees for dangerous APIs)
-python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> <function_name> --callee-depth 4
+python .claude/skills/security-dossier/scripts/build_dossier.py <db_path> <function_name> --callee-depth 4
 ```
 
 Examples:
 
 ```bash
-python .agent/skills/security-dossier/scripts/build_dossier.py extracted_dbs/appinfo_dll_e98d25a9e8.db AiCheckSecureApplicationDirectory
-python .agent/skills/security-dossier/scripts/build_dossier.py extracted_dbs/cmd_exe_6d109a3a00.db --search "BatLoop"
-python .agent/skills/security-dossier/scripts/build_dossier.py extracted_dbs/cmd_exe_6d109a3a00.db BatLoop --json
+python .claude/skills/security-dossier/scripts/build_dossier.py extracted_dbs/appinfo_dll_e98d25a9e8.db AiCheckSecureApplicationDirectory
+python .claude/skills/security-dossier/scripts/build_dossier.py extracted_dbs/cmd_exe_6d109a3a00.db --search "BatLoop"
+python .claude/skills/security-dossier/scripts/build_dossier.py extracted_dbs/cmd_exe_6d109a3a00.db BatLoop --json
 ```
 
 ## Workflows
@@ -89,13 +89,13 @@ Security Dossier Progress:
 **Step 1**: Find the Module DB
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 ```
 
 **Step 2**: Build the Dossier
 
 ```bash
-python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> <function_name>
+python .claude/skills/security-dossier/scripts/build_dossier.py <db_path> <function_name>
 ```
 
 **Step 3**: Review the Dossier
@@ -118,13 +118,13 @@ Based on dossier findings, use complementary skills:
 - **Code extraction** -- extract the function for detailed review:
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> <function>
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> <function>
 ```
 
 - **Call graph tracing** -- follow execution paths across modules:
 
 ```bash
-python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> <function> --depth 3
+python .claude/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> <function> --depth 3
 ```
 
 ## Dossier Section Reference

@@ -11,7 +11,7 @@
 ## Problem Statement
 
 YAML is used only for pipeline definitions (4 files in
-`.agent/config/pipelines/`).  It adds a `pyyaml>=6.0` dependency and
+`.claude/config/pipelines/`).  It adds a `pyyaml>=6.0` dependency and
 a separate parsing path for no meaningful benefit over JSON, which is
 already the standard format for every other config and data file in
 the workspace:

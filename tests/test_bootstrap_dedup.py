@@ -3,7 +3,7 @@ _agent_common -> _common rename (Issue #9).
 
 Validates:
   - bootstrap() returns a correct Path
-  - bootstrap() adds .agent to sys.path
+  - bootstrap() adds .claude to sys.path
   - bootstrap() is idempotent (no duplicate sys.path entries)
   - All skill _common.py files use the bootstrap one-liner
   - All agent _common.py files use the bootstrap one-liner
@@ -25,11 +25,11 @@ import pytest
 # The project root is one level up from the tests/ directory.
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 # Support both layouts: standalone repo (skills/ at root) and deployed
-# inside a .agent/ directory.
-if (_PROJECT_ROOT / ".agent" / "skills").is_dir():
+# inside a .claude/ directory.
+if (_PROJECT_ROOT / ".claude" / "skills").is_dir():
     WORKSPACE_ROOT = _PROJECT_ROOT
-    AGENT_DIR = _PROJECT_ROOT / ".agent"
-elif (_PROJECT_ROOT / "skills").is_dir() and _PROJECT_ROOT.name == ".agent":
+    AGENT_DIR = _PROJECT_ROOT / ".claude"
+elif (_PROJECT_ROOT / "skills").is_dir() and _PROJECT_ROOT.name == ".claude":
     WORKSPACE_ROOT = _PROJECT_ROOT.parent
     AGENT_DIR = _PROJECT_ROOT
 else:
@@ -86,9 +86,9 @@ class TestBootstrapFunction:
         """bootstrap() must return a Path object."""
         from skills._shared import bootstrap, get_workspace_root
 
-        # Use this test file as the anchor (lives at .agent/tests/test_*.py)
+        # Use this test file as the anchor (lives at .claude/tests/test_*.py)
         # but bootstrap uses parents[4] which assumes
-        # .agent/<kind>/<name>/scripts/<file>.py layout.
+        # .claude/<kind>/<name>/scripts/<file>.py layout.
         # So we test using a real _common.py's __file__ value.
         anchor = SKILLS_DIR / "batch-lift" / "scripts" / "_common.py"
         result = bootstrap(str(anchor))
@@ -107,7 +107,7 @@ class TestBootstrapFunction:
         from skills._shared import bootstrap
 
         runtime_path = str(WORKSPACE_ROOT)
-        agent_path = str(WORKSPACE_ROOT / ".agent")
+        agent_path = str(WORKSPACE_ROOT / ".claude")
         anchor = SKILLS_DIR / "classify-functions" / "scripts" / "_common.py"
 
         original = sys.path[:]

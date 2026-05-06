@@ -42,8 +42,8 @@ Individual analysis DBs in `extracted_dbs/` provide per-function data:
 Reuse the decompiled-code-extractor skill's `find_module_db.py`:
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --list
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 ```
 
 ### Quick Cross-Dimensional Search
@@ -51,8 +51,8 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo
 To search across function names, signatures, strings, APIs, classes, and exports in one call:
 
 ```bash
-python .agent/helpers/unified_search.py <db_path> --query "SearchTerm"
-python .agent/helpers/unified_search.py <db_path> --query "SearchTerm" --json
+python .claude/helpers/unified_search.py <db_path> --query "SearchTerm"
+python .claude/helpers/unified_search.py <db_path> --query "SearchTerm" --json
 ```
 
 ## Utility Scripts
@@ -65,13 +65,13 @@ Scan a module for all COM-related structures:
 
 ```bash
 # Full COM scan -- interfaces, QI patterns, vtable layouts
-python .agent/skills/com-interface-reconstruction/scripts/scan_com_interfaces.py <db_path>
+python .claude/skills/com-interface-reconstruction/scripts/scan_com_interfaces.py <db_path>
 
 # JSON output for programmatic use
-python .agent/skills/com-interface-reconstruction/scripts/scan_com_interfaces.py <db_path> --json
+python .claude/skills/com-interface-reconstruction/scripts/scan_com_interfaces.py <db_path> --json
 
 # Filter to functions with vtable contexts only
-python .agent/skills/com-interface-reconstruction/scripts/scan_com_interfaces.py <db_path> --vtable-only
+python .claude/skills/com-interface-reconstruction/scripts/scan_com_interfaces.py <db_path> --vtable-only
 ```
 
 Output: COM interface inventory, QI/AddRef/Release implementations, vtable-derived method tables, and COM API usage summary.
@@ -82,13 +82,13 @@ Parse `Microsoft::WRL::*` template parameters from mangled names:
 
 ```bash
 # Decode all WRL templates in a module
-python .agent/skills/com-interface-reconstruction/scripts/decode_wrl_templates.py <db_path>
+python .claude/skills/com-interface-reconstruction/scripts/decode_wrl_templates.py <db_path>
 
 # JSON output
-python .agent/skills/com-interface-reconstruction/scripts/decode_wrl_templates.py <db_path> --json
+python .claude/skills/com-interface-reconstruction/scripts/decode_wrl_templates.py <db_path> --json
 
 # Filter to specific WRL type (RuntimeClass, ComPtr, etc.)
-python .agent/skills/com-interface-reconstruction/scripts/decode_wrl_templates.py <db_path> --type RuntimeClass
+python .claude/skills/com-interface-reconstruction/scripts/decode_wrl_templates.py <db_path> --type RuntimeClass
 ```
 
 Output: decoded WRL class hierarchies, interface lists per RuntimeClass, RuntimeClassFlags, ComPtr usage, weak reference support.
@@ -99,13 +99,13 @@ Build a class-to-interface mapping from QI logic, WRL metadata, and vtable analy
 
 ```bash
 # Map all classes to their interfaces
-python .agent/skills/com-interface-reconstruction/scripts/map_class_interfaces.py <db_path>
+python .claude/skills/com-interface-reconstruction/scripts/map_class_interfaces.py <db_path>
 
 # JSON output
-python .agent/skills/com-interface-reconstruction/scripts/map_class_interfaces.py <db_path> --json
+python .claude/skills/com-interface-reconstruction/scripts/map_class_interfaces.py <db_path> --json
 
 # Focus on a specific class
-python .agent/skills/com-interface-reconstruction/scripts/map_class_interfaces.py <db_path> --class CAppInfoService
+python .claude/skills/com-interface-reconstruction/scripts/map_class_interfaces.py <db_path> --class CAppInfoService
 ```
 
 Output: per-class interface lists, evidence sources (QI, WRL, vtable), base interfaces, aggregation.
@@ -116,13 +116,13 @@ Produce IDL-like interface descriptions from reconstructed COM metadata:
 
 ```bash
 # Generate IDL for all discovered interfaces
-python .agent/skills/com-interface-reconstruction/scripts/generate_idl.py <db_path>
+python .claude/skills/com-interface-reconstruction/scripts/generate_idl.py <db_path>
 
 # Write to file
-python .agent/skills/com-interface-reconstruction/scripts/generate_idl.py <db_path> --output interfaces.idl
+python .claude/skills/com-interface-reconstruction/scripts/generate_idl.py <db_path> --output interfaces.idl
 
 # Filter to specific interface
-python .agent/skills/com-interface-reconstruction/scripts/generate_idl.py <db_path> --interface IAppInfoService
+python .claude/skills/com-interface-reconstruction/scripts/generate_idl.py <db_path> --interface IAppInfoService
 ```
 
 Output: IDL-syntax interface blocks with method signatures, parameter types, HRESULT returns, and vtable slot comments.
@@ -144,8 +144,8 @@ COM Reconstruction Progress:
 Find the module DB and understand scope:
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
-python .agent/skills/classify-functions/scripts/triage_summary.py <db_path>
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/classify-functions/scripts/triage_summary.py <db_path>
 ```
 
 Check the triage for `com_rpc` category count to gauge COM density.
@@ -155,7 +155,7 @@ Check the triage for `com_rpc` category count to gauge COM density.
 Run the main scanner:
 
 ```bash
-python .agent/skills/com-interface-reconstruction/scripts/scan_com_interfaces.py <db_path>
+python .claude/skills/com-interface-reconstruction/scripts/scan_com_interfaces.py <db_path>
 ```
 
 Review output for:
@@ -167,7 +167,7 @@ Review output for:
 **Step 3**: Decode WRL Templates
 
 ```bash
-python .agent/skills/com-interface-reconstruction/scripts/decode_wrl_templates.py <db_path>
+python .claude/skills/com-interface-reconstruction/scripts/decode_wrl_templates.py <db_path>
 ```
 
 WRL templates encode rich type info in mangled names:
@@ -180,7 +180,7 @@ WRL templates encode rich type info in mangled names:
 **Step 4**: Map Interfaces to Classes
 
 ```bash
-python .agent/skills/com-interface-reconstruction/scripts/map_class_interfaces.py <db_path>
+python .claude/skills/com-interface-reconstruction/scripts/map_class_interfaces.py <db_path>
 ```
 
 Evidence sources merged:
@@ -193,7 +193,7 @@ Evidence sources merged:
 **Step 5**: Generate IDL
 
 ```bash
-python .agent/skills/com-interface-reconstruction/scripts/generate_idl.py <db_path> --output reconstructed.idl
+python .claude/skills/com-interface-reconstruction/scripts/generate_idl.py <db_path> --output reconstructed.idl
 ```
 
 **Step 6**: Refine

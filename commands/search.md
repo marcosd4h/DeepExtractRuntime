@@ -28,9 +28,9 @@ If no search term is provided, ask the user.
 
 ## Execution Context
 
-> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.agent`
-> (so the `.agent/` directory is on `sys.path`), **not** from the workspace root.
-> Script invocations like `python .agent/skills/.../script.py` can be run from the workspace root
+> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.claude`
+> (so the `.claude/` directory is on `sys.path`), **not** from the workspace root.
+> Script invocations like `python .claude/skills/.../script.py` can be run from the workspace root
 > because those scripts manage their own path setup.
 
 ## Steps
@@ -42,7 +42,7 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 
 1. **Resolve the search target**
    - If a module name is provided:
-     Use `python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module>` to resolve the DB path.
+     Use `python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py <module>` to resolve the DB path.
    - If no module is specified (or `--all` is used):
      Use the `--all` flag to search across all analyzed module databases.
 
@@ -52,31 +52,31 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 
    ```bash
    # Search all dimensions in a specific module (substring, default)
-   python .agent/helpers/unified_search.py <db_path> --query <term>
+   python .claude/helpers/unified_search.py <db_path> --query <term>
 
    # Regex mode: find functions matching a pattern
-   python .agent/helpers/unified_search.py <db_path> --query "^Ai.*Process$" --regex
+   python .claude/helpers/unified_search.py <db_path> --query "^Ai.*Process$" --regex
 
    # Fuzzy mode: typo-tolerant search
-   python .agent/helpers/unified_search.py <db_path> --query "CreateProces" --fuzzy
+   python .claude/helpers/unified_search.py <db_path> --query "CreateProces" --fuzzy
 
    # Fuzzy with custom threshold (0.0-1.0, default 0.6)
-   python .agent/helpers/unified_search.py <db_path> --query "CretFle" --fuzzy --threshold 0.5
+   python .claude/helpers/unified_search.py <db_path> --query "CretFle" --fuzzy --threshold 0.5
 
    # Search all modules
-   python .agent/helpers/unified_search.py --all --query <term>
+   python .claude/helpers/unified_search.py --all --query <term>
 
    # Restrict to specific dimensions
-   python .agent/helpers/unified_search.py <db_path> --query <term> --dimensions name,api,string
+   python .claude/helpers/unified_search.py <db_path> --query <term> --dimensions name,api,string
 
    # Limit results per dimension
-   python .agent/helpers/unified_search.py <db_path> --query <term> --limit 10
+   python .claude/helpers/unified_search.py <db_path> --query <term> --limit 10
 
    # Sort by name or ID instead of relevance score
-   python .agent/helpers/unified_search.py <db_path> --query <term> --sort name
+   python .claude/helpers/unified_search.py <db_path> --query <term> --sort name
 
    # JSON output
-   python .agent/helpers/unified_search.py <db_path> --query <term> --json
+   python .claude/helpers/unified_search.py <db_path> --query <term> --json
    ```
 
    Available modes: `substring` (default), `regex`, `fuzzy`. Shorthand flags: `--regex`, `--fuzzy`.

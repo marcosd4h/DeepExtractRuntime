@@ -6,7 +6,7 @@ by skill scripts, agents, hooks, and pipeline orchestrators.
 
 ## How Configuration Is Loaded
 
-1. `defaults.json` is read from `.agent/config/defaults.json`.
+1. `defaults.json` is read from `.claude/config/defaults.json`.
 2. The result is cached per-process (invalidated when file mtime changes).
 3. Environment variable overrides are applied on every load (see below).
 4. Callers receive a deep copy, so mutations never corrupt the cache.
@@ -39,7 +39,7 @@ variables. Edit `defaults.json` directly for those values.
 ## Important Notes
 
 - **`hooks.grind_loop_limit`** must be kept in sync with `loop_limit` in
-  `.agent/hooks.json` (and `.cursor/hooks.json`). The JSON hooks file is
+  `.claude/hooks.json` (and `.cursor/hooks.json`). The JSON hooks file is
   consumed by the host runtime; `defaults.json` is consumed by Python code.
   If you change one, change both.
 - All extraction databases are read-only. Configuration values control
@@ -207,7 +207,7 @@ Controls depth limits for the `/explain` command's callee expansion.
 
 ## `cache` -- Result Cache
 
-Controls the `.agent/cache/` result caching system. Cached results are
+Controls the `.claude/cache/` result caching system. Cached results are
 validated by database mtime and age. Use `--no-cache` on any script to
 bypass.
 
@@ -232,7 +232,7 @@ Controls loading and use of the dangerous API classification database.
 
 | Setting | Type | Default | Description | Constraints |
 |---|---|---|---|---|
-| `json_path` | string | `"config/assets/misc_data/dangerous_apis.json"` | Path (relative to `.agent/`) to the dangerous API definitions file | Non-empty string |
+| `json_path` | string | `"config/assets/misc_data/dangerous_apis.json"` | Path (relative to `.claude/`) to the dangerous API definitions file | Non-empty string |
 | `auto_classify` | bool | `true` | Automatically incorporate dangerous API data during classification | — |
 
 ---
@@ -257,8 +257,8 @@ Controls loading of RPC server metadata and client stubs for the
 
 | Setting | Type | Default | Description | Constraints |
 |---|---|---|---|---|
-| `servers_path` | string | `"config/assets/rpc_data/rpc_servers.json"` | Path (relative to `.agent/`) to RPC server definitions | Non-empty string |
-| `client_stubs_path` | string | `"config/assets/rpc_data/rpc_clients_26200_7840"` | Path (relative to `.agent/`) to RPC client stub directory | Non-empty string |
+| `servers_path` | string | `"config/assets/rpc_data/rpc_servers.json"` | Path (relative to `.claude/`) to RPC server definitions | Non-empty string |
+| `client_stubs_path` | string | `"config/assets/rpc_data/rpc_clients_26200_7840"` | Path (relative to `.claude/`) to RPC client stub directory | Non-empty string |
 | `enabled` | bool | `true` | Enable RPC interface analysis features | — |
 | `cache_loaded_index` | bool | `true` | Cache the parsed RPC index in memory after first load | — |
 | `load_stubs` | bool | `true` | Load C# client stub signatures for procedure enrichment | — |
@@ -272,7 +272,7 @@ Controls loading of WinRT activation server metadata for the
 
 | Setting | Type | Default | Description | Constraints |
 |---|---|---|---|---|
-| `data_root` | string | `"config/assets/winrt_data"` | Path (relative to `.agent/`) to WinRT data directory | Non-empty string |
+| `data_root` | string | `"config/assets/winrt_data"` | Path (relative to `.claude/`) to WinRT data directory | Non-empty string |
 | `enabled` | bool | `true` | Enable WinRT interface analysis features | — |
 | `cache_loaded_index` | bool | `true` | Cache the parsed WinRT index in memory after first load | — |
 | `exclude_staterepo` | bool | `false` | Exclude StateRepository-related WinRT classes from results | — |
@@ -286,7 +286,7 @@ skill.
 
 | Setting | Type | Default | Description | Constraints |
 |---|---|---|---|---|
-| `data_root` | string | `"config/assets/com_data"` | Path (relative to `.agent/`) to COM data directory | Non-empty string |
+| `data_root` | string | `"config/assets/com_data"` | Path (relative to `.claude/`) to COM data directory | Non-empty string |
 | `enabled` | bool | `true` | Enable COM interface analysis features | — |
 | `cache_loaded_index` | bool | `true` | Cache the parsed COM index in memory after first load | — |
 

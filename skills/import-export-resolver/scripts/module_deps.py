@@ -2,10 +2,10 @@
 """Build PE-level module dependency graphs from import tables.
 
 Usage:
-    python .agent/skills/import-export-resolver/scripts/module_deps.py --json
-    python .agent/skills/import-export-resolver/scripts/module_deps.py --module appinfo.dll --json
-    python .agent/skills/import-export-resolver/scripts/module_deps.py --module ntdll.dll --consumers --json
-    python .agent/skills/import-export-resolver/scripts/module_deps.py --diagram
+    python .claude/skills/import-export-resolver/scripts/module_deps.py --json
+    python .claude/skills/import-export-resolver/scripts/module_deps.py --module appinfo.dll --json
+    python .claude/skills/import-export-resolver/scripts/module_deps.py --module ntdll.dll --consumers --json
+    python .claude/skills/import-export-resolver/scripts/module_deps.py --diagram
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 """Extended tests for helpers.validation -- workspace data validation,
 parameter validators, and the new validate_depth/validate_positive_int.
 
-Target: .agent/helpers/validation.py
+Target: .claude/helpers/validation.py
 """
 
 from __future__ import annotations

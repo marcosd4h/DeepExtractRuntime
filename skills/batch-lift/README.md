@@ -8,17 +8,17 @@ Lifting one function at a time loses context -- struct definitions are incomplet
 
 ```bash
 # 1. Find the module DB
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 
 # 2. Collect all methods of a C++ class
-python .agent/skills/batch-lift/scripts/collect_functions.py extracted_dbs/appinfo_dll_e98d25a9e8.db --class LUATelemetry
+python .claude/skills/batch-lift/scripts/collect_functions.py extracted_dbs/appinfo_dll_e98d25a9e8.db --class LUATelemetry
 
 # 3. Collect a call chain from a function, 3 levels deep
-python .agent/skills/batch-lift/scripts/collect_functions.py extracted_dbs/cmd_exe_6d109a3a00.db --chain BatLoop --depth 3
+python .claude/skills/batch-lift/scripts/collect_functions.py extracted_dbs/cmd_exe_6d109a3a00.db --chain BatLoop --depth 3
 
 # 4. Full pipeline: collect -> lift plan
-python .agent/skills/batch-lift/scripts/collect_functions.py extracted_dbs/appinfo_dll_e98d25a9e8.db --class LUATelemetry --json > funcs.json
-python .agent/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json --summary
+python .claude/skills/batch-lift/scripts/collect_functions.py extracted_dbs/appinfo_dll_e98d25a9e8.db --class LUATelemetry --json > funcs.json
+python .claude/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json --summary
 ```
 
 ## Scripts
@@ -113,30 +113,30 @@ struct CDomNode {
 
 **Lift all methods of a C++ class:**
 ```bash
-python .agent/skills/batch-lift/scripts/collect_functions.py <db_path> --class ClassName --json > funcs.json
-python .agent/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json
+python .claude/skills/batch-lift/scripts/collect_functions.py <db_path> --class ClassName --json > funcs.json
+python .claude/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json
 ```
 
 **Lift a call chain from a function:**
 ```bash
-python .agent/skills/batch-lift/scripts/collect_functions.py <db_path> --chain FuncName --depth 2 --json > funcs.json
-python .agent/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json --summary
+python .claude/skills/batch-lift/scripts/collect_functions.py <db_path> --chain FuncName --depth 2 --json > funcs.json
+python .claude/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json --summary
 ```
 
 **Lift from an export down 3 levels:**
 ```bash
-python .agent/skills/batch-lift/scripts/collect_functions.py <db_path> --export ExportName --depth 3 --json > funcs.json
-python .agent/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json
+python .claude/skills/batch-lift/scripts/collect_functions.py <db_path> --export ExportName --depth 3 --json > funcs.json
+python .claude/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json
 ```
 
 **Check accumulated structs only (for progressive refinement):**
 ```bash
-python .agent/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json --structs-only
+python .claude/skills/batch-lift/scripts/prepare_batch_lift.py --from-json funcs.json --structs-only
 ```
 
 **Lift an ad-hoc set of functions by ID:**
 ```bash
-python .agent/skills/batch-lift/scripts/prepare_batch_lift.py <db_path> --ids 45,54,75,89 --summary
+python .claude/skills/batch-lift/scripts/prepare_batch_lift.py <db_path> --ids 45,54,75,89 --summary
 ```
 
 ## Files
@@ -156,7 +156,7 @@ batch-lift/
 ## Dependencies
 
 - Python 3.10+
-- `.agent/helpers/` module (workspace root) -- provides `open_individual_analysis_db`, `open_analyzed_files_db`
+- `.claude/helpers/` module (workspace root) -- provides `open_individual_analysis_db`, `open_analyzed_files_db`
 - SQLite analysis databases from DeepExtractIDA
 
 ## Related Skills

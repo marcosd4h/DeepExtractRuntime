@@ -14,9 +14,9 @@ Usage:
 
 ## Execution Context
 
-> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.agent`
-> (so the `.agent/` directory is on `sys.path`), **not** from the workspace root.
-> Script invocations like `python .agent/skills/.../script.py` can be run from the workspace root
+> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.claude`
+> (so the `.claude/` directory is on `sys.path`), **not** from the workspace root.
+> Script invocations like `python .claude/skills/.../script.py` can be run from the workspace root
 > because those scripts manage their own path setup.
 
 > **Tip:** All skill scripts support `--json` for machine-readable output. Use `--json` when parsing script output programmatically.
@@ -30,8 +30,8 @@ Validate arguments using `helpers.command_validation.validate_command_args("diff
 ### Step 1: Resolve Both Module DBs
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module_old>
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module_new>
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py <module_old>
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py <module_new>
 ```
 
 **Entry:** Two module names provided by the user
@@ -40,8 +40,8 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module
 ### Step 2: Extract Function Inventories
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/list_functions.py <db_old> --has-decompiled --json
-python .agent/skills/decompiled-code-extractor/scripts/list_functions.py <db_new> --has-decompiled --json
+python .claude/skills/decompiled-code-extractor/scripts/list_functions.py <db_old> --has-decompiled --json
+python .claude/skills/decompiled-code-extractor/scripts/list_functions.py <db_new> --has-decompiled --json
 ```
 
 Compare function name sets to identify:
@@ -57,8 +57,8 @@ Compare function name sets to identify:
 Run classification on both modules:
 
 ```bash
-python .agent/skills/classify-functions/scripts/classify_module.py <db_old> --json
-python .agent/skills/classify-functions/scripts/classify_module.py <db_new> --json
+python .claude/skills/classify-functions/scripts/classify_module.py <db_old> --json
+python .claude/skills/classify-functions/scripts/classify_module.py <db_new> --json
 ```
 
 Compare classification distributions. Highlight:
@@ -72,8 +72,8 @@ Compare classification distributions. Highlight:
 ### Step 4: Attack Surface Delta
 
 ```bash
-python .agent/skills/map-attack-surface/scripts/discover_entrypoints.py <db_old> --json
-python .agent/skills/map-attack-surface/scripts/discover_entrypoints.py <db_new> --json
+python .claude/skills/map-attack-surface/scripts/discover_entrypoints.py <db_old> --json
+python .claude/skills/map-attack-surface/scripts/discover_entrypoints.py <db_new> --json
 ```
 
 Compare entry point sets:
@@ -89,8 +89,8 @@ Compare entry point sets:
 For the top 5-10 most interesting changed functions (by interest score or security relevance):
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_old> --id <id> --json
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_new> --id <id> --json
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_old> --id <id> --json
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_new> --id <id> --json
 ```
 
 Compare decompiled code to identify:

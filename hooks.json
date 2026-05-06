@@ -4,20 +4,20 @@
   "hooks": {
     "sessionStart": [
       {
-        "command": "python .agent/hooks/inject-module-context.py",
+        "command": "python .claude/hooks/inject-module-context.py",
         "timeout": 15000
       }
     ],
     "stop": [
       {
-        "command": "python .agent/hooks/grind-until-done.py",
+        "command": "python .claude/hooks/grind-until-done.py",
         "loop_limit": 10,
         "timeout": 5000
       }
     ],
     "sessionEnd": [
       {
-        "command": "python .agent/hooks/cleanup-workspace.py",
+        "command": "python .claude/hooks/cleanup-workspace.py",
         "timeout": 10000
       }
     ]

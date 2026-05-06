@@ -52,7 +52,7 @@ Challenge every piece of content:
 
 Use `extract_function_data.py` for the complete function record:
 
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> --id <func_id> --json
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> --id <func_id> --json
 ```
 
 **Too verbose** (~150 tokens):
@@ -76,7 +76,7 @@ Match the level of specificity in your instructions to the task's fragility. Thi
 
 ```markdown
 Run exactly this command:
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> --id <func_id> --json
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> --id <func_id> --json
 Do not modify flags or add additional arguments.
 ```
 
@@ -108,7 +108,7 @@ The agent can load multiple skills simultaneously. A typical session might combi
 
 ### Helpers-First Development
 
-The `.agent/helpers/` library (35+ modules, 100+ public symbols) is the shared foundation that all skills build on. It provides DB access, function resolution, API classification, call graph construction, string taxonomy, caching, error handling, progress reporting, validation, and more.
+The `.claude/helpers/` library (35+ modules, 100+ public symbols) is the shared foundation that all skills build on. It provides DB access, function resolution, API classification, call graph construction, string taxonomy, caching, error handling, progress reporting, validation, and more.
 
 **The rule: never reimplement what helpers already provide.** Before writing any utility code in a skill script, check whether a helper already exists for the operation. Common violations:
 
@@ -123,7 +123,7 @@ Using helpers ensures consistency across skills, prevents subtle bugs from diver
 The standalone helper script `unified_search.py` deserves special mention: it searches across function names, signatures, strings, APIs, classes, and exports in a single call. Skills that need cross-dimensional lookup should call it rather than implementing their own search logic:
 
 ```bash
-python .agent/helpers/unified_search.py <db_path> --query "CreateProcess" --json
+python .claude/helpers/unified_search.py <db_path> --query "CreateProcess" --json
 ```
 
 For the complete API surface, see [helper_api_reference.md](helper_api_reference.md).
@@ -187,7 +187,7 @@ How will you know the skill is working?
 
 ## 4. Skill Directory Structure
 
-A skill is a directory in `.agent/skills/<skill-name>/` containing:
+A skill is a directory in `.claude/skills/<skill-name>/` containing:
 
 - `SKILL.md` -- The primary definition file (required). Contains YAML frontmatter for discovery, then the full instructions: purpose, data sources, utility scripts, workflows, and error handling. This file is read by the agent to understand the skill's capabilities.
 - `README.md` -- User-facing documentation containing CLI usage examples and functional descriptions.
@@ -378,8 +378,8 @@ Explain the analysis problem it solves for the researcher.
 Reuse the decompiled-code-extractor skill's `find_module_db.py`:
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --list
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 ```
 ````
 
@@ -388,8 +388,8 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo
 To search across function names, strings, APIs, classes, and exports in one call:
 
 ```bash
-python .agent/helpers/unified_search.py <db_path> --query "CreateProcess"
-python .agent/helpers/unified_search.py <db_path> --query "registry" --json
+python .claude/helpers/unified_search.py <db_path> --query "CreateProcess"
+python .claude/helpers/unified_search.py <db_path> --query "registry" --json
 ```
 
 ## Execution Guardrails (if applicable)
@@ -402,12 +402,12 @@ modify data or have side effects:
 - Writing to `extracted_dbs/` or `extracted_code/`
 
 **Never allowed unless user explicitly asks:**
-- Running external tools, modifying files outside `.agent/`
+- Running external tools, modifying files outside `.claude/`
 - Rebuilding caches or indexes
 
 **Allowed** (explicit allow-list):
 - Reading databases, running skill scripts, file reading, search
-- Writing to `.agent/workspace/` and `.agent/cache/`
+- Writing to `.claude/workspace/` and `.claude/cache/`
 
 If further validation (manual review, external tool runs) is needed,
 state it as a recommendation in the report rather than executing it.
@@ -442,13 +442,13 @@ Brief description of what this script does and when to use it.
 
 ```bash
 # Basic usage
-python .agent/skills/<skill>/scripts/primary_script.py <db_path>
+python .claude/skills/<skill>/scripts/primary_script.py <db_path>
 
 # JSON output for downstream processing
-python .agent/skills/<skill>/scripts/primary_script.py <db_path> --json
+python .claude/skills/<skill>/scripts/primary_script.py <db_path> --json
 
 # With filtering options
-python .agent/skills/<skill>/scripts/primary_script.py <db_path> --top 20
+python .claude/skills/<skill>/scripts/primary_script.py <db_path> --top 20
 ```
 
 Output includes: [describe what the output contains]
@@ -458,7 +458,7 @@ Output includes: [describe what the output contains]
 Brief description. Additional scripts follow the same pattern.
 
 ```bash
-python .agent/skills/<skill>/scripts/secondary_script.py <db_path> [options]
+python .claude/skills/<skill>/scripts/secondary_script.py <db_path> [options]
 ```
 
 ## Workflows
@@ -474,13 +474,13 @@ Analysis Progress:
 **Step 1**: Resolve the module DB.
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module>
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py <module>
 ```
 
 **Step 2**: Run the primary analysis script.
 
 ```bash
-python .agent/skills/<skill>/scripts/primary_script.py <db_path> --json
+python .claude/skills/<skill>/scripts/primary_script.py <db_path> --json
 ```
 
 **Step 3**: Review the output. Focus on [specific areas].
@@ -488,7 +488,7 @@ python .agent/skills/<skill>/scripts/primary_script.py <db_path> --json
 **Step 4**: For functions of interest, follow up with deeper analysis:
 
 ```bash
-python .agent/skills/<related-skill>/scripts/deep_script.py <db_path> <function>
+python .claude/skills/<related-skill>/scripts/deep_script.py <db_path> <function>
 ```
 
 ## [Skill-Specific Sections]
@@ -545,7 +545,7 @@ Be specific and actionable:
 
 ```markdown
 <!-- Good -->
-Run `python .agent/skills/classify-functions/scripts/triage_summary.py <db_path>`
+Run `python .claude/skills/classify-functions/scripts/triage_summary.py <db_path>`
 to get a module overview. If the output shows 0 classified functions, verify the
 DB contains `simple_outbound_xrefs` data.
 
@@ -553,7 +553,7 @@ DB contains `simple_outbound_xrefs` data.
 Classify the functions before proceeding.
 ````
 
-Use helpers, not raw implementations. Skill instructions should direct the agent to use the `.agent/helpers/` library for all common operations rather than writing raw SQL or ad-hoc logic:
+Use helpers, not raw implementations. Skill instructions should direct the agent to use the `.claude/helpers/` library for all common operations rather than writing raw SQL or ad-hoc logic:
 
 ```markdown
 <!-- Good -- delegates to the helpers library -->
@@ -1152,12 +1152,12 @@ All helpers are importable from the top-level `helpers` package. Skills should u
 
 ### Standalone Helper Scripts
 
-These scripts in `.agent/helpers/` can be run directly from the command line:
+These scripts in `.claude/helpers/` can be run directly from the command line:
 
 | Script                 | Purpose                                                           | Usage                                                                        |
 | ---------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `unified_search.py`    | Cross-dimensional search (names, strings, APIs, classes, exports) | `python .agent/helpers/unified_search.py <db> --query <term> [--json]`       |
-| `cleanup_workspace.py` | Clean old workspace run directories                               | `python .agent/helpers/cleanup_workspace.py [--older-than DAYS] [--dry-run]` |
+| `unified_search.py`    | Cross-dimensional search (names, strings, APIs, classes, exports) | `python .claude/helpers/unified_search.py <db> --query <term> [--json]`       |
+| `cleanup_workspace.py` | Clean old workspace run directories                               | `python .claude/helpers/cleanup_workspace.py [--older-than DAYS] [--dry-run]` |
 
 For detailed documentation of every symbol, see [helper_api_reference.md](helper_api_reference.md).
 
@@ -1179,7 +1179,7 @@ Skills should be tested at varying levels of rigor depending on their complexity
 
 ### 9.1 Test Fixtures
 
-Use the fixtures defined in `.agent/tests/conftest.py`:
+Use the fixtures defined in `.claude/tests/conftest.py`:
 
 - `sample_db`: Provides a temporary SQLite database with seed data.
 - `import_skill_module(skill_name, script_name)`: Dynamically imports a skill script for testing.
@@ -1223,12 +1223,12 @@ Run the same request 3-5 times and compare outputs for structural consistency.
 
 ### 9.4 Unit Tests for Scripts
 
-Place test files in `.agent/tests/` alongside other test modules. Use pytest and `subprocess.run()` to test each script as a black box:
+Place test files in `.claude/tests/` alongside other test modules. Use pytest and `subprocess.run()` to test each script as a black box:
 
 ```python
 def test_triage_summary_json_mode(sample_db):
     """Verify JSON mode produces valid structured output."""
-    script_path = ".agent/skills/classify-functions/scripts/triage_summary.py"
+    script_path = ".claude/skills/classify-functions/scripts/triage_summary.py"
     result = subprocess.run(
         ["python", script_path, str(sample_db), "--json"],
         capture_output=True, text=True,
@@ -1239,7 +1239,7 @@ def test_triage_summary_json_mode(sample_db):
     assert "functions" in data
 ```
 
-Test both output modes (human-readable and JSON) for every script. Use the fixtures from `.agent/tests/conftest.py` (`sample_db`, `import_skill_module`) to avoid duplicating setup logic.
+Test both output modes (human-readable and JSON) for every script. Use the fixtures from `.claude/tests/conftest.py` (`sample_db`, `import_skill_module`) to avoid duplicating setup logic.
 
 ### 9.5 Iteration Based on Feedback
 
@@ -1313,7 +1313,7 @@ Skills may be invoked by subagents using different model tiers (fast vs. standar
 
 ### 9.10 Automated Test Requirements
 
-Every new or modified skill must have corresponding automated tests in `.agent/tests/`. Tests are mandatory, not optional -- they serve as regression guards and prevent silent breakage when skills evolve.
+Every new or modified skill must have corresponding automated tests in `.claude/tests/`. Tests are mandatory, not optional -- they serve as regression guards and prevent silent breakage when skills evolve.
 
 **What to test:**
 
@@ -1330,8 +1330,8 @@ Every new or modified skill must have corresponding automated tests in `.agent/t
 **Running tests:**
 
 ```bash
-cd .agent && python -m pytest tests/ -v
-cd .agent && python -m pytest tests/test_my_skill.py -v
+cd .claude && python -m pytest tests/ -v
+cd .claude && python -m pytest tests/test_my_skill.py -v
 ```
 
 Always run the full test suite before considering a skill change complete. A passing `test_infrastructure_consistency.py` validates registry and structural consistency across the entire framework.
@@ -1340,7 +1340,7 @@ Always run the full test suite before considering a skill change complete. A pas
 
 The runtime uses a discovery-based registration model:
 
-1. The `inject-module-context.py` hook scans `.agent/skills/*/SKILL.md` at session start.
+1. The `inject-module-context.py` hook scans `.claude/skills/*/SKILL.md` at session start.
 2. YAML frontmatter (`name` + `description`) from each skill is extracted and injected into the agent's context as Level 1 metadata.
 3. `helpers.script_runner.find_skill_script()` resolves script paths based on the skill directory name.
 4. The `registry.json` file provides machine-readable contracts for all skills, including entry scripts, accepted arguments, dependencies, and cacheability.
@@ -1349,7 +1349,7 @@ When adding a new skill, three files outside the skill directory itself must als
 
 ### `registry.json` (required)
 
-Add an entry to `.agent/skills/registry.json` with:
+Add an entry to `.claude/skills/registry.json` with:
 
 - `purpose`: Brief description
 - `type`: Category (`analysis`, `code_generation`, `reconstruction`, `security`, `reporting`, `foundation`, `verification`, `meta`, `index`)
@@ -1362,7 +1362,7 @@ This file is consumed by `inject-module-context.py` for session context enrichme
 
 ### `skills/README.md` (required)
 
-Update `.agent/skills/README.md` to include the new skill:
+Update `.claude/skills/README.md` to include the new skill:
 
 1. **Overview table** -- Add a row with skill name, type, purpose, script count, cacheability, and dependencies.
 2. **Dependency graph** -- Add the skill node to the appropriate subgraph (`foundation`, `analysis`, `reconstruction`, `security`, `codeGen`, `reporting`, `meta`) in the Mermaid flowchart, and add edges for any `depends_on` relationships.
@@ -1370,9 +1370,9 @@ Update `.agent/skills/README.md` to include the new skill:
 
 This README is the primary human-readable catalog of all skills. Omitting it means the skill is invisible to developers browsing the repository.
 
-### `.agent/README.md` (required)
+### `.claude/README.md` (required)
 
-Update the top-level `.agent/README.md`:
+Update the top-level `.claude/README.md`:
 
 1. **Skill count** -- Increment the skill count in the opening paragraph and architecture diagram labels (e.g., "15 analysis skills" becomes "16 analysis skills").
 2. **Skills table** -- Add a row to the Skills overview table with skill name, type, script count, cacheability, and purpose.
@@ -1455,7 +1455,7 @@ Key techniques: explicit step ordering, entry/exit criteria on every phase, vali
 
 ### Pattern 2: Iterative Refinement with the Grind Loop
 
-Use when the skill processes multiple discrete items and benefits from the runtime's grind loop protocol (`.agent/hooks/grind-until-done.py`).
+Use when the skill processes multiple discrete items and benefits from the runtime's grind loop protocol (`.claude/hooks/grind-until-done.py`).
 
 ```markdown
 ## Workflow: Batch Function Lifting
@@ -1647,12 +1647,12 @@ Use when a workflow creates temporary resources (workspace run directories, cach
 ### Step 0: Setup
 
 Create the workspace run directory for multi-step output:
-python .agent/helpers/cleanup_workspace.py --create <module>_<goal>
+python .claude/helpers/cleanup_workspace.py --create <module>_<goal>
 
 ### Step N: Cleanup (mandatory)
 
 Remove temporary workspace artifacts after the report is complete:
-python .agent/helpers/cleanup_workspace.py --older-than 1 --dry-run
+python .claude/helpers/cleanup_workspace.py --older-than 1 --dry-run
 
 This step is mandatory even if the workflow was interrupted or produced
 no findings.
@@ -1706,9 +1706,9 @@ The **first progress line** should include scope statistics so the user can veri
 
 **Fixes:**
 
-- Verify the `sys.path.insert(0, ...)` line uses the correct parent depth. For scripts at `.agent/skills/<name>/scripts/script.py`, the correct depth is `parents[3]` (up to the workspace root).
+- Verify the `sys.path.insert(0, ...)` line uses the correct parent depth. For scripts at `.claude/skills/<name>/scripts/script.py`, the correct depth is `parents[3]` (up to the workspace root).
 - Verify `scripts/_common.py` uses `bootstrap(__file__)` from `skills._shared`.
-- Check that the workspace root contains the `.agent/helpers/` directory.
+- Check that the workspace root contains the `.claude/helpers/` directory.
 
 ### Database Not Found
 
@@ -1810,7 +1810,7 @@ directly, or call helpers.classify_api() in inline Python...
 
 <!-- Good: default with escape hatch -->
 Use `classify_function.py` for single-function classification:
-python .agent/skills/classify-functions/scripts/classify_function.py <db_path> --id <func_id> --json
+python .claude/skills/classify-functions/scripts/classify_function.py <db_path> --id <func_id> --json
 
 For module-wide classification, use `triage_summary.py` instead.
 ```
@@ -1819,8 +1819,8 @@ For module-wide classification, use `triage_summary.py` instead.
 
 Always use forward slashes in file paths, even on Windows. This runtime runs on Windows, but backslashes cause escaping issues in Markdown, shell commands, and JSON:
 
-- Good: `.agent/skills/classify-functions/scripts/triage_summary.py`
-- Bad: `.agent\skills\classify-functions\scripts\triage_summary.py`
+- Good: `.claude/skills/classify-functions/scripts/triage_summary.py`
+- Bad: `.claude\skills\classify-functions\scripts\triage_summary.py`
 
 ### Avoid deeply nested references
 
@@ -1953,8 +1953,8 @@ Use this checklist to validate a skill before considering it complete.
 - [ ] Row added to `skills/README.md` overview table
 - [ ] Skill node added to `skills/README.md` dependency graph (Mermaid)
 - [ ] Per-skill section added to `skills/README.md` with description, scripts, usage
-- [ ] Skill count updated in `.agent/README.md` opening paragraph
-- [ ] Row added to `.agent/README.md` Skills table
+- [ ] Skill count updated in `.claude/README.md` opening paragraph
+- [ ] Row added to `.claude/README.md` Skills table
 
 ### Before Merge
 
@@ -1964,6 +1964,6 @@ Use this checklist to validate a skill before considering it complete.
 - [ ] Caching implemented (if the operation is expensive)
 - [ ] Ran the workflow 3+ times and got structurally consistent results
 - [ ] Observed agent navigation patterns and adjusted structure if needed
-- [ ] All three external files updated: `registry.json`, `skills/README.md`, `.agent/README.md`
-- [ ] Automated tests added or updated in `.agent/tests/` (see section 9.10)
-- [ ] Existing test suite passes: `cd .agent && python -m pytest tests/ -v`
+- [ ] All three external files updated: `registry.json`, `skills/README.md`, `.claude/README.md`
+- [ ] Automated tests added or updated in `.claude/tests/` (see section 9.10)
+- [ ] Existing test suite passes: `cd .claude && python -m pytest tests/ -v`

@@ -2,8 +2,8 @@
 """Follow forwarded PE export chains across DLLs.
 
 Usage:
-    python .agent/skills/import-export-resolver/scripts/resolve_forwarders.py --module kernel32.dll --function HeapAlloc
-    python .agent/skills/import-export-resolver/scripts/resolve_forwarders.py --module kernel32.dll --all --json
+    python .claude/skills/import-export-resolver/scripts/resolve_forwarders.py --module kernel32.dll --function HeapAlloc
+    python .claude/skills/import-export-resolver/scripts/resolve_forwarders.py --module kernel32.dll --all --json
 """
 
 from __future__ import annotations

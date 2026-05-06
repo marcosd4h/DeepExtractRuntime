@@ -8,7 +8,7 @@ Usage:
 
 - `/hunt-execute appinfo.dll` -- execute the most recent hunt plan for this module
 - `/hunt-execute` -- execute the plan from the most recent `/hunt-plan` session
-- `/hunt-execute --plan-file .agent/workspace/appinfo_hunt_plan_20260304.json` -- execute a specific plan file
+- `/hunt-execute --plan-file .claude/workspace/appinfo_hunt_plan_20260304.json` -- execute a specific plan file
 - `/hunt-execute appinfo.dll --hypothesis "TOCTOU in file path handler"` -- execute an inline hypothesis without a prior `/hunt-plan`
 
 This command is the "action" counterpart to `/hunt-plan`'s "planning" phase. While `/hunt-plan` produces hypotheses and maps them to commands, `/hunt-execute` runs those commands and interprets results. The `--hypothesis` flag allows skipping the planning step for quick, targeted investigations.
@@ -21,16 +21,16 @@ This command is the "action" counterpart to `/hunt-plan`'s "planning" phase. Whi
 
 This command orchestrates multiple analysis steps per hypothesis:
 
-1. Create `.agent/workspace/<module>_hunt_execute_<timestamp>/`.
+1. Create `.claude/workspace/<module>_hunt_execute_<timestamp>/`.
 2. Store per-hypothesis results in `<run_dir>/hypothesis_<N>/results.json`.
 3. Keep only summary output and confidence scores in context.
 4. Use `<run_dir>/manifest.json` to track which hypotheses have been investigated.
 
 ## Execution Context
 
-> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.agent`
-> (so the `.agent/` directory is on `sys.path`), **not** from the workspace root.
-> Script invocations like `python .agent/skills/.../script.py` can be run from the workspace root
+> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.claude`
+> (so the `.claude/` directory is on `sys.path`), **not** from the workspace root.
+> Script invocations like `python .claude/skills/.../script.py` can be run from the workspace root
 > because those scripts manage their own path setup.
 
 ## Steps
@@ -41,7 +41,7 @@ Check for an existing `/hunt-plan` plan using this priority order:
 
 1. **Inline hypothesis** (highest priority): If `--hypothesis "<statement>"` is provided, construct a synthetic plan in memory (see below). No prior `/hunt-plan` session is required.
 2. **Explicit plan file**: If `--plan-file <path>` is provided, load that file directly. Fail with a clear error if the file does not exist or is not valid JSON.
-3. **Workspace files** (preferred): Scan `.agent/workspace/` for `*_hunt_plan_*.json` files. If a module name is provided, filter to plans matching that module. Use the most recent file by timestamp.
+3. **Workspace files** (preferred): Scan `.claude/workspace/` for `*_hunt_plan_*.json` files. If a module name is provided, filter to plans matching that module. Use the most recent file by timestamp.
 4. **Conversation history** (fallback): If no workspace file is found, look in the conversation history for the most recent `/hunt-plan` output.
 5. If no plan is found by any method, suggest running `/hunt-plan <module>` first, or using `--hypothesis` for a quick targeted investigation.
 
@@ -79,7 +79,7 @@ Extract from the plan (inline or file-based):
 
 ### 2. Create grind-loop scratchpad
 
-Create a session-scoped scratchpad at `.agent/hooks/scratchpads/{session_id}.md` with one checkbox per hypothesis:
+Create a session-scoped scratchpad at `.claude/hooks/scratchpads/{session_id}.md` with one checkbox per hypothesis:
 
 ```markdown
 # Task: Hunt Execute -- <module>

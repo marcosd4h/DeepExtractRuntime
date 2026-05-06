@@ -63,10 +63,10 @@ List all COM servers for a module or look up by CLSID with full metadata.
 Use `--workspace` to discover which workspace modules implement COM servers.
 
 ```bash
-python .agent/skills/com-interface-analysis/scripts/resolve_com_server.py wuapi.dll --json
-python .agent/skills/com-interface-analysis/scripts/resolve_com_server.py bfe18e9c-6d87-4450-b37c-e02f0b373803 --json
-python .agent/skills/com-interface-analysis/scripts/resolve_com_server.py wbengine.exe --context medium_il_privileged --json
-python .agent/skills/com-interface-analysis/scripts/resolve_com_server.py --workspace --json
+python .claude/skills/com-interface-analysis/scripts/resolve_com_server.py wuapi.dll --json
+python .claude/skills/com-interface-analysis/scripts/resolve_com_server.py bfe18e9c-6d87-4450-b37c-e02f0b373803 --json
+python .claude/skills/com-interface-analysis/scripts/resolve_com_server.py wbengine.exe --context medium_il_privileged --json
+python .claude/skills/com-interface-analysis/scripts/resolve_com_server.py --workspace --json
 ```
 
 ### `map_com_surface.py`
@@ -77,9 +77,9 @@ to discover which workspace modules implement COM servers, use
 `resolve_com_server.py --workspace` above instead.
 
 ```bash
-python .agent/skills/com-interface-analysis/scripts/map_com_surface.py --system-wide --top 20
-python .agent/skills/com-interface-analysis/scripts/map_com_surface.py --system-wide --tier critical --json
-python .agent/skills/com-interface-analysis/scripts/map_com_surface.py --privileged-only --context medium_il_privileged --json
+python .claude/skills/com-interface-analysis/scripts/map_com_surface.py --system-wide --top 20
+python .claude/skills/com-interface-analysis/scripts/map_com_surface.py --system-wide --tier critical --json
+python .claude/skills/com-interface-analysis/scripts/map_com_surface.py --privileged-only --context medium_il_privileged --json
 ```
 
 ### `enumerate_com_methods.py`
@@ -87,8 +87,8 @@ python .agent/skills/com-interface-analysis/scripts/map_com_surface.py --privile
 List methods for a CLSID or module, optionally with pseudo-IDL.
 
 ```bash
-python .agent/skills/com-interface-analysis/scripts/enumerate_com_methods.py wuapi.dll --json
-python .agent/skills/com-interface-analysis/scripts/enumerate_com_methods.py bfe18e9c-6d87-4450-b37c-e02f0b373803 --show-pseudo-idl
+python .claude/skills/com-interface-analysis/scripts/enumerate_com_methods.py wuapi.dll --json
+python .claude/skills/com-interface-analysis/scripts/enumerate_com_methods.py bfe18e9c-6d87-4450-b37c-e02f0b373803 --show-pseudo-idl
 ```
 
 ### `classify_com_entrypoints.py`
@@ -96,8 +96,8 @@ python .agent/skills/com-interface-analysis/scripts/enumerate_com_methods.py bfe
 Semantic classification of COM method names into functional categories.
 
 ```bash
-python .agent/skills/com-interface-analysis/scripts/classify_com_entrypoints.py wuapi.dll --json
-python .agent/skills/com-interface-analysis/scripts/classify_com_entrypoints.py --system-wide --json
+python .claude/skills/com-interface-analysis/scripts/classify_com_entrypoints.py wuapi.dll --json
+python .claude/skills/com-interface-analysis/scripts/classify_com_entrypoints.py --system-wide --json
 ```
 
 ### `audit_com_security.py`
@@ -105,8 +105,8 @@ python .agent/skills/com-interface-analysis/scripts/classify_com_entrypoints.py 
 Security audit: permissions, elevation, identity, marshalling, DCOM exposure.
 
 ```bash
-python .agent/skills/com-interface-analysis/scripts/audit_com_security.py wuapi.dll --json
-python .agent/skills/com-interface-analysis/scripts/audit_com_security.py bfe18e9c-6d87-4450-b37c-e02f0b373803 --json
+python .claude/skills/com-interface-analysis/scripts/audit_com_security.py wuapi.dll --json
+python .claude/skills/com-interface-analysis/scripts/audit_com_security.py bfe18e9c-6d87-4450-b37c-e02f0b373803 --json
 ```
 
 ### `find_com_privesc.py`
@@ -114,9 +114,9 @@ python .agent/skills/com-interface-analysis/scripts/audit_com_security.py bfe18e
 Find privilege escalation targets: medium-IL reachable SYSTEM servers.
 
 ```bash
-python .agent/skills/com-interface-analysis/scripts/find_com_privesc.py --json
-python .agent/skills/com-interface-analysis/scripts/find_com_privesc.py --top 20 --json
-python .agent/skills/com-interface-analysis/scripts/find_com_privesc.py --include-uac --json
+python .claude/skills/com-interface-analysis/scripts/find_com_privesc.py --json
+python .claude/skills/com-interface-analysis/scripts/find_com_privesc.py --top 20 --json
+python .claude/skills/com-interface-analysis/scripts/find_com_privesc.py --include-uac --json
 ```
 
 ## Direct Helper Module Access
@@ -189,7 +189,7 @@ python .agent/skills/com-interface-analysis/scripts/find_com_privesc.py --includ
 
 ## Diagnostics
 
-Use `python .agent/helpers/ipc_index_inspect.py --com [--module <name>]` to
+Use `python .claude/helpers/ipc_index_inspect.py --com [--module <name>]` to
 inspect COM index state, verify module attribution, and check that no servers
 are misattributed to generic host processes (svchost.exe, dllhost.exe).
 Use `--check-hosts` to scan for misattribution. Use `--edges` to verify

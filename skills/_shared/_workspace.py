@@ -57,19 +57,19 @@ def get_workspace_root(anchor_file: str | Path) -> Path:
     """Resolve the workspace root from a skill script's __file__ anchor.
 
     Walks up from the anchor file looking for a directory that contains
-    a ``.agent/`` subdirectory with ``skills/`` and ``helpers/`` inside it.
+    a ``.claude/`` subdirectory with ``skills/`` and ``helpers/`` inside it.
     Falls back to a directory that directly contains ``skills/`` and
-    ``helpers/`` (but is not ``.agent/`` itself).  Last resort is
+    ``helpers/`` (but is not ``.claude/`` itself).  Last resort is
     ``parents[4]`` (legacy layout) or ``Path.cwd()``.
     """
     anchor = Path(anchor_file).resolve()
     for parent in anchor.parents:
-        agent_sub = parent / ".agent"
+        agent_sub = parent / ".claude"
         if (agent_sub.is_dir()
                 and (agent_sub / "skills").is_dir()
                 and (agent_sub / "helpers").is_dir()):
             return parent
-        if (parent.name != ".agent"
+        if (parent.name != ".claude"
                 and (parent / "skills").is_dir()
                 and (parent / "helpers").is_dir()):
             return parent

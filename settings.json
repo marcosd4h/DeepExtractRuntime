@@ -6,7 +6,7 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "python .agent/hooks/inject-module-context.py",
+                        "command": "python .claude/hooks/inject-module-context.py",
                         "timeout": 15
                     }
                 ]
@@ -17,7 +17,7 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "python .agent/hooks/grind-until-done.py",
+                        "command": "python .claude/hooks/grind-until-done.py",
                         "timeout": 5
                     }
                 ]
@@ -28,7 +28,7 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "python .agent/hooks/cleanup-workspace.py",
+                        "command": "python .claude/hooks/cleanup-workspace.py",
                         "timeout": 10
                     }
                 ]

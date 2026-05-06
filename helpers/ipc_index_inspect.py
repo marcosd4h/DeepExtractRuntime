@@ -7,22 +7,22 @@ generic-host misattribution (svchost.exe, dllhost.exe).
 Usage::
 
     # Summary of all three indexes
-    python .agent/helpers/ipc_index_inspect.py --summary
+    python .claude/helpers/ipc_index_inspect.py --summary
 
     # COM index details
-    python .agent/helpers/ipc_index_inspect.py --com
+    python .claude/helpers/ipc_index_inspect.py --com
 
     # Procedures attributed to a specific module
-    python .agent/helpers/ipc_index_inspect.py --com --module svchost.exe
+    python .claude/helpers/ipc_index_inspect.py --com --module svchost.exe
 
     # Cross-module edge injection counts (loads all workspace DBs)
-    python .agent/helpers/ipc_index_inspect.py --edges
+    python .claude/helpers/ipc_index_inspect.py --edges
 
     # Check for generic-host misattribution
-    python .agent/helpers/ipc_index_inspect.py --check-hosts
+    python .claude/helpers/ipc_index_inspect.py --check-hosts
 
     # JSON output
-    python .agent/helpers/ipc_index_inspect.py --summary --json
+    python .claude/helpers/ipc_index_inspect.py --summary --json
 """
 
 from __future__ import annotations

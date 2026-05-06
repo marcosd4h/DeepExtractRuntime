@@ -2,7 +2,7 @@
 """Cleanup utility for workspace run directories and stale state files.
 
 Usage:
-    python .agent/helpers/cleanup_workspace.py [--older-than DAYS] [--dry-run] [--json]
+    python .claude/helpers/cleanup_workspace.py [--older-than DAYS] [--dry-run] [--json]
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ def cleanup_workspace(
     if workspace_root is None:
         from .db_paths import _auto_workspace_root
         workspace_root = _auto_workspace_root()
-    workspace_dir = workspace_root / ".agent" / "workspace"
+    workspace_dir = workspace_root / ".claude" / "workspace"
 
     result = {"runs_deleted": 0, "states_deleted": 0}
 
@@ -72,7 +72,7 @@ def cleanup_workspace(
     result["runs_deleted"] = deleted_count
 
     state_deleted = 0
-    agents_dir = workspace_root / ".agent" / "agents"
+    agents_dir = workspace_root / ".claude" / "agents"
     if agents_dir.exists():
         status_message("Cleaning up stale agent state files...")
         for agent_dir in agents_dir.iterdir():

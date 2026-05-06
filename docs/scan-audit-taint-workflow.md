@@ -72,7 +72,7 @@ The scan produces a consolidated report with:
 
 ### Workspace Protocol
 
-- Run directory: `.agent/workspace/<module>_scan_<timestamp>/`
+- Run directory: `.claude/workspace/<module>_scan_<timestamp>/`
 - Per-phase results: `<run_dir>/<phase>/results.json` (merged, verified, exploitability)
 - Manifest: `<run_dir>/manifest.json` tracks completed/failed phases
 
@@ -219,4 +219,4 @@ To support "tell me more about finding #3":
 
 ---
 
-*Generated from `.agent/commands/scan.md`, `audit.md`, `taint.md`, `memory-scan.md`, `ai-logical-bug-scan.md`, and related skill/agent/helper references.*
+*Generated from `.claude/commands/scan.md`, `audit.md`, `taint.md`, `memory-scan.md`, `ai-logical-bug-scan.md`, and related skill/agent/helper references.*

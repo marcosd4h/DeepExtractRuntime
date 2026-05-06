@@ -4,11 +4,11 @@
 Main orchestrator: runs all analyses and assembles a synthesized markdown report.
 
 Usage:
-    python .agent/skills/generate-re-report/scripts/generate_report.py <db_path>
-    python .agent/skills/generate-re-report/scripts/generate_report.py <db_path> --output report.md
-    python .agent/skills/generate-re-report/scripts/generate_report.py <db_path> --summary
-    python .agent/skills/generate-re-report/scripts/generate_report.py <db_path> --top 20
-    python .agent/skills/generate-re-report/scripts/generate_report.py <db_path> --json
+    python .claude/skills/generate-re-report/scripts/generate_report.py <db_path>
+    python .claude/skills/generate-re-report/scripts/generate_report.py <db_path> --output report.md
+    python .claude/skills/generate-re-report/scripts/generate_report.py <db_path> --summary
+    python .claude/skills/generate-re-report/scripts/generate_report.py <db_path> --top 20
+    python .claude/skills/generate-re-report/scripts/generate_report.py <db_path> --json
 """
 
 from __future__ import annotations

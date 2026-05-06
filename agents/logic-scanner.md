@@ -51,30 +51,30 @@ perform, do not report it.
 
 | Script | Purpose |
 |--------|---------|
-| `.agent/skills/ai-logic-scanner/scripts/build_threat_model.py <db_path> --json` | Module threat model (service type, privilege, attacker model, entry points, dispatch profile, shared state, classifications) |
-| `.agent/skills/ai-logic-scanner/scripts/prepare_context.py <db_path> --function <name> --depth 5 --json` | Callgraph JSON with structural annotations for a specific function |
-| `.agent/skills/ai-logic-scanner/scripts/prepare_context.py <db_path> --entry-points --depth 5 --json` | Callgraph JSON with structural annotations from auto-discovered entry points |
-| `.agent/skills/ai-logic-scanner/scripts/prepare_context.py <db_path> --function <name> --threat-model <path> --json` | Callgraph JSON reusing dispatch data from a pre-computed threat model |
+| `.claude/skills/ai-logic-scanner/scripts/build_threat_model.py <db_path> --json` | Module threat model (service type, privilege, attacker model, entry points, dispatch profile, shared state, classifications) |
+| `.claude/skills/ai-logic-scanner/scripts/prepare_context.py <db_path> --function <name> --depth 5 --json` | Callgraph JSON with structural annotations for a specific function |
+| `.claude/skills/ai-logic-scanner/scripts/prepare_context.py <db_path> --entry-points --depth 5 --json` | Callgraph JSON with structural annotations from auto-discovered entry points |
+| `.claude/skills/ai-logic-scanner/scripts/prepare_context.py <db_path> --function <name> --threat-model <path> --json` | Callgraph JSON reusing dispatch data from a pre-computed threat model |
 
 ### On-Demand Function Data (decompiled-code-extractor skill)
 
 | Script | Purpose |
 |--------|---------|
-| `.agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> --function "<name>" --json` | Full function data: decompiled code, assembly, signature, xrefs, strings |
-| `.agent/skills/decompiled-code-extractor/scripts/list_functions.py <db_path> --search "<pattern>" --json` | Search for functions by name |
+| `.claude/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> --function "<name>" --json` | Full function data: decompiled code, assembly, signature, xrefs, strings |
+| `.claude/skills/decompiled-code-extractor/scripts/list_functions.py <db_path> --search "<pattern>" --json` | Search for functions by name |
 
 ### Entry Point Discovery (map-attack-surface skill)
 
 | Script | Purpose |
 |--------|---------|
-| `.agent/skills/map-attack-surface/scripts/discover_entrypoints.py <db_path> --json` | All entry points with RPC/COM/export metadata |
+| `.claude/skills/map-attack-surface/scripts/discover_entrypoints.py <db_path> --json` | All entry points with RPC/COM/export metadata |
 
 ## How to Navigate the Callgraph
 
 1. Read the callgraph JSON from workspace. This is your map.
 2. Choose which functions to investigate. Start from entry points.
 3. Read function code on demand via Shell:
-   `python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> --function "Name" --json`
+   `python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> --function "Name" --json`
 4. You can request ANY function, including those outside the prepared callgraph.
 5. The callgraph is your guide, not your constraint.
 
@@ -375,7 +375,7 @@ You receive preloaded code for depth 0+1 MUST_READ functions. For deeper
 levels, **you read functions yourself**:
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py \
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py \
     <db_path> --function "<FunctionName>" --json
 ```
 
@@ -434,9 +434,9 @@ module state, or populate dispatch tables consumed on the tainted path.
 **How to read out-of-graph functions:**
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py \
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py \
     <db_path> --function "DllMain" --json
-python .agent/skills/decompiled-code-extractor/scripts/list_functions.py \
+python .claude/skills/decompiled-code-extractor/scripts/list_functions.py \
     <db_path> --search "Init" --json
 ```
 

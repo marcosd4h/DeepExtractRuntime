@@ -31,17 +31,17 @@ DeepExtract is an AI-driven analysis runtime that operates on IDA Pro extraction
 | `extracted_code/{module}/` | Decompiled `.cpp` files, `file_info.json`, `file_info.md`, `function_index.json`, `module_profile.json` |
 | `extracted_code/{module}/reports/` | Saved reports, visualizations, and analysis artifacts (`.md`, `.html`, `.h`) |
 | `extracted_dbs/` | Per-binary SQLite analysis databases (read-only) |
-| `.agent/helpers/` | Shared Python library (59 modules, 171 public symbols, 3 subpackages) |
-| `.agent/skills/` | Analysis skills with scripts in `scripts/` subdirectories |
-| `.agent/agents/` | Subagent definitions, entry scripts, and `registry.json` |
-| `.agent/commands/` | Slash command definitions (`.md` files) |
-| `.agent/hooks/` | Lifecycle hooks (session start, grind-loop stop, session-end cleanup) |
-| `.agent/rules/` | Behavioral conventions (`.mdc` files, symlinked from `.cursor/rules/`) |
-| `.agent/cache/` | Cached skill-script results (24h TTL, DB mtime validated) |
-| `.agent/workspace/` | Run directories for multi-step workflow handoff |
-| `.agent/config/` | `defaults.json` -- classification weights, thresholds, timeouts; pipeline YAMLs |
-| `.agent/docs/` | Architecture, authoring guides, format references, onboarding |
-| `.agent/tests/` | Test files and `conftest.py` |
+| `.claude/helpers/` | Shared Python library (59 modules, 171 public symbols, 3 subpackages) |
+| `.claude/skills/` | Analysis skills with scripts in `scripts/` subdirectories |
+| `.claude/agents/` | Subagent definitions, entry scripts, and `registry.json` |
+| `.claude/commands/` | Slash command definitions (`.md` files) |
+| `.claude/hooks/` | Lifecycle hooks (session start, grind-loop stop, session-end cleanup) |
+| `.claude/rules/` | Behavioral conventions (`.mdc` files, symlinked from `.cursor/rules/`) |
+| `.claude/cache/` | Cached skill-script results (24h TTL, DB mtime validated) |
+| `.claude/workspace/` | Run directories for multi-step workflow handoff |
+| `.claude/config/` | `defaults.json` -- classification weights, thresholds, timeouts; pipeline YAMLs |
+| `.claude/docs/` | Architecture, authoring guides, format references, onboarding |
+| `.claude/tests/` | Test files and `conftest.py` |
 
 ### Five-Layer Architecture
 
@@ -134,11 +134,11 @@ with db_error_handler(db_path, "loading functions"):
 
 ### 2.2 Grind Loop Protocol
 
-The workspace has a stop hook (`.agent/hooks/grind-until-done.py`) that re-invokes the agent when a task scratchpad has unchecked items. Used for workflows processing multiple discrete items.
+The workspace has a stop hook (`.claude/hooks/grind-until-done.py`) that re-invokes the agent when a task scratchpad has unchecked items. Used for workflows processing multiple discrete items.
 
 **Session-scoped scratchpads** prevent concurrent sessions from interfering:
 ```
-.agent/hooks/scratchpads/{session_id}.md
+.claude/hooks/scratchpads/{session_id}.md
 ```
 
 **When to create a scratchpad:**
@@ -227,22 +227,22 @@ if script is None:
 |------|----------|
 | `extracted_code/{module}/` | Decompiled `.cpp` files + `file_info.json`/`.md` + `module_profile.json` |
 | `extracted_dbs/` | SQLite analysis DBs (assembly, xrefs, strings, loops) |
-| `.agent/helpers/` | Shared Python library (59 modules, 171 public symbols) |
-| `.agent/docs/` | Architecture, authoring guides, format references |
-| `.agent/skills/` | Analysis skills with helper scripts in `scripts/` subdirs |
-| `.agent/agents/` | Subagent definitions and scripts |
-| `.agent/commands/` | Slash command definitions (`.md` files) |
-| `.agent/hooks/` | Lifecycle hooks |
-| `.agent/cache/` | Cached skill-script results (24h TTL, DB mtime validated) |
-| `.agent/workspace/` | Run directories for multi-step workflow handoff |
-| `.agent/config/` | `defaults.json` -- classification weights, thresholds, timeouts |
-| `.agent/tests/` | Test files + `conftest.py` |
+| `.claude/helpers/` | Shared Python library (59 modules, 171 public symbols) |
+| `.claude/docs/` | Architecture, authoring guides, format references |
+| `.claude/skills/` | Analysis skills with helper scripts in `scripts/` subdirs |
+| `.claude/agents/` | Subagent definitions and scripts |
+| `.claude/commands/` | Slash command definitions (`.md` files) |
+| `.claude/hooks/` | Lifecycle hooks |
+| `.claude/cache/` | Cached skill-script results (24h TTL, DB mtime validated) |
+| `.claude/workspace/` | Run directories for multi-step workflow handoff |
+| `.claude/config/` | `defaults.json` -- classification weights, thresholds, timeouts |
+| `.claude/tests/` | Test files + `conftest.py` |
 
 **Data source guidance:**
 - Use `file_info.json` (not `.md`) for programmatic lookups
 - Use `module_profile.json` for pre-computed module-level metrics
 - Use analysis DBs for assembly, xrefs, strings, and loop data not in `.cpp` files
-- Import from `.agent/helpers/` for all shared operations; never reimplement
+- Import from `.claude/helpers/` for all shared operations; never reimplement
 
 ### 2.6 Workspace Pattern
 
@@ -253,7 +253,7 @@ Filesystem handoff for multi-step or multi-skill workflows to keep coordinator c
 - Command performs phased analysis (triage, security, full, batch lifting)
 - Intermediate outputs are large JSON payloads
 
-**Run directory:** `.agent/workspace/<module>_<goal>_<timestamp>/` with `manifest.json`.
+**Run directory:** `.claude/workspace/<module>_<goal>_<timestamp>/` with `manifest.json`.
 
 **Invocation contract:** Every pipeline step receives:
 - `--workspace-dir <run_dir>`
@@ -312,7 +312,7 @@ Six-point checklist before every Shell command:
 
 ### 2.11 Cache Conventions
 
-Cached results live in `.agent/cache/`. Cache is keyed by DB path + script + arguments, validated by DB file modification time with 24h TTL. Use `--no-cache` on any cacheable skill script to force recomputation. Use `/cache-manage` to view stats, clear, or refresh cached results.
+Cached results live in `.claude/cache/`. Cache is keyed by DB path + script + arguments, validated by DB file modification time with 24h TTL. Use `--no-cache` on any cacheable skill script to force recomputation. Use `/cache-manage` to view stats, clear, or refresh cached results.
 
 ---
 
@@ -1975,7 +1975,7 @@ EOF## 5. Commands Reference
 4. Apply research methodology
 5. Present research plan (threat model, ranked hypotheses, estimated effort)
 6. Iterate on disagreement
-7. Persist plan to `.agent/workspace/<module>_hunt_plan_<timestamp>.json`
+7. Persist plan to `.claude/workspace/<module>_hunt_plan_<timestamp>.json`
 8. Transition via CreatePlan
 
 **Skills:** classify-functions, map-attack-surface, security-dossier.
@@ -2162,7 +2162,7 @@ This command has been merged into . Use:
 
 ## 6. Helper Library Overview
 
-The shared Python library (`.agent/helpers/`) provides 59 Python files (3 subpackages, 36 library modules, 9 standalone CLI scripts), exposing 171 public symbols via lazy imports. The golden rule: never reimplement what helpers already provide.
+The shared Python library (`.claude/helpers/`) provides 59 Python files (3 subpackages, 36 library modules, 9 standalone CLI scripts), exposing 171 public symbols via lazy imports. The golden rule: never reimplement what helpers already provide.
 
 ### Module Summary
 
@@ -2220,15 +2220,15 @@ These helpers double as command-line tools (have `if __name__ == "__main__"`):
 
 | Script | Purpose | Example |
 |--------|---------|---------|
-| `unified_search.py` | Multi-dimension search across module DB | `python .agent/helpers/unified_search.py <db> --query <term> --json` |
-| `pipeline_cli.py` | Headless batch pipeline CLI | `python .agent/helpers/pipeline_cli.py run <yaml> --json` |
-| `cleanup_workspace.py` | Prune old workspace run directories | `python .agent/helpers/cleanup_workspace.py --older-than 2 --dry-run` |
-| `health_check.py` | Workspace data and DB health checks | `python .agent/helpers/health_check.py --full --json` |
-| `qa_runner.py` | QA test plan runner | `python .agent/helpers/qa_runner.py --list --json` |
-| `json_extract.py` | Extract keys/grep in JSON files | `python .agent/helpers/json_extract.py <file> <key>` |
-| `ipc_index_inspect.py` | IPC index diagnostics (COM/RPC/WinRT) | `python .agent/helpers/ipc_index_inspect.py --summary --json` |
-| `select_audit_callees.py` | Select callees for /audit deep extraction | `python .agent/helpers/select_audit_callees.py <db> --dossier <path> --json` |
-| `select_backward_traces.py` | Select backward trace targets for /audit | `python .agent/helpers/select_backward_traces.py --dossier <path> --json` |
+| `unified_search.py` | Multi-dimension search across module DB | `python .claude/helpers/unified_search.py <db> --query <term> --json` |
+| `pipeline_cli.py` | Headless batch pipeline CLI | `python .claude/helpers/pipeline_cli.py run <yaml> --json` |
+| `cleanup_workspace.py` | Prune old workspace run directories | `python .claude/helpers/cleanup_workspace.py --older-than 2 --dry-run` |
+| `health_check.py` | Workspace data and DB health checks | `python .claude/helpers/health_check.py --full --json` |
+| `qa_runner.py` | QA test plan runner | `python .claude/helpers/qa_runner.py --list --json` |
+| `json_extract.py` | Extract keys/grep in JSON files | `python .claude/helpers/json_extract.py <file> <key>` |
+| `ipc_index_inspect.py` | IPC index diagnostics (COM/RPC/WinRT) | `python .claude/helpers/ipc_index_inspect.py --summary --json` |
+| `select_audit_callees.py` | Select callees for /audit deep extraction | `python .claude/helpers/select_audit_callees.py <db> --dossier <path> --json` |
+| `select_backward_traces.py` | Select backward trace targets for /audit | `python .claude/helpers/select_backward_traces.py --dossier <path> --json` |
 
 ### Anti-Patterns
 
@@ -2454,8 +2454,8 @@ All cacheable skills accept `--no-cache` to force recomputation. Cache uses 24h 
 | **Manifest** | JSON file in workspace run directories tracking per-step status, summary paths, and error information. |
 | **Module** | A single Windows PE binary (DLL/EXE) that has been extracted and analyzed by DeepExtractIDA. |
 | **Module profile** | Pre-computed fingerprint (`module_profile.json`) containing function counts, noise ratio, technology flags, and classification distribution. |
-| **Run directory** | Workspace directory under `.agent/workspace/` used for filesystem handoff in multi-step workflows. Contains step subdirectories, `manifest.json`, and summaries. |
-| **Scratchpad** | Session-scoped markdown file (`.agent/hooks/scratchpads/{session_id}.md`) used by the grind-loop protocol to track multi-item task progress. |
+| **Run directory** | Workspace directory under `.claude/workspace/` used for filesystem handoff in multi-step workflows. Contains step subdirectories, `manifest.json`, and summaries. |
+| **Scratchpad** | Session-scoped markdown file (`.claude/hooks/scratchpads/{session_id}.md`) used by the grind-loop protocol to track multi-item task progress. |
 | **Skill** | A self-contained analysis capability with optional Python scripts, a SKILL.md definition, and defined inputs/outputs. |
 | **Subagent** | A specialized AI agent running in isolated context that processes context-heavy tasks and returns compact results. |
 | **Taint** | Tracking the flow of attacker-controlled data from sources (entry point parameters) through transformations to dangerous sinks (security-sensitive API calls). |

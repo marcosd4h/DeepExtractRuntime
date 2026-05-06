@@ -358,7 +358,7 @@ class TestScriptRunnerRetry:
             return success_result
 
         # Create a fake script file so find_skill_script succeeds
-        skill_dir = tmp_path / ".agent" / "skills" / "test-skill" / "scripts"
+        skill_dir = tmp_path / ".claude" / "skills" / "test-skill" / "scripts"
         skill_dir.mkdir(parents=True)
         script_file = skill_dir / "test.py"
         script_file.write_text("# dummy", encoding="utf-8")
@@ -390,7 +390,7 @@ class TestScriptRunnerRetry:
             call_count["n"] += 1
             return fail_result
 
-        skill_dir = tmp_path / ".agent" / "skills" / "test-skill" / "scripts"
+        skill_dir = tmp_path / ".claude" / "skills" / "test-skill" / "scripts"
         skill_dir.mkdir(parents=True)
         (skill_dir / "test.py").write_text("# dummy", encoding="utf-8")
         monkeypatch.setattr(script_runner, "find_skill_script",
@@ -421,7 +421,7 @@ class TestScriptRunnerRetry:
                 raise subprocess.TimeoutExpired(cmd="test", timeout=10)
             return success_result
 
-        skill_dir = tmp_path / ".agent" / "skills" / "test-skill" / "scripts"
+        skill_dir = tmp_path / ".claude" / "skills" / "test-skill" / "scripts"
         skill_dir.mkdir(parents=True)
         (skill_dir / "test.py").write_text("# dummy", encoding="utf-8")
         monkeypatch.setattr(script_runner, "find_skill_script",

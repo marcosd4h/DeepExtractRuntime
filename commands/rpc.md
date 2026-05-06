@@ -26,7 +26,7 @@ The text after `/rpc` is the **module name** and optional **subcommand** (e.g., 
 
 ## Execution Context
 
-> **IMPORTANT**: Skill script invocations like `python .agent/skills/.../script.py` can be run from the workspace root because those scripts manage their own path setup.
+> **IMPORTANT**: Skill script invocations like `python .claude/skills/.../script.py` can be run from the workspace root because those scripts manage their own path setup.
 
 ## Steps
 
@@ -49,7 +49,7 @@ For `audit` and `trace` subcommands, resolve the module name to its analysis DB 
 Show which workspace modules implement RPC interfaces with UUIDs, risk tiers, and procedure counts:
 
 ```bash
-python .agent/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py --workspace --json
+python .claude/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py --workspace --json
 ```
 
 Use this as a discovery step before drilling into a specific module. Only `resolve_rpc_interface.py` supports `--workspace`; do NOT use `--workspace` on `map_rpc_surface.py` (use `--system-wide` there instead).
@@ -59,7 +59,7 @@ Use this as a discovery step before drilling into a specific module. Only `resol
 Use the **rpc-interface-analysis** skill:
 
 ```bash
-python .agent/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py <module> --json
+python .claude/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py <module> --json
 ```
 
 Present: interface UUIDs, versions, endpoints, protocols, service names, procedure names, risk tiers.
@@ -70,10 +70,10 @@ Use the **rpc-interface-analysis** skill:
 
 ```bash
 # Per-module
-python .agent/skills/rpc-interface-analysis/scripts/map_rpc_surface.py <module> --json
+python .claude/skills/rpc-interface-analysis/scripts/map_rpc_surface.py <module> --json
 
 # System-wide
-python .agent/skills/rpc-interface-analysis/scripts/map_rpc_surface.py --system-wide --top 30 --json
+python .claude/skills/rpc-interface-analysis/scripts/map_rpc_surface.py --system-wide --top 30 --json
 ```
 
 Present: ranked interfaces by risk tier (critical > high > medium > low), procedure counts, service associations. Highlight remote-reachable and named-pipe interfaces.
@@ -86,13 +86,13 @@ Requires the module's analysis DB. Run in sequence:
 2. Run interface enumeration for context:
 
 ```bash
-python .agent/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py <module> --json
+python .claude/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py <module> --json
 ```
 
 3. Run the security audit:
 
 ```bash
-python .agent/skills/rpc-interface-analysis/scripts/audit_rpc_security.py <db_path> --json
+python .claude/skills/rpc-interface-analysis/scripts/audit_rpc_security.py <db_path> --json
 ```
 
 Present: security findings ranked by severity -- missing impersonation, missing revert, remote interfaces without auth, complex type risks, elevation handlers without identity checks. For each finding, include the interface UUID, risk tier, and remediation guidance.
@@ -104,7 +104,7 @@ When generating Mermaid attack surface diagrams for `ncalrpc`-only services, lab
 Requires the module's analysis DB. Run:
 
 ```bash
-python .agent/skills/rpc-interface-analysis/scripts/trace_rpc_chain.py <db_path> --function <func_name> --json
+python .claude/skills/rpc-interface-analysis/scripts/trace_rpc_chain.py <db_path> --function <func_name> --json
 ```
 
 Present: RPC context (interface UUID, opnum, protocol, service), call chain with depths, dangerous sinks reachable, depth to first sink. Include a Mermaid call-chain diagram for the top path.
@@ -112,7 +112,7 @@ Present: RPC context (interface UUID, opnum, protocol, service), call chain with
 ### Step 5: `/rpc clients <uuid>` -- Find Interface Consumers
 
 ```bash
-python .agent/skills/rpc-interface-analysis/scripts/find_rpc_clients.py <uuid> --json
+python .claude/skills/rpc-interface-analysis/scripts/find_rpc_clients.py <uuid> --json
 ```
 
 Present: server implementations and client consumers, grouped by module, with service and protocol details.
@@ -123,10 +123,10 @@ Use the **rpc-interface-analysis** skill:
 
 ```bash
 # System-wide
-python .agent/skills/rpc-interface-analysis/scripts/rpc_topology.py --json
+python .claude/skills/rpc-interface-analysis/scripts/rpc_topology.py --json
 
 # Per-module
-python .agent/skills/rpc-interface-analysis/scripts/rpc_topology.py <module> --json
+python .claude/skills/rpc-interface-analysis/scripts/rpc_topology.py <module> --json
 ```
 
 Present: topology entries (interface UUID, risk tier, procedure count, server/client binaries, services, protocols, pipe names, ALPC endpoints, TCP ports). Group by service where helpful.

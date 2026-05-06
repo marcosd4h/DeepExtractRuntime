@@ -1,5 +1,5 @@
 # Ephemeral directories excluded from Cursor AI features.
-# Paths are relative to .agent/. For watcher/explorer exclusions
+# Paths are relative to .claude/. For watcher/explorer exclusions
 # see .vscode/settings.json at the workspace root.
 
 workspace/

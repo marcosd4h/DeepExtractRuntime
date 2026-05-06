@@ -112,7 +112,7 @@ def _make_report(
         "depth": 4,
         "timestamp": "2026-03-15T23:45:00Z",
         "db_path": "extracted_dbs/srvsvc_dll_7af81c0428.db",
-        "workspace_run_dir": ".agent/workspace/test_run/",
+        "workspace_run_dir": ".claude/workspace/test_run/",
         "report_path": report_path,
         "callgraph_stats": {
             "total_nodes": 480,

@@ -71,7 +71,7 @@ PDF libraries need to be available in the Python environment:
 Add a standalone script in `helpers/` or a new `pdf-export` skill:
 
 ```
-.agent/skills/pdf-export/
+.claude/skills/pdf-export/
   SKILL.md
   scripts/
     _common.py

@@ -10,7 +10,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# .agent must be on sys.path before skills._shared is importable
+# .claude must be on sys.path before skills._shared is importable
 _AGENT_DIR = str(Path(__file__).resolve().parents[3])
 if _AGENT_DIR not in sys.path:
     sys.path.insert(0, _AGENT_DIR)

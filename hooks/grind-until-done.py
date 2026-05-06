@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Hook: Stop -- Grind-until-done iterative task loop (session-scoped).
 
-Reads a session-scoped scratchpad from .agent/hooks/scratchpads/{session_id}.md
+Reads a session-scoped scratchpad from .claude/hooks/scratchpads/{session_id}.md
 for a task checklist.  If unchecked items remain and no DONE marker is present,
 prevents the agent from stopping so it continues working.
 

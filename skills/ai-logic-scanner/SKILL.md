@@ -62,8 +62,8 @@ Individual analysis DBs in `extracted_dbs/` provide the raw data:
 ### Finding a Module DB
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py srvsvc.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --list
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py srvsvc.dll
 ```
 
 ### Cross-Module Callgraph
@@ -79,7 +79,7 @@ lateral IPC peers.
 The LLM agent retrieves function code via:
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> --function "FunctionName" --json
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> --function "FunctionName" --json
 ```
 
 ## Utility Scripts
@@ -89,8 +89,8 @@ python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py 
 Build a compact threat model anchoring the scanner's attention.
 
 ```bash
-python .agent/skills/ai-logic-scanner/scripts/build_threat_model.py <db_path> --json
-python .agent/skills/ai-logic-scanner/scripts/build_threat_model.py <db_path> --json \
+python .claude/skills/ai-logic-scanner/scripts/build_threat_model.py <db_path> --json
+python .claude/skills/ai-logic-scanner/scripts/build_threat_model.py <db_path> --json \
     --workspace-dir <run_dir> --workspace-step threat_model
 ```
 
@@ -108,9 +108,9 @@ The output includes a `traversal_plan` that classifies every node as
 MUST_READ, KNOWN_API, TELEMETRY, or LIBRARY, grouped by depth level.
 
 ```bash
-python .agent/skills/ai-logic-scanner/scripts/prepare_context.py <db_path> \
+python .claude/skills/ai-logic-scanner/scripts/prepare_context.py <db_path> \
     --function "NetrShareGetInfo" --depth 3 --with-code --json
-python .agent/skills/ai-logic-scanner/scripts/prepare_context.py <db_path> \
+python .claude/skills/ai-logic-scanner/scripts/prepare_context.py <db_path> \
     --entry-points --depth 5 --with-code --json \
     --workspace-dir <run_dir> --workspace-step context
 ```

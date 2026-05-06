@@ -7,34 +7,34 @@ structured JSON + markdown reports.
 
 Usage:
     # Run all testable test cases
-    python .agent/helpers/qa_runner.py
+    python .claude/helpers/qa_runner.py
 
     # Run only tests matching a prefix
-    python .agent/helpers/qa_runner.py --prefix TEST-SKILL
+    python .claude/helpers/qa_runner.py --prefix TEST-SKILL
 
     # Run a single test
-    python .agent/helpers/qa_runner.py --test TEST-SKILL-039
+    python .claude/helpers/qa_runner.py --test TEST-SKILL-039
 
     # Run tests for a specific section
-    python .agent/helpers/qa_runner.py --section "Skill Scripts"
+    python .claude/helpers/qa_runner.py --section "Skill Scripts"
 
     # List all tests without running them
-    python .agent/helpers/qa_runner.py --list
+    python .claude/helpers/qa_runner.py --list
 
     # List only runnable tests with their resolved commands
-    python .agent/helpers/qa_runner.py --list-runnable
+    python .claude/helpers/qa_runner.py --list-runnable
 
     # Parallel execution with 4 workers (default: 1 = sequential)
-    python .agent/helpers/qa_runner.py --workers 4
+    python .claude/helpers/qa_runner.py --workers 4
 
     # Use a custom QA plan file
-    python .agent/helpers/qa_runner.py --plan path/to/custom_plan.md
+    python .claude/helpers/qa_runner.py --plan path/to/custom_plan.md
 
     # Custom output directory and timeout
-    python .agent/helpers/qa_runner.py --output-dir work/qa_results --timeout 120
+    python .claude/helpers/qa_runner.py --output-dir work/qa_results --timeout 120
 
     # JSON output (summary only, no per-test execution output)
-    python .agent/helpers/qa_runner.py --json
+    python .claude/helpers/qa_runner.py --json
 """
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ from typing import Any, Optional
 _SCRIPT_DIR = Path(__file__).resolve().parent
 _RUNTIME_ROOT = _SCRIPT_DIR.parent
 _WORKSPACE_ROOT = _RUNTIME_ROOT.parent
-_QA_PLAN_PATH = _WORKSPACE_ROOT / ".agent" / "docs" / "testing_guide.md"
+_QA_PLAN_PATH = _WORKSPACE_ROOT / ".claude" / "docs" / "testing_guide.md"
 
 if str(_RUNTIME_ROOT) not in sys.path:
     sys.path.insert(0, str(_RUNTIME_ROOT))
@@ -240,7 +240,7 @@ def resolve_db_paths(workspace: Path) -> dict[str, str]:
     """
     aliases: dict[str, str] = {}
     short_keys: dict[str, list[str]] = {}
-    script = workspace / ".agent/skills/decompiled-code-extractor/scripts/find_module_db.py"
+    script = workspace / ".claude/skills/decompiled-code-extractor/scripts/find_module_db.py"
     if not script.exists():
         return aliases
 
@@ -686,7 +686,7 @@ def main():
     )
     parser.add_argument(
         "--plan", default=str(_QA_PLAN_PATH),
-        help="Path to testing guide markdown (default: .agent/docs/testing_guide.md)",
+        help="Path to testing guide markdown (default: .claude/docs/testing_guide.md)",
     )
     parser.add_argument(
         "--prefix", default=None,

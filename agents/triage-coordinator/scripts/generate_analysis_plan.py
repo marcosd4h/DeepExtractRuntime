@@ -85,7 +85,7 @@ def _attach_workspace_protocol(plan: dict) -> None:
                 task["agent"] = agent
 
     plan["workspace_protocol"] = {
-        "workspace_root": ".agent/workspace",
+        "workspace_root": ".claude/workspace",
         "workspace_run_dir_template": "{module}_{goal}_{timestamp}",
         "execution": "all skill tasks run with --workspace-dir and --workspace-step",
         "context_policy": "use summaries in context, read results.json only on demand",

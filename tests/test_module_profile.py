@@ -1,6 +1,6 @@
 """Tests for helpers.module_profile -- profile loading and fingerprint queries.
 
-Target: .agent/helpers/module_profile.py
+Target: .claude/helpers/module_profile.py
 """
 
 from __future__ import annotations

@@ -27,13 +27,13 @@ Usage:
     python batch_extract.py <db_path> --class <ClassName> --summary
 
 Examples:
-    python .agent/agents/code-lifter/scripts/batch_extract.py \\
+    python .claude/agents/code-lifter/scripts/batch_extract.py \\
         extracted_dbs/appinfo_dll_e98d25a9e8.db --class CSecurityDescriptor
 
-    python .agent/agents/code-lifter/scripts/batch_extract.py \\
+    python .claude/agents/code-lifter/scripts/batch_extract.py \\
         extracted_dbs/cmd_exe_6d109a3a00.db --id-list 42,43,44,45 --init-state
 
-    python .agent/agents/code-lifter/scripts/batch_extract.py \\
+    python .claude/agents/code-lifter/scripts/batch_extract.py \\
         extracted_dbs/cmd_exe_6d109a3a00.db --list-classes --skip-library
 """
 

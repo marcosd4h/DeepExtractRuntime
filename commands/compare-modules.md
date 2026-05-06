@@ -13,7 +13,7 @@ If fewer than two modules are specified, list available modules and ask.
 
 ## Scale Limits
 
-The `--all` flag is capped at 200 modules (configurable via `scale.max_modules_compare` in `.agent/config/defaults.json`). If there are more than 200 modules, `--all` compares the first 200 and warns the user. For targeted comparison of specific modules, always list them explicitly.
+The `--all` flag is capped at 200 modules (configurable via `scale.max_modules_compare` in `.claude/config/defaults.json`). If there are more than 200 modules, `--all` compares the first 200 and warns the user. For targeted comparison of specific modules, always list them explicitly.
 
 With 100+ modules, pairwise analysis becomes O(N^2). Use `--all` only for high-level overviews; use explicit module lists for detailed comparison.
 
@@ -23,16 +23,16 @@ With 100+ modules, pairwise analysis becomes O(N^2). Use `--all` only for high-l
 
 ## Execution Context
 
-> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.agent`
-> (so the `.agent/` directory is on `sys.path`), **not** from the workspace root.
-> Script invocations like `python .agent/skills/.../script.py` can be run from the workspace root
+> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.claude`
+> (so the `.claude/` directory is on `sys.path`), **not** from the workspace root.
+> Script invocations like `python .claude/skills/.../script.py` can be run from the workspace root
 > because those scripts manage their own path setup.
 
 ## Workspace Protocol
 
 For multi-module comparison:
 
-1. Create a top-level run directory under `.agent/workspace/` for the command.
+1. Create a top-level run directory under `.claude/workspace/` for the command.
 2. Create per-module sub-runs (for example, `<run_dir>/<moduleA>/`, `<run_dir>/<moduleB>/`) to avoid collisions.
 3. Pass `--workspace-dir <module_run_dir>` and `--workspace-step <step_name>` to every skill invocation.
 4. Keep only compact summaries in context; avoid inlining full JSON across modules.
@@ -47,7 +47,7 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 
 1. **Find all module DBs**
    Use the **decompiled-code-extractor** skill (`find_module_db.py`) for each module. With `--all`, use `--list` to enumerate everything. Verify all have COMPLETE status.
-   `list_extracted_modules()` from helpers or `python .agent/skills/function-index/scripts/index_functions.py --all --stats` provides instant enumeration with app/library breakdown. The session context "Module Profiles" section already has per-module noise ratios, library breakdowns, and technology surface flags for quick comparison.
+   `list_extracted_modules()` from helpers or `python .claude/skills/function-index/scripts/index_functions.py --all --stats` provides instant enumeration with app/library breakdown. The session context "Module Profiles" section already has per-module noise ratios, library breakdowns, and technology surface flags for quick comparison.
    The enriched `function_index.json` now includes `function_id`, `has_decompiled`, and `has_assembly` (and may include `file: null` entries). Use index metadata first; avoid DB name lookups for basic function identity/status checks.
 
 > **Tip:** All skill scripts support `--json` for machine-readable output. Use `--json` when parsing script output programmatically.

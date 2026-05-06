@@ -8,16 +8,16 @@ Fast function-to-file resolution for DeepExtractIDA extraction outputs. Maps fun
 
 ```bash
 # Where is this function?
-python .agent/skills/function-index/scripts/lookup_function.py AiCheckSecureApplicationDirectory
+python .claude/skills/function-index/scripts/lookup_function.py AiCheckSecureApplicationDirectory
 
 # What application functions does this module have?
-python .agent/skills/function-index/scripts/index_functions.py appinfo_dll --app-only --stats
+python .claude/skills/function-index/scripts/index_functions.py appinfo_dll --app-only --stats
 
 # Resolve function name to absolute .cpp path
-python .agent/skills/function-index/scripts/resolve_function_file.py BatLoop
+python .claude/skills/function-index/scripts/resolve_function_file.py BatLoop
 
 # Cross-dimensional search (names, signatures, strings, APIs, classes, exports)
-python .agent/helpers/unified_search.py <db_path> --query "CreateProcess"
+python .claude/helpers/unified_search.py <db_path> --query "CreateProcess"
 ```
 
 ## Two Ways to Consume
@@ -34,40 +34,40 @@ Run from the workspace root. All scripts support `--json` for machine-readable o
 
 ```bash
 # Exact lookup across all modules
-python .agent/skills/function-index/scripts/lookup_function.py AiCheckLUA
+python .claude/skills/function-index/scripts/lookup_function.py AiCheckLUA
 
 # Substring search, application code only
-python .agent/skills/function-index/scripts/lookup_function.py --search "Launch" --app-only
+python .claude/skills/function-index/scripts/lookup_function.py --search "Launch" --app-only
 
 # Regex search within one module
-python .agent/skills/function-index/scripts/lookup_function.py --search "Ai.*Build" --regex --module appinfo_dll
+python .claude/skills/function-index/scripts/lookup_function.py --search "Ai.*Build" --regex --module appinfo_dll
 
 # Module stats
-python .agent/skills/function-index/scripts/index_functions.py appinfo_dll --stats
+python .claude/skills/function-index/scripts/index_functions.py appinfo_dll --stats
 
 # All modules stats
-python .agent/skills/function-index/scripts/index_functions.py --all --stats
+python .claude/skills/function-index/scripts/index_functions.py --all --stats
 
 # Filter by library tag
-python .agent/skills/function-index/scripts/index_functions.py appinfo_dll --library WIL
+python .claude/skills/function-index/scripts/index_functions.py appinfo_dll --library WIL
 
 # Group by .cpp file
-python .agent/skills/function-index/scripts/index_functions.py appinfo_dll --app-only --by-file
+python .claude/skills/function-index/scripts/index_functions.py appinfo_dll --app-only --by-file
 
 # Batch resolve (comma-separated)
-python .agent/skills/function-index/scripts/resolve_function_file.py --names "FuncA,FuncB,FuncC" --json
+python .claude/skills/function-index/scripts/resolve_function_file.py --names "FuncA,FuncB,FuncC" --json
 
 # List all functions in a specific .cpp file
-python .agent/skills/function-index/scripts/resolve_function_file.py --file appinfo_dll_standalone_group_5.cpp --module appinfo_dll
+python .claude/skills/function-index/scripts/resolve_function_file.py --file appinfo_dll_standalone_group_5.cpp --module appinfo_dll
 ```
 
 ### 2. Python Helper Module
 
-The core logic lives in `helpers/function_index/`, importable by any script that has `.agent` on `sys.path` (the standard pattern all skill scripts already use).
+The core logic lives in `helpers/function_index/`, importable by any script that has `.claude` on `sys.path` (the standard pattern all skill scripts already use).
 
 ```python
 # Every skill's _common.py already does this:
-#   sys.path.insert(0, str(WORKSPACE_ROOT / ".agent"))
+#   sys.path.insert(0, str(WORKSPACE_ROOT / ".claude"))
 
 # Then import what you need:
 from helpers import (

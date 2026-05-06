@@ -2,9 +2,9 @@
 """Build and display the cross-module PE import/export index.
 
 Usage:
-    python .agent/skills/import-export-resolver/scripts/build_index.py
-    python .agent/skills/import-export-resolver/scripts/build_index.py --json
-    python .agent/skills/import-export-resolver/scripts/build_index.py path/to/analyzed_files.db --no-cache
+    python .claude/skills/import-export-resolver/scripts/build_index.py
+    python .claude/skills/import-export-resolver/scripts/build_index.py --json
+    python .claude/skills/import-export-resolver/scripts/build_index.py path/to/analyzed_files.db --no-cache
 """
 
 from __future__ import annotations

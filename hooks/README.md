@@ -1,7 +1,7 @@
 # Cursor / Claude Code Hooks
 
 Hooks run scripts before or after agent actions. In an installed workspace they
-are located under `.agent/hooks/`, while root-level `hooks.json` wires them
+are located under `.claude/hooks/`, while root-level `hooks.json` wires them
 into the host. They communicate over stdin/stdout JSON and can inject context,
 gate operations, or create iteration loops. Works with both Cursor and Claude
 Code.
@@ -25,7 +25,7 @@ Fires once when a new conversation starts. Scans the workspace and injects a str
 - Available skills table with type, purpose, dependencies, and cacheability (from `skills/registry.json`)
 - Available agents table with type, purpose, and skills used (from `agents/registry.json`)
 - Available commands table with purpose, parameters, skills/agents used, grind loop, and workspace flags (from `commands/registry.json`)
-- Available rules table with filenames and purposes (from `.agent/rules/*.md`)
+- Available rules table with filenames and purposes (from `.claude/rules/*.md`)
 - README-derived documentation overviews: skills dependency graph, commands usage/integration map, agents architecture/decision table (from `skills/README.md`, `commands/README.md`, `agents/README.md`)
 - Workspace layout summary
 - **Session ID and scratchpad path** for grind-loop isolation
@@ -71,11 +71,11 @@ The session ID is persisted to `$CLAUDE_ENV_FILE` (written as `export AGENT_SESS
 2. Reads `extracted_code/*/file_info.json` for each module (binary identity, PE metadata, function summaries)
 3. Reads `extracted_code/*/module_profile.json` for pre-computed module fingerprints (library composition, API surface, complexity)
 4. Lists `extracted_dbs/*.db` for analysis databases
-5. Lists `.agent/skills/*/SKILL.md` for available skills
-6. Scans `.agent/rules/*.md` for installed runtime rules
+5. Lists `.claude/skills/*/SKILL.md` for available skills
+6. Scans `.claude/rules/*.md` for installed runtime rules
 7. Loads `skills/registry.json`, `agents/registry.json`, `commands/registry.json` for machine-readable metadata (type, purpose, dependencies, parameters, skills used)
 8. At `full` level: loads condensed overviews from `skills/README.md`, `commands/README.md`, `agents/README.md` (overview tables, dependency graphs, decision matrices -- stops before per-item detailed descriptions)
-9. Ensures `.agent/hooks/scratchpads/` directory exists
+9. Ensures `.claude/hooks/scratchpads/` directory exists
 10. Assembles everything into a Markdown context and outputs platform-appropriate JSON (Cursor: `env` + `additional_context`; Claude Code: `hookSpecificOutput.additionalContext` + `$CLAUDE_ENV_FILE`)
 
 **Timeout:** 15s host timeout (`hooks.json`); the hook uses the same value from `hooks.session_start_timeout_seconds` as its internal deadline.
@@ -118,12 +118,12 @@ Fires when the agent loop ends. Resolves the session ID, checks the session-scop
 
 **Session-scoped scratchpads:**
 
-Each agent session gets its own scratchpad at `.agent/hooks/scratchpads/{session_id}.md`. This prevents concurrent sessions from overwriting each other's task lists.
+Each agent session gets its own scratchpad at `.claude/hooks/scratchpads/{session_id}.md`. This prevents concurrent sessions from overwriting each other's task lists.
 
 **How it works:**
 
 1. Resolves session ID from `AGENT_SESSION_ID` env var, or `conversation_id`/`session_id` from stdin JSON
-2. Looks for `.agent/hooks/scratchpads/{session_id}.md`
+2. Looks for `.claude/hooks/scratchpads/{session_id}.md`
 3. Parses `- [x]` / `- [ ]` checkboxes and the `## Status` section
 4. If unchecked items remain and Status is not `DONE`, outputs a followup to prevent stopping:
    - Cursor: `{ "followup_message": "..." }`
@@ -152,7 +152,7 @@ IN_PROGRESS
 
 **Who creates the scratchpad:**
 
-- The agent, guided by `.agent/rules/grind-loop-protocol.mdc` (always-on rule)
+- The agent, guided by `.claude/rules/grind-loop-protocol.mdc` (always-on rule)
 - Grind-loop commands such as `/lift-class`, `/full-report`, `/verify-decompiler-batch`, `/hunt-execute`, `/batch-audit`, and `/scan`
 - Skills `batch-lift` and `verify-decompiled` reference the protocol at their iteration points
 
@@ -164,7 +164,7 @@ Fires when a conversation ends. Delegates to `helpers.cleanup_workspace.cleanup_
 
 **What it cleans:**
 
-- **Workspace run directories** in `.agent/workspace/` older than the configured threshold
+- **Workspace run directories** in `.claude/workspace/` older than the configured threshold
 - **Agent state files** (e.g., code-lifter class state JSONs) older than the threshold
 - **Stale cache entries** via `helpers.cache.evict_stale()`
 
@@ -179,7 +179,7 @@ Fires when a conversation ends. Delegates to `helpers.cleanup_workspace.cleanup_
 ```text
 <DeepExtractIDA_output_root>/
   hooks.json                          # Hook configuration installed by the runtime
-  .agent/
+  .claude/
     hooks/
       README.md                       # This file
       inject-module-context.py        # sessionStart hook

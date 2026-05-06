@@ -8,16 +8,16 @@ Trace call graphs, execution paths, and cross-module xref chains across DeepExtr
 
 ```bash
 # 1. Find the module DB
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 
 # 2. See what a function calls (code + classified outbound xrefs)
-python .agent/skills/callgraph-tracer/scripts/chain_analysis.py extracted_dbs/appinfo_dll_e98d25a9e8.db AiLaunchProcess
+python .claude/skills/callgraph-tracer/scripts/chain_analysis.py extracted_dbs/appinfo_dll_e98d25a9e8.db AiLaunchProcess
 
 # 3. Follow a specific callee across module boundaries
-python .agent/skills/callgraph-tracer/scripts/chain_analysis.py extracted_dbs/appinfo_dll_e98d25a9e8.db AiLaunchProcess --follow AipCheckForAppPathsKey
+python .claude/skills/callgraph-tracer/scripts/chain_analysis.py extracted_dbs/appinfo_dll_e98d25a9e8.db AiLaunchProcess --follow AipCheckForAppPathsKey
 
 # 4. See the full call tree compactly (no code)
-python .agent/skills/callgraph-tracer/scripts/chain_analysis.py extracted_dbs/appinfo_dll_e98d25a9e8.db AiLaunchProcess --depth 2 --summary
+python .claude/skills/callgraph-tracer/scripts/chain_analysis.py extracted_dbs/appinfo_dll_e98d25a9e8.db AiLaunchProcess --depth 2 --summary
 ```
 
 ## Scripts
@@ -35,14 +35,14 @@ python .agent/skills/callgraph-tracer/scripts/chain_analysis.py extracted_dbs/ap
 ### Single-Module Graph Queries (`build_call_graph.py`)
 
 ```bash
-python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --stats
-python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --path <source> <target>
-python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --reachable <function> --max-depth 5
-python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --callers <function>
-python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --scc
-python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --leaves
-python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --roots
-python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --neighbors <function>
+python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --stats
+python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --path <source> <target>
+python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --reachable <function> --max-depth 5
+python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --callers <function>
+python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --scc
+python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --leaves
+python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --roots
+python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --neighbors <function>
 ```
 
 ### Cross-Module Chain Analysis (`chain_analysis.py`)
@@ -51,42 +51,42 @@ The main tool. Follows outbound xrefs across DLL boundaries, retrieving decompil
 
 ```bash
 # Show function code + all outbound calls classified as internal/resolvable/unresolvable
-python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> <function>
+python .claude/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> <function>
 
 # Follow a specific callee into another module
-python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> <function> --follow <callee>
+python .claude/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> <function> --follow <callee>
 
 # Recursively follow all resolvable calls
-python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> <function> --depth 3
+python .claude/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> <function> --depth 3
 
 # Compact tree (structure only, no code)
-python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> <function> --depth 3 --summary
+python .claude/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> <function> --depth 3 --summary
 ```
 
 ### Cross-Module Resolution (`cross_module_resolve.py`)
 
 ```bash
 # Search all modules for a function
-python .agent/skills/callgraph-tracer/scripts/cross_module_resolve.py CreateProcessW
+python .claude/skills/callgraph-tracer/scripts/cross_module_resolve.py CreateProcessW
 
 # Show external calls from a function and resolve their modules
-python .agent/skills/callgraph-tracer/scripts/cross_module_resolve.py --from-function <db_path> <function>
+python .claude/skills/callgraph-tracer/scripts/cross_module_resolve.py --from-function <db_path> <function>
 ```
 
 ### Module Dependencies (`module_dependencies.py`)
 
 ```bash
-python .agent/skills/callgraph-tracer/scripts/module_dependencies.py --overview
-python .agent/skills/callgraph-tracer/scripts/module_dependencies.py --surface appinfo.dll
-python .agent/skills/callgraph-tracer/scripts/module_dependencies.py --shared-functions appinfo.dll cmd.exe
+python .claude/skills/callgraph-tracer/scripts/module_dependencies.py --overview
+python .claude/skills/callgraph-tracer/scripts/module_dependencies.py --surface appinfo.dll
+python .claude/skills/callgraph-tracer/scripts/module_dependencies.py --shared-functions appinfo.dll cmd.exe
 ```
 
 ### Diagram Generation (`generate_diagram.py`)
 
 ```bash
-python .agent/skills/callgraph-tracer/scripts/generate_diagram.py <db_path> --function <name> --depth 2
-python .agent/skills/callgraph-tracer/scripts/generate_diagram.py <db_path> --path <source> <target>
-python .agent/skills/callgraph-tracer/scripts/generate_diagram.py --cross-module
+python .claude/skills/callgraph-tracer/scripts/generate_diagram.py <db_path> --function <name> --depth 2
+python .claude/skills/callgraph-tracer/scripts/generate_diagram.py <db_path> --path <source> <target>
+python .claude/skills/callgraph-tracer/scripts/generate_diagram.py --cross-module
 ```
 
 ## Xref Filtering

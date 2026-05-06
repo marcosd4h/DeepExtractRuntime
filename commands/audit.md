@@ -21,7 +21,7 @@ If no function is specified, ask the user.
 
 Before running the multi-skill audit pipeline:
 
-1. Create a run directory under `.agent/workspace/` (for example, `.agent/workspace/<module>_audit_<function>_<timestamp>/`).
+1. Create a run directory under `.claude/workspace/` (for example, `.claude/workspace/<module>_audit_<function>_<timestamp>/`).
 2. Run every skill script with:
    - `--workspace-dir <run_dir>`
    - `--workspace-step <step_name>`
@@ -56,7 +56,7 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 **Quick lookup** (preferred):
 
 ```
-python .agent/skills/function-index/scripts/lookup_function.py <function_name> --json
+python .claude/skills/function-index/scripts/lookup_function.py <function_name> --json
 ```
 
 Returns module, library tag, `function_id`, and decompiled/assembly availability.
@@ -64,7 +64,7 @@ Returns module, library tag, `function_id`, and decompiled/assembly availability
 **Cross-dimensional search** (when the term might match a string, API call, or class name):
 
 ```
-python .agent/helpers/unified_search.py <db_path> --query <term> --json
+python .claude/helpers/unified_search.py <db_path> --query <term> --json
 ```
 
 The JSON output contains `results_flat` (deduplicated flat list, easiest to iterate) and `results` (dimension-grouped dict).
@@ -78,7 +78,7 @@ Once located, note the **`function_id`** and **`db_path`** -- all subsequent ste
 ### 2. Build security dossier
 
 ```
-python .agent/skills/security-dossier/scripts/build_dossier.py <db_path> --id <function_id> \
+python .claude/skills/security-dossier/scripts/build_dossier.py <db_path> --id <function_id> \
     --callee-depth 4 --json \
     --workspace-dir <run_dir> --workspace-step dossier
 ```
@@ -88,7 +88,7 @@ Produces: IPC context (RPC/COM/WinRT classification), parameter risk scoring, id
 ### 3. Extract full function data
 
 ```
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> --id <function_id> \
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> --id <function_id> \
     --json \
     --workspace-dir <run_dir> --workspace-step extract
 ```
@@ -163,7 +163,7 @@ Per analyzed function, the analysis must include at minimum:
 ### 3b. Query attack surface ranking
 
 ```
-python .agent/skills/map-attack-surface/scripts/rank_entrypoints.py <db_path> \
+python .claude/skills/map-attack-surface/scripts/rank_entrypoints.py <db_path> \
     --function <function_name> --json \
     --workspace-dir <run_dir> --workspace-step attack_surface
 ```
@@ -180,7 +180,7 @@ Read `extracted_code/<module_folder>/module_profile.json` for module-level conte
 If the target function's `complexity.instruction_count < 200` AND it has exactly 1-2 internal callees that account for the bulk of the dangerous operations (check `dangerous_operations.callee_dangerous_apis`), it is likely a thin wrapper. Extract the primary callee's decompiled code to enable deeper manual review:
 
 ```
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> \
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> \
     --id <primary_callee_id> --json \
     --workspace-dir <run_dir> --workspace-step extract_callee
 ```
@@ -192,7 +192,7 @@ python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py 
 If both conditions hold, extract that callee as depth-2:
 
 ```
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> \
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> \
     --id <depth_2_callee_id> --json \
     --workspace-dir <run_dir> --workspace-step extract_callee_d2
 ```
@@ -206,7 +206,7 @@ During Step 6 synthesis, use ALL extracted callee levels to evaluate concerns C2
 Only run if dossier `reachability.ipc_context.is_rpc_handler = true`:
 
 ```
-python .agent/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py <module_name> --json \
+python .claude/skills/rpc-interface-analysis/scripts/resolve_rpc_interface.py <module_name> --json \
     --workspace-dir <run_dir> --workspace-step rpc_interface
 ```
 
@@ -230,7 +230,7 @@ Run the callee selection helper to determine which callees to extract for Steps 
 - Step 3h triggers when `dangerous_ops_reachable >= 10` (from step 3b) OR `is_rpc_handler: true` (from step 2 dossier)
 
 ```
-python .agent/helpers/select_audit_callees.py <db_path> \
+python .claude/helpers/select_audit_callees.py <db_path> \
     --dossier <run_dir>/dossier/results.json \
     --attack-surface <run_dir>/attack_surface/results.json \
     --exclude <callee_names_from_step_3f> \
@@ -242,7 +242,7 @@ The script outputs `all_extractions` -- a combined list of deep callees (up to 4
 Extract all returned callees in parallel:
 
 ```
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> \
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py <db_path> \
     --function <callee_name> --json \
     --workspace-dir <run_dir> --workspace-step <step_name>
 ```
@@ -266,7 +266,7 @@ During Step 6 synthesis, read all `extract_deep_*` payloads and reference them b
 ### 4. Trace call chain
 
 ```
-python .agent/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> --id <function_id> \
+python .claude/skills/callgraph-tracer/scripts/chain_analysis.py <db_path> --id <function_id> \
     --depth 4 --summary --json \
     --workspace-dir <run_dir> --workspace-step callchain
 ```
@@ -276,7 +276,7 @@ Shows the compact call tree (depth 4). For specific paths of interest, extract f
 ### 4b. Generate Mermaid diagram (conditional -- only when `--diagram` is specified)
 
 ```
-python .agent/skills/callgraph-tracer/scripts/generate_diagram.py <db_path> \
+python .claude/skills/callgraph-tracer/scripts/generate_diagram.py <db_path> \
     --id <function_id> --depth 4 --format mermaid --json \
     --workspace-dir <run_dir> --workspace-step diagram
 ```

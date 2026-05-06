@@ -17,9 +17,9 @@ Usage:
 
 ## Execution Context
 
-> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.agent`
-> (so the `.agent/` directory is on `sys.path`), **not** from the workspace root.
-> Script invocations like `python .agent/skills/.../script.py` can be run from the workspace root
+> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.claude`
+> (so the `.claude/` directory is on `sys.path`), **not** from the workspace root.
+> Script invocations like `python .claude/skills/.../script.py` can be run from the workspace root
 > because those scripts manage their own path setup.
 
 ## Steps
@@ -36,13 +36,13 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 Use the **function-index** skill for fast lookup:
 
 ```bash
-python .agent/skills/function-index/scripts/lookup_function.py <function_name> --json
+python .claude/skills/function-index/scripts/lookup_function.py <function_name> --json
 ```
 
 Or find the module DB first:
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name>
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name>
 ```
 
 Once located, note `function_id` and `db_path`. Use `--id <function_id>` in all subsequent calls.
@@ -52,7 +52,7 @@ Once located, note `function_id` and `db_path`. Use `--id <function_id>` in all 
 Use the **re-analyst** agent's `re_query.py` to get classification metadata for the target function:
 
 ```bash
-python .agent/agents/re-analyst/scripts/re_query.py <db_path> --function <function_name> --context --json
+python .claude/agents/re-analyst/scripts/re_query.py <db_path> --function <function_name> --context --json
 ```
 
 Extract **only the classification metadata** from the JSON output: `category`, `interest` score, and `dangerous_apis`. Do NOT display the decompiled code. Use this data to annotate the caller/callee tables with category and interest score columns.
@@ -62,19 +62,19 @@ Extract **only the classification metadata** from the JSON output: `category`, `
 Use the **callgraph-tracer** skill to get detailed xref data:
 
 ```bash
-python .agent/skills/callgraph-tracer/scripts/analyze_detailed_xrefs.py <db_path> --id <fid> --json
+python .claude/skills/callgraph-tracer/scripts/analyze_detailed_xrefs.py <db_path> --id <fid> --json
 ```
 
 For deeper analysis (2+ levels):
 
 ```bash
-python .agent/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --neighbors <function_name> --json
+python .claude/skills/callgraph-tracer/scripts/build_call_graph.py <db_path> --neighbors <function_name> --json
 ```
 
 For cross-module xref resolution:
 
 ```bash
-python .agent/skills/callgraph-tracer/scripts/cross_module_resolve.py <function_name> --json
+python .claude/skills/callgraph-tracer/scripts/cross_module_resolve.py <function_name> --json
 ```
 
 ### 4. Present results

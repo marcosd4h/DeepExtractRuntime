@@ -16,16 +16,16 @@ Optional flags:
 
 ## Execution Context
 
-> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.agent`
-> (so the `.agent/` directory is on `sys.path`), **not** from the workspace root.
-> Script invocations like `python .agent/skills/.../script.py` can be run from the workspace root
+> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.claude`
+> (so the `.claude/` directory is on `sys.path`), **not** from the workspace root.
+> Script invocations like `python .claude/skills/.../script.py` can be run from the workspace root
 > because those scripts manage their own path setup.
 
 ## Workspace Protocol
 
 Before running triage:
 
-1. Create `.agent/workspace/<module>_triage_<timestamp>/`.
+1. Create `.claude/workspace/<module>_triage_<timestamp>/`.
 2. Pass `--workspace-dir <run_dir>` and `--workspace-step <step_name>` to each skill invocation.
 3. Treat stdout as summary-only; do not inline full JSON in chat.
 4. Read full payloads only when needed from `<run_dir>/<step_name>/results.json`.
@@ -40,7 +40,7 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 
 1. **Find the module DB**
    Use the **decompiled-code-extractor** skill (`find_module_db.py`) to resolve the module name to its analysis database path. If the module is not found, run with `--list` to show all available modules.
-   Alternatively, use `list_extracted_modules()` from helpers or `python .agent/skills/function-index/scripts/index_functions.py --all --stats` for instant module enumeration.
+   Alternatively, use `list_extracted_modules()` from helpers or `python .claude/skills/function-index/scripts/index_functions.py --all --stats` for instant module enumeration.
 
 > **Tip:** All skill scripts support `--json` for machine-readable output. Use `--json` when parsing script output programmatically.
 
@@ -48,7 +48,7 @@ If validation fails, report the errors and stop. On success, use `result.resolve
    Use the **triage-coordinator** agent's `analyze_module.py` to run the full triage pipeline in one call:
 
    ```bash
-   python .agent/agents/triage-coordinator/scripts/analyze_module.py <db_path> --goal triage --json
+   python .claude/agents/triage-coordinator/scripts/analyze_module.py <db_path> --goal triage --json
    ```
 
    This returns structured JSON covering: binary identity, security posture, function classification (category distribution, noise ratio, top interesting functions), call graph topology (node/edge counts, hubs, connectivity), attack surface discovery (entry point types, ranked by attack value), and module fingerprinting (COM-heavy, RPC-heavy, dispatch-heavy trait detection). The coordinator handles adaptive routing based on detected module characteristics.

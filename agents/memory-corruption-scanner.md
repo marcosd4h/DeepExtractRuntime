@@ -332,7 +332,7 @@ You receive preloaded code for depth 0+1 MUST_READ functions. For deeper
 levels, **you read functions yourself**:
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py \
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py \
     <db_path> --function "<FunctionName>" --json
 ```
 
@@ -383,9 +383,9 @@ module state, or populate dispatch tables consumed on the tainted path.
 **How to read out-of-graph functions:**
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/extract_function_data.py \
+python .claude/skills/decompiled-code-extractor/scripts/extract_function_data.py \
     <db_path> --function "DllMain" --json
-python .agent/skills/decompiled-code-extractor/scripts/list_functions.py \
+python .claude/skills/decompiled-code-extractor/scripts/list_functions.py \
     <db_path> --search "Init" --json
 ```
 

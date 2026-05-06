@@ -16,7 +16,7 @@ def workspace_root(tmp_path):
     """Create a minimal workspace structure for health checks."""
     (tmp_path / "extracted_code").mkdir()
     (tmp_path / "extracted_dbs").mkdir()
-    agent_dir = tmp_path / ".agent"
+    agent_dir = tmp_path / ".claude"
     agent_dir.mkdir()
     (agent_dir / "skills").mkdir()
     (agent_dir / "agents").mkdir()

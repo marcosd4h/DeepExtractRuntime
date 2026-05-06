@@ -18,7 +18,7 @@ Run skill scripts yourself, collect data, synthesize a report. Use for routine a
 **Main tool:**
 
 ```
-python .agent/agents/triage-coordinator/scripts/analyze_module.py <db_path> --goal <goal> [--function <name>] [--json]
+python .claude/agents/triage-coordinator/scripts/analyze_module.py <db_path> --goal <goal> [--function <name>] [--json]
 ```
 
 This script executes a pipeline of skill scripts and returns structured JSON with per-step summaries, workspace file references, and recommended next steps.
@@ -30,7 +30,7 @@ Produce a structured plan for the parent agent to execute specialist subagents i
 **Main tool:**
 
 ```
-python .agent/agents/triage-coordinator/scripts/generate_analysis_plan.py <db_path> --goal <goal> [--function <name>] [--json]
+python .claude/agents/triage-coordinator/scripts/generate_analysis_plan.py <db_path> --goal <goal> [--function <name>] [--json]
 ```
 
 This outputs a phased plan (parallel/sequential) that the parent agent can execute by launching appropriate subagents.
@@ -39,7 +39,7 @@ This outputs a phased plan (parallel/sequential) that the parent agent can execu
 
 For all multi-skill pipelines, use filesystem handoff instead of inline payloads:
 
-- Create a run directory under `.agent/workspace/` (for example: `.agent/workspace/{module}_{goal}_{timestamp}/`)
+- Create a run directory under `.claude/workspace/` (for example: `.claude/workspace/{module}_{goal}_{timestamp}/`)
 - Invoke each skill with:
   - `--workspace-dir <run_dir>`
   - `--workspace-step <step_name>`
@@ -54,13 +54,13 @@ For all multi-skill pipelines, use filesystem handoff instead of inline payloads
 Before any analysis, resolve the module to its analysis database:
 
 ```
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name>
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py <module_name>
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --list
 ```
 
 This maps a module name (e.g., `appinfo.dll`) to its analysis DB path (e.g., `extracted_dbs/appinfo_dll_e98d25a9e8.db`). All subsequent scripts require the DB path.
 
-You can also use the `resolve_module_dir()` helper from `.agent/helpers/` to resolve a module name to its `extracted_code/{module}/` directory (for accessing `function_index.json` and `.cpp` files):
+You can also use the `resolve_module_dir()` helper from `.claude/helpers/` to resolve a module name to its `extracted_code/{module}/` directory (for accessing `function_index.json` and `.cpp` files):
 
 ```python
 from helpers import resolve_module_dir
@@ -169,7 +169,7 @@ critical steps or produces inconsistent output.
 All skill scripts are at:
 
 ```
-.agent/skills/<skill-name>/scripts/<script>.py
+.claude/skills/<skill-name>/scripts/<script>.py
 ```
 
 All scripts accept a DB path as the first positional argument. Most support `--json` for machine-readable output.
@@ -290,16 +290,16 @@ These commands exist and can be recommended as next steps:
 extracted_code/{module}/          Decompiled .cpp files + file_info.json/md + module_profile.json
 extracted_dbs/                    SQLite analysis DBs (assembly, xrefs, strings, loops)
 extracted_dbs/analyzed_files.db   Module index (name -> DB path, status)
-.agent/helpers/                   Python modules for DB access
-.agent/docs/                      Data format references
-.agent/skills/                   Analysis skills with scripts/ subdirs
-.agent/agents/triage-coordinator/scripts/  This subagent's helper scripts
+.claude/helpers/                   Python modules for DB access
+.claude/docs/                      Data format references
+.claude/skills/                   Analysis skills with scripts/ subdirs
+.claude/agents/triage-coordinator/scripts/  This subagent's helper scripts
 ```
 
 ## Helper Scripts (this subagent)
 
 ```
-.agent/agents/triage-coordinator/scripts/
+.claude/agents/triage-coordinator/scripts/
   _common.py                    Shared utilities (DB resolution, subprocess runner, module fingerprinting)
   analyze_module.py             Main pipeline executor (direct execution mode)
   generate_analysis_plan.py     Plan generator (plan generation mode)
@@ -314,7 +314,7 @@ extracted_dbs/analyzed_files.db   Module index (name -> DB path, status)
 - **Cross-module**: `analyzed_files.db` maps module names to DB paths; use it to resolve external calls
 - **File info**: `extracted_code/{module}/file_info.json` has PE metadata; use it for quick identity checks
 - **Module profile**: `extracted_code/{module}/module_profile.json` has pre-computed metrics (library noise ratio, dangerous API categories, complexity stats); use it or the session context Module Profiles section to avoid recomputing
-- **Scratchpad**: For multi-phase workflows, create `.agent/hooks/scratchpads/{session_id}.md` (use the Session ID from your injected context) per the grind-loop-protocol to ensure all phases complete
+- **Scratchpad**: For multi-phase workflows, create `.claude/hooks/scratchpads/{session_id}.md` (use the Session ID from your injected context) per the grind-loop-protocol to ensure all phases complete
 - **Subagent limitation**: Subagents cannot launch other subagents. In plan generation mode, produce the plan and let the parent agent orchestrate.
 
 ## Error Handling

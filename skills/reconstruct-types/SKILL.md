@@ -45,8 +45,8 @@ Individual analysis DBs in `extracted_dbs/` contain per-function data:
 Use the decompiled-code-extractor skill's `find_module_db.py` to locate a module's analysis DB:
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --list
 ```
 
 ### Quick Cross-Dimensional Search
@@ -54,8 +54,8 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list
 To search across function names, signatures, strings, APIs, classes, and exports in one call:
 
 ```bash
-python .agent/helpers/unified_search.py <db_path> --query "SearchTerm"
-python .agent/helpers/unified_search.py <db_path> --query "SearchTerm" --json
+python .claude/helpers/unified_search.py <db_path> --query "SearchTerm"
+python .claude/helpers/unified_search.py <db_path> --query "SearchTerm" --json
 ```
 
 ## Utility Scripts
@@ -66,58 +66,58 @@ Pre-built scripts in `scripts/` handle all DB extraction and analysis. Run from 
 
 ```bash
 # List all classes with method counts
-python .agent/skills/reconstruct-types/scripts/list_types.py extracted_dbs/appinfo_dll_e98d25a9e8.db
+python .claude/skills/reconstruct-types/scripts/list_types.py extracted_dbs/appinfo_dll_e98d25a9e8.db
 
 # Include vtable context availability (slower)
-python .agent/skills/reconstruct-types/scripts/list_types.py extracted_dbs/appinfo_dll_e98d25a9e8.db --with-vtables
+python .claude/skills/reconstruct-types/scripts/list_types.py extracted_dbs/appinfo_dll_e98d25a9e8.db --with-vtables
 
 # JSON output for programmatic use
-python .agent/skills/reconstruct-types/scripts/list_types.py extracted_dbs/appinfo_dll_e98d25a9e8.db --json
+python .claude/skills/reconstruct-types/scripts/list_types.py extracted_dbs/appinfo_dll_e98d25a9e8.db --json
 ```
 
 ### extract_class_hierarchy.py -- Full Class Hierarchy with Methods and VTables
 
 ```bash
 # All classes in a module
-python .agent/skills/reconstruct-types/scripts/extract_class_hierarchy.py extracted_dbs/appinfo_dll_e98d25a9e8.db
+python .claude/skills/reconstruct-types/scripts/extract_class_hierarchy.py extracted_dbs/appinfo_dll_e98d25a9e8.db
 
 # Filter to a specific class
-python .agent/skills/reconstruct-types/scripts/extract_class_hierarchy.py extracted_dbs/appinfo_dll_e98d25a9e8.db --class CSecurityDescriptor
+python .claude/skills/reconstruct-types/scripts/extract_class_hierarchy.py extracted_dbs/appinfo_dll_e98d25a9e8.db --class CSecurityDescriptor
 
 # JSON output
-python .agent/skills/reconstruct-types/scripts/extract_class_hierarchy.py extracted_dbs/appinfo_dll_e98d25a9e8.db --json
+python .claude/skills/reconstruct-types/scripts/extract_class_hierarchy.py extracted_dbs/appinfo_dll_e98d25a9e8.db --json
 ```
 
 ### scan_struct_fields.py -- Core Workhorse: Memory Access Pattern Scanner (Start Here)
 
 ```bash
 # Scan all methods of a specific class (merges fields across functions)
-python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py extracted_dbs/appinfo_dll_e98d25a9e8.db --class CSecurityDescriptor
+python .claude/skills/reconstruct-types/scripts/scan_struct_fields.py extracted_dbs/appinfo_dll_e98d25a9e8.db --class CSecurityDescriptor
 
 # Scan a single function
-python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py extracted_dbs/cmd_exe_6d109a3a00.db --function BatLoop
+python .claude/skills/reconstruct-types/scripts/scan_struct_fields.py extracted_dbs/cmd_exe_6d109a3a00.db --function BatLoop
 
 # Scan a single function by ID
-python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py extracted_dbs/cmd_exe_6d109a3a00.db --id <function_id>
+python .claude/skills/reconstruct-types/scripts/scan_struct_fields.py extracted_dbs/cmd_exe_6d109a3a00.db --id <function_id>
 
 # Scan all classes in a module
-python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py extracted_dbs/appinfo_dll_e98d25a9e8.db --all-classes
+python .claude/skills/reconstruct-types/scripts/scan_struct_fields.py extracted_dbs/appinfo_dll_e98d25a9e8.db --all-classes
 
 # JSON output (can be piped to generate_header.py --from-json)
-python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py extracted_dbs/appinfo_dll_e98d25a9e8.db --all-classes --json
+python .claude/skills/reconstruct-types/scripts/scan_struct_fields.py extracted_dbs/appinfo_dll_e98d25a9e8.db --all-classes --json
 ```
 
 ### generate_header.py -- Produce Compilable .h Header Files
 
 ```bash
 # Generate header for one class
-python .agent/skills/reconstruct-types/scripts/generate_header.py extracted_dbs/appinfo_dll_e98d25a9e8.db --class CSecurityDescriptor
+python .claude/skills/reconstruct-types/scripts/generate_header.py extracted_dbs/appinfo_dll_e98d25a9e8.db --class CSecurityDescriptor
 
 # Generate header for all types, write to file
-python .agent/skills/reconstruct-types/scripts/generate_header.py extracted_dbs/appinfo_dll_e98d25a9e8.db --all --output reconstructed_types.h
+python .claude/skills/reconstruct-types/scripts/generate_header.py extracted_dbs/appinfo_dll_e98d25a9e8.db --all --output reconstructed_types.h
 
 # From pre-computed JSON (output of scan_struct_fields.py --json)
-python .agent/skills/reconstruct-types/scripts/generate_header.py --from-json scan_results.json --output types.h
+python .claude/skills/reconstruct-types/scripts/generate_header.py --from-json scan_results.json --output types.h
 ```
 
 ## Workflows
@@ -138,7 +138,7 @@ Type Reconstruction Progress:
 Find the module's analysis DB:
 
 ```bash
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 ```
 
 **Step 2**: Discover Types
@@ -146,7 +146,7 @@ python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo
 Get an overview of all C++ classes:
 
 ```bash
-python .agent/skills/reconstruct-types/scripts/list_types.py <db_path> --with-vtables
+python .claude/skills/reconstruct-types/scripts/list_types.py <db_path> --with-vtables
 ```
 
 Look for classes with: constructors (initialize fields), vtable symbols (polymorphic), many methods (rich field usage).
@@ -156,7 +156,7 @@ Look for classes with: constructors (initialize fields), vtable symbols (polymor
 For specific target class(es):
 
 ```bash
-python .agent/skills/reconstruct-types/scripts/extract_class_hierarchy.py <db_path> --class <Name> --json
+python .claude/skills/reconstruct-types/scripts/extract_class_hierarchy.py <db_path> --class <Name> --json
 ```
 
 Key data to examine:
@@ -171,7 +171,7 @@ Key data to examine:
 Run the struct field scanner:
 
 ```bash
-python .agent/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> --class <Name>
+python .claude/skills/reconstruct-types/scripts/scan_struct_fields.py <db_path> --class <Name>
 ```
 
 The scanner:
@@ -204,13 +204,13 @@ Review the scan output. The agent should:
 **Step 6**: Generate Headers
 
 ```bash
-python .agent/skills/reconstruct-types/scripts/generate_header.py <db_path> --class <Name> --output types.h
+python .claude/skills/reconstruct-types/scripts/generate_header.py <db_path> --class <Name> --output types.h
 ```
 
 Or for all types at once:
 
 ```bash
-python .agent/skills/reconstruct-types/scripts/generate_header.py <db_path> --all --output module_types.h
+python .claude/skills/reconstruct-types/scripts/generate_header.py <db_path> --all --output module_types.h
 ```
 
 **Step 7**: Refine Incrementally

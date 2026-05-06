@@ -23,7 +23,7 @@ The runtime uses structured JSON error output to stderr via `helpers.errors.emit
 
 - **Symptom**: `resolve_module_db()` returns `None`.
 - **Cause**: The tracking database at `extracted_dbs/analyzed_files.db` is missing, the module name does not match any `file_name` entry, or the module status is not `complete`.
-- **Resolution**: Verify the module name using `python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py --list`. Ensure the extraction process finished successfully.
+- **Resolution**: Verify the module name using `python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py --list`. Ensure the extraction process finished successfully.
 
 ### Function Lookup Failure
 
@@ -41,7 +41,7 @@ The runtime uses structured JSON error output to stderr via `helpers.errors.emit
 
 - **Symptom**: The agent re-invokes automatically but makes no progress on the task list.
 - **Cause**: The scratchpad status is not set to `DONE`, there is a session ID mismatch between the hook and the agent, or the scratchpad file path is incorrect.
-- **Resolution**: Inspect `.agent/hooks/scratchpads/` for the active scratchpad. Manually set the status to `DONE` to stop the loop, or delete the file to reset the task.
+- **Resolution**: Inspect `.claude/hooks/scratchpads/` for the active scratchpad. Manually set the status to `DONE` to stop the loop, or delete the file to reset the task.
 
 ### Script Runner Subprocess Failure
 
@@ -59,16 +59,16 @@ The runtime uses structured JSON error output to stderr via `helpers.errors.emit
 
 - **Symptom**: A coordinator script cannot read results from a previous step.
 - **Cause**: The child step failed to write `results.json` to its designated workspace directory, the `manifest.json` was not updated, or the step exited with an error.
-- **Resolution**: Inspect `.agent/workspace/<run_dir>/manifest.json` to identify the failed step. Check the corresponding step directory for error logs.
+- **Resolution**: Inspect `.claude/workspace/<run_dir>/manifest.json` to identify the failed step. Check the corresponding step directory for error logs.
 
 ## 4.3 Debugging Procedures
 
 - **Parse stderr JSON**: Always check stderr for structured error codes and messages when a script fails.
 - **Bypass Cache**: Use the `--no-cache` flag to eliminate stale or corrupted cache files as a source of error.
-- **Inspect Cache Directory**: List `.agent/cache/<module>/` to verify which operations have been cached and inspect their JSON envelopes.
+- **Inspect Cache Directory**: List `.claude/cache/<module>/` to verify which operations have been cached and inspect their JSON envelopes.
 - **Validate Database**: Use `helpers.validation.quick_validate(db_path)` to check for SQLite schema integrity and required tables.
 - **Direct Execution**: Run skill scripts directly from the terminal with the `--json` flag to isolate subprocess behavior from agent logic.
-- **Inspect Workspace**: Read `.agent/workspace/<run_dir>/manifest.json` to trace the execution status of multi-step pipelines.
+- **Inspect Workspace**: Read `.claude/workspace/<run_dir>/manifest.json` to trace the execution status of multi-step pipelines.
 
 ## 4.4 Script Runner Retry Behavior
 
@@ -76,21 +76,21 @@ The `script_runner.py` module implements a 2-retry loop for transient database e
 
 ## 4.5 Workspace Run Cleanup
 
-Workspace run directories accumulate under `.agent/workspace/` during multi-step workflows (`/triage`, `/full-report`, `/lift-class`). Each run creates a timestamped directory with `manifest.json`, `results.json`, and `summary.json` files.
+Workspace run directories accumulate under `.claude/workspace/` during multi-step workflows (`/triage`, `/full-report`, `/lift-class`). Each run creates a timestamped directory with `manifest.json`, `results.json`, and `summary.json` files.
 
 To clean up stale workspace runs:
 
 ```bash
 # Preview what would be deleted (default: older than 2 days, configurable via hooks.workspace_cleanup_age_hours)
-python .agent/helpers/cleanup_workspace.py --dry-run
+python .claude/helpers/cleanup_workspace.py --dry-run
 
 # Delete workspace runs older than the configured threshold (default: 2 days)
-python .agent/helpers/cleanup_workspace.py
+python .claude/helpers/cleanup_workspace.py
 
 # Delete runs older than 1 day
-python .agent/helpers/cleanup_workspace.py --older-than 1
+python .claude/helpers/cleanup_workspace.py --older-than 1
 ```
 
 Or use the `/cache-manage purge-runs` command from chat.
 
-The cleanup script also removes stale code-lifter state files from `.agent/agents/code-lifter/state/`.
+The cleanup script also removes stale code-lifter state files from `.claude/agents/code-lifter/state/`.

@@ -7,7 +7,7 @@ stdin -> platform detection -> output pipeline.
 
 The grind hook resolves its scratchpad directory from a path relative to the
 script file (not an env var), so tests write scratchpads to the real
-.agent/hooks/scratchpads/ directory using unique session IDs and clean up
+.claude/hooks/scratchpads/ directory using unique session IDs and clean up
 after themselves.
 """
 

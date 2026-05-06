@@ -7,9 +7,9 @@ alwaysApply: true
 
 ## Cache Infrastructure
 
-Skill scripts use the filesystem cache in `.agent/cache/` via `helpers.cache`:
+Skill scripts use the filesystem cache in `.claude/cache/` via `helpers.cache`:
 
-- **Storage**: `.agent/cache/{module}/{operation}.json`
+- **Storage**: `.claude/cache/{module}/{operation}.json`
 - **Freshness**: DB file mtime matching + configurable TTL (default 24h from `cache.max_age_hours`)
 - **Atomicity**: Write-to-temp then `os.replace()`
 - **API**: `get_cached()`, `cache_result()`, `clear_cache()`

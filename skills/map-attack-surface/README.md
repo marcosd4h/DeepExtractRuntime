@@ -8,16 +8,16 @@ Discovers, classifies, and ranks every entry point in a Windows PE binary -- fro
 
 ```bash
 # 1. Find the module DB
-python .agent/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
+python .claude/skills/decompiled-code-extractor/scripts/find_module_db.py appinfo.dll
 
 # 2. Discover all entry points
-python .agent/skills/map-attack-surface/scripts/discover_entrypoints.py extracted_dbs/appinfo_dll_e98d25a9e8.db
+python .claude/skills/map-attack-surface/scripts/discover_entrypoints.py extracted_dbs/appinfo_dll_e98d25a9e8.db
 
 # 3. Rank by attack value
-python .agent/skills/map-attack-surface/scripts/rank_entrypoints.py extracted_dbs/appinfo_dll_e98d25a9e8.db --top 15
+python .claude/skills/map-attack-surface/scripts/rank_entrypoints.py extracted_dbs/appinfo_dll_e98d25a9e8.db --top 15
 
 # 4. Generate CRS-compatible JSON
-python .agent/skills/map-attack-surface/scripts/generate_entrypoints_json.py extracted_dbs/appinfo_dll_e98d25a9e8.db -o entrypoints.json
+python .claude/skills/map-attack-surface/scripts/generate_entrypoints_json.py extracted_dbs/appinfo_dll_e98d25a9e8.db -o entrypoints.json
 ```
 
 ## What It Detects (21 Entry Point Types)
@@ -102,7 +102,7 @@ map-attack-surface/
 ## Dependencies
 
 - Python 3.10+
-- `.agent/helpers/` module (workspace root) -- provides `open_individual_analysis_db`, `open_analyzed_files_db`
+- `.claude/helpers/` module (workspace root) -- provides `open_individual_analysis_db`, `open_analyzed_files_db`
 - SQLite analysis databases from DeepExtractIDA
 
 ## Related Skills

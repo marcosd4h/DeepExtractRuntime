@@ -1,6 +1,6 @@
 """Tests for helpers.db_paths -- path resolution and Windows long-path safety.
 
-Target: .agent/helpers/db_paths.py
+Target: .claude/helpers/db_paths.py
 """
 
 from __future__ import annotations

@@ -1,6 +1,6 @@
 """Lightweight filesystem cache for expensive skill-script results.
 
-Stores JSON results under ``.agent/cache/{module}/{operation}.json``.
+Stores JSON results under ``.claude/cache/{module}/{operation}.json``.
 Validates freshness via DB file modification time and a configurable
 ``max_age_hours`` TTL.  All writes are atomic (write-to-temp then rename)
 to avoid partial-read races.

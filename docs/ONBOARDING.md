@@ -6,7 +6,7 @@ in 5 minutes with the extracted output from your analyzed binaries.
 ## What Is This?
 
 DeepExtractIDA extracts decompiled code and metadata from Windows PE binaries
-using IDA Pro. The `.agent` directory provides the Agent Analysis Runtime
+using IDA Pro. The `.claude` directory provides the Agent Analysis Runtime
 built on top of that extracted data: specialized agents, analysis skills,
 slash commands, and a shared helper library.
 
@@ -131,7 +131,7 @@ Each module has:
 ## Architecture Overview
 
 ```
-.agent/
+.claude/
   agents/          # Specialized subagents
     code-lifter/     # Lifts decompiled functions with shared context
     re-analyst/      # General RE analysis and explanation
@@ -153,8 +153,8 @@ Each module has:
 - **Error handling**: `emit_error()` for fatal errors, `ScriptError` for library errors, `log_warning()` for non-fatal
 - **JSON output**: All `--json` output includes `{"status": "ok", ...}` wrapping
 - **DB access**: Always wrap with `db_error_handler(db_path, "operation")`
-- **Caching**: Results cached in `.agent/cache/<module>/` with TTL + mtime validation
-- **Workspace handoff**: Multi-step workflows use `.agent/workspace/` run directories
+- **Caching**: Results cached in `.claude/cache/<module>/` with TTL + mtime validation
+- **Workspace handoff**: Multi-step workflows use `.claude/workspace/` run directories
 
 ## Troubleshooting
 

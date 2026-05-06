@@ -37,7 +37,7 @@ Default to `campaign` when only a module name is provided.
 Check what data is already available before asking questions:
 
 - Review session context for available modules and module profiles
-- Check `.agent/cache/` and `.agent/workspace/` for prior triage, classification, or attack surface results
+- Check `.claude/cache/` and `.claude/workspace/` for prior triage, classification, or attack surface results
 - Note which modules have been analyzed and what data exists
 - If a specific module is mentioned, check whether `/triage` output exists
 
@@ -98,9 +98,9 @@ Ask focused questions using the AskQuestion tool. Tailor to the mode:
 - Should we go deeper on existing findings or broaden to new areas?
 
 **Context gathering for replan (check all of these):**
-- Cached scan results: `.agent/cache/<module>/`
-- Workspace runs: `.agent/workspace/` manifests
-- Hunt plans (executed or not): `.agent/workspace/*_hunt_plan_*.json`
+- Cached scan results: `.claude/cache/<module>/`
+- Workspace runs: `.claude/workspace/` manifests
+- Hunt plans (executed or not): `.claude/workspace/*_hunt_plan_*.json`
 - Prioritized findings: prior `/prioritize` output
 
 **Approach selection for replan:**
@@ -164,7 +164,7 @@ Loop between steps 3-5 as needed until the researcher approves the plan.
 
 ### 7. Persist the hunt plan
 
-Save the approved plan to `.agent/workspace/<module>_hunt_plan_<timestamp>.json` (using `YYYYMMDD_HHMM` for timestamp) with this schema:
+Save the approved plan to `.claude/workspace/<module>_hunt_plan_<timestamp>.json` (using `YYYYMMDD_HHMM` for timestamp) with this schema:
 
 ```json
 {
@@ -316,7 +316,7 @@ When proposing approaches, map research needs to the full toolkit:
 
 ## Output
 
-The output is an approved research design in the chat conversation, followed by a CreatePlan implementation plan. The plan is also saved to `.agent/workspace/` for use by `/hunt-execute`.
+The output is an approved research design in the chat conversation, followed by a CreatePlan implementation plan. The plan is also saved to `.claude/workspace/` for use by `/hunt-execute`.
 
 ## Error Handling
 

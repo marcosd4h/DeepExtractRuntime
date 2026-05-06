@@ -19,7 +19,7 @@ def prepare_step(run_dir: str | Path, step_name: str) -> dict[str, str]:
     results.json and summary.json. Use before writing step output.
 
     Args:
-        run_dir: Workspace run directory (e.g. .agent/workspace/<run_id>/)
+        run_dir: Workspace run directory (e.g. .claude/workspace/<run_id>/)
         step_name: Step identifier (will be sanitized for path safety)
 
     Returns:

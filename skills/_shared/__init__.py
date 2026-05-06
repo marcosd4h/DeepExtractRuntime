@@ -27,7 +27,7 @@ def bootstrap(anchor_file: str | Path) -> Path:
     handoff.  Returns the workspace root ``Path``.
     """
     root = get_workspace_root(anchor_file)
-    agent_path = root / ".agent"
+    agent_path = root / ".claude"
     if agent_path.is_dir():
         path_entry = str(agent_path)
     else:

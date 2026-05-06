@@ -61,10 +61,10 @@ List all WinRT server classes for a module with full metadata.
 Use `--workspace` to discover which workspace modules implement WinRT servers.
 
 ```bash
-python .agent/skills/winrt-interface-analysis/scripts/resolve_winrt_server.py TaskFlowDataEngine.dll
-python .agent/skills/winrt-interface-analysis/scripts/resolve_winrt_server.py TaskFlowDataEngine.dll --json
-python .agent/skills/winrt-interface-analysis/scripts/resolve_winrt_server.py TaskFlowDataEngine.dll --context medium_il_privileged --json
-python .agent/skills/winrt-interface-analysis/scripts/resolve_winrt_server.py --workspace --json
+python .claude/skills/winrt-interface-analysis/scripts/resolve_winrt_server.py TaskFlowDataEngine.dll
+python .claude/skills/winrt-interface-analysis/scripts/resolve_winrt_server.py TaskFlowDataEngine.dll --json
+python .claude/skills/winrt-interface-analysis/scripts/resolve_winrt_server.py TaskFlowDataEngine.dll --context medium_il_privileged --json
+python .claude/skills/winrt-interface-analysis/scripts/resolve_winrt_server.py --workspace --json
 ```
 
 ### `map_winrt_surface.py`
@@ -75,9 +75,9 @@ to discover which workspace modules implement WinRT servers, use
 `resolve_winrt_server.py --workspace` above.
 
 ```bash
-python .agent/skills/winrt-interface-analysis/scripts/map_winrt_surface.py --system-wide --top 20
-python .agent/skills/winrt-interface-analysis/scripts/map_winrt_surface.py --system-wide --tier critical --json
-python .agent/skills/winrt-interface-analysis/scripts/map_winrt_surface.py --privileged-only --context medium_il_privileged --json
+python .claude/skills/winrt-interface-analysis/scripts/map_winrt_surface.py --system-wide --top 20
+python .claude/skills/winrt-interface-analysis/scripts/map_winrt_surface.py --system-wide --tier critical --json
+python .claude/skills/winrt-interface-analysis/scripts/map_winrt_surface.py --privileged-only --context medium_il_privileged --json
 ```
 
 ### `enumerate_winrt_methods.py`
@@ -85,8 +85,8 @@ python .agent/skills/winrt-interface-analysis/scripts/map_winrt_surface.py --pri
 List methods for a class or module, optionally with pseudo-IDL.
 
 ```bash
-python .agent/skills/winrt-interface-analysis/scripts/enumerate_winrt_methods.py TaskFlowDataEngine.dll --json
-python .agent/skills/winrt-interface-analysis/scripts/enumerate_winrt_methods.py Windows.Internal.Data.Activities.ActivityImageManager --show-pseudo-idl
+python .claude/skills/winrt-interface-analysis/scripts/enumerate_winrt_methods.py TaskFlowDataEngine.dll --json
+python .claude/skills/winrt-interface-analysis/scripts/enumerate_winrt_methods.py Windows.Internal.Data.Activities.ActivityImageManager --show-pseudo-idl
 ```
 
 ### `classify_winrt_entrypoints.py`
@@ -94,8 +94,8 @@ python .agent/skills/winrt-interface-analysis/scripts/enumerate_winrt_methods.py
 Semantic classification of WinRT method names into functional categories.
 
 ```bash
-python .agent/skills/winrt-interface-analysis/scripts/classify_winrt_entrypoints.py TaskFlowDataEngine.dll --json
-python .agent/skills/winrt-interface-analysis/scripts/classify_winrt_entrypoints.py --system-wide --json
+python .claude/skills/winrt-interface-analysis/scripts/classify_winrt_entrypoints.py TaskFlowDataEngine.dll --json
+python .claude/skills/winrt-interface-analysis/scripts/classify_winrt_entrypoints.py --system-wide --json
 ```
 
 ### `audit_winrt_security.py`
@@ -103,7 +103,7 @@ python .agent/skills/winrt-interface-analysis/scripts/classify_winrt_entrypoints
 Security audit combining WinRT metadata with decompiled code analysis.
 
 ```bash
-python .agent/skills/winrt-interface-analysis/scripts/audit_winrt_security.py <db_path> --json
+python .claude/skills/winrt-interface-analysis/scripts/audit_winrt_security.py <db_path> --json
 ```
 
 ### `find_winrt_privesc.py`
@@ -111,8 +111,8 @@ python .agent/skills/winrt-interface-analysis/scripts/audit_winrt_security.py <d
 Find privilege escalation targets: medium-IL reachable SYSTEM servers.
 
 ```bash
-python .agent/skills/winrt-interface-analysis/scripts/find_winrt_privesc.py --json
-python .agent/skills/winrt-interface-analysis/scripts/find_winrt_privesc.py --top 20 --json
+python .claude/skills/winrt-interface-analysis/scripts/find_winrt_privesc.py --json
+python .claude/skills/winrt-interface-analysis/scripts/find_winrt_privesc.py --top 20 --json
 ```
 
 ## Direct Helper Module Access
@@ -176,7 +176,7 @@ python .agent/skills/winrt-interface-analysis/scripts/find_winrt_privesc.py --to
 
 ## Diagnostics
 
-Use `python .agent/helpers/ipc_index_inspect.py --winrt [--module <name>]` to
+Use `python .claude/helpers/ipc_index_inspect.py --winrt [--module <name>]` to
 inspect WinRT index state and module attribution. Use `--edges` to verify
 cross-module WinRT edge injection counts. Use `--check-hosts` to verify no
 servers are misattributed to generic host processes.

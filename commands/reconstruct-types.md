@@ -19,16 +19,16 @@ The text after `/reconstruct-types` specifies a **module** and optionally a **cl
 
 This command uses the **type-reconstructor** agent's `reconstruct_all.py` pipeline, plus optional validation:
 
-1. Create `.agent/workspace/<module>_reconstruct_types_<timestamp>/`.
+1. Create `.claude/workspace/<module>_reconstruct_types_<timestamp>/`.
 2. Pass `--workspace-dir <run_dir>` and `--workspace-step reconstruct` to the `reconstruct_all.py` invocation.
 3. Keep only summary output in context; read full intermediate data from `<run_dir>/reconstruct/results.json` when presenting results.
 4. Use `<run_dir>/manifest.json` to track completed/failed steps.
 
 ## Execution Context
 
-> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.agent`
-> (so the `.agent/` directory is on `sys.path`), **not** from the workspace root.
-> Script invocations like `python .agent/skills/.../script.py` can be run from the workspace root
+> **IMPORTANT**: Any inline Python that imports `helpers.*` must run with `cd <workspace>/.claude`
+> (so the `.claude/` directory is on `sys.path`), **not** from the workspace root.
+> Script invocations like `python .claude/skills/.../script.py` can be run from the workspace root
 > because those scripts manage their own path setup.
 
 ## Steps
@@ -48,16 +48,16 @@ If validation fails, report the errors and stop. On success, use `result.resolve
 
    ```bash
    # Single class
-   python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --class <ClassName> --json
+   python .claude/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --class <ClassName> --json
 
    # Full module
-   python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --json
+   python .claude/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --json
 
    # With COM interface reconstruction
-   python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --include-com --json
+   python .claude/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --include-com --json
 
    # With output file
-   python .agent/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --output <path> --json
+   python .claude/agents/type-reconstructor/scripts/reconstruct_all.py <db_path> --output <path> --json
    ```
 
    If the user requests `--include-com`, pass `--include-com` to `reconstruct_all.py`. If the user requests `--output`, pass `--output <path>`.
@@ -66,7 +66,7 @@ If validation fails, report the errors and stop. On success, use `result.resolve
    If the user requests `--validate`, use the **type-reconstructor** agent's `validate_layout.py`:
 
    ```bash
-   python .agent/agents/type-reconstructor/scripts/validate_layout.py <db_path> --header <header_path>
+   python .claude/agents/type-reconstructor/scripts/validate_layout.py <db_path> --header <header_path>
    ```
 
 ### Step Dependencies
