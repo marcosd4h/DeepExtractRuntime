@@ -8,7 +8,7 @@ from __future__ import annotations
 import pytest
 from unittest.mock import patch, MagicMock
 
-from helpers.claude_common import (
+from helpers.agent_common import (
     AgentBase,
     AgentOrchestrator,
     AgentStep,
@@ -108,7 +108,7 @@ class TestAgentStepResult:
 
 
 class TestAgentBase:
-    @patch("helpers.claude_common._run_skill_script")
+    @patch("helpers.agent_common._run_skill_script")
     def test_run_skill_script_result_success(self, mock_run):
         mock_run.return_value = {
             "success": True,
@@ -128,7 +128,7 @@ class TestAgentBase:
         assert result["json_data"] == {"total": 5}
         mock_run.assert_called_once()
 
-    @patch("helpers.claude_common._run_skill_script")
+    @patch("helpers.agent_common._run_skill_script")
     def test_run_skill_script_returns_json_data(self, mock_run):
         mock_run.return_value = {
             "success": True,
@@ -140,7 +140,7 @@ class TestAgentBase:
         data = base.run_skill_script("classify", "triage.py", ["db"])
         assert data == [{"name": "foo"}]
 
-    @patch("helpers.claude_common._run_skill_script")
+    @patch("helpers.agent_common._run_skill_script")
     def test_run_skill_script_failure_returns_none(self, mock_run):
         mock_run.return_value = {
             "success": False,
@@ -152,7 +152,7 @@ class TestAgentBase:
         data = base.run_skill_script("classify", "triage.py", ["db"])
         assert data is None
 
-    @patch("helpers.claude_common._run_skill_script")
+    @patch("helpers.agent_common._run_skill_script")
     def test_run_skill_script_passes_workspace_args(self, mock_run):
         mock_run.return_value = {"success": True, "exit_code": 0, "json_data": None, "error": None}
         base = AgentBase()
@@ -174,7 +174,7 @@ class TestAgentBase:
 
 
 class TestAgentOrchestrator:
-    @patch("helpers.claude_common._run_skill_script")
+    @patch("helpers.agent_common._run_skill_script")
     def test_run_step_success(self, mock_run):
         mock_run.return_value = {
             "success": True,
@@ -191,7 +191,7 @@ class TestAgentOrchestrator:
         assert result.name == "s1"
         assert result.elapsed_seconds >= 0
 
-    @patch("helpers.claude_common._run_skill_script")
+    @patch("helpers.agent_common._run_skill_script")
     def test_run_step_failure(self, mock_run):
         mock_run.return_value = {
             "success": False,
@@ -207,7 +207,7 @@ class TestAgentOrchestrator:
         assert result.success is False
         assert orch._failures == 1
 
-    @patch("helpers.claude_common._run_skill_script")
+    @patch("helpers.agent_common._run_skill_script")
     def test_run_steps_sequential(self, mock_run):
         mock_run.return_value = {
             "success": True,
@@ -228,7 +228,7 @@ class TestAgentOrchestrator:
         assert results[1].name == "b"
         assert mock_run.call_count == 2
 
-    @patch("helpers.claude_common._run_skill_script")
+    @patch("helpers.agent_common._run_skill_script")
     def test_circuit_breaker_opens_after_threshold(self, mock_run):
         mock_run.return_value = {
             "success": False,
@@ -252,7 +252,7 @@ class TestAgentOrchestrator:
         assert orch.summary()["circuit_open"] is True
         assert mock_run.call_count == 2
 
-    @patch("helpers.claude_common._run_skill_script")
+    @patch("helpers.agent_common._run_skill_script")
     def test_summary_aggregates_results(self, mock_run):
         mock_run.return_value = {
             "success": True,

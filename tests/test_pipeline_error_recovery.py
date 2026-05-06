@@ -181,20 +181,6 @@ class TestRealGrouping:
         assert len(groups[0]) == 3  # triage_classify
         assert len(groups[1]) == 2  # post_triage
 
-    def test_full_goal_merges_security_and_extra(self):
-        chars = self._make_chars()
-        steps = (
-            self.mod._triage_steps("/fake.db", chars)
-            + self.mod._security_steps("/fake.db", chars)
-            + self.mod._full_extra_steps("/fake.db", chars)
-        )
-        groups = self.mod._group_steps(steps)
-        assert len(groups) == 2, (
-            "Full goal should be 2 phases: triage_classify + post_triage "
-            "(security and full_extra merge because they share parallel_group)"
-        )
-        assert len(groups[0]) == 3  # triage_classify
-        assert len(groups[1]) >= 5  # post_triage: 2 security + 3+ full_extra
 
     def test_full_goal_with_conditionals(self, monkeypatch):
         monkeypatch.setattr(

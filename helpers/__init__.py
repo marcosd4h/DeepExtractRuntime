@@ -217,10 +217,10 @@ _LAZY_IMPORTS: dict[str, tuple[str, str | None]] = {
     "validate_workspace_data": (".validation", None),
     "quick_validate": (".validation", None),
     # agent_common
-    "AgentBase": (".claude_common", None),
-    "AgentOrchestrator": (".claude_common", None),
-    "AgentStep": (".claude_common", None),
-    "AgentStepResult": (".claude_common", None),
+    "AgentBase": (".agent_common", None),
+    "AgentOrchestrator": (".agent_common", None),
+    "AgentStep": (".agent_common", None),
+    "AgentStepResult": (".agent_common", None),
     # api_taxonomy (import-prefix utilities)
     "strip_import_prefix": (".api_taxonomy", None),
     "IMP_PREFIX_RE": (".api_taxonomy", None),
